@@ -213,7 +213,7 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
                     dir.display()
                 ));
             }
-            println!("");
+            println!();
             println!("Next steps:");
             println!("  1. Log out and back in (Docker containers keep running — Plex/*arr unaffected)");
             println!("  2. Enable the extension: gnome-extensions enable {EXT_UUID}");
