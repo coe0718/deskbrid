@@ -174,7 +174,7 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
             let installed = dir.join("extension.js").exists();
             if !installed {
                 println!("❌ deskbrid extension NOT installed");
-                println!("   Run `deskbrid extension install` to install it, then restart GNOME Shell (Alt+F2, type 'r', Enter, or log out/back in)");
+                println!("   Run `deskbrid extension install` to install it, then log out and back in (Docker containers keep running — Plex/*arr won't be affected)");
                 return Ok(());
             }
 
@@ -192,7 +192,7 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
             } else if output.status.success() && info.contains("STATE: disabled") {
                 println!("⚠️  deskbrid extension is installed but DISABLED");
                 println!("   Run: gnome-extensions enable {EXT_UUID}");
-                println!("   Then restart GNOME Shell (Alt+F2, type 'r', Enter)");
+                println!("   Then log out and back in (Docker containers keep running)");
             } else if output.status.success() {
                 println!("⚠️  deskbrid extension installed (unknown state)");
                 println!("   {info}");
@@ -215,9 +215,8 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
             }
             println!("");
             println!("Next steps:");
-            println!("  1. Enable the extension: gnome-extensions enable {EXT_UUID}");
-            println!("  2. Restart GNOME Shell: Alt+F2 → type 'r' → Enter");
-            println!("     (or log out and back in on Wayland)");
+            println!("  1. Log out and back in (Docker containers keep running — Plex/*arr unaffected)");
+            println!("  2. Enable the extension: gnome-extensions enable {EXT_UUID}");
             println!("  3. Verify: gnome-extensions info {EXT_UUID}");
             println!("  4. Start deskbrid daemon and run: deskbrid action window:list '{{}}'");
             Ok(())
