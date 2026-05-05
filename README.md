@@ -2,104 +2,178 @@
 
 **The HAL your Linux desktop agents are missing.**
 
-A standalone daemon that wraps Wayland protocols, DBus APIs, and PipeWire into a single JSON-over-Unix-socket protocol. Any agent platform — Hermes, Praxis, Claude Code, OpenAI Operator, whatever comes next — can connect and get full desktop control.
+A standalone daemon that wraps Wayland protocols, DBus APIs, and PipeWire into a single JSON-over-Unix-socket protocol. One binary. Zero config. Every agent platform can use it.
 
 ```json
-→ {"action": "window:focus", "params": {"app_id": "firefox"}}
 → {"action": "inject:type", "params": {"text": "git push origin main\n"}}
 ← {"type": "event", "event": "clipboard", "data": {"text": "git push origin main"}}
 ```
 
-## Why
-
-macOS agents walk on water because they've got AppleScript, Accessibility APIs, and a platform that doesn't fight back. Linux agents have `xdotool` that breaks on Wayland and a pile of different DBus APIs with different conventions.
-
-Deskbrid is the **one thing to install** that makes your agent native on Linux desktop — window focus tracking, clipboard access, input injection, screen capture, notification monitoring, audio control. A standard protocol any agent implements against.
-
-## Quick Start
+## One-minute demo
 
 ```bash
-# Install
+cargo run daemon &
+deskbrid info                         # see what's available
+deskbrid subscribe window:focus       # watch what you click
+deskbrid action screenshot            # take the screenshot
+deskbrid action clipboard:read        # grab what's copied
+```
+
+Or run `bash demo.sh` for a full walkthrough.
+
+## Why
+
+macOS agents walk on water — AppleScript, Accessibility APIs, a platform that doesn't fight back. Linux agents have `xdotool` that breaks on Wayland and a pile of different DBus APIs with different conventions.
+
+Every agent platform on Linux has the same problem. Deskbrid is the **one thing to install** that solves it for all of them.
+
+## Install
+
+```bash
+# From source
 cargo install deskbrid
+deskbrid daemon
 
-# Run
-deskbrid
+# Or from the repo
+git clone https://github.com/coe0718/deskbrid
+cd deskbrid
+cargo run daemon
 
-# Test from another terminal
-nc -U "$XDG_RUNTIME_DIR/deskbrid/socket"
-{"type":"subscribe","events":["window:focus","clipboard","notifications"]}
+# Python client (optional — agents use this)
+pip install ./clients/python/
+```
+
+Systemd user service:
+```bash
+cp deploy/deskbrid.service ~/.config/systemd/user/
+systemctl --user enable --now deskbrid
 ```
 
 ## Prerequisites
 
-- `wl-clipboard` for clipboard read/write support
-- `gnome-screenshot` or `grim` for screenshots
-- `systemd` for the user service
+```bash
+sudo apt install wl-clipboard grim    # clipboard + screenshots
+```
 
-## Protocol
+## What you can do
 
-See [PROTOCOL.md](PROTOCOL.md) for the full spec.
+### 🖥️ Window control
+| Action | What it does |
+|---|---|
+| `window:list` | List all open windows (title, app_id, pid, workspace, geometry) |
+| `window:focus` | Focus a window by app_id or title |
+| subscribe `window:focus` | Stream focus changes in real-time |
 
-### Events (daemon → agent)
-- `window:focus` / `window:open` / `window:close` — window lifecycle
-- `clipboard` — clipboard content changes
-- `notifications` — desktop notification arrival
-- `idle` — user idle state changes
-- `audio:node` — audio node state changes
+### ⌨️ Input injection
+| Action | What it does |
+|---|---|
+| `inject:type` | Type text into the focused window |
+| `inject:key` | Send key combos (ctrl+shift+t, alt+f4, super+d) |
+| `inject:mouse` | Click, move, scroll the mouse |
 
-### Actions (agent → daemon)
-- `window:list` / `window:focus` — window management
-- `inject:type` / `inject:key` / `inject:mouse` — input injection
-- `clipboard:read` / `clipboard:write` — clipboard access
-- `screenshot` / `screencast:start|stop` — screen capture
-- `notification:send` — desktop notifications
-- `display:list` — monitor configuration
+### 📋 Clipboard
+| Action | What it does |
+|---|---|
+| `clipboard:read` | Read current clipboard content |
+| `clipboard:write` | Write to clipboard |
+| subscribe `clipboard` | Watch for clipboard changes |
 
-## Client Libraries
+### 📸 Screen capture
+| Action | What it does |
+|---|---|
+| `screenshot` | Capture the screen (gnome-screenshot or grim) |
+| `screencast:start/stop` | Stream screen via PipeWire *(Phase 2)* |
 
-- **Python**: `pip install deskbrid` *(planned)*
-- **Rust**: `deskbrid = "0.1"` *(planned)*
-- **TypeScript**: `npm install deskbrid` *(planned)*
+### 🔔 Notifications
+| Action | What it does |
+|---|---|
+| `notification:send` | Send a desktop notification |
+| subscribe `notifications` | Watch incoming notifications |
+
+### 📺 Display
+| Action | What it does |
+|---|---|
+| `display:list` | List monitors (resolution, scale, refresh rate) |
+
+### 🎵 Audio *(planned)*
+| subscribe `audio:node` | Watch audio device state changes |
+
+## Client libraries
+
+| Language | Status | Install |
+|---|---|---|
+| **Python** | ✅ **Done** | `pip install ./clients/python/` |
+| **Rust** (built-in CLI) | ✅ **Done** | `cargo install deskbrid` |
+| **Hermes / Praxis** | ✅ **Done** | See [`hermes/`](hermes/) directory |
+| TypeScript | 🔄 Planned | `npm install deskbrid` |
+
+### Python
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+
+# Subscribe to events
+@client.on("window:focus")
+def on_focus(w):
+    print(f"Focused: {w.app_id} — {w.title}")
+
+# Actions
+client.type_text("deploy production\n")
+keys = client.send_keys(["ctrl", "shift", "t"])
+text = client.clipboard_read().text
+path = client.screenshot()
+
+client.listen()  # blocks, streaming events
+```
 
 ## Architecture
 
 ```
-┌─────────────────────┐
-│    Agent (any)       │
-│  JSON over Unix sock │
-└──────────┬──────────┘
-           │
-┌──────────▼──────────┐
-│    deskbrid daemon    │
-│  ┌──────┐ ┌───────┐  │
-│  │ DBus │ │  Way- │  │
-│  │ Hub  │ │ land  │  │
-│  └──┬───┘ │  Ext  │  │
-│     │     └───┬───┘  │
-│  ┌──▼─────────▼───┐  │
-│  │   PipeWire      │  │
-│  │   Stream Mgr    │  │
-│  └─────────────────┘  │
-└────────────────────────┘
+┌──────────────┐     JSON over Unix socket
+│   Agent       │◄──────────────────────────┐
+│ (any platform)│                           │
+└──────────────┘                            │
+                                     ┌──────┴──────────┐
+                                     │  deskbrid daemon  │
+                                     │  ┌────┐ ┌──────┐ │
+                                     │  │DBus│ │Input │ │
+                                     │  │Hub │ │Muttr │ │
+                                     │  └─┬──┘ └──┬───┘ │
+                                     │  ┌─▼──────▼───┐  │
+                                     │  │  Clipboard │  │
+                                     │  │  Screenshot│  │
+                                     │  └────────────┘  │
+                                     └──────────────────┘
 ```
 
-## Platform Support
+## Supported desktops
 
 | Desktop | Session | Status |
 |---|---|---|
-| GNOME 42+ | Wayland | ✅ Primary target |
-| GNOME 40+ | Wayland | ⚠️ Untested, should work |
+| GNOME 42+ | Wayland | ✅ Tested |
+| GNOME 40+ | Wayland | ⚠️ Should work |
 | KDE Plasma | Wayland | 🔄 Planned |
 | Sway / wlroots | Wayland | 🔄 Planned |
-| X11 (any) | X11 | ❌ Not planned (use xdotool/yad) |
+| X11 | X11 | ❌ Not planned |
 
-## Why Standalone
+## Why standalone
 
-Deskbrid is **not** tied to any agent platform. It's a Unix daemon with a documented protocol, like `pipewire` or `systemd`. If you're building an agent platform and you want desktop access, you implement the 15-line client for the protocol. Deskbrid does the rest.
+Deskbrid is **not** tied to any agent platform. It's a Unix daemon with a documented protocol, like `pipewire` or `systemd`. Any agent — Hermes, Praxis, Claude Code, OpenAI Operator — implements the 15-line client and gets full desktop control.
 
 > "But I can just call DBus from my agent."
 >
-> Cool. You'll need to learn GNOME Shell's Eval API, Mutter's RemoteDesktop session lifecycle, PipeWire's stream negotiation, the portal API for screenshots, and the notification spec. You'll need to figure out GVariant parsing. You'll need to handle permission grants and session teardown. OR you install one binary and send JSON.
+> Cool. You'll need to learn GNOME Shell's Eval API, Mutter's RemoteDesktop session lifecycle, PipeWire's stream negotiation, the portal API for screenshots, and the notification spec. You'll need to figure out GVariant parsing. You'll need to handle permission grants and session teardown.
+>
+> Or you install one binary and send JSON.
+
+```python
+# The "agent platform integration" — this is it
+from deskbrid import Deskbrid
+client = Deskbrid()
+client.type_text("git push\n")
+```
 
 ## License
 
