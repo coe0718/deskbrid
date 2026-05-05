@@ -4,11 +4,10 @@ use crate::events::EventBus;
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::sync::RwLock;
-use tokio::time::{self, Duration};
 use tracing::warn;
 
 #[derive(Clone)]
@@ -80,27 +79,61 @@ impl Monitor {
     }
 
     async fn watch(&self, event_bus: EventBus, mut shutdown: watch::Receiver<bool>) {
-        let mut ticker = time::interval(Duration::from_millis(200));
         loop {
-            tokio::select! {
-                _ = shutdown.changed() => break,
-                _ = ticker.tick() => {
-                    match self.read().await {
-                        Ok(text) => {
-                            let mut guard = self.last_text.write().await;
-                            if guard.as_ref() != Some(&text) {
-                                *guard = Some(text.clone());
-                                event_bus.emit(
-                                    "clipboard",
-                                    serde_json::json!({
-                                        "text": text,
-                                        "mime_types": ["text/plain"],
-                                        "timestamp": now_ts(),
-                                    }),
-                                );
+            let mut child = match Command::new("wl-paste")
+                .arg("--watch")
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .kill_on_drop(true)
+                .spawn()
+            {
+                Ok(child) => child,
+                Err(error) => {
+                    warn!("clipboard watch spawn failed: {error:#}");
+                    break;
+                }
+            };
+
+            let stdout = match child.stdout.take() {
+                Some(stdout) => stdout,
+                None => {
+                    warn!("clipboard watch stdout unavailable");
+                    break;
+                }
+            };
+            let mut lines = BufReader::new(stdout).lines();
+
+            loop {
+                tokio::select! {
+                    _ = shutdown.changed() => return,
+                    change = lines.next_line() => match change {
+                        Ok(Some(_)) => {
+                            match self.read().await {
+                                Ok(text) => {
+                                    let mut guard = self.last_text.write().await;
+                                    if guard.as_ref() != Some(&text) {
+                                        *guard = Some(text.clone());
+                                        event_bus.emit(
+                                            "clipboard",
+                                            serde_json::json!({
+                                                "text": text,
+                                                "mime_types": ["text/plain"],
+                                                "timestamp": now_ts(),
+                                            }),
+                                        );
+                                    }
+                                }
+                                Err(error) => warn!("clipboard read failed after watch event: {error:#}"),
                             }
                         }
-                        Err(error) => warn!("clipboard poll failed: {error:#}"),
+                        Ok(None) => {
+                            warn!("clipboard watch exited");
+                            break;
+                        }
+                        Err(error) => {
+                            warn!("clipboard watch read failed: {error:#}");
+                            break;
+                        }
                     }
                 }
             }

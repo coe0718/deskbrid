@@ -19,6 +19,12 @@ pub struct EventBus {
     tx: broadcast::Sender<DesktopEvent>,
 }
 
+impl Default for EventBus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventBus {
     /// Create a new event bus.
     pub fn new() -> Self {

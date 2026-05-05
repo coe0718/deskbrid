@@ -55,6 +55,7 @@ class AsyncDeskbrid:
         self._reader_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._hello: dict[str, Any] | None = None
+        self._closed_event = asyncio.Event()
 
     async def connect(self) -> None:
         should_resubscribe = False
@@ -88,6 +89,7 @@ class AsyncDeskbrid:
 
     async def close(self) -> None:
         self._closed = True
+        self._closed_event.set()
         self._connected.clear()
         if self._reconnect_task is not None:
             self._reconnect_task.cancel()
@@ -115,8 +117,7 @@ class AsyncDeskbrid:
 
     async def listen(self) -> None:
         await self.connect()
-        while not self._closed:
-            await asyncio.sleep(3600)
+        await self._closed_event.wait()
 
     async def type_text(self, text: str) -> None:
         await self._request("inject:type", {"text": text})
@@ -339,6 +340,7 @@ class Deskbrid:
         reconnect_delay: float = 1.0,
     ) -> None:
         self._loop = _LoopThread()
+        self._closed_event = threading.Event()
         self._client = self._loop.submit(
             self._create_client(socket_path=socket_path, reconnect_delay=reconnect_delay)
         ).result()
@@ -354,6 +356,7 @@ class Deskbrid:
 
     def close(self) -> None:
         self._loop.submit(self._client.close()).result()
+        self._closed_event.set()
         self._loop.stop()
 
     def on(self, event: str) -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
@@ -369,7 +372,10 @@ class Deskbrid:
 
     def listen(self) -> None:
         try:
-            self._loop.submit(self._client.listen()).result()
+            self._loop.submit(self._client.connect()).result()
+            # The background asyncio loop keeps event callbacks active; the sync API only needs
+            # to block the calling thread until close() or Ctrl-C ends the session.
+            self._closed_event.wait()
         except KeyboardInterrupt:
             self.close()
             raise

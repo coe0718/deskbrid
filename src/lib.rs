@@ -14,6 +14,8 @@ pub mod input;
 pub mod protocol;
 
 use anyhow::{anyhow, Context, Result};
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -64,6 +66,8 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
 
     let listener = UnixListener::bind(&socket_path)
         .with_context(|| format!("binding socket {}", socket_path.display()))?;
+    fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600))
+        .with_context(|| format!("setting socket permissions on {}", socket_path.display()))?;
     info!("listening on {}", socket_path.display());
 
     let event_bus = events::EventBus::new();

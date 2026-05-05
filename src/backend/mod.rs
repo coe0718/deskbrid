@@ -125,7 +125,7 @@ pub async fn create_backend(
     event_bus: EventBus,
     shutdown: watch::Receiver<bool>,
 ) -> Result<Box<dyn DesktopBackend>> {
-    match detect_desktop() {
+    match detect_desktop().await {
         DesktopType::Gnome => Ok(Box::new(GnomeBackend::new(event_bus, shutdown).await?)),
         DesktopType::Kde => Err(anyhow!("KDE backend not yet implemented")),
         DesktopType::Wlroots => Ok(Box::new(WlrootsBackend::new(event_bus).await?)),

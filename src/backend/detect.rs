@@ -9,44 +9,48 @@ pub enum DesktopType {
     Other,
 }
 
-pub fn detect_desktop() -> DesktopType {
-    if env_contains(
-        &[
-            "XDG_CURRENT_DESKTOP",
-            "XDG_SESSION_DESKTOP",
-            "DESKTOP_SESSION",
-        ],
-        "gnome",
-    ) {
-        return DesktopType::Gnome;
-    }
-    if env_contains(
-        &[
-            "XDG_CURRENT_DESKTOP",
-            "XDG_SESSION_DESKTOP",
-            "DESKTOP_SESSION",
-        ],
-        "kde",
-    ) || env_contains(&["XDG_CURRENT_DESKTOP"], "plasma")
-    {
-        return DesktopType::Kde;
-    }
+pub async fn detect_desktop() -> DesktopType {
+    tokio::task::spawn_blocking(|| {
+        if env_contains(
+            &[
+                "XDG_CURRENT_DESKTOP",
+                "XDG_SESSION_DESKTOP",
+                "DESKTOP_SESSION",
+            ],
+            "gnome",
+        ) {
+            return DesktopType::Gnome;
+        }
+        if env_contains(
+            &[
+                "XDG_CURRENT_DESKTOP",
+                "XDG_SESSION_DESKTOP",
+                "DESKTOP_SESSION",
+            ],
+            "kde",
+        ) || env_contains(&["XDG_CURRENT_DESKTOP"], "plasma")
+        {
+            return DesktopType::Kde;
+        }
 
-    if process_exists(&["gnome-shell"]) {
-        return DesktopType::Gnome;
-    }
-    if process_exists(&["kwin_wayland", "kwin_x11", "plasmashell"]) {
-        return DesktopType::Kde;
-    }
-    if command_exists("sway", Some("--version"))
-        || command_exists("hyprctl", None)
-        || command_exists("riverctl", None)
-        || command_exists("wayfire", Some("--version"))
-    {
-        return DesktopType::Wlroots;
-    }
+        if process_exists(&["gnome-shell"]) {
+            return DesktopType::Gnome;
+        }
+        if process_exists(&["kwin_wayland", "kwin_x11", "plasmashell"]) {
+            return DesktopType::Kde;
+        }
+        if command_exists("sway", Some("--version"))
+            || command_exists("hyprctl", None)
+            || command_exists("riverctl", None)
+            || command_exists("wayfire", Some("--version"))
+        {
+            return DesktopType::Wlroots;
+        }
 
-    DesktopType::Other
+        DesktopType::Other
+    })
+    .await
+    .unwrap_or(DesktopType::Other)
 }
 
 fn env_contains(vars: &[&str], needle: &str) -> bool {
