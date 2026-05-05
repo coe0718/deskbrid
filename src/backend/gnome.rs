@@ -324,8 +324,7 @@ impl DesktopBackend for GnomeBackend {
             .call("ListWindows", &())
             .await
             .context("calling ListWindows on deskbrid extension")?;
-        serde_json::from_str(&result)
-            .with_context(|| format!("parsing window list json: {result}"))
+        serde_json::from_str(&result).with_context(|| format!("parsing window list json: {result}"))
     }
 
     async fn focus_window(
@@ -342,7 +341,10 @@ impl DesktopBackend for GnomeBackend {
             .await
             .context("creating deskbrid window manager proxy")?;
         let success: bool = proxy
-            .call("FocusWindow", &(app_id.unwrap_or_default(), title.unwrap_or_default(), exact))
+            .call(
+                "FocusWindow",
+                &(app_id.unwrap_or_default(), title.unwrap_or_default(), exact),
+            )
             .await
             .context("calling FocusWindow on deskbrid extension")?;
 
@@ -530,10 +532,7 @@ enum InputApi {
 
 /// Detect the RemoteDesktop API by introspecting the session's
 /// NotifyPointerMotionAbsolute method signature.
-async fn detect_input_api(
-    conn: &zbus::Connection,
-    path: &OwnedObjectPath,
-) -> Result<InputApi> {
+async fn detect_input_api(conn: &zbus::Connection, path: &OwnedObjectPath) -> Result<InputApi> {
     let introspect_proxy = zbus::Proxy::new(
         conn,
         MUTTER_DEST,
@@ -583,7 +582,9 @@ impl GnomeInputSession {
                 .context("starting remote desktop session")?;
         }
 
-        let api = detect_input_api(&conn, &path).await.unwrap_or(InputApi::New);
+        let api = detect_input_api(&conn, &path)
+            .await
+            .unwrap_or(InputApi::New);
 
         Ok(Self {
             conn,
@@ -614,7 +615,7 @@ impl GnomeInputSession {
         Ok(())
     }
 
-async fn notify_keyboard(&self, keystate: bool, keycode: u32) -> Result<()> {
+    async fn notify_keyboard(&self, keystate: bool, keycode: u32) -> Result<()> {
         let proxy = self.session_proxy().await?;
         let _: () = proxy
             .call("NotifyKeyboardKeycode", &(keycode, keystate))
@@ -636,7 +637,10 @@ async fn notify_keyboard(&self, keystate: bool, keycode: u32) -> Result<()> {
         match self.api {
             InputApi::New => {
                 let _: () = proxy
-                    .call("NotifyPointerMotionAbsolute", &(x, y, _stream_width, _stream_height))
+                    .call(
+                        "NotifyPointerMotionAbsolute",
+                        &(x, y, _stream_width, _stream_height),
+                    )
                     .await
                     .context("injecting absolute pointer motion")?;
                 Ok(())
@@ -664,10 +668,7 @@ async fn notify_keyboard(&self, keystate: bool, keycode: u32) -> Result<()> {
 
     async fn notify_pointer_button(&self, button: i32, state: bool) -> Result<()> {
         let proxy = self.session_proxy().await?;
-        match proxy
-            .call("NotifyPointerButton", &(button, state))
-            .await
-        {
+        match proxy.call("NotifyPointerButton", &(button, state)).await {
             Ok(()) => Ok(()),
             Err(e) => {
                 warn!("NotifyPointerButton DBus error: {e:#}");
@@ -757,8 +758,10 @@ impl InputBackend for GnomeInputSession {
                     .unwrap_or("left");
                 let button = pointer_button_code(button_name)?;
                 self.notify_pointer_motion_absolute(x, y, 1.0, 1.0).await?;
-                self.notify_pointer_button(button as i32, BUTTON_PRESSED).await?;
-                self.notify_pointer_button(button as i32, BUTTON_RELEASED).await?;
+                self.notify_pointer_button(button as i32, BUTTON_PRESSED)
+                    .await?;
+                self.notify_pointer_button(button as i32, BUTTON_RELEASED)
+                    .await?;
             }
             "scroll" => {
                 let dx = params.get("dx").and_then(Value::as_f64).unwrap_or(0.0);

@@ -206,7 +206,10 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
         ExtensionCommand::Install => {
             let dir = ext_dir()?;
             if dir.join("extension.js").exists() {
-                println!("✅ deskbrid extension already installed at {}", dir.display());
+                println!(
+                    "✅ deskbrid extension already installed at {}",
+                    dir.display()
+                );
             } else {
                 return Err(anyhow!(
                     "Extension files not found at {}. Rebuild deskbrid with `cargo build` first.",
@@ -215,7 +218,9 @@ async fn run_extension(command: ExtensionCommand) -> Result<()> {
             }
             println!();
             println!("Next steps:");
-            println!("  1. Log out and back in (Docker containers keep running — Plex/*arr unaffected)");
+            println!(
+                "  1. Log out and back in (Docker containers keep running — Plex/*arr unaffected)"
+            );
             println!("  2. Enable the extension: gnome-extensions enable {EXT_UUID}");
             println!("  3. Verify: gnome-extensions info {EXT_UUID}");
             println!("  4. Start deskbrid daemon and run: deskbrid action window:list '{{}}'");
