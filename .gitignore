@@ -7,3 +7,9 @@ deskbrid.iml
 .vscode/
 .idea/
 *.session
+__pycache__/
+*.pyc
+build/
+*.egg-info/
+.codex
+.codex-prompt.md

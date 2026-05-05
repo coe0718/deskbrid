@@ -1,0 +1,30 @@
+kind = "Http"
+name = "deskbrid"
+description = "Send actions to the deskbrid daemon via Unix socket"
+required_level = 2
+requires_approval = true
+
+[endpoint]
+method = "POST"
+url = "http://localhost/deskbrid/action"
+unix_socket = "$XDG_RUNTIME_DIR/deskbrid/socket"
+content_type = "application/json"
+
+[endpoint.params]
+type = "action"
+id = "string UUID generated per request"
+action = "string action name such as info, window:list, inject:type, screenshot"
+params = "object containing action-specific parameters"
+
+[response]
+content_type = "application/json"
+success = '{ "type": "result", "id": "uuid", "ok": true, "data": { ... } }'
+error = '{ "type": "result", "id": "uuid", "ok": false, "error": "code", "message": "details" }'
+
+[response.fields]
+type = "Always result for action responses"
+id = "Matches the request ID"
+ok = "Boolean success flag"
+data = "Object payload on success"
+error = "Machine-readable error code on failure"
+message = "Human-readable failure details"
