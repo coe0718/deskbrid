@@ -60,12 +60,7 @@ impl DesktopBackend for WlrootsBackend {
         ))
     }
 
-    async fn send_notification(
-        &self,
-        _summary: &str,
-        _body: &str,
-        _urgency: &str,
-    ) -> Result<u32> {
+    async fn send_notification(&self, _summary: &str, _body: &str, _urgency: &str) -> Result<u32> {
         Err(not_supported(
             "notifications",
             "wlroots compositors do not expose a common notification API here",

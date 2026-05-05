@@ -75,7 +75,7 @@ pub async fn run(config: config::Config, shutdown: watch::Receiver<bool>) -> Res
             None
         }
     };
-    let backend = backend::create_backend(event_bus.clone()).await?;
+    let backend = backend::create_backend(event_bus.clone(), shutdown.clone()).await?;
 
     let state = Arc::new(DaemonState {
         backend,
@@ -336,8 +336,7 @@ async fn dispatch_action(
                 .get("monitor")
                 .and_then(serde_json::Value::as_u64)
                 .map(|value| value as u32);
-            let path = capture::screenshot(monitor).await?;
-            Ok(serde_json::json!({ "path": path }))
+            state.backend.screenshot(monitor).await
         }
         "screencast:start" => {
             let monitor = params
@@ -348,8 +347,7 @@ async fn dispatch_action(
                 .get("framerate")
                 .and_then(serde_json::Value::as_u64)
                 .unwrap_or(15) as u32;
-            let node_id = capture::start_screencast(monitor, framerate).await?;
-            Ok(serde_json::json!({ "node_id": node_id }))
+            state.backend.start_screencast(monitor, framerate).await
         }
         "screencast:stop" => {
             let node_id = params
@@ -357,7 +355,7 @@ async fn dispatch_action(
                 .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| anyhow!("missing 'node_id' param"))?
                 as u32;
-            capture::stop_screencast(node_id).await?;
+            state.backend.stop_screencast(node_id).await?;
             Ok(serde_json::json!({}))
         }
         "info" => Ok(serde_json::json!({

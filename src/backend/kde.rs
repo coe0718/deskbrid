@@ -18,7 +18,12 @@ impl DesktopBackend for KdeBackend {
         Err(not_supported("window listing"))
     }
 
-    async fn focus_window(&self, _app_id: Option<&str>, _title: Option<&str>, _exact: bool) -> Result<()> {
+    async fn focus_window(
+        &self,
+        _app_id: Option<&str>,
+        _title: Option<&str>,
+        _exact: bool,
+    ) -> Result<()> {
         Err(not_supported("window focusing"))
     }
 

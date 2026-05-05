@@ -1,3 +1,5 @@
+use crate::backend::audio::spawn_audio_monitor;
+use crate::backend::screencast::{self, ScreencastSession};
 use crate::backend::types::{MonitorInfo, WindowInfo};
 use crate::backend::{DesktopBackend, InputBackend};
 use crate::events::EventBus;
@@ -9,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use tokio::time::{self, Duration};
 use tracing::{debug, warn};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue};
@@ -57,6 +59,7 @@ type LogicalMonitor = (
 #[derive(Clone)]
 pub struct GnomeBackend {
     conn: zbus::Connection,
+    screencasts: Arc<Mutex<HashMap<u32, ScreencastSession>>>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -77,12 +80,16 @@ pub struct GnomeInputSession {
 }
 
 impl GnomeBackend {
-    pub async fn new(event_bus: EventBus) -> Result<Self> {
+    pub async fn new(event_bus: EventBus, shutdown: watch::Receiver<bool>) -> Result<Self> {
         let conn = zbus::Connection::session()
             .await
             .context("connecting to session bus")?;
-        let backend = Self { conn };
-        backend.spawn_watchers(event_bus);
+        let backend = Self {
+            conn,
+            screencasts: Arc::new(Mutex::new(HashMap::new())),
+        };
+        backend.spawn_watchers(event_bus.clone());
+        spawn_audio_monitor(event_bus, shutdown);
         Ok(backend)
     }
 
@@ -98,7 +105,10 @@ impl GnomeBackend {
         let notifications_backend = self.clone();
         let notifications_bus = event_bus.clone();
         tokio::spawn(async move {
-            if let Err(error) = notifications_backend.watch_notifications(notifications_bus).await {
+            if let Err(error) = notifications_backend
+                .watch_notifications(notifications_bus)
+                .await
+            {
                 warn!("notification watcher failed: {error:#}");
             }
         });
@@ -192,7 +202,11 @@ impl GnomeBackend {
         let mut block: Vec<String> = Vec::new();
 
         loop {
-            match lines.next_line().await.context("reading dbus-monitor output")? {
+            match lines
+                .next_line()
+                .await
+                .context("reading dbus-monitor output")?
+            {
                 Some(line) => {
                     if line.trim().is_empty() {
                         if let Some(event) = parse_notification_block(&block) {
@@ -256,6 +270,40 @@ impl GnomeBackend {
 
         serde_json::from_str(&result).with_context(|| format!("parsing shell eval json: {result}"))
     }
+
+    async fn display_connectors(&self) -> Result<Vec<String>> {
+        let proxy = zbus::Proxy::new(
+            &self.conn,
+            DISPLAY_CONFIG_DEST,
+            DISPLAY_CONFIG_PATH,
+            DISPLAY_CONFIG_IFACE,
+        )
+        .await
+        .context("creating mutter display config proxy")?;
+
+        let (_serial, monitors, _logical_monitors, _properties): (
+            u32,
+            Vec<PhysicalMonitor>,
+            Vec<LogicalMonitor>,
+            HashMap<String, OwnedValue>,
+        ) = proxy
+            .call("GetCurrentState", &())
+            .await
+            .context("calling org.gnome.Mutter.DisplayConfig.GetCurrentState")?;
+
+        Ok(monitors
+            .into_iter()
+            .map(|((connector, _, _, _), _, _)| connector)
+            .collect())
+    }
+
+    async fn monitor_connector(&self, monitor: u32) -> Result<String> {
+        let connectors = self.display_connectors().await?;
+        connectors
+            .get(monitor as usize)
+            .cloned()
+            .ok_or_else(|| anyhow!("unknown monitor id: {monitor}"))
+    }
 }
 
 #[async_trait]
@@ -281,7 +329,12 @@ impl DesktopBackend for GnomeBackend {
         self.eval_json(script).await
     }
 
-    async fn focus_window(&self, app_id: Option<&str>, title: Option<&str>, exact: bool) -> Result<()> {
+    async fn focus_window(
+        &self,
+        app_id: Option<&str>,
+        title: Option<&str>,
+        exact: bool,
+    ) -> Result<()> {
         if app_id.is_none() && title.is_none() {
             return Err(anyhow!("window:focus requires app_id or title"));
         }
@@ -313,7 +366,11 @@ impl DesktopBackend for GnomeBackend {
         );
 
         let result: serde_json::Value = self.eval_json(&script).await?;
-        if result.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false) {
+        if result
+            .get("ok")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+        {
             Ok(())
         } else {
             Err(anyhow!("no matching window found"))
@@ -424,11 +481,60 @@ impl DesktopBackend for GnomeBackend {
             .context("sending notification")
     }
 
+    async fn screenshot(&self, monitor: Option<u32>) -> Result<Value> {
+        let connector = self.monitor_connector(monitor.unwrap_or(0)).await?;
+        let result = screencast::screenshot(&self.conn, &connector).await?;
+        Ok(serde_json::json!({
+            "path": result.path,
+            "width": result.width,
+            "height": result.height,
+        }))
+    }
+
+    async fn start_screencast(&self, monitor: u32, framerate: u32) -> Result<Value> {
+        let connector = self.monitor_connector(monitor).await?;
+        let started = screencast::start_screencast(&self.conn, &connector, framerate).await?;
+        self.screencasts
+            .lock()
+            .await
+            .insert(started.node_id, started.session);
+
+        Ok(serde_json::json!({
+            "node_id": started.node_id,
+            "width": started.width,
+            "height": started.height,
+        }))
+    }
+
+    async fn stop_screencast(&self, node_id: u32) -> Result<()> {
+        let session = self
+            .screencasts
+            .lock()
+            .await
+            .remove(&node_id)
+            .ok_or_else(|| anyhow!("unknown screencast node_id: {node_id}"))?;
+        screencast::stop_screencast(&self.conn, &session).await
+    }
+
     fn desktop_name(&self) -> &'static str {
         "GNOME"
     }
 
     fn capabilities(&self) -> &'static [&'static str] {
+        #[cfg(feature = "pipewire")]
+        {
+            &[
+                "window",
+                "notifications",
+                "display",
+                "idle",
+                "inject",
+                "screenshot",
+                "screencast",
+                "audio",
+            ]
+        }
+        #[cfg(not(feature = "pipewire"))]
         &[
             "window",
             "notifications",
@@ -436,8 +542,6 @@ impl DesktopBackend for GnomeBackend {
             "idle",
             "inject",
             "screenshot",
-            "screencast",
-            "audio",
         ]
     }
 }

@@ -10,11 +10,22 @@ pub enum DesktopType {
 }
 
 pub fn detect_desktop() -> DesktopType {
-    if env_contains(&["XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION"], "gnome") {
+    if env_contains(
+        &[
+            "XDG_CURRENT_DESKTOP",
+            "XDG_SESSION_DESKTOP",
+            "DESKTOP_SESSION",
+        ],
+        "gnome",
+    ) {
         return DesktopType::Gnome;
     }
     if env_contains(
-        &["XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION"],
+        &[
+            "XDG_CURRENT_DESKTOP",
+            "XDG_SESSION_DESKTOP",
+            "DESKTOP_SESSION",
+        ],
         "kde",
     ) || env_contains(&["XDG_CURRENT_DESKTOP"], "plasma")
     {
