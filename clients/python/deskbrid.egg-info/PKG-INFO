@@ -1,6 +1,0 @@
-Metadata-Version: 2.4
-Name: deskbrid
-Version: 0.1.0
-Summary: Python client for the Deskbrid JSON socket protocol
-Author: Deskbrid
-Requires-Python: >=3.9
