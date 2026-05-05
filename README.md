@@ -1,13 +1,23 @@
 # deskbrid
 
-**The HAL your Linux desktop agents are missing.**
+**Whether a shell script or an AI agent is on the other end, the socket doesn't care.**
 
-A standalone daemon that wraps Wayland protocols, DBus APIs, and PipeWire into a single JSON-over-Unix-socket protocol. One binary. Zero config. Every agent platform can use it.
+A single daemon that wraps Wayland protocols, DBus APIs, and PipeWire into a JSON-over-Unix-socket protocol. One binary. Zero config. Both your shell scripts and your AI agents use the same socket.
 
-```json
+```bash
+# A shell script using it
+deskbrid action clipboard:read | grep "TODO" | notify-send
+
+# An AI agent using it (same socket, same protocol)
 → {"action": "inject:type", "params": {"text": "git push origin main\n"}}
 ← {"type": "event", "event": "clipboard", "data": {"text": "git push origin main"}}
 ```
+
+## Why now
+
+Every major AI lab is racing to ship desktop agents — OpenAI Operator, Claude Code, Codex — and Linux is the gap nobody has solved cleanly. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has... `xdotool` that breaks on Wayland.
+
+Deskbrid is the missing abstraction layer, built at exactly the moment it's needed. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
 
 ## One-minute demo
 
@@ -164,9 +174,7 @@ Deskbrid is **not** tied to any agent platform. It's a Unix daemon with a docume
 
 > "But I can just call DBus from my agent."
 >
-> Cool. You'll need to learn GNOME Shell's Eval API, Mutter's RemoteDesktop session lifecycle, PipeWire's stream negotiation, the portal API for screenshots, and the notification spec. You'll need to figure out GVariant parsing. You'll need to handle permission grants and session teardown.
->
-> Or you install one binary and send JSON.
+> You could learn GNOME Shell's Eval API, Mutter's RemoteDesktop session lifecycle, PipeWire's stream negotiation, the notification spec, and GVariant parsing. Or you install one binary and send JSON.
 
 ```python
 # The "agent platform integration" — this is it
