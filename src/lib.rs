@@ -4,6 +4,7 @@
 //! into a JSON-over-Unix-socket protocol for agent-native desktop control.
 
 pub mod capture;
+pub mod cli;
 pub mod clipboard;
 pub mod config;
 pub mod dbus;
@@ -408,6 +409,12 @@ fn action_error(error: &anyhow::Error) -> (&'static str, String) {
     let message = error.to_string();
     if let Some(capability) = message.strip_prefix("not_supported: ") {
         ("not_supported", capability.to_string())
+    } else if message.starts_with("missing ")
+        || message.starts_with("invalid ")
+        || message.starts_with("unknown ")
+        || message.starts_with("unsupported ")
+    {
+        ("invalid_params", message)
     } else {
         ("internal_error", message)
     }

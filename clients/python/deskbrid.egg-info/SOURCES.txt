@@ -1,0 +1,9 @@
+pyproject.toml
+deskbrid/__init__.py
+deskbrid/client.py
+deskbrid/events.py
+deskbrid/models.py
+deskbrid.egg-info/PKG-INFO
+deskbrid.egg-info/SOURCES.txt
+deskbrid.egg-info/dependency_links.txt
+deskbrid.egg-info/top_level.txt
