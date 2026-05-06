@@ -82,6 +82,7 @@ impl Monitor {
         loop {
             let mut child = match Command::new("wl-paste")
                 .arg("--watch")
+                .arg("echo")
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .kill_on_drop(true)

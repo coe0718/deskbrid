@@ -65,6 +65,20 @@ let _dbusImpl = null;
 let _dbusId = 0;
 let _focusSignalId = 0;
 let _windowCreatedId = 0;
+let _ownName, _unownName;
+
+// Feature-detect DBus API: GNOME 45+ uses Gio.DbusUtils, older uses Gio.bus_own_name
+if (Gio.DbusUtils) {
+    _ownName = (name) => Gio.DbusUtils.own_name(
+        name, Gio.BusNameAppOwnershipFlags.NONE, null, null, null, null
+    );
+    _unownName = (id) => Gio.DbusUtils.unown_name(id);
+} else {
+    _ownName = (name) => Gio.bus_own_name(
+        Gio.BusType.SESSION, name, Gio.BusNameOwnerFlags.NONE, null, null, null
+    );
+    _unownName = (id) => Gio.bus_unown_name(id);
+}
 
 function emitWindowStateChanged() {
     if (_debounceTimer) {
@@ -116,15 +130,8 @@ function enable() {
         }
     });
 
-    // GNOME 42 compatible DBus name ownership
-    _dbusId = Gio.bus_own_name(
-        Gio.BusType.SESSION,
-        DBUS_SERVICE,
-        Gio.BusNameOwnerFlags.NONE,
-        null,
-        null,
-        null
-    );
+    // DBus name ownership (auto-detected for GNOME version)
+    _dbusId = _ownName(DBUS_SERVICE);
 
     _dbusImpl.export(Gio.DBus.session, DBUS_PATH);
 
@@ -155,7 +162,7 @@ function disable() {
         _dbusImpl = null;
     }
     if (_dbusId) {
-        Gio.bus_unown_name(_dbusId);
+        _unownName(_dbusId);
         _dbusId = 0;
     }
     if (_debounceTimer) {
