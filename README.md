@@ -32,7 +32,9 @@ Deskbrid fills that gap. It doesn't bet on agents taking off — automation use 
 ## Quick start
 
 ```bash
-# 1. Install system dependencies
+# 1. Clone and install system dependencies
+git clone https://github.com/coe0718/deskbrid
+cd deskbrid
 sudo apt install -y grim wl-clipboard wtype
 
 # 2. Install the GNOME Shell extension
@@ -42,8 +44,6 @@ gnome-extensions enable deskbrid@deskbrid
 # 3. Log out and back in (GNOME must reload extensions)
 
 # 4. Build and run
-git clone https://github.com/coe0718/deskbrid
-cd deskbrid
 cargo build --release
 ./target/release/deskbrid daemon &
 
