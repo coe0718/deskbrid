@@ -249,6 +249,202 @@ pub enum Action {
 }
 
 impl Action {
+    /// Parse an incoming NDJSON line into an Action.
+    pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
+        let raw: serde_json::Value = serde_json::from_str(line)?;
+        let msg_type = raw["type"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("missing 'type' field"))?
+            .to_string();
+        let id = raw["id"]
+            .as_str()
+            .unwrap_or("?")
+            .to_string();
+
+        let action = match msg_type.as_str() {
+            "ping" => Action::Ping,
+
+            // Windows
+            "windows.list" => Action::WindowsList,
+            "windows.focus" => Action::WindowsFocus(raw["window_id"].as_str().unwrap_or("").into()),
+            "windows.get" => Action::WindowsGet(raw["window_id"].as_str().unwrap_or("").into()),
+
+            // Workspaces
+            "workspaces.list" => Action::WorkspacesList,
+            "workspaces.switch" => Action::WorkspaceSwitch(raw["workspace_id"].as_u64().unwrap_or(0) as u32),
+            "workspaces.move_window" => Action::WorkspaceMoveWindow {
+                window_id: raw["window_id"].as_str().unwrap_or("").into(),
+                workspace_id: raw["workspace_id"].as_u64().unwrap_or(0) as u32,
+                follow: raw["follow"].as_bool().unwrap_or(false),
+            },
+
+            // Input
+            "input.keyboard" => {
+                let sub = raw["action"].as_str().unwrap_or("key");
+                match sub {
+                    "type" => Action::InputKeyboardType {
+                        text: raw["text"].as_str().unwrap_or("").into(),
+                    },
+                    "combo" => {
+                        let keys: Vec<String> = raw["keys"]
+                            .as_array()
+                            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                            .unwrap_or_default();
+                        Action::InputKeyboardCombo { keys }
+                    }
+                    _ => Action::InputKeyboardKey {
+                        key: raw["key"].as_str().unwrap_or("").into(),
+                    },
+                }
+            }
+            "input.mouse" => Action::InputMouse {
+                action: raw["action"].as_str().unwrap_or("move").into(),
+                x: raw["x"].as_f64(),
+                y: raw["y"].as_f64(),
+                button: raw["button"].as_str().map(String::from),
+                dx: raw["dx"].as_f64(),
+                dy: raw["dy"].as_f64(),
+            },
+
+            // Clipboard
+            "clipboard.read" => Action::ClipboardRead,
+            "clipboard.write" => Action::ClipboardWrite {
+                text: raw["text"].as_str().unwrap_or("").into(),
+            },
+
+            // Screenshot
+            "screenshot" => Action::Screenshot {
+                monitor: raw["monitor"].as_u64().map(|v| v as u32),
+                region: raw.get("region").and_then(|r| {
+                    Some(Region {
+                        x: r["x"].as_u64()? as u32,
+                        y: r["y"].as_u64()? as u32,
+                        width: r["width"].as_u64()? as u32,
+                        height: r["height"].as_u64()? as u32,
+                    })
+                }),
+                window_id: raw["window_id"].as_str().map(String::from),
+            },
+
+            // Notifications
+            "notification.send" => Action::NotificationSend {
+                app_name: raw["app_name"].as_str().unwrap_or("deskbrid").into(),
+                title: raw["title"].as_str().unwrap_or("").into(),
+                body: raw["body"].as_str().unwrap_or("").into(),
+                urgency: raw["urgency"].as_str().unwrap_or("normal").into(),
+            },
+            "notification.close" => Action::NotificationClose {
+                notification_id: raw["notification_id"].as_u64().unwrap_or(0) as u32,
+            },
+
+            // System
+            "system.info" => Action::SystemInfo,
+            "system.idle" => Action::SystemIdle,
+            "system.power" => Action::SystemPower {
+                action: raw["action"].as_str().unwrap_or("").into(),
+            },
+            "system.battery" => Action::SystemBattery,
+
+            // Network
+            "network.status" => Action::NetworkStatus,
+            "network.interfaces" => Action::NetworkInterfaces,
+            "network.wifi.scan" => Action::NetworkWifiScan,
+            "network.wifi.connect" => Action::NetworkWifiConnect {
+                ssid: raw["ssid"].as_str().unwrap_or("").into(),
+                password: raw["password"].as_str().map(String::from),
+            },
+
+            // Bluetooth
+            "bluetooth.list" => Action::BluetoothList,
+            "bluetooth.scan" => Action::BluetoothScan {
+                duration: raw["duration"].as_u64().map(|v| v as u32),
+            },
+            "bluetooth.scan_stop" => Action::BluetoothStopScan,
+            "bluetooth.connect" => Action::BluetoothConnect {
+                address: raw["address"].as_str().unwrap_or("").into(),
+            },
+            "bluetooth.disconnect" => Action::BluetoothDisconnect {
+                address: raw["address"].as_str().unwrap_or("").into(),
+            },
+            "bluetooth.pair" => Action::BluetoothPair {
+                address: raw["address"].as_str().unwrap_or("").into(),
+            },
+            "bluetooth.forget" => Action::BluetoothForget {
+                address: raw["address"].as_str().unwrap_or("").into(),
+            },
+
+            // Files
+            "files.watch" => Action::FilesWatch {
+                path: raw["path"].as_str().unwrap_or("").into(),
+                recursive: raw["recursive"].as_bool().unwrap_or(true),
+                patterns: raw["patterns"].as_array().map(|a| {
+                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                }),
+            },
+            "files.unwatch" => Action::FilesUnwatch {
+                path: raw["path"].as_str().unwrap_or("").into(),
+            },
+            "files.search" => Action::FilesSearch {
+                pattern: raw["pattern"].as_str().unwrap_or("").into(),
+                root: raw["root"].as_str().map(String::from),
+                max_results: raw["max_results"].as_u64().unwrap_or(50) as u32,
+            },
+
+            // Process
+            "process.list" => Action::ProcessList,
+            "process.start" => Action::ProcessStart {
+                command: raw["command"].as_array().map(|a| {
+                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                }).unwrap_or_default(),
+                workdir: raw["workdir"].as_str().map(String::from),
+                env: raw["env"].as_object().map(|o| {
+                    o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect()
+                }),
+            },
+
+            // Hotkeys
+            "hotkeys.register" => Action::HotkeysRegister {
+                hotkey_id: raw["hotkey_id"].as_str().unwrap_or("").into(),
+                keys: raw["keys"].as_array().map(|a| {
+                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                }).unwrap_or_default(),
+            },
+            "hotkeys.unregister" => Action::HotkeysUnregister {
+                hotkey_id: raw["hotkey_id"].as_str().unwrap_or("").into(),
+            },
+
+            // Audio
+            "audio.list_sinks" => Action::AudioListSinks,
+            "audio.set_sink_volume" => Action::AudioSetSinkVolume {
+                sink_id: raw["sink_id"].as_u64().unwrap_or(0) as u32,
+                volume: raw["volume"].as_f64().unwrap_or(1.0),
+            },
+
+            // Monitor
+            "monitor.list" => Action::MonitorList,
+
+            // Location
+            "location.get" => Action::LocationGet,
+
+            // Connection
+            "subscribe" => Action::Subscribe {
+                events: raw["events"].as_array().map(|a| {
+                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                }).unwrap_or_default(),
+            },
+            "unsubscribe" => Action::Unsubscribe {
+                events: raw["events"].as_array().map(|a| {
+                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                }).unwrap_or_default(),
+            },
+            "disconnect" => Action::Disconnect,
+
+            _ => anyhow::bail!("unknown action type: {}", msg_type),
+        };
+
+        Ok((id, action))
+    }
+
     /// Convert action to a JSON envelope string
     pub fn to_json(&self) -> anyhow::Result<String> {
         let msg_type = self.action_type();
