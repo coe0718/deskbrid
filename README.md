@@ -1,84 +1,55 @@
 # deskbrid
 
 <p align="center">
-  <img src="logo.png" alt="deskbrid logo" width="400">
+  <img src="logo.png" alt="deskbrid logo" width="280">
+</p>
+
+<p align="center">
+  <a href="https://github.com/coe0718/deskbrid/actions"><img src="https://github.com/coe0718/deskbrid/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2021%20edition-orange.svg" alt="Rust 2021"></a>
 </p>
 
 **The HAL your Linux desktop agents are missing.**
 
-A single daemon that wraps GNOME Shell, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON-over-Unix-socket protocol. One binary. Your shell scripts and AI agents use the same socket.
+Deskbrid is a single Rust binary that wraps GNOME Shell, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into one JSON-over-Unix-socket protocol. Your shell scripts and AI agents use the same socket.
 
 ```bash
-# A human using the CLI
+# Human
 deskbrid windows list
 deskbrid keyboard type "git push origin main"
 
-# An AI agent using the same socket
-{"action": "windows.list"}
-→ {"type": "response", "data": [{"title": "PatchHive — VS Code", "app_id": "code", ...}]}
-
-{"action": "windows.focus", "window_id": "0x..."}
-{"action": "input.keyboard", "action": "type", "text": "Hey Codex, fix the build\n"}
+# Agent (same socket)
+{"action": "windows.list"}  →  [{"title": "VS Code", "app_id": "code", ...}]
 ```
 
-## Why now
+## Why
 
-Every major AI lab is racing to ship desktop agents — and Linux is the gap nobody has solved cleanly. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has... `xdotool` that breaks on Wayland.
+Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
-Deskbrid is the missing abstraction layer. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
+Deskbrid fills that gap. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
 
-## Real-world example: an AI agent opening VS Code
-
-```
-→ {"action": "windows.list"}
-← {"type": "response", "data": [
-    {"title": "PatchHive — Visual Studio Code", "app_id": "code", "id": "0x3a0000b", ...},
-    {"title": "praxis/src/daemon.rs — Visual Studio Code", "app_id": "code", "id": "0x2c0000a", ...}
-  ]}
-
-→ {"action": "windows.focus", "window_id": "0x3a0000b"}   # Bring PatchHive to front
-← {"type": "response", "status": "ok"}
-
-→ {"action": "input.mouse", "action": "move", "x": 900, "y": 920}
-→ {"action": "input.mouse", "action": "click", "button": "left"}   # Click Codex chat input
-→ {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
-```
-
-The agent picks the right window by title, focuses it, clicks into the chat, and types.
-
-## One-minute demo
+## Quick start
 
 ```bash
-# Fire up the daemon
-deskbrid daemon &
+# 1. Install system dependencies
+sudo apt install -y grim wl-clipboard wtype
 
-# Query your desktop
-deskbrid system info
-deskbrid windows list
-deskbrid battery
-deskbrid network status
+# 2. Install the GNOME Shell extension
+cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
+gnome-extensions enable deskbrid@deskbrid
 
-# Interact
-deskbrid clipboard read
-deskbrid screenshot
-deskbrid notification send "deskbrid" "Hello" "👋"
+# 3. Log out and back in (GNOME must reload extensions)
 
-# Watch for file changes
-deskbrid subscribe '["file.*"]'    # then touch /tmp/test — you'll see events
-```
-
-## Install
-
-```bash
+# 4. Build and run
 git clone https://github.com/coe0718/deskbrid
 cd deskbrid
 cargo build --release
-sudo cp target/release/deskbrid /usr/local/bin/
+./target/release/deskbrid daemon &
 
-# Systemd user service
-mkdir -p ~/.config/systemd/user/
-cp deploy/deskbrid.service ~/.config/systemd/user/
-systemctl --user enable --now deskbrid
+# 5. Test it
+./target/release/deskbrid windows list
+./target/release/deskbrid system info
 ```
 
 ## Supported desktops
@@ -86,22 +57,14 @@ systemctl --user enable --now deskbrid
 | Desktop | Session | Status |
 |---|---|---|
 | **GNOME 46+** | Wayland | ✅ Supported |
-| GNOME 42-45 | Wayland | ❌ Dropped in v2 |
+| GNOME 45 | Wayland | ✅ Supported |
 | KDE Plasma | Wayland | 🔄 Planned |
 | X11 | X11 | ❌ Not planned |
 
-## Prerequisites
-
-```bash
-sudo apt install wl-clipboard grim wtype   # clipboard + screenshots + keyboard
-# For mouse input, also install ydotool:
-sudo apt install ydotool
-```
-
-## What you can do
+## What it can do
 
 ### 🖥️ Windows & Workspaces
-| Action | What it does |
+| Action | Description |
 |---|---|
 | `windows.list` | List all open windows (title, app_id, workspace, geometry) |
 | `windows.focus` | Focus a window by ID |
@@ -111,7 +74,7 @@ sudo apt install ydotool
 | `workspaces.move_window` | Move a window to another workspace |
 
 ### ⌨️ Input
-| Action | What it does |
+| Action | Description |
 |---|---|
 | `input.keyboard type` | Type text into the focused window |
 | `input.keyboard key` | Send a single keypress |
@@ -120,77 +83,71 @@ sudo apt install ydotool
 | `input.mouse click` | Click (left/middle/right) |
 | `input.mouse scroll` | Scroll (dx/dy) |
 
-### 📋 Clipboard
-| Action | What it does |
+### 📋 Clipboard · 📸 Screenshots · 🔔 Notifications
+| Action | Description |
 |---|---|
-| `clipboard.read` | Read current Wayland clipboard |
+| `clipboard.read` | Read Wayland clipboard |
 | `clipboard.write` | Write to Wayland clipboard |
-
-### 📸 Screenshots
-| Action | What it does |
-|---|---|
 | `screenshot` | Capture screen (full, region, or window) |
-
-### 🔔 Notifications
-| Action | What it does |
-|---|---|
 | `notification.send` | Send a desktop notification |
 | `notification.close` | Close a notification by ID |
 
-### ⚙️ System
-| Action | What it does |
+### ⚙️ System · 🌐 Network · 📡 Bluetooth · 🎵 Audio · 📁 Files
+| Action | Description |
 |---|---|
 | `system.info` | Desktop info (GNOME version, monitors, workspaces) |
 | `system.idle` | Seconds since last user input |
 | `system.battery` | Battery percentage, state, time remaining |
 | `system.power` | Suspend, hibernate, shutdown, reboot, lock, logout |
-
-### 🌐 Network
-| Action | What it does |
-|---|---|
 | `network.status` | Online/offline via NetworkManager |
 | `network.interfaces` | List interfaces with IPs |
 | `network.wifi.scan` | Scan for WiFi networks |
 | `network.wifi.connect` | Connect to a WiFi network |
-
-### 📡 Bluetooth
-| Action | What it does |
-|---|---|
 | `bluetooth.list` | List known/available devices |
 | `bluetooth.scan` | Start device discovery |
-| `bluetooth.stop_scan` | Stop discovery |
 | `bluetooth.connect` | Connect to a device |
-| `bluetooth.disconnect` | Disconnect from a device |
-
-### 🎵 Audio
-| Action | What it does |
-|---|---|
 | `audio.list_sinks` | List audio output devices |
 | `audio.set_sink_volume` | Set sink volume (0.0-1.0) |
-
-### 📁 Files
-| Action | What it does |
-|---|---|
-| `files.search` | Search files by name (fd/find) |
+| `files.search` | Search files by name |
 | `files.watch` | Watch a path for changes (creates, modifies, deletes) |
 | `files.unwatch` | Stop watching a path |
 
 ### 📡 Events (subscribe)
+```json
+{"action": "subscribe", "events": ["file.*"]}
+```
 | Pattern | What you get |
 |---|---|
 | `file.*` | file.created, file.modified, file.deleted |
 | `file.created` | Just file creation events |
 | `*` | Everything |
 
+## Real-world example: an AI agent controlling VS Code
+
+```
+→ {"action": "windows.list"}
+← [{"title": "PatchHive — VS Code", "app_id": "code", ...},
+   {"title": "praxis — VS Code", "app_id": "code", ...}]
+
+→ {"action": "windows.focus", "window_id": "0x3a0000b"}
+← {"type": "response", "status": "ok"}
+
+→ {"action": "input.mouse", "action": "move", "x": 900, "y": 920}
+→ {"action": "input.mouse", "action": "click", "button": "left"}
+→ {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
+```
+
+The agent picks the right window by title, brings it to front, clicks into the chat input, and types.
+
 ## Client libraries
 
 | Language | Status | Install |
 |---|---|---|
 | **Python** | ✅ Done | `pip install ./clients/python/` |
-| **Rust** (built-in CLI) | ✅ Done | `cargo install deskbrid` |
+| **Rust** (built-in CLI) | ✅ Done | CLI included in binary |
 | TypeScript | 🔄 Planned | `npm install deskbrid` |
 
-### Python
+### Python example
 
 ```python
 from deskbrid import Deskbrid
@@ -213,12 +170,12 @@ client.listen()  # blocks, streaming events
 
 ## How it works
 
-Deskbrid is a single Rust binary that binds a Unix socket at `$XDG_RUNTIME_DIR/deskbrid.sock`. Every interaction is one JSON line → one JSON line. Agents subscribe to events by sending `{"action": "subscribe", "events": ["file.*"]}` and get pushed events as they happen.
+Deskbrid binds a Unix socket at `$XDG_RUNTIME_DIR/deskbrid.sock`. Every interaction is one JSON line in → one JSON line out. Agents subscribe to events and get pushed real-time updates.
 
 Under the hood it talks to:
 - **GNOME Shell** via DBus (windows, workspaces)
 - **Mutter** (IdleMonitor)
-- **NetworkManager** (network status, WiFi)
+- **NetworkManager** (network, WiFi)
 - **BlueZ** (Bluetooth)
 - **UPower** (battery)
 - **org.freedesktop.Notifications** (notifications)
@@ -227,7 +184,24 @@ Under the hood it talks to:
 - **ydotool** (mouse control)
 - **wl-paste/wl-copy** (clipboard)
 - **pactl** (audio)
-- **notify crate** (file watching with inotify)
+- **notify crate** (inotify file watching)
+
+## Compared to alternatives
+
+| Tool | Wayland | Agent-native | JSON protocol | Typed input | Screen capture |
+|---|---|---|---|---|---|
+| **deskbrid** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| xdotool | ❌ | ❌ | ❌ | ✅ | ❌ |
+| ydotool | ✅ | ❌ | ❌ | ❌ | ❌ |
+| atspi | limited | ❌ | ❌ | ❌ | ❌ |
+| wtype | ✅ | ❌ | ❌ | ✅ | ❌ |
+| grim | ✅ | ❌ | ❌ | ❌ | ✅ |
+
+Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use.
+
+## Full protocol
+
+See **[PROTOCOL.md](PROTOCOL.md)** for the complete JSON-over-socket specification.
 
 ## License
 
