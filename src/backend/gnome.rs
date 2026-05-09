@@ -1379,31 +1379,37 @@ impl GnomeBackend {
 
 /// Parse the JSON string returned by the extension's ListWindows() method.
 fn parse_extension_json_windows(raw: &str) -> anyhow::Result<Vec<protocol::WindowInfo>> {
-    // gdbus wraps the return in parentheses: ('[{...},{...}]',)
+    // gdbus wraps the return like: ('[{...},{...}]',)
     let inner = raw.trim().trim_start_matches('(').trim_end_matches(')');
-    let json_str = inner.trim().trim_start_matches('\'').trim_end_matches('\'');
+    // Now inner is: '[json]',  — strip leading quote and trailing ', 
+    let json_str = inner
+        .trim()
+        .trim_start_matches('\'')
+        .trim_end_matches(',')
+        .trim()
+        .trim_end_matches('\'');
     let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
 
     let windows: Vec<protocol::WindowInfo> = parsed
         .into_iter()
         .map(|w| protocol::WindowInfo {
-            id: w["app_id"].as_str().unwrap_or("").to_string(),
+            id: w["id"].as_u64().map(|n| n.to_string()).unwrap_or_else(|| w["id"].as_str().unwrap_or("").to_string()),
             title: w["title"].as_str().unwrap_or("").to_string(),
             app_id: w["app_id"].as_str().unwrap_or("").to_string(),
-            workspace_id: w["workspace"].as_u64().unwrap_or(0) as u32,
+            workspace_id: w["workspace_index"].as_u64().unwrap_or(0) as u32,
             is_focused: w["focused"].as_bool().unwrap_or(false),
             is_minimized: w["minimized"].as_bool().unwrap_or(false),
             geometry: {
-                let x = w["x"].as_i64().unwrap_or(0) as i32;
-                let y = w["y"].as_i64().unwrap_or(0) as i32;
-                let width = w["width"].as_u64().unwrap_or(0) as u32;
-                let height = w["height"].as_u64().unwrap_or(0) as u32;
-                Some(Geometry {
-                    x,
-                    y,
-                    width,
-                    height,
-                })
+                let geo = &w["geometry"];
+                if let Some(arr) = geo.as_array() {
+                    let x = arr.first().and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+                    let y = arr.get(1).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+                    let width = arr.get(2).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                    let height = arr.get(3).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                    Some(Geometry { x, y, width, height })
+                } else {
+                    None
+                }
             },
             pid: w["pid"].as_u64().map(|p| p as u32),
         })
