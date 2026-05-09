@@ -21,6 +21,21 @@ pub async fn run() -> anyhow::Result<()> {
 
     let state = Arc::new(DaemonState::new());
 
+    // Load the GNOME backend
+    match crate::backend::create_backend().await {
+        Ok(backend) => {
+            let mut guard = state.backend.write().await;
+            *guard = Some(backend);
+            info!("GNOME backend loaded successfully");
+        }
+        Err(e) => {
+            warn!(
+                "Failed to load GNOME backend (running without desktop features): {}",
+                e
+            );
+        }
+    }
+
     loop {
         match listener.accept().await {
             Ok((stream, addr)) => {

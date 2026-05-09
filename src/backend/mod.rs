@@ -1,5 +1,13 @@
+pub mod gnome;
 use crate::protocol;
 use async_trait::async_trait;
+
+/// Create the default backend for the current desktop environment.
+pub async fn create_backend() -> anyhow::Result<Box<dyn DesktopBackend>> {
+    gnome::GnomeBackend::new()
+        .await
+        .map(|b| Box::new(b) as Box<dyn DesktopBackend>)
+}
 
 /// The DesktopBackend trait defines all actions deskbrid can perform on a desktop
 /// environment. Only GNOME 46+ is supported in v2.
