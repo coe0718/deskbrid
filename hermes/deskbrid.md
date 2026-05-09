@@ -172,3 +172,33 @@ systemctl --user start deskbrid
 ### Socket not found
 
 Check `echo $XDG_RUNTIME_DIR` — socket is at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`).
+
+### Extension stuck INACTIVE after Disable/Enable
+
+The DBus reload trick sometimes stops working. GNOME Shell caches the disabled state and refuses to reload the extension even after `EnableExtension` returns success. **Fix:** bump the version number in metadata.json to force GNOME Shell to treat it as a new load:
+
+```bash
+cd ~/.local/share/gnome-shell/extensions/deskbrid@deskbrid
+python3 -c "
+import json
+with open('metadata.json') as f: m = json.load(f)
+m['version'] = m.get('version', 1) + 1
+with open('metadata.json', 'w') as f: json.dump(m, f, indent=2)
+"
+```
+
+Then retry the DBus Disable/Enable cycle.
+
+### Launching GUI apps from Hermes terminal (VS Code, browser, etc.)
+
+When using Hermes's `terminal()` tool to launch GUI apps on the same Wayland desktop, you MUST export all display environment variables. **Without XAUTHORITY, Electron apps crash with SIGSEGV.**
+
+```bash
+export DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus" \
+       WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
+       XAUTHORITY=$(ls /run/user/1000/.mutter-Xwaylandauth.* 2>/dev/null | head -1)
+```
+
+The XAUTHORITY path is machine-specific. Find it with `ls /run/user/1000/.mutter-Xwaylandauth.*`.
+
+**Redaction pitfall:** Hermes's `redact_secrets` feature may mask the XAUTHORITY path (the random suffix looks like a token). Use `ls` directly to get the real path — don't rely on reading `/proc/*/environ`.
