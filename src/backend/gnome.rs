@@ -1,8 +1,12 @@
 use crate::protocol;
-use crate::protocol::{Geometry, Region};
+use crate::protocol::{DeskbridEvent, Geometry, Region};
 use async_trait::async_trait;
+use notify::Watcher;
+use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::{Arc, Mutex};
 use tokio::process::Command;
+use tokio::sync::broadcast;
 use tracing::debug;
 use zbus::zvariant;
 
@@ -11,12 +15,20 @@ use zbus::zvariant;
 pub struct GnomeBackend {
     /// DBus session connection for standard freedesktop interfaces.
     conn: zbus::Connection,
+    /// Broadcast sender for push events to subscribed clients.
+    event_tx: broadcast::Sender<DeskbridEvent>,
+    /// Active file watchers keyed by path.
+    watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
 }
 
 impl GnomeBackend {
-    pub async fn new() -> anyhow::Result<Self> {
+    pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let conn = zbus::Connection::session().await?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            event_tx,
+            watchers: Arc::new(Mutex::new(HashMap::new())),
+        })
     }
 
     // ─── Shell helpers ──────────────────────────────────
@@ -933,22 +945,67 @@ impl crate::backend::DesktopBackend for GnomeBackend {
         recursive: bool,
         _patterns: Option<&[String]>,
     ) -> anyhow::Result<()> {
-        // We stash the watch registration in daemon.rs ConnectionState.
-        // The actual notify watcher will be managed by the event loop (Phase 2c).
-        // For now, validate the path exists.
         let meta = tokio::fs::metadata(path).await?;
         if !meta.is_dir() && !meta.is_file() {
             anyhow::bail!("path does not exist: {}", path);
         }
+
+        let path_owned = path.to_string();
+        let event_tx = self.event_tx.clone();
+
+        // Create a notify watcher for this path
+        let mode = if recursive {
+            notify::RecursiveMode::Recursive
+        } else {
+            notify::RecursiveMode::NonRecursive
+        };
+
+        let mut watcher =
+            notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+                if let Ok(event) = event {
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    for path in &event.paths {
+                        let path_str = path.to_string_lossy().to_string();
+                        let evt = match event.kind {
+                            notify::EventKind::Create(_) => DeskbridEvent::FileCreated {
+                                path: path_str,
+                                timestamp: ts,
+                            },
+                            notify::EventKind::Modify(_) => DeskbridEvent::FileModified {
+                                path: path_str,
+                                timestamp: ts,
+                            },
+                            notify::EventKind::Remove(_) => DeskbridEvent::FileDeleted {
+                                path: path_str,
+                                timestamp: ts,
+                            },
+                            _ => continue,
+                        };
+                        let _ = event_tx.send(evt);
+                    }
+                }
+            })?;
+
+        watcher.watch(std::path::Path::new(&path_owned), mode)?;
+
+        // Store the watcher so it stays alive
+        let mut guard = self.watchers.lock().unwrap();
+        guard.insert(path_owned.clone(), watcher);
+
         debug!(
-            "Registered file watch on {} (recursive={})",
-            path, recursive
+            "File watch active on {} (recursive={})",
+            path_owned, recursive
         );
         Ok(())
     }
 
     async fn files_unwatch(&self, path: &str) -> anyhow::Result<()> {
-        debug!("Unregistered file watch on {}", path);
+        let mut guard = self.watchers.lock().unwrap();
+        guard.remove(path);
+        debug!("File watch removed on {}", path);
         Ok(())
     }
 

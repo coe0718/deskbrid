@@ -5,19 +5,31 @@ pub mod client;
 pub mod daemon;
 pub mod protocol;
 
+use protocol::DeskbridEvent;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 
 /// Global daemon state shared across all client connections
-#[derive(Default)]
 pub struct DaemonState {
     pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
+    /// Broadcast channel for push events (file changes, etc.)
+    pub event_tx: broadcast::Sender<DeskbridEvent>,
 }
 
 impl DaemonState {
     pub fn new() -> Self {
-        Self::default()
+        let (event_tx, _) = broadcast::channel(256);
+        Self {
+            backend: Arc::new(RwLock::new(None)),
+            event_tx,
+        }
+    }
+}
+
+impl Default for DaemonState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -798,3 +798,22 @@ pub struct AudioSinkInfo {
     pub volume: f64,
     pub muted: bool,
 }
+
+// ─── Event Types (Server → Client push) ────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "event")]
+pub enum DeskbridEvent {
+    #[serde(rename = "file.created")]
+    FileCreated { path: String, timestamp: u64 },
+    #[serde(rename = "file.modified")]
+    FileModified { path: String, timestamp: u64 },
+    #[serde(rename = "file.deleted")]
+    FileDeleted { path: String, timestamp: u64 },
+    #[serde(rename = "file.renamed")]
+    FileRenamed {
+        old_path: String,
+        new_path: String,
+        timestamp: u64,
+    },
+}

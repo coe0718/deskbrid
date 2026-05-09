@@ -3,8 +3,10 @@ use crate::protocol;
 use async_trait::async_trait;
 
 /// Create the default backend for the current desktop environment.
-pub async fn create_backend() -> anyhow::Result<Box<dyn DesktopBackend>> {
-    gnome::GnomeBackend::new()
+pub async fn create_backend(
+    event_tx: tokio::sync::broadcast::Sender<crate::protocol::DeskbridEvent>,
+) -> anyhow::Result<Box<dyn DesktopBackend>> {
+    gnome::GnomeBackend::new(event_tx)
         .await
         .map(|b| Box::new(b) as Box<dyn DesktopBackend>)
 }
