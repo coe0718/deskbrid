@@ -64,9 +64,9 @@ impl GnomeBackend {
     // ─── Extension DBus helpers ─────────────────────────
 
     /// Path to the GNOME Shell extension's DBus object.
-    const EXT_BUS: &'static str = "org.gnome.Shell.Extensions.Deskbrid";
-    const EXT_PATH: &'static str = "/org/gnome/Shell/Extensions/Deskbrid";
-    const EXT_IFACE: &'static str = "org.gnome.Shell.Extensions.Deskbrid";
+    const EXT_BUS: &'static str = "org.deskbrid.WindowManager";
+    const EXT_PATH: &'static str = "/org/deskbrid/WindowManager";
+    const EXT_IFACE: &'static str = "org.deskbrid.WindowManager";
 
     /// Call an extension DBus method via gdbus. Returns raw string.
     async fn ext_call_parsed(&self, method: &str, extra_args: &[&str]) -> anyhow::Result<String> {
@@ -95,48 +95,114 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     // ═══════════════════════════════════════════════════════
 
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
-        // Call extension: WindowsList() → a(sua{sv})
-        let raw = self.ext_call_parsed("WindowsList", &[]).await?;
-        parse_gdbus_window_list(&raw)
+        // Extension ListWindows() → JSON string of window array
+        let raw = self.ext_call_parsed("ListWindows", &[]).await?;
+        parse_extension_json_windows(&raw)
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        self.ext_call_parsed("FocusWindow", &[id]).await?;
+        // Find the window by app_id or title fragment, then call FocusWindow
+        let windows = self.windows_list().await?;
+        let target = windows
+            .iter()
+            .find(|w| w.id == id || w.app_id == id || w.title.contains(id))
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
+
+        // FocusWindow(app_id, title, exact=false for substring match)
+        self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
+            .await?;
         Ok(())
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
-        let raw = self.ext_call_parsed("GetWindow", &[id]).await?;
-        parse_gdbus_single_window(&raw)
+        let windows = self.windows_list().await?;
+        windows
+            .into_iter()
+            .find(|w| w.id == id || w.app_id == id)
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))
     }
 
     // ═══════════════════════════════════════════════════════
-    //  WORKSPACES
+    //  WORKSPACES  (via org.gnome.Shell.Extensions)
     // ═══════════════════════════════════════════════════════
 
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
-        let raw = self.ext_call_parsed("WorkspacesList", &[]).await?;
-        // gdbus returns: [('Workspace 1', true), ('Workspace 2', false)]
-        parse_gdbus_workspace_list(&raw)
+        // Count workspaces from windows list + Mutter for active
+        let windows = self.windows_list().await?;
+        let max_ws = windows.iter().map(|w| w.workspace_id).max().unwrap_or(0) + 1;
+        let current = self.get_current_workspace().await?;
+        let workspaces: Vec<protocol::WorkspaceInfo> = (0..max_ws)
+            .map(|i| protocol::WorkspaceInfo {
+                id: i,
+                name: format!("Workspace {}", i + 1),
+                is_active: i == current,
+            })
+            .collect();
+        Ok(workspaces)
     }
 
     async fn workspace_switch(&self, id: u32) -> anyhow::Result<()> {
-        self.ext_call_parsed("SwitchWorkspace", &[&id.to_string()])
-            .await?;
-        Ok(())
+        // Use org.gnome.Shell Eval to switch workspace
+        let js = format!(
+            "global.workspace_manager.get_workspace_by_index({}).activate(global.get_current_time())",
+            id
+        );
+        let result = self
+            .conn
+            .call_method(
+                Some("org.gnome.Shell"),
+                "/org/gnome/Shell",
+                Some("org.gnome.Shell"),
+                "Eval",
+                &(js.as_str(),),
+            )
+            .await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                // Fallback: try wmctrl or gdbus
+                anyhow::bail!(
+                    "workspace switch failed — GNOME Shell Eval may be disabled. \
+                     Enable with: gsettings set org.gnome.shell disable-user-extensions false"
+                )
+            }
+        }
     }
 
     async fn workspace_move_window(
         &self,
         window_id: &str,
         workspace_id: u32,
-        follow: bool,
+        _follow: bool,
     ) -> anyhow::Result<()> {
-        self.ext_call_parsed(
-            "MoveWindowToWorkspace",
-            &[window_id, &workspace_id.to_string(), &follow.to_string()],
-        )
-        .await?;
+        // Find window, get its meta_window via Eval, move to workspace
+        let windows = self.windows_list().await?;
+        let target = windows
+            .iter()
+            .find(|w| w.id == window_id || w.app_id == window_id)
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", window_id))?;
+
+        let js = format!(
+            "(() => {{ const ws = global.workspace_manager.get_workspace_by_index({ws}); \
+             const actors = global.get_window_actors(); \
+             for (const a of actors) {{ \
+               if (a.meta_window.get_wm_class() === '{app_id}') {{ \
+                 a.meta_window.change_workspace(ws); return 'ok'; \
+               }} \
+             }} return 'not found'; }})()",
+            ws = workspace_id,
+            app_id = target.app_id
+        );
+        let _ = self
+            .conn
+            .call_method(
+                Some("org.gnome.Shell"),
+                "/org/gnome/Shell",
+                Some("org.gnome.Shell"),
+                "Eval",
+                &(js.as_str(),),
+            )
+            .await;
         Ok(())
     }
 
@@ -281,9 +347,15 @@ impl crate::backend::DesktopBackend for GnomeBackend {
             });
         }
 
-        // Full screen (or specific monitor)
+        // Full screen (or specific monitor by name)
         if let Some(idx) = monitor {
-            self.sh("grim", &["-o", &idx.to_string(), &path]).await?;
+            // grim expects monitor name (e.g., "DP-1"), not index
+            let monitors = self.get_monitors().await?;
+            let name = monitors
+                .get(idx as usize)
+                .map(|m| m.name.clone())
+                .unwrap_or_else(|| idx.to_string());
+            self.sh("grim", &["-o", &name, &path]).await?;
         } else {
             self.sh("grim", &[&path]).await?;
         }
@@ -1089,15 +1161,7 @@ impl GnomeBackend {
     }
 
     async fn get_monitors(&self) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
-        // Use extension if available, otherwise basic xrandr/wlr-randr
-        // Try extension first
-        if let Ok(raw) = self.ext_call_parsed("MonitorsList", &[]).await {
-            if let Ok(monitors) = parse_gdbus_monitor_list(&raw) {
-                return Ok(monitors);
-            }
-        }
-
-        // Fallback: parse wlr-randr or just return a single placeholder
+        // Try wlr-randr, fall back to placeholder
         let mut monitors = Vec::new();
         // Try wlr-randr (wlroots-based but sometimes available)
         if let Ok(out) = self.sh("wlr-randr", &[]).await {
@@ -1311,179 +1375,55 @@ impl GnomeBackend {
     }
 }
 
-// ─── gdbus output parsers ────────────────────────────────
+// ─── Extension JSON parser ────────────────────────────────
 
-/// Parse gdbus WindowsList output: [('Firefox', '0x1a0000b', 'firefox', 0, false, true, ...), ...]
-fn parse_gdbus_window_list(raw: &str) -> anyhow::Result<Vec<protocol::WindowInfo>> {
-    let mut windows = Vec::new();
-    // Strip outer brackets and split on "), ("
-    let inner = raw.trim().trim_start_matches('[').trim_end_matches(']');
-    if inner.is_empty() || inner == "()" {
-        return Ok(windows);
-    }
+/// Parse the JSON string returned by the extension's ListWindows() method.
+fn parse_extension_json_windows(raw: &str) -> anyhow::Result<Vec<protocol::WindowInfo>> {
+    // gdbus wraps the return in parentheses: ('[{...},{...}]',)
+    let inner = raw.trim().trim_start_matches('(').trim_end_matches(')');
+    let json_str = inner.trim().trim_start_matches('\'').trim_end_matches('\'');
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
 
-    for tuple_str in inner.split("), (") {
-        let clean = tuple_str
-            .trim()
-            .trim_start_matches('(')
-            .trim_end_matches(')');
-        let parts: Vec<&str> = split_tuple(clean);
-        if parts.len() < 5 {
-            continue;
-        }
-        // Expected: title, id, app_id, workspace_id, is_focused, is_minimized, x, y, w, h
-        let title = unquote(parts[0]);
-        let id = unquote(parts[1]);
-        let app_id = unquote(parts[2]);
-        let workspace_id: u32 = parts[3].trim().parse().unwrap_or(0);
-        let is_focused = parts[4].trim().to_lowercase() == "true";
-        let is_minimized = if parts.len() > 5 {
-            parts[5].trim().to_lowercase() == "true"
-        } else {
-            false
-        };
-
-        let geometry = if parts.len() >= 10 {
-            let x: i32 = parts[6].trim().parse().unwrap_or(0);
-            let y: i32 = parts[7].trim().parse().unwrap_or(0);
-            let w: u32 = parts[8].trim().parse().unwrap_or(0);
-            let h: u32 = parts[9].trim().parse().unwrap_or(0);
-            Some(Geometry {
-                x,
-                y,
-                width: w,
-                height: h,
-            })
-        } else {
-            None
-        };
-
-        windows.push(protocol::WindowInfo {
-            id,
-            title,
-            app_id,
-            workspace_id,
-            is_focused,
-            is_minimized,
-            geometry,
-            pid: None,
-        });
-    }
+    let windows: Vec<protocol::WindowInfo> = parsed
+        .into_iter()
+        .map(|w| protocol::WindowInfo {
+            id: w["app_id"].as_str().unwrap_or("").to_string(),
+            title: w["title"].as_str().unwrap_or("").to_string(),
+            app_id: w["app_id"].as_str().unwrap_or("").to_string(),
+            workspace_id: w["workspace"].as_u64().unwrap_or(0) as u32,
+            is_focused: w["focused"].as_bool().unwrap_or(false),
+            is_minimized: w["minimized"].as_bool().unwrap_or(false),
+            geometry: {
+                let x = w["x"].as_i64().unwrap_or(0) as i32;
+                let y = w["y"].as_i64().unwrap_or(0) as i32;
+                let width = w["width"].as_u64().unwrap_or(0) as u32;
+                let height = w["height"].as_u64().unwrap_or(0) as u32;
+                Some(Geometry {
+                    x,
+                    y,
+                    width,
+                    height,
+                })
+            },
+            pid: w["pid"].as_u64().map(|p| p as u32),
+        })
+        .collect();
     Ok(windows)
 }
 
-fn parse_gdbus_single_window(raw: &str) -> anyhow::Result<protocol::WindowInfo> {
-    let inner = raw.trim().trim_start_matches('(').trim_end_matches(')');
-    let parts: Vec<&str> = split_tuple(inner);
-    if parts.len() < 5 {
-        anyhow::bail!("not enough fields in window tuple: {}", raw);
+// ─── Screenshot helpers ─────────────────────────────────
+
+fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
+    let data = std::fs::read(path)?;
+    if data.len() < 24 {
+        anyhow::bail!("PNG file too small");
     }
-    let title = unquote(parts[0]);
-    let id = unquote(parts[1]);
-    let app_id = unquote(parts[2]);
-    let workspace_id: u32 = parts[3].trim().parse().unwrap_or(0);
-    let is_focused = parts[4].trim().to_lowercase() == "true";
-    let is_minimized = if parts.len() > 5 {
-        parts[5].trim().to_lowercase() == "true"
-    } else {
-        false
-    };
-
-    let geometry = if parts.len() >= 10 {
-        let x: i32 = parts[6].trim().parse().unwrap_or(0);
-        let y: i32 = parts[7].trim().parse().unwrap_or(0);
-        let w: u32 = parts[8].trim().parse().unwrap_or(0);
-        let h: u32 = parts[9].trim().parse().unwrap_or(0);
-        Some(Geometry {
-            x,
-            y,
-            width: w,
-            height: h,
-        })
-    } else {
-        None
-    };
-
-    Ok(protocol::WindowInfo {
-        id,
-        title,
-        app_id,
-        workspace_id,
-        is_focused,
-        is_minimized,
-        geometry,
-        pid: None,
-    })
+    let width = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
+    let height = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
+    Ok((width, height))
 }
 
-fn parse_gdbus_workspace_list(raw: &str) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
-    let mut workspaces = Vec::new();
-    let inner = raw.trim().trim_start_matches('[').trim_end_matches(']');
-    if inner.is_empty() || inner == "()" {
-        return Ok(workspaces);
-    }
-
-    let mut id = 0u32;
-    for tuple_str in inner.split("), (") {
-        let clean = tuple_str
-            .trim()
-            .trim_start_matches('(')
-            .trim_end_matches(')');
-        let parts: Vec<&str> = split_tuple(clean);
-        if parts.is_empty() {
-            continue;
-        }
-        let name = unquote(parts[0]);
-        let is_active = if parts.len() > 1 {
-            parts[1].trim().to_lowercase() == "true"
-        } else {
-            false
-        };
-        workspaces.push(protocol::WorkspaceInfo {
-            id,
-            name,
-            is_active,
-        });
-        id += 1;
-    }
-    Ok(workspaces)
-}
-
-fn parse_gdbus_monitor_list(raw: &str) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
-    // Expect: [(0, 'DP-1', 2560, 1440, 1.0, true), ...]
-    let mut monitors = Vec::new();
-    let inner = raw.trim().trim_start_matches('[').trim_end_matches(']');
-    if inner.is_empty() || inner == "()" {
-        return Ok(monitors);
-    }
-
-    for tuple_str in inner.split("), (") {
-        let clean = tuple_str
-            .trim()
-            .trim_start_matches('(')
-            .trim_end_matches(')');
-        let parts: Vec<&str> = split_tuple(clean);
-        if parts.len() < 5 {
-            continue;
-        }
-        let id: u32 = parts[0].trim().parse().unwrap_or(0);
-        let name = unquote(parts[1]);
-        let width: u32 = parts[2].trim().parse().unwrap_or(1920);
-        let height: u32 = parts[3].trim().parse().unwrap_or(1080);
-        let scale: f64 = parts[4].trim().parse().unwrap_or(1.0);
-        let primary = parts.len() > 5 && parts[5].trim().to_lowercase() == "true";
-
-        monitors.push(protocol::MonitorInfo {
-            id,
-            name,
-            width,
-            height,
-            scale,
-            primary,
-        });
-    }
-    Ok(monitors)
-}
+// ─── Audio parsers ────────────────────────────────────
 
 fn parse_pactl_sinks(raw: &str) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
     let mut sinks = Vec::new();
@@ -1549,55 +1489,4 @@ fn parse_pactl_sinks(raw: &str) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> 
         });
     }
     Ok(sinks)
-}
-
-/// Get PNG dimensions from file header (minimal parser: width at byte 16, height at byte 20)
-fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
-    let data = std::fs::read(path)?;
-    if data.len() < 24 {
-        anyhow::bail!("PNG file too small");
-    }
-    let width = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-    let height = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
-    Ok((width, height))
-}
-
-// ─── Utility parsers ────────────────────────────────────
-
-/// Split a gdbus tuple string like "true, 'hello', 42" into parts, respecting quotes.
-fn split_tuple(s: &str) -> Vec<&str> {
-    let mut parts = Vec::new();
-    let mut depth = 0;
-    let mut in_quote = false;
-    let mut start = 0usize;
-
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '\'' => in_quote = !in_quote,
-            '(' if !in_quote => depth += 1,
-            ')' if !in_quote && depth > 0 => depth -= 1,
-            ')' if !in_quote => { /* depth is 0, no-op */ }
-            ',' if !in_quote && depth == 0 => {
-                parts.push(s[start..i].trim());
-                start = i + 1;
-            }
-            _ => {}
-        }
-    }
-    // last part
-    if start < s.len() {
-        parts.push(s[start..].trim());
-    }
-    parts
-}
-
-/// Strip single quotes and leading/trailing whitespace from a gdbus string value.
-fn unquote(s: &str) -> String {
-    let s = s.trim();
-    // gdbus sometimes returns 'string' and sometimes just string
-    if s.starts_with('\'') && s.ends_with('\'') {
-        s[1..s.len() - 1].to_string()
-    } else {
-        s.to_string()
-    }
 }

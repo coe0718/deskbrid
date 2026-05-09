@@ -6,18 +6,23 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
 
-const SOCKET_PATH: &str = "/run/user/1000/deskbrid.sock";
+fn socket_path() -> String {
+    std::env::var("XDG_RUNTIME_DIR")
+        .map(|d| format!("{}/deskbrid.sock", d))
+        .unwrap_or_else(|_| "/run/user/1000/deskbrid.sock".into())
+}
 
 pub async fn run() -> anyhow::Result<()> {
-    let _ = tokio::fs::remove_file(SOCKET_PATH).await;
+    let sock = socket_path();
+    let _ = tokio::fs::remove_file(&sock).await;
 
-    if let Some(parent) = std::path::Path::new(SOCKET_PATH).parent() {
+    if let Some(parent) = std::path::Path::new(&sock).parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
 
-    let listener = UnixListener::bind(SOCKET_PATH).context("failed to bind Unix socket")?;
+    let listener = UnixListener::bind(&sock).context("failed to bind Unix socket")?;
 
-    info!("Deskbrid daemon listening on {}", SOCKET_PATH);
+    info!("Deskbrid daemon listening on {}", sock);
 
     let state = Arc::new(DaemonState::new());
 

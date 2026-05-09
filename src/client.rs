@@ -3,13 +3,18 @@ use anyhow::Context;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 
-const SOCKET_PATH: &str = "/run/user/1000/deskbrid.sock";
+fn socket_path() -> String {
+    std::env::var("XDG_RUNTIME_DIR")
+        .map(|d| format!("{}/deskbrid.sock", d))
+        .unwrap_or_else(|_| "/run/user/1000/deskbrid.sock".into())
+}
 
 /// Connect to the daemon, send a one-shot action, and print the response.
 pub async fn send_one_shot(action: Action) -> anyhow::Result<()> {
-    let stream = UnixStream::connect(SOCKET_PATH).await.context(format!(
+    let sock = socket_path();
+    let stream = UnixStream::connect(&sock).await.context(format!(
         "cannot connect to daemon at {}. Is deskbrid running?",
-        SOCKET_PATH
+        sock
     ))?;
 
     let (reader, mut writer) = stream.into_split();
