@@ -1,5 +1,9 @@
 # deskbrid
 
+<p align="center">
+  <img src="logo.png" alt="deskbrid logo" width="400">
+</p>
+
 **The HAL your Linux desktop agents are missing.**
 
 A single daemon that wraps GNOME Shell, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON-over-Unix-socket protocol. One binary. Your shell scripts and AI agents use the same socket.

@@ -1381,7 +1381,7 @@ impl GnomeBackend {
 fn parse_extension_json_windows(raw: &str) -> anyhow::Result<Vec<protocol::WindowInfo>> {
     // gdbus wraps the return like: ('[{...},{...}]',)
     let inner = raw.trim().trim_start_matches('(').trim_end_matches(')');
-    // Now inner is: '[json]',  — strip leading quote and trailing ', 
+    // Now inner is: '[json]',  — strip leading quote and trailing ',
     let json_str = inner
         .trim()
         .trim_start_matches('\'')
@@ -1393,7 +1393,10 @@ fn parse_extension_json_windows(raw: &str) -> anyhow::Result<Vec<protocol::Windo
     let windows: Vec<protocol::WindowInfo> = parsed
         .into_iter()
         .map(|w| protocol::WindowInfo {
-            id: w["id"].as_u64().map(|n| n.to_string()).unwrap_or_else(|| w["id"].as_str().unwrap_or("").to_string()),
+            id: w["id"]
+                .as_u64()
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| w["id"].as_str().unwrap_or("").to_string()),
             title: w["title"].as_str().unwrap_or("").to_string(),
             app_id: w["app_id"].as_str().unwrap_or("").to_string(),
             workspace_id: w["workspace_index"].as_u64().unwrap_or(0) as u32,
@@ -1406,7 +1409,12 @@ fn parse_extension_json_windows(raw: &str) -> anyhow::Result<Vec<protocol::Windo
                     let y = arr.get(1).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
                     let width = arr.get(2).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
                     let height = arr.get(3).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                    Some(Geometry { x, y, width, height })
+                    Some(Geometry {
+                        x,
+                        y,
+                        width,
+                        height,
+                    })
                 } else {
                     None
                 }
