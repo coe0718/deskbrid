@@ -413,5 +413,5 @@ asyncio.run(main())
 ## Notes
 
 - A running Deskbrid daemon is required before the client can connect.
-- The default socket path is `$XDG_RUNTIME_DIR/deskbrid/socket`.
+- The default socket path is `$XDG_RUNTIME_DIR/deskbrid.sock`.
 - Input injection depends on GNOME Wayland remote desktop capabilities being available in the session.

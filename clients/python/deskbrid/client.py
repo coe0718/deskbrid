@@ -33,7 +33,7 @@ class DeskbridError(RuntimeError):
 
 def default_socket_path() -> str:
     runtime = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
-    return os.path.join(runtime, "deskbrid", "socket")
+    return os.path.join(runtime, "deskbrid.sock")
 
 
 class AsyncDeskbrid:
