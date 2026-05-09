@@ -20,9 +20,7 @@ async fn main() -> anyhow::Result<()> {
             }
             daemon::run().await
         }
-        cli::Command::Status => {
-            client::send_one_shot(deskbrid::protocol::Action::Ping).await
-        }
+        cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         _ => {
             let action = cli::into_action(args.command)?;
             client::send_one_shot(action).await

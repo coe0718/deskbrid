@@ -256,10 +256,7 @@ impl Action {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("missing 'type' field"))?
             .to_string();
-        let id = raw["id"]
-            .as_str()
-            .unwrap_or("?")
-            .to_string();
+        let id = raw["id"].as_str().unwrap_or("?").to_string();
 
         let action = match msg_type.as_str() {
             "ping" => Action::Ping,
@@ -271,7 +268,9 @@ impl Action {
 
             // Workspaces
             "workspaces.list" => Action::WorkspacesList,
-            "workspaces.switch" => Action::WorkspaceSwitch(raw["workspace_id"].as_u64().unwrap_or(0) as u32),
+            "workspaces.switch" => {
+                Action::WorkspaceSwitch(raw["workspace_id"].as_u64().unwrap_or(0) as u32)
+            }
             "workspaces.move_window" => Action::WorkspaceMoveWindow {
                 window_id: raw["window_id"].as_str().unwrap_or("").into(),
                 workspace_id: raw["workspace_id"].as_u64().unwrap_or(0) as u32,
@@ -288,7 +287,11 @@ impl Action {
                     "combo" => {
                         let keys: Vec<String> = raw["keys"]
                             .as_array()
-                            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|v| v.as_str().map(String::from))
+                                    .collect()
+                            })
                             .unwrap_or_default();
                         Action::InputKeyboardCombo { keys }
                     }
@@ -378,7 +381,9 @@ impl Action {
                 path: raw["path"].as_str().unwrap_or("").into(),
                 recursive: raw["recursive"].as_bool().unwrap_or(true),
                 patterns: raw["patterns"].as_array().map(|a| {
-                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
                 }),
             },
             "files.unwatch" => Action::FilesUnwatch {
@@ -393,21 +398,33 @@ impl Action {
             // Process
             "process.list" => Action::ProcessList,
             "process.start" => Action::ProcessStart {
-                command: raw["command"].as_array().map(|a| {
-                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
-                }).unwrap_or_default(),
+                command: raw["command"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 workdir: raw["workdir"].as_str().map(String::from),
                 env: raw["env"].as_object().map(|o| {
-                    o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect()
+                    o.iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                        .collect()
                 }),
             },
 
             // Hotkeys
             "hotkeys.register" => Action::HotkeysRegister {
                 hotkey_id: raw["hotkey_id"].as_str().unwrap_or("").into(),
-                keys: raw["keys"].as_array().map(|a| {
-                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
-                }).unwrap_or_default(),
+                keys: raw["keys"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             },
             "hotkeys.unregister" => Action::HotkeysUnregister {
                 hotkey_id: raw["hotkey_id"].as_str().unwrap_or("").into(),
@@ -428,14 +445,24 @@ impl Action {
 
             // Connection
             "subscribe" => Action::Subscribe {
-                events: raw["events"].as_array().map(|a| {
-                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
-                }).unwrap_or_default(),
+                events: raw["events"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             },
             "unsubscribe" => Action::Unsubscribe {
-                events: raw["events"].as_array().map(|a| {
-                    a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
-                }).unwrap_or_default(),
+                events: raw["events"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             },
             "disconnect" => Action::Disconnect,
 
@@ -454,51 +481,107 @@ impl Action {
 
             // Windows
             Action::WindowsList => json!({"type": "windows.list", "id": id}),
-            Action::WindowsFocus(window_id) => json!({"type": "windows.focus", "id": id, "window_id": window_id}),
-            Action::WindowsGet(window_id) => json!({"type": "windows.get", "id": id, "window_id": window_id}),
+            Action::WindowsFocus(window_id) => {
+                json!({"type": "windows.focus", "id": id, "window_id": window_id})
+            }
+            Action::WindowsGet(window_id) => {
+                json!({"type": "windows.get", "id": id, "window_id": window_id})
+            }
 
             // Workspaces
             Action::WorkspacesList => json!({"type": "workspaces.list", "id": id}),
-            Action::WorkspaceSwitch(workspace_id) => json!({"type": "workspaces.switch", "id": id, "workspace_id": workspace_id}),
-            Action::WorkspaceMoveWindow { window_id, workspace_id, follow } => json!({"type": "workspaces.move_window", "id": id, "window_id": window_id, "workspace_id": workspace_id, "follow": follow}),
+            Action::WorkspaceSwitch(workspace_id) => {
+                json!({"type": "workspaces.switch", "id": id, "workspace_id": workspace_id})
+            }
+            Action::WorkspaceMoveWindow {
+                window_id,
+                workspace_id,
+                follow,
+            } => {
+                json!({"type": "workspaces.move_window", "id": id, "window_id": window_id, "workspace_id": workspace_id, "follow": follow})
+            }
 
             // Input
-            Action::InputKeyboardType { text } => json!({"type": "input.keyboard", "id": id, "action": "type", "text": text}),
-            Action::InputKeyboardKey { key } => json!({"type": "input.keyboard", "id": id, "action": "key", "key": key}),
-            Action::InputKeyboardCombo { keys } => json!({"type": "input.keyboard", "id": id, "action": "combo", "keys": keys}),
-            Action::InputMouse { action, x, y, button, dx, dy } => {
+            Action::InputKeyboardType { text } => {
+                json!({"type": "input.keyboard", "id": id, "action": "type", "text": text})
+            }
+            Action::InputKeyboardKey { key } => {
+                json!({"type": "input.keyboard", "id": id, "action": "key", "key": key})
+            }
+            Action::InputKeyboardCombo { keys } => {
+                json!({"type": "input.keyboard", "id": id, "action": "combo", "keys": keys})
+            }
+            Action::InputMouse {
+                action,
+                x,
+                y,
+                button,
+                dx,
+                dy,
+            } => {
                 let mut obj = json!({"type": "input.mouse", "id": id, "action": action});
-                if let Some(x) = x { obj["x"] = json!(x); }
-                if let Some(y) = y { obj["y"] = json!(y); }
-                if let Some(button) = button { obj["button"] = json!(button); }
-                if let Some(dx) = dx { obj["dx"] = json!(dx); }
-                if let Some(dy) = dy { obj["dy"] = json!(dy); }
+                if let Some(x) = x {
+                    obj["x"] = json!(x);
+                }
+                if let Some(y) = y {
+                    obj["y"] = json!(y);
+                }
+                if let Some(button) = button {
+                    obj["button"] = json!(button);
+                }
+                if let Some(dx) = dx {
+                    obj["dx"] = json!(dx);
+                }
+                if let Some(dy) = dy {
+                    obj["dy"] = json!(dy);
+                }
                 obj
             }
 
             // Clipboard
             Action::ClipboardRead => json!({"type": "clipboard.read", "id": id}),
-            Action::ClipboardWrite { text } => json!({"type": "clipboard.write", "id": id, "text": text}),
+            Action::ClipboardWrite { text } => {
+                json!({"type": "clipboard.write", "id": id, "text": text})
+            }
 
             // Screenshot
-            Action::Screenshot { monitor, region, window_id } => {
+            Action::Screenshot {
+                monitor,
+                region,
+                window_id,
+            } => {
                 let mut obj = json!({"type": "screenshot", "id": id});
-                if let Some(m) = monitor { obj["monitor"] = json!(m); }
-                if let Some(r) = region { obj["region"] = json!(r); }
-                if let Some(w) = window_id { obj["window_id"] = json!(w); }
+                if let Some(m) = monitor {
+                    obj["monitor"] = json!(m);
+                }
+                if let Some(r) = region {
+                    obj["region"] = json!(r);
+                }
+                if let Some(w) = window_id {
+                    obj["window_id"] = json!(w);
+                }
                 obj
             }
 
             // Notifications
-            Action::NotificationSend { app_name, title, body, urgency } =>
-                json!({"type": "notification.send", "id": id, "app_name": app_name, "title": title, "body": body, "urgency": urgency}),
-            Action::NotificationClose { notification_id } =>
-                json!({"type": "notification.close", "id": id, "notification_id": notification_id}),
+            Action::NotificationSend {
+                app_name,
+                title,
+                body,
+                urgency,
+            } => {
+                json!({"type": "notification.send", "id": id, "app_name": app_name, "title": title, "body": body, "urgency": urgency})
+            }
+            Action::NotificationClose { notification_id } => {
+                json!({"type": "notification.close", "id": id, "notification_id": notification_id})
+            }
 
             // System
             Action::SystemInfo => json!({"type": "system.info", "id": id}),
             Action::SystemIdle => json!({"type": "system.idle", "id": id}),
-            Action::SystemPower { action } => json!({"type": "system.power", "id": id, "action": action}),
+            Action::SystemPower { action } => {
+                json!({"type": "system.power", "id": id, "action": action})
+            }
             Action::SystemBattery => json!({"type": "system.battery", "id": id}),
 
             // Network
@@ -507,7 +590,9 @@ impl Action {
             Action::NetworkWifiScan => json!({"type": "network.wifi.scan", "id": id}),
             Action::NetworkWifiConnect { ssid, password } => {
                 let mut obj = json!({"type": "network.wifi.connect", "id": id, "ssid": ssid});
-                if let Some(pw) = password { obj["password"] = json!(pw); }
+                if let Some(pw) = password {
+                    obj["password"] = json!(pw);
+                }
                 obj
             }
 
@@ -515,44 +600,83 @@ impl Action {
             Action::BluetoothList => json!({"type": "bluetooth.list", "id": id}),
             Action::BluetoothScan { duration } => {
                 let mut obj = json!({"type": "bluetooth.scan", "id": id});
-                if let Some(d) = duration { obj["duration"] = json!(d); }
+                if let Some(d) = duration {
+                    obj["duration"] = json!(d);
+                }
                 obj
             }
             Action::BluetoothStopScan => json!({"type": "bluetooth.scan_stop", "id": id}),
-            Action::BluetoothConnect { address } => json!({"type": "bluetooth.connect", "id": id, "address": address}),
-            Action::BluetoothDisconnect { address } => json!({"type": "bluetooth.disconnect", "id": id, "address": address}),
-            Action::BluetoothPair { address } => json!({"type": "bluetooth.pair", "id": id, "address": address}),
-            Action::BluetoothForget { address } => json!({"type": "bluetooth.forget", "id": id, "address": address}),
+            Action::BluetoothConnect { address } => {
+                json!({"type": "bluetooth.connect", "id": id, "address": address})
+            }
+            Action::BluetoothDisconnect { address } => {
+                json!({"type": "bluetooth.disconnect", "id": id, "address": address})
+            }
+            Action::BluetoothPair { address } => {
+                json!({"type": "bluetooth.pair", "id": id, "address": address})
+            }
+            Action::BluetoothForget { address } => {
+                json!({"type": "bluetooth.forget", "id": id, "address": address})
+            }
 
             // Files
-            Action::FilesWatch { path, recursive, patterns } => {
-                let mut obj = json!({"type": "files.watch", "id": id, "path": path, "recursive": recursive});
-                if let Some(p) = patterns { obj["patterns"] = json!(p); }
+            Action::FilesWatch {
+                path,
+                recursive,
+                patterns,
+            } => {
+                let mut obj =
+                    json!({"type": "files.watch", "id": id, "path": path, "recursive": recursive});
+                if let Some(p) = patterns {
+                    obj["patterns"] = json!(p);
+                }
                 obj
             }
-            Action::FilesUnwatch { path } => json!({"type": "files.unwatch", "id": id, "path": path}),
-            Action::FilesSearch { pattern, root, max_results } => {
+            Action::FilesUnwatch { path } => {
+                json!({"type": "files.unwatch", "id": id, "path": path})
+            }
+            Action::FilesSearch {
+                pattern,
+                root,
+                max_results,
+            } => {
                 let mut obj = json!({"type": "files.search", "id": id, "pattern": pattern, "max_results": max_results});
-                if let Some(r) = root { obj["root"] = json!(r); }
+                if let Some(r) = root {
+                    obj["root"] = json!(r);
+                }
                 obj
             }
 
             // Process
             Action::ProcessList => json!({"type": "process.list", "id": id}),
-            Action::ProcessStart { command, workdir, env } => {
+            Action::ProcessStart {
+                command,
+                workdir,
+                env,
+            } => {
                 let mut obj = json!({"type": "process.start", "id": id, "command": command});
-                if let Some(wd) = workdir { obj["workdir"] = json!(wd); }
-                if let Some(e) = env { obj["env"] = json!(e); }
+                if let Some(wd) = workdir {
+                    obj["workdir"] = json!(wd);
+                }
+                if let Some(e) = env {
+                    obj["env"] = json!(e);
+                }
                 obj
             }
 
             // Hotkeys
-            Action::HotkeysRegister { hotkey_id, keys } => json!({"type": "hotkeys.register", "id": id, "hotkey_id": hotkey_id, "keys": keys}),
-            Action::HotkeysUnregister { hotkey_id } => json!({"type": "hotkeys.unregister", "id": id, "hotkey_id": hotkey_id}),
+            Action::HotkeysRegister { hotkey_id, keys } => {
+                json!({"type": "hotkeys.register", "id": id, "hotkey_id": hotkey_id, "keys": keys})
+            }
+            Action::HotkeysUnregister { hotkey_id } => {
+                json!({"type": "hotkeys.unregister", "id": id, "hotkey_id": hotkey_id})
+            }
 
             // Audio
             Action::AudioListSinks => json!({"type": "audio.list_sinks", "id": id}),
-            Action::AudioSetSinkVolume { sink_id, volume } => json!({"type": "audio.set_sink_volume", "id": id, "sink_id": sink_id, "volume": volume}),
+            Action::AudioSetSinkVolume { sink_id, volume } => {
+                json!({"type": "audio.set_sink_volume", "id": id, "sink_id": sink_id, "volume": volume})
+            }
 
             // Monitor
             Action::MonitorList => json!({"type": "monitor.list", "id": id}),
@@ -561,8 +685,12 @@ impl Action {
             Action::LocationGet => json!({"type": "location.get", "id": id}),
 
             // Connection
-            Action::Subscribe { events } => json!({"type": "subscribe", "id": id, "events": events}),
-            Action::Unsubscribe { events } => json!({"type": "unsubscribe", "id": id, "events": events}),
+            Action::Subscribe { events } => {
+                json!({"type": "subscribe", "id": id, "events": events})
+            }
+            Action::Unsubscribe { events } => {
+                json!({"type": "unsubscribe", "id": id, "events": events})
+            }
             Action::Disconnect => json!({"type": "disconnect", "id": id}),
         };
 
@@ -670,4 +798,3 @@ pub struct AudioSinkInfo {
     pub volume: f64,
     pub muted: bool,
 }
-

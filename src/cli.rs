@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "deskbrid",
     about = "The HAL your Linux desktop agents are missing",
-    version = "2.0.0",
+    version = "2.0.0"
 )]
 pub struct Args {
     #[command(subcommand)]
@@ -315,9 +315,30 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         },
 
         Command::Mouse { cmd } => match cmd {
-            MouseCmd::Move { x, y } => Action::InputMouse { action: "move".into(), x: Some(x), y: Some(y), button: None, dx: None, dy: None },
-            MouseCmd::Click { button } => Action::InputMouse { action: "click".into(), x: None, y: None, button: Some(button), dx: None, dy: None },
-            MouseCmd::Scroll { dx, dy } => Action::InputMouse { action: "scroll".into(), x: None, y: None, button: None, dx: Some(dx), dy: Some(dy) },
+            MouseCmd::Move { x, y } => Action::InputMouse {
+                action: "move".into(),
+                x: Some(x),
+                y: Some(y),
+                button: None,
+                dx: None,
+                dy: None,
+            },
+            MouseCmd::Click { button } => Action::InputMouse {
+                action: "click".into(),
+                x: None,
+                y: None,
+                button: Some(button),
+                dx: None,
+                dy: None,
+            },
+            MouseCmd::Scroll { dx, dy } => Action::InputMouse {
+                action: "scroll".into(),
+                x: None,
+                y: None,
+                button: None,
+                dx: Some(dx),
+                dy: Some(dy),
+            },
         },
 
         Command::Clipboard { cmd } => match cmd {
@@ -369,7 +390,10 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
 
         Command::Wifi { cmd } => match cmd {
             WifiCmd::Scan => Action::NetworkWifiScan,
-            WifiCmd::Connect { ssid } => Action::NetworkWifiConnect { ssid, password: None },
+            WifiCmd::Connect { ssid } => Action::NetworkWifiConnect {
+                ssid,
+                password: None,
+            },
         },
 
         Command::Bluetooth { cmd } => match cmd {
@@ -389,7 +413,11 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
                 root,
                 max_results,
             },
-            FilesCmd::Watch { path } => Action::FilesWatch { path, recursive: true, patterns: None },
+            FilesCmd::Watch { path } => Action::FilesWatch {
+                path,
+                recursive: true,
+                patterns: None,
+            },
             FilesCmd::Unwatch { path } => Action::FilesUnwatch { path },
         },
 
@@ -398,8 +426,13 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             AudioCmd::Volume { sink_id, volume } => Action::AudioSetSinkVolume { sink_id, volume },
         },
 
-        Command::Wait { event } => Action::Subscribe { events: vec![event] },
+        Command::Wait { event } => Action::Subscribe {
+            events: vec![event],
+        },
 
-        _ => bail!("unexpected command in client mode: {:?}", std::mem::discriminant(&cmd)),
+        _ => bail!(
+            "unexpected command in client mode: {:?}",
+            std::mem::discriminant(&cmd)
+        ),
     })
 }

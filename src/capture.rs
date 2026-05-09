@@ -28,8 +28,7 @@ pub async fn fallback_screenshot(_monitor: Option<u32>) -> Result<String> {
 
     // Fallback: XDG Desktop Portal
     let home = std::env::var("HOME").unwrap_or_else(|_| "/home/coemedia".to_string());
-    let script_path = PathBuf::from(home)
-        .join("projects/deskbrid/scripts/screenshot_portal.py");
+    let script_path = PathBuf::from(home).join("projects/deskbrid/scripts/screenshot_portal.py");
 
     let portal = Command::new("python3")
         .arg(&script_path)
