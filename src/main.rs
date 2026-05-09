@@ -1,15 +1,31 @@
-//! deskbrid entry point.
-
-use anyhow::Result;
-use clap::Parser;
+use deskbrid::cli;
+use deskbrid::client;
+use deskbrid::daemon;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let config = deskbrid::config::Config::from_env();
-    let socket_path = config
-        .socket_path
-        .clone()
-        .unwrap_or_else(deskbrid::default_socket_path);
-    let cli = deskbrid::cli::Cli::parse();
-    deskbrid::cli::run(cli.command, socket_path).await
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_env("DESKBRID_LOG")
+                .unwrap_or_else(|_| "warn".into()),
+        )
+        .init();
+
+    let args = cli::parse();
+
+    match args.command {
+        cli::Command::Daemon { verbose } => {
+            if verbose {
+                std::env::set_var("DESKBRID_LOG", "debug");
+            }
+            daemon::run().await
+        }
+        cli::Command::Status => {
+            client::send_one_shot(deskbrid::protocol::Action::Ping).await
+        }
+        _ => {
+            let action = cli::into_action(args.command)?;
+            client::send_one_shot(action).await
+        }
+    }
 }

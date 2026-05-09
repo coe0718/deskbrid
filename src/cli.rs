@@ -1,317 +1,405 @@
-use anyhow::{anyhow, Context, Result};
+use crate::protocol;
+use anyhow::bail;
 use clap::{Parser, Subcommand};
-use serde_json::Value;
-use std::path::{Path, PathBuf};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::UnixStream;
 
-#[derive(Debug, Parser)]
-#[command(name = "deskbrid", about = "deskbrid daemon and client CLI")]
-pub struct Cli {
+#[derive(Parser)]
+#[command(
+    name = "deskbrid",
+    about = "The HAL your Linux desktop agents are missing",
+    version = "2.0.0",
+)]
+pub struct Args {
     #[command(subcommand)]
-    pub command: Option<Command>,
+    pub command: Command,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Subcommand)]
 pub enum Command {
-    Daemon,
-    Subscribe {
-        events: Vec<String>,
+    /// Start the deskbrid daemon
+    Daemon {
+        #[arg(long)]
+        verbose: bool,
     },
-    Action {
-        action: String,
-        params_json: Option<String>,
-    },
-    Info,
-    Extension {
-        #[command(subcommand)]
-        command: ExtensionCommand,
-    },
-}
 
-#[derive(Debug, clap::Subcommand)]
-pub enum ExtensionCommand {
-    /// Check if the deskbrid GNOME Shell extension is installed and enabled
+    /// Check if daemon is running
     Status,
-    /// Install the deskbrid GNOME Shell extension
-    Install,
+
+    // ─── Windows ────────────────────────────────────────
+    #[command(name = "windows")]
+    Windows {
+        #[command(subcommand)]
+        cmd: WindowCmd,
+    },
+
+    // ─── Workspaces ─────────────────────────────────────
+    #[command(name = "workspaces")]
+    Workspaces {
+        #[command(subcommand)]
+        cmd: WorkspaceCmd,
+    },
+
+    // ─── Input ──────────────────────────────────────────
+    #[command(name = "input")]
+    Input {
+        #[command(subcommand)]
+        cmd: InputCmd,
+    },
+
+    #[command(name = "combo")]
+    Combo {
+        /// Keys to press, separated by + (e.g. Control_L+c)
+        keys: String,
+    },
+
+    // ─── Mouse ──────────────────────────────────────────
+    #[command(name = "mouse")]
+    Mouse {
+        #[command(subcommand)]
+        cmd: MouseCmd,
+    },
+
+    // ─── Clipboard ──────────────────────────────────────
+    #[command(name = "clipboard")]
+    Clipboard {
+        #[command(subcommand)]
+        cmd: ClipboardCmd,
+    },
+
+    // ─── Screenshot ─────────────────────────────────────
+    #[command(name = "screenshot")]
+    Screenshot {
+        /// Output file path (default: /tmp/deskbrid/screenshot_<ts>.png)
+        #[arg(long, short)]
+        output: Option<String>,
+
+        /// Capture specific monitor index
+        #[arg(long)]
+        monitor: Option<u32>,
+
+        /// Capture region: x y width height
+        #[arg(long, num_args = 4)]
+        region: Option<Vec<u32>>,
+
+        /// Capture specific window
+        #[arg(long)]
+        window: Option<String>,
+    },
+
+    // ─── Notifications ──────────────────────────────────
+    #[command(name = "notify")]
+    Notify {
+        #[command(subcommand)]
+        cmd: NotifyCmd,
+    },
+
+    // ─── System ─────────────────────────────────────────
+    #[command(name = "system")]
+    System {
+        #[command(subcommand)]
+        cmd: SystemCmd,
+    },
+
+    // ─── Network ────────────────────────────────────────
+    #[command(name = "network")]
+    Network {
+        #[command(subcommand)]
+        cmd: NetworkCmd,
+    },
+
+    #[command(name = "wifi")]
+    Wifi {
+        #[command(subcommand)]
+        cmd: WifiCmd,
+    },
+
+    // ─── Bluetooth ──────────────────────────────────────
+    #[command(name = "bluetooth")]
+    Bluetooth {
+        #[command(subcommand)]
+        cmd: BluetoothCmd,
+    },
+
+    // ─── Files ──────────────────────────────────────────
+    #[command(name = "files")]
+    Files {
+        #[command(subcommand)]
+        cmd: FilesCmd,
+    },
+
+    // ─── Audio ──────────────────────────────────────────
+    #[command(name = "audio")]
+    Audio {
+        #[command(subcommand)]
+        cmd: AudioCmd,
+    },
+
+    // ─── Wait ───────────────────────────────────────────
+    #[command(name = "wait")]
+    Wait {
+        /// Event to wait for (e.g. window.focus_changed)
+        event: String,
+    },
+
+    // ─── Clients ────────────────────────────────────────
+    #[command(name = "clients")]
+    Clients,
 }
 
-pub async fn run(command: Option<Command>, socket_path: PathBuf) -> Result<()> {
-    match command.unwrap_or(Command::Daemon) {
-        Command::Daemon => run_daemon(socket_path).await,
-        Command::Subscribe { events } => run_subscribe(&socket_path, events).await,
-        Command::Action {
-            action,
-            params_json,
-        } => run_action(&socket_path, &action, params_json.as_deref()).await,
-        Command::Info => run_info(&socket_path).await,
-        Command::Extension { command } => run_extension(command).await,
-    }
+#[derive(Subcommand)]
+pub enum WindowCmd {
+    /// List all windows
+    List,
+    /// Focus a window
+    Focus { window_id: String },
+    /// Get window details
+    Get { window_id: String },
 }
 
-async fn run_daemon(socket_path: PathBuf) -> Result<()> {
-    let mut config = crate::config::Config::from_env();
-    config.socket_path = Some(socket_path.clone());
-
-    tracing_subscriber::fmt()
-        .with_env_filter(&config.log_level)
-        .init();
-
-    tracing::info!("Starting deskbrid v{}", crate::VERSION);
-
-    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    let mut daemon = tokio::spawn(crate::run(config, shutdown_rx));
-
-    tokio::select! {
-        result = &mut daemon => {
-            match result {
-                Ok(result) => result?,
-                Err(error) => return Err(error.into()),
-            }
-        }
-        signal = tokio::signal::ctrl_c() => {
-            signal?;
-            tracing::info!("shutting down");
-            if shutdown_tx.send(true).is_err() {
-                tracing::warn!("shutdown receiver dropped before signal delivery");
-            }
-
-            match daemon.await {
-                Ok(result) => result?,
-                Err(error) => return Err(error.into()),
-            }
-        }
-    }
-
-    match tokio::fs::remove_file(&socket_path).await {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => tracing::warn!("failed to remove socket {}: {error}", socket_path.display()),
-    }
-
-    Ok(())
+#[derive(Subcommand)]
+pub enum WorkspaceCmd {
+    /// List workspaces
+    List,
+    /// Switch to a workspace
+    Switch { workspace_id: u32 },
+    /// Move window to workspace
+    Move {
+        window_id: String,
+        workspace_id: u32,
+        #[arg(long)]
+        follow: bool,
+    },
 }
 
-async fn run_subscribe(socket_path: &Path, events: Vec<String>) -> Result<()> {
-    let mut client = SocketClient::connect(socket_path).await?;
-    client
-        .send(&serde_json::to_value(
-            crate::protocol::ClientMessage::Subscribe { events },
-        )?)
-        .await?;
-    ensure_ok_result(client.expect_result().await?)?;
-
-    while let Some(message) = client.read_json().await? {
-        if message.get("type").and_then(Value::as_str) == Some("event") {
-            println!("{}", serde_json::to_string(&message)?);
-        }
-    }
-
-    Ok(())
+#[derive(Subcommand)]
+pub enum InputCmd {
+    /// Type a string
+    Type { text: String },
+    /// Press a single key
+    Key { key: String },
 }
 
-async fn run_action(socket_path: &Path, action: &str, params_json: Option<&str>) -> Result<()> {
-    let mut client = SocketClient::connect(socket_path).await?;
-    let params = match params_json {
-        Some(raw) => serde_json::from_str(raw).context("parsing params_json")?,
-        None => serde_json::json!({}),
-    };
+#[derive(Subcommand)]
+pub enum MouseCmd {
+    /// Move cursor to position
+    Move { x: f64, y: f64 },
+    /// Click: left, middle, right
+    Click { button: String },
+    /// Scroll: dx dy
+    Scroll { dx: f64, dy: f64 },
+}
 
-    client
-        .send(&serde_json::to_value(
-            crate::protocol::ClientMessage::Action {
-                id: uuid::Uuid::new_v4().to_string(),
-                action: action.to_string(),
-                params,
+#[derive(Subcommand)]
+pub enum ClipboardCmd {
+    /// Read clipboard contents
+    Read,
+    /// Write to clipboard
+    Write { text: String },
+}
+
+#[derive(Subcommand)]
+pub enum NotifyCmd {
+    /// Send a notification
+    Send {
+        #[arg(long)]
+        title: String,
+        #[arg(long)]
+        body: String,
+        #[arg(long, default_value = "normal")]
+        urgency: String,
+    },
+    /// Close a notification
+    Close { notification_id: u32 },
+}
+
+#[derive(Subcommand)]
+pub enum SystemCmd {
+    /// Show system info
+    Info,
+    /// Get idle seconds
+    Idle,
+    /// Power action
+    Power { action: String },
+    /// Battery status
+    Battery,
+}
+
+#[derive(Subcommand)]
+pub enum NetworkCmd {
+    /// Connection status
+    Status,
+    /// List interfaces
+    Interfaces,
+}
+
+#[derive(Subcommand)]
+pub enum WifiCmd {
+    /// Scan for networks
+    Scan,
+    /// Connect to a network
+    Connect { ssid: String },
+}
+
+#[derive(Subcommand)]
+pub enum BluetoothCmd {
+    /// List known devices
+    List,
+    /// Scan for devices
+    Scan,
+    /// Connect to device
+    Connect { address: String },
+    /// Disconnect device
+    Disconnect { address: String },
+}
+
+#[derive(Subcommand)]
+pub enum FilesCmd {
+    /// Search for files
+    Search {
+        pattern: String,
+        #[arg(long)]
+        root: Option<String>,
+        #[arg(long, default_value = "50")]
+        max_results: u32,
+    },
+    /// Watch a path for changes
+    Watch { path: String },
+    /// Stop watching a path
+    Unwatch { path: String },
+}
+
+#[derive(Subcommand)]
+pub enum AudioCmd {
+    /// List audio sinks
+    Sinks,
+    /// Set sink volume
+    Volume { sink_id: u32, volume: f64 },
+}
+
+pub fn parse() -> Args {
+    Args::parse()
+}
+
+/// Translate CLI commands into protocol actions
+pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
+    use protocol::Action;
+
+    Ok(match cmd {
+        Command::Windows { cmd } => match cmd {
+            WindowCmd::List => Action::WindowsList,
+            WindowCmd::Focus { window_id } => Action::WindowsFocus(window_id),
+            WindowCmd::Get { window_id } => Action::WindowsGet(window_id),
+        },
+
+        Command::Workspaces { cmd } => match cmd {
+            WorkspaceCmd::List => Action::WorkspacesList,
+            WorkspaceCmd::Switch { workspace_id } => Action::WorkspaceSwitch(workspace_id),
+            WorkspaceCmd::Move {
+                window_id,
+                workspace_id,
+                follow,
+            } => Action::WorkspaceMoveWindow {
+                window_id,
+                workspace_id,
+                follow,
             },
-        )?)
-        .await?;
+        },
 
-    let result = client.expect_result().await?;
-    println!("{}", serde_json::to_string(&result)?);
-    ensure_ok_result(result)?;
-    Ok(())
-}
+        Command::Combo { keys } => {
+            let keys: Vec<String> = keys.split('+').map(|s| s.trim().to_string()).collect();
+            Action::InputKeyboardCombo { keys }
+        }
 
-async fn run_info(socket_path: &Path) -> Result<()> {
-    let mut client = SocketClient::connect(socket_path).await?;
-    client
-        .send(&serde_json::to_value(
-            crate::protocol::ClientMessage::Action {
-                id: uuid::Uuid::new_v4().to_string(),
-                action: "info".to_string(),
-                params: serde_json::json!({}),
+        Command::Input { cmd } => match cmd {
+            InputCmd::Type { text } => Action::InputKeyboardType { text },
+            InputCmd::Key { key } => Action::InputKeyboardKey { key },
+        },
+
+        Command::Mouse { cmd } => match cmd {
+            MouseCmd::Move { x, y } => Action::InputMouse { action: "move".into(), x: Some(x), y: Some(y), button: None, dx: None, dy: None },
+            MouseCmd::Click { button } => Action::InputMouse { action: "click".into(), x: None, y: None, button: Some(button), dx: None, dy: None },
+            MouseCmd::Scroll { dx, dy } => Action::InputMouse { action: "scroll".into(), x: None, y: None, button: None, dx: Some(dx), dy: Some(dy) },
+        },
+
+        Command::Clipboard { cmd } => match cmd {
+            ClipboardCmd::Read => Action::ClipboardRead,
+            ClipboardCmd::Write { text } => Action::ClipboardWrite { text },
+        },
+
+        Command::Screenshot {
+            output: _,
+            monitor,
+            region,
+            window,
+        } => Action::Screenshot {
+            monitor,
+            region: region.map(|v| protocol::Region {
+                x: v[0],
+                y: v[1],
+                width: v[2],
+                height: v[3],
+            }),
+            window_id: window,
+        },
+
+        Command::Notify { cmd } => match cmd {
+            NotifyCmd::Send {
+                title,
+                body,
+                urgency,
+            } => Action::NotificationSend {
+                app_name: "deskbrid-cli".into(),
+                title,
+                body,
+                urgency,
             },
-        )?)
-        .await?;
+            NotifyCmd::Close { notification_id } => Action::NotificationClose { notification_id },
+        },
 
-    let result = client.expect_result().await?;
-    ensure_ok_result(result.clone())?;
-    println!(
-        "{}",
-        serde_json::to_string(
-            result
-                .get("data")
-                .ok_or_else(|| anyhow!("missing data in info response"))?
-        )?
-    );
-    Ok(())
-}
+        Command::System { cmd } => match cmd {
+            SystemCmd::Info => Action::SystemInfo,
+            SystemCmd::Idle => Action::SystemIdle,
+            SystemCmd::Power { action } => Action::SystemPower { action },
+            SystemCmd::Battery => Action::SystemBattery,
+        },
 
-async fn run_extension(command: ExtensionCommand) -> Result<()> {
-    const EXT_UUID: &str = "deskbrid@deskbrid";
+        Command::Network { cmd } => match cmd {
+            NetworkCmd::Status => Action::NetworkStatus,
+            NetworkCmd::Interfaces => Action::NetworkInterfaces,
+        },
 
-    fn ext_dir() -> Result<std::path::PathBuf> {
-        let home = std::env::var("HOME").map_err(|_| anyhow!("$HOME not set"))?;
-        Ok(std::path::PathBuf::from(home)
-            .join(".local/share/gnome-shell/extensions/deskbrid@deskbrid"))
-    }
+        Command::Wifi { cmd } => match cmd {
+            WifiCmd::Scan => Action::NetworkWifiScan,
+            WifiCmd::Connect { ssid } => Action::NetworkWifiConnect { ssid, password: None },
+        },
 
-    match command {
-        ExtensionCommand::Status => {
-            let dir = ext_dir()?;
-            let installed = dir.join("extension.js").exists();
-            if !installed {
-                println!("❌ deskbrid extension NOT installed");
-                println!("   Run `deskbrid extension install` to install it, then log out and back in (Docker containers keep running — Plex/*arr won't be affected)");
-                return Ok(());
-            }
+        Command::Bluetooth { cmd } => match cmd {
+            BluetoothCmd::List => Action::BluetoothList,
+            BluetoothCmd::Scan => Action::BluetoothScan { duration: Some(10) },
+            BluetoothCmd::Connect { address } => Action::BluetoothConnect { address },
+            BluetoothCmd::Disconnect { address } => Action::BluetoothDisconnect { address },
+        },
 
-            // Check if it's enabled via gnome-extensions
-            let output = std::process::Command::new("gnome-extensions")
-                .arg("info")
-                .arg(EXT_UUID)
-                .output()
-                .map_err(|e| anyhow!("failed to run gnome-extensions: {e}"))?;
+        Command::Files { cmd } => match cmd {
+            FilesCmd::Search {
+                pattern,
+                root,
+                max_results,
+            } => Action::FilesSearch {
+                pattern,
+                root,
+                max_results,
+            },
+            FilesCmd::Watch { path } => Action::FilesWatch { path, recursive: true, patterns: None },
+            FilesCmd::Unwatch { path } => Action::FilesUnwatch { path },
+        },
 
-            let info = String::from_utf8_lossy(&output.stdout);
-            if output.status.success() && info.contains("STATE: enabled") {
-                println!("✅ deskbrid extension is installed and enabled");
-                println!("   Location: {}", dir.display());
-            } else if output.status.success() && info.contains("STATE: disabled") {
-                println!("⚠️  deskbrid extension is installed but DISABLED");
-                println!("   Run: gnome-extensions enable {EXT_UUID}");
-                println!("   Then log out and back in (Docker containers keep running)");
-            } else if output.status.success() {
-                println!("⚠️  deskbrid extension installed (unknown state)");
-                println!("   {info}");
-            } else {
-                println!("⚠️  Could not check extension state via gnome-extensions");
-                println!("   The files are at {}", dir.display());
-                println!("   Run `gnome-extensions enable {EXT_UUID}` and restart the shell");
-            }
-            Ok(())
-        }
-        ExtensionCommand::Install => {
-            let dir = ext_dir()?;
-            if dir.join("extension.js").exists() {
-                println!(
-                    "✅ deskbrid extension already installed at {}",
-                    dir.display()
-                );
-            } else {
-                return Err(anyhow!(
-                    "Extension files not found at {}. Rebuild deskbrid with `cargo build` first.",
-                    dir.display()
-                ));
-            }
-            println!();
-            println!("Next steps:");
-            println!(
-                "  1. Log out and back in (Docker containers keep running — Plex/*arr unaffected)"
-            );
-            println!("  2. Enable the extension: gnome-extensions enable {EXT_UUID}");
-            println!("  3. Verify: gnome-extensions info {EXT_UUID}");
-            println!("  4. Start deskbrid daemon and run: deskbrid action window:list '{{}}'");
-            Ok(())
-        }
-    }
-}
+        Command::Audio { cmd } => match cmd {
+            AudioCmd::Sinks => Action::AudioListSinks,
+            AudioCmd::Volume { sink_id, volume } => Action::AudioSetSinkVolume { sink_id, volume },
+        },
 
-fn ensure_ok_result(result: Value) -> Result<()> {
-    match result.get("ok").and_then(Value::as_bool) {
-        Some(true) => Ok(()),
-        Some(false) => Err(anyhow!(
-            "{}: {}",
-            result
-                .get("error")
-                .and_then(Value::as_str)
-                .unwrap_or("unknown_error"),
-            result
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or("request failed")
-        )),
-        None => Err(anyhow!("missing result status")),
-    }
-}
+        Command::Wait { event } => Action::Subscribe { events: vec![event] },
 
-struct SocketClient {
-    reader: BufReader<tokio::net::unix::OwnedReadHalf>,
-    writer: tokio::net::unix::OwnedWriteHalf,
-}
-
-impl SocketClient {
-    async fn connect(socket_path: &Path) -> Result<Self> {
-        let stream = UnixStream::connect(socket_path)
-            .await
-            .with_context(|| format!("connecting to {}", socket_path.display()))?;
-        let (reader, writer) = stream.into_split();
-        let mut client = Self {
-            reader: BufReader::new(reader),
-            writer,
-        };
-
-        let hello = client
-            .read_json()
-            .await?
-            .ok_or_else(|| anyhow!("daemon closed connection before hello"))?;
-        if hello.get("type").and_then(Value::as_str) != Some("hello") {
-            return Err(anyhow!("expected hello message from daemon"));
-        }
-
-        Ok(client)
-    }
-
-    async fn send(&mut self, message: &Value) -> Result<()> {
-        let encoded = serde_json::to_string(message).context("serializing client message")?;
-        self.writer
-            .write_all(encoded.as_bytes())
-            .await
-            .context("writing client message")?;
-        self.writer
-            .write_all(b"\n")
-            .await
-            .context("writing client message delimiter")?;
-        Ok(())
-    }
-
-    async fn expect_result(&mut self) -> Result<Value> {
-        loop {
-            match self.read_json().await? {
-                Some(message) if message.get("type").and_then(Value::as_str) == Some("result") => {
-                    return Ok(message);
-                }
-                Some(_) => continue,
-                None => return Err(anyhow!("daemon closed connection before result")),
-            }
-        }
-    }
-
-    async fn read_json(&mut self) -> Result<Option<Value>> {
-        let mut line = String::new();
-        let bytes = self
-            .reader
-            .read_line(&mut line)
-            .await
-            .context("reading daemon message")?;
-        if bytes == 0 {
-            return Ok(None);
-        }
-
-        serde_json::from_str(line.trim_end())
-            .map(Some)
-            .context("parsing daemon message")
-    }
+        _ => bail!("unexpected command in client mode: {:?}", std::mem::discriminant(&cmd)),
+    })
 }

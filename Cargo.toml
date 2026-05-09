@@ -1,6 +1,6 @@
 [package]
 name = "deskbrid"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2021"
 description = "The HAL your Linux desktop agents are missing"
 license = "MIT"
@@ -8,25 +8,35 @@ repository = "https://github.com/coe0718/deskbrid"
 
 [features]
 default = []
-pipewire = ["dep:futures-util", "dep:image", "dep:pipewire", "dep:spa"]
+pipewire = ["dep:pipewire", "dep:spa", "dep:image"]
 
 [dependencies]
-# Core
+# Async runtime
 tokio = { version = "1", features = ["full"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Protocol
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-anyhow = "1"
+
+# Async trait support
 async-trait = "0.1"
-clap = { version = "4", features = ["derive"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-futures-util = { version = "0.3", optional = true }
 
 # DBus
 zbus = "5"
 
-# Local socket
+# Core
+anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# File watching
+notify = { version = "7", features = ["macos_kqueue"] }
+
+# PipeWire (optional)
 pipewire = { version = "0.8", optional = true }
 spa = { version = "0.8", package = "libspa", optional = true }
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }

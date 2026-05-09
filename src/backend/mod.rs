@@ -1,134 +1,90 @@
-#[cfg(feature = "pipewire")]
-pub mod audio;
-pub mod detect;
-pub mod gnome;
-pub mod kde;
-#[cfg(feature = "pipewire")]
-pub mod screencast;
-pub mod types;
-pub mod wlroots;
-
-use crate::events::EventBus;
-use anyhow::{anyhow, Result};
+use crate::protocol;
 use async_trait::async_trait;
-use serde_json::Value;
-use tokio::sync::watch;
-pub use types::{MonitorInfo, WindowInfo};
 
-use self::detect::{detect_desktop, DesktopType};
-use self::gnome::GnomeBackend;
-use self::wlroots::WlrootsBackend;
-
-#[cfg(not(feature = "pipewire"))]
-pub mod audio {
-    use crate::events::EventBus;
-    use tokio::sync::watch;
-
-    pub fn spawn_audio_monitor(_event_bus: EventBus, _shutdown: watch::Receiver<bool>) {}
-}
-
-#[cfg(not(feature = "pipewire"))]
-pub mod screencast {
-    use crate::capture;
-    use anyhow::{anyhow, Result};
-    use zbus::zvariant::OwnedObjectPath;
-
-    #[derive(Clone, Debug)]
-    pub struct ScreencastSession {
-        pub session_path: OwnedObjectPath,
-    }
-
-    #[derive(Debug)]
-    pub struct ScreenshotResult {
-        pub path: String,
-        pub width: u32,
-        pub height: u32,
-    }
-
-    #[derive(Debug)]
-    pub struct StartedScreencast {
-        pub node_id: u32,
-        pub width: Option<u32>,
-        pub height: Option<u32>,
-        pub session: ScreencastSession,
-    }
-
-    pub async fn screenshot(
-        _conn: &zbus::Connection,
-        _monitor_connector: &str,
-    ) -> Result<ScreenshotResult> {
-        let path = capture::fallback_screenshot(None).await?;
-        Ok(ScreenshotResult {
-            path,
-            width: 0,
-            height: 0,
-        })
-    }
-
-    pub async fn start_screencast(
-        _conn: &zbus::Connection,
-        _monitor_connector: &str,
-        _framerate: u32,
-    ) -> Result<StartedScreencast> {
-        Err(anyhow!(
-            "not_supported: screencast capability unavailable; build with --features pipewire and install libpipewire-0.3 development files"
-        ))
-    }
-
-    pub async fn stop_screencast(
-        _conn: &zbus::Connection,
-        _session: &ScreencastSession,
-    ) -> Result<()> {
-        Err(anyhow!(
-            "not_supported: screencast capability unavailable; build with --features pipewire and install libpipewire-0.3 development files"
-        ))
-    }
-}
-
+/// The DesktopBackend trait defines all actions deskbrid can perform on a desktop
+/// environment. Only GNOME 46+ is supported in v2.
 #[async_trait]
 pub trait DesktopBackend: Send + Sync {
-    async fn list_windows(&self) -> Result<Vec<WindowInfo>>;
-    async fn focus_window(
+    // ─── Windows ────────────────────────────────────────
+    async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>>;
+    async fn window_focus(&self, id: &str) -> anyhow::Result<()>;
+    async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo>;
+
+    // ─── Workspaces ─────────────────────────────────────
+    async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>>;
+    async fn workspace_switch(&self, id: u32) -> anyhow::Result<()>;
+    async fn workspace_move_window(
         &self,
-        app_id: Option<&str>,
-        title: Option<&str>,
-        exact: bool,
-    ) -> Result<()>;
-    async fn focused_window(&self) -> Result<Option<WindowInfo>>;
-    async fn list_displays(&self) -> Result<Vec<MonitorInfo>>;
-    async fn create_input_session(&self) -> Result<Box<dyn InputBackend>>;
-    async fn send_notification(&self, summary: &str, body: &str, urgency: &str) -> Result<u32>;
-    async fn screenshot(&self, monitor: Option<u32>) -> Result<Value> {
-        let _ = monitor;
-        Err(anyhow!("not_supported: screenshot capability unavailable"))
-    }
-    async fn start_screencast(&self, monitor: u32, framerate: u32) -> Result<Value> {
-        let _ = (monitor, framerate);
-        Err(anyhow!("not_supported: screencast capability unavailable"))
-    }
-    async fn stop_screencast(&self, node_id: u32) -> Result<()> {
-        let _ = node_id;
-        Err(anyhow!("not_supported: screencast capability unavailable"))
-    }
-    fn desktop_name(&self) -> &'static str;
-    fn capabilities(&self) -> &'static [&'static str];
-}
+        window_id: &str,
+        workspace_id: u32,
+        follow: bool,
+    ) -> anyhow::Result<()>;
 
-#[async_trait]
-pub trait InputBackend: Send + Sync {
-    async fn type_text(&self, text: &str) -> Result<()>;
-    async fn send_keys(&self, keys: &[String]) -> Result<()>;
-    async fn mouse_action(&self, params: &Value) -> Result<()>;
-}
+    // ─── Input ──────────────────────────────────────────
+    async fn keyboard_type(&self, text: &str) -> anyhow::Result<()>;
+    async fn keyboard_key(&self, key: &str) -> anyhow::Result<()>;
+    async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()>;
+    async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()>;
+    async fn mouse_click(&self, button: &str) -> anyhow::Result<()>;
+    async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()>;
 
-pub async fn create_backend(
-    event_bus: EventBus,
-    shutdown: watch::Receiver<bool>,
-) -> Result<Box<dyn DesktopBackend>> {
-    match detect_desktop().await {
-        DesktopType::Gnome => Ok(Box::new(GnomeBackend::new(event_bus, shutdown).await?)),
-        DesktopType::Kde => Err(anyhow!("KDE backend not yet implemented")),
-        DesktopType::Wlroots => Ok(Box::new(WlrootsBackend::new(event_bus).await?)),
-        DesktopType::Other => Err(anyhow!("unsupported desktop environment")),
-    }
+    // ─── Clipboard ──────────────────────────────────────
+    async fn clipboard_read(&self) -> anyhow::Result<String>;
+    async fn clipboard_write(&self, text: &str) -> anyhow::Result<()>;
+
+    // ─── Screenshot ─────────────────────────────────────
+    async fn screenshot(
+        &self,
+        monitor: Option<u32>,
+        region: Option<protocol::Region>,
+        window_id: Option<String>,
+    ) -> anyhow::Result<protocol::ScreenshotResult>;
+
+    // ─── Notifications ──────────────────────────────────
+    async fn notification_send(
+        &self,
+        app_name: &str,
+        title: &str,
+        body: &str,
+        urgency: &str,
+    ) -> anyhow::Result<u32>;
+    async fn notification_close(&self, id: u32) -> anyhow::Result<()>;
+
+    // ─── System ─────────────────────────────────────────
+    async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo>;
+    async fn idle_seconds(&self) -> anyhow::Result<u64>;
+    async fn power_action(&self, action: &str) -> anyhow::Result<()>;
+    async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>>;
+
+    // ─── Network ────────────────────────────────────────
+    async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo>;
+    async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>>;
+    async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>>;
+    async fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> anyhow::Result<()>;
+
+    // ─── Bluetooth ──────────────────────────────────────
+    async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>>;
+    async fn bluetooth_scan(&self, duration: Option<u32>) -> anyhow::Result<()>;
+    async fn bluetooth_stop_scan(&self) -> anyhow::Result<()>;
+    async fn bluetooth_connect(&self, address: &str) -> anyhow::Result<()>;
+    async fn bluetooth_disconnect(&self, address: &str) -> anyhow::Result<()>;
+
+    // ─── Files ──────────────────────────────────────────
+    async fn files_watch(
+        &self,
+        path: &str,
+        recursive: bool,
+        patterns: Option<&[String]>,
+    ) -> anyhow::Result<()>;
+    async fn files_unwatch(&self, path: &str) -> anyhow::Result<()>;
+    async fn files_search(
+        &self,
+        pattern: &str,
+        root: Option<&str>,
+        max_results: u32,
+    ) -> anyhow::Result<Vec<String>>;
+
+    // ─── Audio ──────────────────────────────────────────
+    async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>>;
+    async fn audio_set_sink_volume(&self, sink_id: u32, volume: f64) -> anyhow::Result<()>;
 }
