@@ -188,14 +188,15 @@ Under the hood it talks to:
 
 ## Compared to alternatives
 
-| Tool | Wayland | Agent-native | JSON protocol | Typed input | Screen capture |
-|---|---|---|---|---|---|
-| **deskbrid** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| xdotool | ❌ | ❌ | ❌ | ✅ | ❌ |
-| ydotool | ✅ | ❌ | ❌ | ❌ | ❌ |
-| atspi | limited | ❌ | ❌ | ❌ | ❌ |
-| wtype | ✅ | ❌ | ❌ | ✅ | ❌ |
-| grim | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Tool | Wayland | Agent-native | JSON protocol | Windows | Input | Clipboard | Screenshot | Bluetooth | Audio | File watch |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **deskbrid** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| xdotool | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ydotool | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| wtype | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| grim | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use.
 
