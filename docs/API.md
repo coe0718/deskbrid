@@ -171,7 +171,7 @@ Switch to a specific workspace by index.
 |-------|------|-------------|
 | `workspace_id` | number | Workspace index to activate |
 
-**Backend:** GNOME Shell extension → `gdbus call org.gnome.Shell.Eval` to switch.
+**Backend:** GNOME Shell extension → `ext_call_parsed("SwitchWorkspace", workspace_id)`. Uses the extension's DBus method — no Eval, no blocking calls.
 
 ---
 
@@ -195,7 +195,7 @@ Move a window to a workspace, optionally following it.
 | `workspace_id` | number | — | Target workspace index |
 | `follow` | boolean | `false` | Whether to also switch to the target workspace |
 
-**Backend:** GNOME Shell extension → `gdbus call org.gnome.Shell.Eval` with JavaScript that accesses `global.display` and workspace APIs.
+**Backend:** GNOME Shell extension → `ext_call_parsed("MoveWindowToWorkspace", window_id, workspace_id)`. Uses the extension's DBus method — no Eval, no blocking calls.
 
 ---
 
@@ -221,7 +221,7 @@ Type text into the currently focused window.
 
 `data.typed` reports the number of characters typed.
 
-**Backend:** `wtype` (primary) or `ydotool type` (fallback).
+**Backend:** Mutter RemoteDesktop API → `NotifyKeyboardKeysym`.
 
 ---
 
@@ -243,7 +243,7 @@ Press and release a single named key.
 |-----------|-------|------|-------------|
 | `key` | `key` | string | Named key (e.g. `Return`, `Escape`, `Tab`, `BackSpace`) |
 
-**Backend:** `wtype` or `ydotool key`.
+**Backend:** Mutter RemoteDesktop API → `NotifyKeyboardKeysym`.
 
 ---
 
@@ -265,7 +265,7 @@ Press multiple keys simultaneously (like `Ctrl+C`).
 |-----------|-------|------|-------------|
 | `combo` | `keys` | array of strings | Ordered list of keys to press simultaneously |
 
-**Backend:** `wtype -k` (or `ydotool key`) with modifier prefix.
+**Backend:** Mutter RemoteDesktop API → `NotifyKeyboardKeysym` with modifier mask.
 
 ---
 
@@ -289,7 +289,7 @@ Move the mouse cursor to absolute coordinates.
 | `x` | number | Absolute X coordinate |
 | `y` | number | Absolute Y coordinate |
 
-**Backend:** `ydotool mousemove`.
+**Backend:** Mutter RemoteDesktop API → `NotifyPointerMotion` (relative) or `NotifyPointerMotionAbsolute` (requires ScreenCast).
 
 ---
 
@@ -312,7 +312,7 @@ Click a mouse button at the current cursor position.
 | `action` | string | — | Must be `"click"` |
 | `button` | string | `"left"` | `"left"`, `"right"`, `"middle"` |
 
-**Backend:** `ydotool click <button>`.
+**Backend:** Mutter RemoteDesktop API → `NotifyPointerButton`.
 
 ---
 
@@ -336,7 +336,7 @@ Scroll the mouse wheel.
 | `dx` | number | `0.0` | Horizontal scroll amount (positive = right) |
 | `dy` | number | `0.0` | Vertical scroll amount (positive = down, negative = up) |
 
-**Backend:** `ydotool scroll`.
+**Backend:** Mutter RemoteDesktop API → `NotifyPointerAxis`.
 
 ---
 
