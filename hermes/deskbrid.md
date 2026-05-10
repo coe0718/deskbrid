@@ -1,17 +1,70 @@
 ---
 name: deskbrid
-description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows
+description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows. Supports GNOME and Hyprland.
 ---
 
 # Deskbrid Hermes Skill
 
 Use this skill when a Hermes agent needs to interact with the local Linux desktop through a running Deskbrid daemon.
 
+## Compositor support
+
+Deskbrid v0.3.0 auto-detects the running desktop environment at startup. Detection order: `$XDG_CURRENT_DESKTOP` → process scan (`pgrep Hyprland`, `pgrep kwin_wayland`) → GNOME fallback.
+
+| Compositor | Status | Backend |
+|---|---|---|
+| **GNOME (Mutter)** | ✅ Full support | RemoteDesktop DBus + Shell Extension |
+| **Hyprland** | ✅ Full support (v0.3.0) | hyprctl + ydotool + grim |
+| **KDE (KWin)** | 🔜 Planned | — |
+
+**All CLI commands work identically on both backends.** Your agent doesn't need to know which compositor is running — `deskbrid windows list`, `deskbrid input type`, `deskbrid screenshot` all work the same way.
+
 ## Requirement
 
 Deskbrid must already be running and listening on `$XDG_RUNTIME_DIR/deskbrid.sock`.
 
-## Connect from Hermes
+### Starting the daemon
+
+```bash
+# Manual
+./target/release/deskbrid daemon &
+
+# From Hermes terminal (background)
+terminal("~/deskbrid daemon", background=True)
+```
+
+The daemon auto-detects your compositor and loads the right backend.
+
+## CLI usage
+
+```bash
+# Windows
+deskbrid windows list
+deskbrid windows focus firefox
+deskbrid windows focus "code"        # by app_id substring
+deskbrid windows focus "0x55f..."    # by hex address
+
+# Workspaces
+deskbrid workspaces list
+deskbrid workspaces switch 2
+
+# Input
+deskbrid input type "git push\n"
+deskbrid key "Enter"
+deskbrid combo "ctrl+l"
+
+# Screenshot
+deskbrid screenshot
+
+# Clipboard
+deskbrid clipboard read
+deskbrid clipboard write "text"
+
+# System
+deskbrid system info
+```
+
+## Connect from Hermes (Python)
 
 Inside `execute_code`, import the Python client:
 
@@ -56,19 +109,6 @@ finally:
     client.close()
 ```
 
-### Read or write the clipboard
-
-```python
-from deskbrid import Deskbrid
-
-client = Deskbrid()
-try:
-    print(client.clipboard_read().text)
-    client.clipboard_write("new clipboard contents")
-finally:
-    client.close()
-```
-
 ### Take a screenshot
 
 ```python
@@ -78,18 +118,6 @@ client = Deskbrid()
 try:
     result = client.screenshot()
     print(result.path)
-finally:
-    client.close()
-```
-
-### Send a desktop notification
-
-```python
-from deskbrid import Deskbrid
-
-client = Deskbrid()
-try:
-    client.notify("Hermes", "Task finished")
 finally:
     client.close()
 ```
@@ -107,75 +135,17 @@ finally:
     client.close()
 ```
 
-## Event Subscription
-
-Watch for file system events:
-
-```python
-from deskbrid import Deskbrid
-
-client = Deskbrid()
-
-@client.on("file.created")
-def on_create(event):
-    print(f"Created: {event['path']}")
-
-@client.on("file.*")
-def on_change(event):
-    print(f"{event['kind']}: {event['path']}")
-
-client.listen()
-```
-
-## Practical Guidance
-
-- Use `client.info()` first to inspect daemon capabilities
-- Use `client.focus_window(app_id="code")` to target a specific application before typing
-- Expect input injection to require a GNOME Wayland session
-- Prefer short, explicit operations over long unverified chains
-- The daemon binds at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`)
-
 ## Troubleshooting
 
-### Windows/workspaces actions return INTERNAL_ERROR
+### GNOME: Windows/workspaces return INTERNAL_ERROR
 
-This means the GNOME Shell extension is not active. Check its state:
+The GNOME Shell extension is not active:
 
 ```bash
 gnome-extensions info deskbrid@deskbrid | grep State
 ```
 
-**State: INACTIVE** — the gsettings flag is set but GNOME Shell hasn't loaded the extension. On GNOME 46 Wayland, `ReloadExtension` is deprecated, `gnome-extensions enable` doesn't trigger a reload, and `Alt+F2` → `r` doesn't work (Wayland). The ONLY way to force a reload without logout:
-
-```bash
-busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions DisableExtension s "deskbrid@deskbrid"
-sleep 1
-busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions EnableExtension s "deskbrid@deskbrid"
-sleep 2
-gnome-extensions info deskbrid@deskbrid | grep State  # Should show ACTIVE
-```
-
-### Extension works then silently dies (~10 minutes)
-
-Known GNOME 46 GJS GC bug. The extension needs a GC root in `enable()`: set `_extensionInstance = this`. Without it, GJS garbage-collects the Extension instance and GNOME Shell calls `disable()`. Fixed in extension.js as of commit `1e75b06`.
-
-If you encounter this and can't update the extension code, use the DBus reload trick above — it buys you another ~10 minutes.
-
-### Daemon not running
-
-```bash
-systemctl --user start deskbrid
-# or manually:
-~/projects/deskbrid/target/release/deskbrid daemon
-```
-
-### Socket not found
-
-Check `echo $XDG_RUNTIME_DIR` — socket is at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`).
-
-### Extension stuck INACTIVE after Disable/Enable
-
-The DBus reload trick sometimes stops working. GNOME Shell caches the disabled state and refuses to reload the extension even after `EnableExtension` returns success. **Fix:** bump the version number in metadata.json to force GNOME Shell to treat it as a new load:
+If INACTIVE, bump the extension version to force a reload:
 
 ```bash
 cd ~/.local/share/gnome-shell/extensions/deskbrid@deskbrid
@@ -185,20 +155,43 @@ with open('metadata.json') as f: m = json.load(f)
 m['version'] = m.get('version', 1) + 1
 with open('metadata.json', 'w') as f: json.dump(m, f, indent=2)
 "
+busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions DisableExtension s "deskbrid@deskbrid"
+sleep 1
+busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell.Extensions EnableExtension s "deskbrid@deskbrid"
 ```
 
-Then retry the DBus Disable/Enable cycle.
+### Hyprland: ydotool returns empty error
 
-### Launching GUI apps from Hermes terminal (VS Code, browser, etc.)
+Two causes:
 
-When using Hermes's `terminal()` tool to launch GUI apps on the same Wayland desktop, you MUST export all display environment variables. **Without XAUTHORITY, Electron apps crash with SIGSEGV.**
+1. **ydotoold not running** — start it via `hyprctl dispatch exec ydotoold` or add `exec-once = ydotoold` to `hyprland.conf`.
+
+2. **/dev/uinput permissions** — ydotool needs write access. On Arch/EndeavourOS, `/dev/uinput` is root-only by default:
+   ```bash
+   echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+   sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+   ```
+   The user must be in the `input` group.
+
+### Hyprland: all hyprctl commands fail from daemon
+
+The daemon auto-detects the Hyprland instance at startup by scanning `/run/user/1000/hypr/` for the newest instance directory. Verify detection works:
 
 ```bash
-export DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus" \
-       WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
-       XAUTHORITY=$(ls /run/user/1000/.mutter-Xwaylandauth.* 2>/dev/null | head -1)
+# Check if daemon found the instance
+cat /proc/$(pgrep -f "deskbrid daemon" | head -1)/environ | tr '\0' '\n' | grep HYPRLAND
 ```
 
-The XAUTHORITY path is machine-specific. Find it with `ls /run/user/1000/.mutter-Xwaylandauth.*`.
+If `HYPRLAND_INSTANCE_SIGNATURE` is empty or unset, the detection failed. Most common cause: the daemon started before the Hyprland session created its socket directory. Restart the daemon.
 
-**Redaction pitfall:** Hermes's `redact_secrets` feature may mask the XAUTHORITY path (the random suffix looks like a token). Use `ls` directly to get the real path — don't rely on reading `/proc/*/environ`.
+### Daemon not running
+
+```bash
+systemctl --user start deskbrid
+# or manually:
+./target/release/deskbrid daemon
+```
+
+### Socket not found
+
+Socket is at `$XDG_RUNTIME_DIR/deskbrid.sock` (typically `/run/user/1000/deskbrid.sock`).

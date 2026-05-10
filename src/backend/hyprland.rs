@@ -806,7 +806,6 @@ impl crate::backend::DesktopBackend for HyprBackend {
         recursive: bool,
         patterns: Option<&[String]>,
     ) -> anyhow::Result<()> {
-        use notify::event::*;
         use notify::*;
 
         let event_tx = self.event_tx.clone();
