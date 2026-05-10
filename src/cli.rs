@@ -24,6 +24,9 @@ pub enum Command {
     /// Check if daemon is running
     Status,
 
+    /// One-command setup: install GNOME Shell extension, enable it
+    Setup,
+
     // ─── Windows ────────────────────────────────────────
     #[command(name = "windows")]
     Windows {

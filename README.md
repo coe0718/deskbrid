@@ -27,11 +27,24 @@ deskbrid clipboard read
 
 Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
-Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE / Cinnamon / MATE (planned). Same binary, same protocol, same socket.
+Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE (KWin D-Bus + ydotool + spectacle). Same binary, same protocol, same socket.
 
 ![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
 
 ## Quick start
+
+### Pre-built binary
+
+Download the latest release binary from the [releases page](https://github.com/coe0718/deskbrid/releases):
+
+```bash
+# Pick your version — replace v2.0.0 with the latest tag
+curl -LO https://github.com/coe0718/deskbrid/releases/download/v2.0.0/deskbrid
+chmod +x deskbrid
+sudo mv deskbrid /usr/local/bin/
+```
+
+Or build from source if you prefer.
 
 ### GNOME
 ```bash
@@ -89,7 +102,7 @@ cargo build --release
 |---------|---------|--------|---------|
 | **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
-| KDE Plasma | Wayland | 🔄 Planned | KWin D-Bus |
+| **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
 | Cinnamon | X11 | 🔄 Planned | xdotool + xprop + xclip |
 | MATE | X11 | 🔄 Planned | xdotool + xprop + xclip |
 | X11 (generic) | X11 | 🔄 Planned | xdotool + import |
@@ -172,7 +185,7 @@ Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → proces
 → {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
 ```
 
-The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works identically on GNOME and Hyprland.
+The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works identically on GNOME, Hyprland, and KDE.
 
 ## Client libraries
 
@@ -211,7 +224,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 
 - **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
 - **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
-- **KDE** — planned, will use KWin's DBus interface
+- **KDE** — uses KWin D-Bus + scripting API for windows/workspaces, `ydotool` for input (run ydotoold as user, not root), `spectacle` + ImageMagick `convert` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
 - **Cinnamon / MATE / X11** — planned, will use xdotool, xclip, and X11 utilities
 
 ## Compared to alternatives

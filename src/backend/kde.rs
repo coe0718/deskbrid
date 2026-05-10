@@ -217,9 +217,10 @@ impl super::DesktopBackend for KdeBackend {
 var windows = workspace.windowList();
 for (var i = 0; i < windows.length; i++) {{
     var w = windows[i];
-    if (String(w.internalId) === "{}" ||
+            if (String(w.internalId) === "{}" ||
         String(w.resourceClass) === "{}" ||
         (w.caption && String(w.caption).indexOf("{}") !== -1)) {{
+        if (w.minimized) w.minimized = false;
         workspace.activeClient = w;
         print("FOCUSED:" + String(w.internalId));
         break;
@@ -386,9 +387,7 @@ for (var i = 0; i < windows.length; i++) {{
             &[
                 "mousemove",
                 "--absolute",
-                "x",
                 &format!("{}", x as i32),
-                "y",
                 &format!("{}", y as i32),
             ],
         )
@@ -449,12 +448,49 @@ for (var i = 0; i < windows.length; i++) {{
         _region: Option<protocol::Region>,
         _window_id: Option<String>,
     ) -> anyhow::Result<protocol::ScreenshotResult> {
-        let path = format!("/tmp/deskbrid_screenshot_{}.png", std::process::id());
-        self.sh("grim", &[&path]).await?;
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+        let raw_path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
+        let out_path = format!("/tmp/deskbrid_screenshot_out_{}.png", std::process::id());
+
+        // Window screenshot via geometry: full-screen capture then crop
+        if let Some(ref wid) = _window_id {
+            let info = self.window_get(wid).await?;
+            if let Some(geo) = info.geometry {
+                self.sh("spectacle", &["-b", "-n", "-o", &raw_path]).await?;
+                let crop = format!("{}x{}+{}+{}", geo.width, geo.height, geo.x, geo.y);
+                self.sh("convert", &[&raw_path, "-crop", &crop, &out_path]).await?;
+                tokio::fs::remove_file(&raw_path).await.ok();
+                return Ok(protocol::ScreenshotResult {
+                    path: out_path,
+                    width: geo.width,
+                    height: geo.height,
+                    format: "png".into(),
+                });
+            }
+        }
+
+        // Region screenshot
+        if let Some(ref r) = _region {
+            self.sh("spectacle", &["-b", "-n", "-o", &raw_path]).await?;
+            let crop = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
+            self.sh("convert", &[&raw_path, "-crop", &crop, &out_path]).await?;
+            tokio::fs::remove_file(&raw_path).await.ok();
+            return Ok(protocol::ScreenshotResult {
+                path: out_path,
+                width: r.width,
+                height: r.height,
+                format: "png".into(),
+            });
+        }
+
+        // Full screen
+        self.sh("spectacle", &["-b", "-n", "-o", &out_path]).await?;
 
         // Get image dimensions via identify
         let dims = self
-            .sh("identify", &["-format", "%w %h", &path])
+            .sh("identify", &["-format", "%w %h", &out_path])
             .await
             .unwrap_or_default();
         let wh: Vec<u32> = dims
@@ -462,11 +498,8 @@ for (var i = 0; i < windows.length; i++) {{
             .filter_map(|s| s.parse().ok())
             .collect();
 
-        let path_out = format!("/tmp/deskbrid_screenshot_out_{}.png", std::process::id());
-        tokio::fs::rename(&path, &path_out).await.ok();
-
         Ok(protocol::ScreenshotResult {
-            path: path_out,
+            path: out_path,
             width: wh.first().copied().unwrap_or(0),
             height: wh.get(1).copied().unwrap_or(0),
             format: "png".into(),

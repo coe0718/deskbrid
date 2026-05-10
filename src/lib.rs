@@ -4,6 +4,7 @@ pub mod cli;
 pub mod client;
 pub mod daemon;
 pub mod protocol;
+pub mod setup;
 
 use protocol::DeskbridEvent;
 use std::collections::HashSet;
