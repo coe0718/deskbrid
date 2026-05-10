@@ -998,7 +998,7 @@ fn detect_hypr_instance() -> (Option<String>, Option<String>) {
         })
         .collect();
 
-    instances.sort_by(|a, b| b.1.cmp(&a.1)); // newest first
+    instances.sort_by_key(|item| std::cmp::Reverse(item.1));
 
     if let Some((path, _)) = instances.first() {
         let sig = path.file_name()
