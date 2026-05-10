@@ -147,7 +147,7 @@ What it does per desktop:
 | **GNOME** | Installs the Shell extension to `~/.local/share/gnome-shell/extensions/` and enables it |
 | **Hyprland** | Prints ydotool setup tips (udev rules, `exec-once` config) |
 | **KDE** | Prints ydotoold autostart tips (XDG autostart file, udev rules) |
-
+|   |
 ```bash
 # Example output on KDE
 $ deskbrid setup
@@ -156,9 +156,84 @@ Detected desktop: KDE
 ℹ  Add ydotoold autostart: see DEPENDENCIES.md
 ℹ  Fix /dev/uinput permissions: sudo usermod -aG input $USER
 ```
+```
+
+## Permissions (v0.5.0)
+
+Deskbrid v0.5.0 adds scoped, per-UID permission gating. By default (no config file) all actions are allowed for backward compatibility. When a permissions file exists, the daemon checks every action against the caller's UID via `SO_PEERCRED`.
+
+### Config location
+
+```
+~/.config/deskbrid/permissions.toml
+```
+
+### Example config
+
+```toml
+# Allow everything to UID 1000 (default user)
+[permissions.1000]
+allow = ["*"]
+
+# Restrict a secondary user to read-only operations
+[permissions.1001]
+allow = ["windows.*", "workspaces.list", "system.*"]
+
+# Grant input and clipboard to a specific agent UID
+[permissions.1002]
+allow = [
+    "windows.*",
+    "workspaces.*",
+    "input.*",
+    "clipboard.*",
+    "screenshot",
+    "system.info",
+    "system.idle",
+    "notifications.*",
+]
+```
+
+### How it works
+
+| Concept | Behavior |
+|---------|----------|
+| **No file** | All actions allowed (backward compatible) |
+| **Empty file** | All actions denied for all UIDs |
+| **Missing UID** | All actions denied for that UID |
+| **Glob patterns** | `*`, `windows.*`, `input.keyboard`, etc. |
+| **Multiple patterns** | Any match = allow; no match = deny |
+| **Deny override** | Deny always takes precedence over allow |
+
+### Permission names
+
+Full list of available permission names:
+
+```
+windows.list, windows.focus, windows.get
+workspaces.list, workspaces.switch, workspaces.move_window
+input.keyboard, input.mouse
+clipboard.read, clipboard.write
+screenshot
+notifications.send, notifications.close
+system.info, system.idle, system.power, system.battery
+network.status, network.interfaces, network.wifi_scan, network.wifi_connect
+bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
+files.watch, files.unwatch, files.search
+process.list, process.start
+hotkeys.register, hotkeys.unregister
+audio.list_sinks, audio.set_sink_volume
+monitor.list, location.get
+```
+
+### Error response
+
+When an action is denied, the daemon returns:
+
+```json
+{"type": "response", "status": "error", "error": {"code": "PERMISSION_DENIED", "message": "Caller UID 1001 not allowed: input.keyboard"}}
+```
 
 ## Supported desktops
-
 | Desktop | Session | Status | Backend |
 |---------|---------|--------|---------|
 | **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |

@@ -43,6 +43,68 @@ deskbrid setup
 
 This auto-detects the desktop, installs the GNOME Shell extension if needed, or prints setup instructions for Hyprland/KDE.
 
+## Permissions (v0.5.0)
+
+v0.5.0 adds scoped, per-UID permission gating via TOML config. By default (no config file) all actions are allowed. When a permissions file exists, the daemon checks every action against the caller's UID via `SO_PEERCRED`.
+
+### Config location
+
+```
+~/.config/deskbrid/permissions.toml
+```
+
+### Example — restrict an agent to specific actions
+
+```toml
+# Allow everything to your primary user
+[permissions.1000]
+allow = ["*"]
+
+# Agent UID gets window listing, screenshot, and read-only system info
+[permissions.1001]
+allow = [
+    "windows.list",
+    "windows.get",
+    "screenshot",
+    "system.info",
+    "system.idle",
+]
+```
+
+### How it works
+
+- **No file** → all actions allowed (backward compatible)
+- **Empty file** → all actions denied for all UIDs
+- **Missing UID entry** → all actions denied for that UID
+- **Glob patterns** → `*`, `windows.*`, `input.keyboard`, etc.
+- **Multiple patterns** → any match allows the action
+- **Deny-overrides-allow** semantics
+
+### Permission names
+
+```
+windows.list, windows.focus, windows.get
+workspaces.list, workspaces.switch, workspaces.move_window
+input.keyboard, input.mouse
+clipboard.read, clipboard.write
+screenshot
+notifications.send, notifications.close
+system.info, system.idle, system.power, system.battery
+network.status, network.interfaces, network.wifi_scan, network.wifi_connect
+bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
+files.watch, files.unwatch, files.search
+process.list, process.start
+hotkeys.register, hotkeys.unregister
+audio.list_sinks, audio.set_sink_volume
+monitor.list, location.get
+```
+
+### Error response
+
+```json
+{"type": "response", "status": "error", "error": {"code": "PERMISSION_DENIED", "message": "Caller UID 1001 not allowed: screenshot"}}
+```
+
 ## CLI usage
 
 ```bash

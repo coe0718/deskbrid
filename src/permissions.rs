@@ -89,14 +89,14 @@ impl Permissions {
 
         // Deny list checked first — explicit deny always wins
         for pattern in &entry.deny {
-            if glob_match(pattern, &action_name) {
+            if glob_match(pattern, action_name) {
                 return false;
             }
         }
 
         // Allow list
         for pattern in &entry.allow {
-            if glob_match(pattern, &action_name) {
+            if glob_match(pattern, action_name) {
                 return true;
             }
         }

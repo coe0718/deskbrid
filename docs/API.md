@@ -23,11 +23,12 @@
     23|**Error codes:**
     24|| Code | Meaning |
     25||------|---------|
-    26|| `INVALID_PARAMS` | Malformed JSON or unknown action type |
-    27|| `INTERNAL_ERROR` | Backend operation failed |
-    28|| `NOT_SUPPORTED` | No desktop backend loaded |
-    29|
-    30|### Connection Handshake
+| `INVALID_PARAMS` | Malformed JSON or unknown action type |
+| `INTERNAL_ERROR` | Backend operation failed |
+| `NOT_SUPPORTED` | No desktop backend loaded |
+| `PERMISSION_DENIED` | Caller UID not allowed for the requested action |
+
+### Connection Handshake
     31|
     32|On socket connect, the daemon immediately sends a `connected` message. Clients **must** wait for this before sending commands:
     33|
