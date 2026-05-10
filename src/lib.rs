@@ -3,9 +3,11 @@ pub mod capture;
 pub mod cli;
 pub mod client;
 pub mod daemon;
+pub mod permissions;
 pub mod protocol;
 pub mod setup;
 
+use permissions::Permissions;
 use protocol::DeskbridEvent;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -16,6 +18,8 @@ pub struct DaemonState {
     pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
     /// Broadcast channel for push events (file changes, etc.)
     pub event_tx: broadcast::Sender<DeskbridEvent>,
+    /// Scoped permissions per UID
+    pub permissions: Permissions,
 }
 
 impl DaemonState {
@@ -24,6 +28,7 @@ impl DaemonState {
         Self {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
+            permissions: Permissions::load(),
         }
     }
 }

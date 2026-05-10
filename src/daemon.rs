@@ -1,3 +1,4 @@
+use crate::permissions::socket_peer_uid;
 use crate::protocol::Action;
 use crate::{ConnectionState, DaemonState};
 use anyhow::Context;
@@ -61,6 +62,7 @@ pub async fn run() -> anyhow::Result<()> {
 }
 
 async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Result<()> {
+    let peer_uid = socket_peer_uid(&stream).unwrap_or(u32::MAX);
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut conn = ConnectionState::default();
@@ -71,7 +73,7 @@ async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Resul
         "type": "connected",
         "id": "server",
         "seq": 0,
-        "data": { "version": "0.4.1", "protocol": "deskbrid-v2" }
+        "data": { "version": "0.5.0", "protocol": "deskbrid-v2", "uid": peer_uid }
     });
     writer
         .write_all(format!("{}\n", serde_json::to_string(&connected)?).as_bytes())
@@ -186,21 +188,21 @@ async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Resul
                     // Files — track watched paths locally
                     Action::FilesWatch { ref path, .. } => {
                         conn.watched_paths.insert(path.clone());
-                        let resp = dispatch_action(action, state, seq).await;
+                        let resp = dispatch_action(action, state, peer_uid, seq).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
                     Action::FilesUnwatch { ref path } => {
                         conn.watched_paths.remove(path);
-                        let resp = dispatch_action(action, state, seq).await;
+                        let resp = dispatch_action(action, state, peer_uid, seq).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
 
                     _ => {
-                        let resp = dispatch_action(action, state, seq).await;
+                        let resp = dispatch_action(action, state, peer_uid, seq).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
@@ -236,7 +238,17 @@ fn event_matches_any(subscriptions: &std::collections::HashSet<String>, event_ty
     false
 }
 
-async fn dispatch_action(action: Action, state: &DaemonState, seq: u64) -> serde_json::Value {
+async fn dispatch_action(
+    action: Action,
+    state: &DaemonState,
+    peer_uid: u32,
+    seq: u64,
+) -> serde_json::Value {
+    // Check permissions first
+    if !state.permissions.check(peer_uid, &action) {
+        return permission_denied_response(seq);
+    }
+
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
         Some(b) => b,
@@ -512,5 +524,12 @@ fn not_supported_response(msg: &str, seq: u64) -> serde_json::Value {
     serde_json::json!({
         "type": "response", "id": "?", "seq": seq, "status": "error",
         "error": { "code": "NOT_SUPPORTED", "message": msg }
+    })
+}
+
+fn permission_denied_response(seq: u64) -> serde_json::Value {
+    serde_json::json!({
+        "type": "response", "id": "?", "seq": seq, "status": "error",
+        "error": { "code": "PERMISSION_DENIED", "message": "action not permitted" }
     })
 }

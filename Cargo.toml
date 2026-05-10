@@ -1,6 +1,6 @@
 [package]
 name = "deskbrid"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 description = "The HAL your Linux desktop agents are missing"
 license = "MIT"
@@ -26,6 +26,12 @@ async-trait = "0.1"
 
 # DBus
 zbus = "5"
+
+# Permissions
+toml = "0.8"
+
+# Socket peer credentials (Linux SO_PEERCRED)
+libc = "0.2"
 
 # Core
 anyhow = "1"
