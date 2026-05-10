@@ -29,6 +29,8 @@ Every major AI lab is racing to ship desktop agents. AppleScript gives macOS age
 
 Deskbrid fills that gap. It doesn't bet on agents taking off — automation use cases validate it today, agents validate it tomorrow. Same daemon, same protocol, same socket.
 
+![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
+
 ## Quick start
 
 ```bash
