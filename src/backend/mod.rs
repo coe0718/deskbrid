@@ -1,5 +1,6 @@
 pub mod gnome;
 pub mod hyprland;
+pub mod kde;
 
 use crate::protocol;
 use async_trait::async_trait;
@@ -14,7 +15,7 @@ pub async fn create_backend(
         DesktopEnv::Hyprland => hyprland::HyprBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
-        DesktopEnv::Kde => gnome::GnomeBackend::new(event_tx)
+        DesktopEnv::Kde => kde::KdeBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
