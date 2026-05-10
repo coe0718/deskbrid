@@ -432,7 +432,7 @@
    432||-------|------|-------------|
    433|| `monitor` | number{?} | Monitor index to capture (omit for all monitors) |
    434|| `region` | object{?} | `{x, y, width, height}` in pixels |
-   435|| `window_id` | string{?} | Window ID to capture (via `slurp -o`) |
+   435|| `window_id` | string{?} | Window ID to capture (via backend-specific tooling — grim on GNOME/Hyprland, spectacle + ImageMagick on KDE) |
    436|
    437|**Response fields:**
    438|
@@ -443,7 +443,7 @@
    443|| `height` | number | Image height in pixels |
    444|| `format` | string | Always `"png"` |
    445|
-   446|**Backend:** `grim` with optional `slurp` for region/window selection. Screenshots are saved to `/tmp/deskbrid-screenshot-<unix_timestamp>.png`.
+   446|**Backend:** `grim` (GNOME/Hyprland) or `spectacle` + ImageMagick `convert -crop` (KDE). Screenshots are saved to `/tmp/deskbrid-screenshot-<unix_timestamp>.png`.
    447|
    448|---
    449|

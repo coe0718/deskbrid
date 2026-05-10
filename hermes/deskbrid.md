@@ -1,6 +1,6 @@
 ---
 name: deskbrid
-description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows. Supports GNOME and Hyprland.
+description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows. Supports GNOME, Hyprland, and KDE.
 ---
 
 # Deskbrid Hermes Skill
@@ -15,9 +15,9 @@ Deskbrid v0.3.0 auto-detects the running desktop environment at startup. Detecti
 |---|---|---|
 | **GNOME (Mutter)** | ✅ Full support | RemoteDesktop DBus + Shell Extension |
 | **Hyprland** | ✅ Full support (v0.3.0) | hyprctl + ydotool + grim |
-| **KDE (KWin)** | 🔜 Planned | — |
+| **KDE (KWin)** | ✅ Supported (v0.4.1) | KWin D-Bus + ydotool + spectacle |
 
-**All CLI commands work identically on both backends.** Your agent doesn't need to know which compositor is running — `deskbrid windows list`, `deskbrid input type`, `deskbrid screenshot` all work the same way.
+**All CLI commands work identically on all three backends.** Your agent doesn't need to know which compositor is running — `deskbrid windows list`, `deskbrid input type`, `deskbrid screenshot` all work the same way.
 
 ## Requirement
 
@@ -34,6 +34,14 @@ terminal("~/deskbrid daemon", background=True)
 ```
 
 The daemon auto-detects your compositor and loads the right backend.
+
+### Automated setup
+
+```bash
+deskbrid setup
+```
+
+This auto-detects the desktop, installs the GNOME Shell extension if needed, or prints setup instructions for Hyprland/KDE.
 
 ## CLI usage
 
@@ -183,6 +191,26 @@ cat /proc/$(pgrep -f "deskbrid daemon" | head -1)/environ | tr '\0' '\n' | grep 
 ```
 
 If `HYPRLAND_INSTANCE_SIGNATURE` is empty or unset, the detection failed. Most common cause: the daemon started before the Hyprland session created its socket directory. Restart the daemon.
+
+### KDE: ydotool returns empty error
+
+Same root causes as Hyprland, with one KDE-specific twist:
+
+1. **ydotoold not running** — Unlike Hyprland (where `exec-once` in the compositor config works), on KDE you need an XDG autostart entry:
+   ```bash
+   mkdir -p ~/.config/autostart
+   cat > ~/.config/autostart/ydotoold.desktop << 'EOF'
+   [Desktop Entry]
+   Type=Application
+   Name=ydotoold
+   Exec=ydotoold
+   Terminal=false
+   X-KDE-autostart-phase=2
+   EOF
+   ```
+   Then log out and back in, or start manually: `ydotoold &`
+
+2. **/dev/uinput permissions** — Same fix as Hyprland (udev rule + `input` group). The socket permission issue is not KWin blocking input — ydotool works fine once ydotoold is running with proper permissions.
 
 ### Daemon not running
 

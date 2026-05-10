@@ -51,7 +51,48 @@ Add to `~/.config/hypr/hyprland.conf`:
 exec-once = ydotoold
 ```
 
-## Optional (both backends)
+## KDE
+
+| Dependency | Package | Purpose |
+|---|---|---|
+| `spectacle` | `spectacle` | Wayland screenshots (full screen) |
+| `convert` | `imagemagick` | Window/region screenshot cropping |
+| `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
+| `ydotool` + `ydotoold` | `ydotool` | Keyboard and mouse input injection |
+
+```bash
+# Debian/Ubuntu
+sudo apt install -y spectacle imagemagick wl-clipboard ydotool
+
+# Arch
+sudo pacman -S spectacle imagemagick wl-clipboard ydotool
+```
+
+**ydotoold:** Must run as user (not root). Add to KDE autostart:
+
+```bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/ydotoold.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=ydotoold
+Exec=ydotoold
+Terminal=false
+X-KDE-autostart-phase=2
+EOF
+```
+
+**/dev/uinput permissions:** Same as Hyprland — ydotool needs write access:
+
+```bash
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo udevadm control --reload-rules
+sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+sudo usermod -aG input $USER
+# Log out and back in for group to take effect
+```
+
+## Optional (all backends)
 
 | Dependency | Package | Purpose |
 |---|---|---|

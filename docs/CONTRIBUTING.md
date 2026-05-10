@@ -11,12 +11,14 @@ deskbrid/
 │   ├── lib.rs            — DaemonState, ConnectionState, module re-exports
 │   ├── daemon.rs         — Unix socket listener, client handler, message dispatch
 │   ├── protocol.rs       — Action enum, DeskbridEvent, response types, JSON serialisation
-│   ├── cli.rs            — CLI argument parsing (daemon, status, stop, restart, install)
+│   ├── cli.rs            — CLI argument parsing (daemon, status, stop, restart, install, setup)
 │   ├── client.rs         — Built-in client mode (reads NDJSON from stdin, sends to socket)
-│   ├── capture.rs        — Screenshot helpers (grim/slurp invocation, PNG dimension parsing)
+│   ├── capture.rs        — Screenshot helpers (grim on GNOME/Hyprland, spectacle+convert on KDE)
 │   └── backend/
 │       ├── mod.rs        — DesktopBackend trait, create_backend() factory
-│       └── gnome.rs      — GNOME backend (zbus DBus, gdbus CLI, wtype, grim, pactl, etc.)
+│       ├── gnome.rs      — GNOME backend (zbus DBus, gdbus CLI, wtype, grim, pactl, etc.)
+│       ├── hyprland.rs   — Hyprland backend (hyprctl JSON CLI, ydotool, grim)
+│       └── kde.rs        — KDE backend (KWin D-Bus scripting, ydotool, spectacle, ImageMagick)
 ├── clients/
 │   └── python/
 │       ├── deskbrid/
@@ -80,7 +82,7 @@ cargo test test_name -- --nocapture
 
 There is also a Python client test suite — see `clients/python/` for running those.
 
-> **Integration testing note:** Integration tests that need a running daemon require a GNOME 46+ Wayland session and are not part of the unit test suite. See `demo.sh` for manual end-to-end testing patterns.
+> **Integration testing note:** Integration tests that need a running daemon require a compatible Wayland session (GNOME 46+, Hyprland, or KDE Plasma) and are not part of the unit test suite. See `demo.sh` for manual end-to-end testing patterns.
 
 ## Coding Conventions
 
@@ -174,9 +176,9 @@ pub trait DesktopBackend: Send + Sync {
 }
 ```
 
-**To add a new backend (e.g. KDE, Sway, Hyprland, Xfce):**
+**To add a new backend (e.g. Sway, Xfce, Cinnamon):**
 
-1. **Create the module:** `src/backend/kde.rs` with a struct implementing `DesktopBackend`
+1. **Create the module:** `src/backend/backend_name.rs` with a struct implementing `DesktopBackend`
 2. **Register it in the factory:** Update `create_backend()` in `src/backend/mod.rs` to attempt your backend (it should return `Err` gracefully if the environment isn't detected)
 3. **Handle environment detection:** Check for session type, available DBus services, or `$XDG_CURRENT_DESKTOP` in the constructor
 
@@ -206,7 +208,7 @@ pub async fn create_backend(
 }
 ```
 
-4. **Use the same tools where possible:** `wtype`/`ydotool` for input, `wl-*` for clipboard, `grim` for screenshots, `pactl` for audio and `notify-send` for notifications all work across Wayland compositors. DBus-based features (Power, NetworkManager, BlueZ) are desktop-agnostic and can be reused.
+4. **Use the same tools where possible:** `ydotool` for keyboard/mouse input, `wl-*` for clipboard, `pactl` for audio and `notify-send` for notifications all work across Wayland compositors. Screenshots vary per backend — use `grim` on GNOME/Hyprland, `spectacle` + ImageMagick `convert` on KDE. DBus-based features (Power, NetworkManager, BlueZ) are desktop-agnostic and can be reused.
 
 ### Backend Implementation Tips
 

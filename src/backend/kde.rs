@@ -59,18 +59,13 @@ impl KdeBackend {
     }
 
     async fn kwin_js(&self, js: &str) -> anyhow::Result<Vec<String>> {
-        use std::io::Write;
-
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap();
         let marker = format!("KWIN_DESKBRID_{}", now.as_nanos());
-        let wrapped = format!("print(\"{}\");\n{}\nprint(\"{}\");", marker, js, marker);
+        let wrapped = format!("print(\"{}\");\n{js}\nprint(\"{}\");", marker, marker);
         let tmp = format!("/tmp/deskbrid_kwin_{}.js", std::process::id());
-        {
-            let mut f = std::fs::File::create(&tmp)?;
-            f.write_all(wrapped.as_bytes())?;
-        }
+        tokio::fs::write(&tmp, wrapped.as_bytes()).await?;
 
         let resp = self
             .sh(
@@ -103,15 +98,28 @@ impl KdeBackend {
         .await
         .ok();
 
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-
-        let out = self
-            .sh(
-                "journalctl",
-                &["_COMM=kwin_wayland", "-o", "cat", "--since", "1 minute ago"],
-            )
-            .await
-            .unwrap_or_default();
+        // Poll journalctl in a loop — exit as soon as the marker appears
+        let mut out = String::new();
+        for _ in 0..10 {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let resp = self
+                .sh(
+                    "journalctl",
+                    &[
+                        "_COMM=kwin_wayland",
+                        "-o",
+                        "cat",
+                        "--since",
+                        "30 seconds ago",
+                    ],
+                )
+                .await
+                .unwrap_or_default();
+            if resp.contains(&marker) {
+                out = resp;
+                break;
+            }
+        }
 
         self.sh(
             "dbus-send",
@@ -124,7 +132,7 @@ impl KdeBackend {
         .await
         .ok();
 
-        let _ = std::fs::remove_file(&tmp);
+        let _ = tokio::fs::remove_file(&tmp).await;
 
         let mut in_block = false;
         let mut results = Vec::new();
@@ -146,6 +154,8 @@ impl KdeBackend {
 var windows = workspace.windowList();
 for (var i = 0; i < windows.length; i++) {
     var w = windows[i];
+    var desks = w.desktops || [];
+    var ws_id = desks.length > 0 ? Number(desks[0].x11DesktopNumber || 1) : 0;
     print(JSON.stringify({
         id: String(w.internalId),
         title: String(w.caption || ""),
@@ -153,7 +163,8 @@ for (var i = 0; i < windows.length; i++) {
         x: w.x, y: w.y, width: w.width, height: w.height,
         active: Boolean(w.active),
         minimized: Boolean(w.minimized),
-        pid: Number(w.pid)
+        pid: Number(w.pid),
+        ws: ws_id
     }));
 }
 "#;
@@ -182,7 +193,7 @@ impl super::DesktopBackend for KdeBackend {
                 id: w["id"].as_str().unwrap_or("").to_string(),
                 title: w["title"].as_str().unwrap_or("").to_string(),
                 app_id: w["app_id"].as_str().unwrap_or("").to_string(),
-                workspace_id: 0,
+                workspace_id: w["ws"].as_i64().unwrap_or(0) as u32,
                 is_focused: w["active"].as_bool().unwrap_or(false),
                 is_minimized: w["minimized"].as_bool().unwrap_or(false),
                 geometry: Some(protocol::Geometry {
@@ -230,6 +241,8 @@ var windows = workspace.windowList();
 for (var i = 0; i < windows.length; i++) {{
     var w = windows[i];
     if (String(w.internalId) === "{}" || String(w.resourceClass) === "{}") {{
+        var desks = w.desktops || [];
+        var ws_id = desks.length > 0 ? Number(desks[0].x11DesktopNumber || 1) : 0;
         print(JSON.stringify({{
             id: String(w.internalId),
             title: String(w.caption || ""),
@@ -237,7 +250,8 @@ for (var i = 0; i < windows.length; i++) {{
             x: w.x, y: w.y, width: w.width, height: w.height,
             active: Boolean(w.active),
             minimized: Boolean(w.minimized),
-            pid: Number(w.pid)
+            pid: Number(w.pid),
+            ws: ws_id
         }}));
         break;
     }}
@@ -255,7 +269,7 @@ for (var i = 0; i < windows.length; i++) {{
                     id: w["id"].as_str().unwrap_or("").to_string(),
                     title: w["title"].as_str().unwrap_or("").to_string(),
                     app_id: w["app_id"].as_str().unwrap_or("").to_string(),
-                    workspace_id: 0,
+                    workspace_id: w["ws"].as_i64().unwrap_or(0) as u32,
                     is_focused: w["active"].as_bool().unwrap_or(false),
                     is_minimized: w["minimized"].as_bool().unwrap_or(false),
                     geometry: Some(protocol::Geometry {
@@ -826,21 +840,43 @@ for (var i = 0; i < windows.length; i++) {{
 
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
         let out = self
-            .sh("pactl", &["list", "short", "sinks"])
+            .sh("pactl", &["list", "sinks"])
             .await
             .unwrap_or_default();
         let mut sinks = Vec::new();
+        let mut current: Option<protocol::AudioSinkInfo> = None;
         for line in out.lines() {
-            let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() >= 2 {
-                sinks.push(protocol::AudioSinkInfo {
-                    id: parts[0].parse().unwrap_or(0),
-                    name: parts[1].to_string(),
+            if line.starts_with("Sink #") {
+                if let Some(sink) = current.take() {
+                    sinks.push(sink);
+                }
+                let id_str = line.trim_start_matches("Sink #");
+                current = Some(protocol::AudioSinkInfo {
+                    id: id_str.parse().unwrap_or(0),
+                    name: String::new(),
                     description: String::new(),
                     volume: 0.0,
                     muted: false,
                 });
+            } else if let Some(ref mut sink) = current {
+                let trimmed = line.trim();
+                if let Some(name) = trimmed.strip_prefix("Name: ") {
+                    sink.name = name.to_string();
+                } else if let Some(desc) = trimmed.strip_prefix("Description: ") {
+                    sink.description = desc.to_string();
+                } else if trimmed.starts_with("Volume:") {
+                    // Parse "front-left: 65536 / 100% / ..." — extract the percentage
+                    if let Some(pct_str) = trimmed.split('/').nth(1) {
+                        let pct: f64 = pct_str.trim().trim_end_matches('%').parse().unwrap_or(0.0);
+                        sink.volume = (pct / 100.0).clamp(0.0, 1.0);
+                    }
+                } else if let Some(mute) = trimmed.strip_prefix("Mute: ") {
+                    sink.muted = mute.trim() == "yes";
+                }
             }
+        }
+        if let Some(sink) = current.take() {
+            sinks.push(sink);
         }
         Ok(sinks)
     }

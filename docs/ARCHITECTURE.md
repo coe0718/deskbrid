@@ -278,21 +278,24 @@
    278|Backends implement the `DesktopBackend` trait defined in `src/backend/mod.rs`. The factory function `create_backend()` attempts to initialise an available backend:
    279|
    280|```rust
-   281|pub async fn create_backend(
-   282|    event_tx: broadcast::Sender<DeskbridEvent>,
-   283|) -> anyhow::Result<Box<dyn DesktopBackend>> {
-   284|    // Currently only GNOME is implemented
-   285|    let backend = GnomeBackend::new(event_tx).await?;
-   286|    Ok(Box::new(backend))
-   287|}
+pub async fn create_backend(
+    event_tx: broadcast::Sender<DeskbridEvent>,
+) -> anyhow::Result<Box<dyn DesktopBackend>> {
+    // Auto-detect desktop and load matching backend
+    match detect_desktop().await? {
+        Desktop::Gnome => GnomeBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        Desktop::Hyprland => HyprlandBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        Desktop::Kde => KdeBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+    }
+}
    288|```
    289|
    290|When the daemon starts, it calls `create_backend()`:
    291|
-   292|- On success: stores the backend in `DaemonState.backend`, logs "GNOME backend loaded successfully"
+   292|- On success: stores the backend in `DaemonState.backend`, logs which backend loaded (e.g. "GNOME backend loaded", "Hyprland backend loaded", "KDE backend loaded")
    293|- On failure: logs a warning, continues without desktop features. All desktop actions return `NOT_SUPPORTED` errors
    294|
-   295|The trait is designed to be implemented for other desktop environments (KDE, Sway, Hyprland, etc.) by adding a new backend module and updating `create_backend()`.
+   295|The trait is designed to be implemented for other desktop environments (Sway, Xfce, Cinnamon, etc.) by adding a new backend module and updating `create_backend()`.
    296|
    297|### 8. Connection Lifecycle (Detailed)
    298|
@@ -322,12 +325,14 @@
    322|├── lib.rs          — DaemonState, ConnectionState, module declarations
    323|├── daemon.rs       — Unix socket listener, client handler, message dispatch loop
    324|├── protocol.rs     — Action enum, Envelope, response/event types, JSON (de)serialisation
-   325|├── cli.rs          — CLI argument parsing (subcommands: daemon, status, stop, restart, install)
+   325|├── cli.rs          — CLI argument parsing (subcommands: daemon, status, stop, restart, install, setup)
    326|├── client.rs       — Embedded client mode (reads NDJSON from stdin, sends to daemon)
-   327|├── capture.rs      — Screenshot helpers (grim/slurp invocation, PNG dimension extraction)
-   328|└── backend/
-   329|    ├── mod.rs      — DesktopBackend trait definition, create_backend() factory
-   330|    └── gnome.rs    — GNOME backend implementation (DBus, CLI wrappers, file watching)
+├── capture.rs      — Screenshot helpers (grim on GNOME/Hyprland, spectacle+convert on KDE)
+└── backend/
+    ├── mod.rs      — DesktopBackend trait definition, create_backend() factory, desktop detection
+    ├── gnome.rs    — GNOME backend implementation (DBus, CLI wrappers, file watching)
+    ├── hyprland.rs — Hyprland backend implementation (hyprctl JSON, ydotool, grim)
+    └── kde.rs      — KDE backend implementation (KWin D-Bus scripting, ydotool, spectacle)
    331|```
    332|
    333|### 10. Key Design Decisions

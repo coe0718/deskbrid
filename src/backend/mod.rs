@@ -42,17 +42,19 @@ async fn detect_desktop() -> DesktopEnv {
     }
 
     // 2. Check running compositor processes
-    if let Ok(output) = std::process::Command::new("pgrep")
+    if let Ok(output) = tokio::process::Command::new("pgrep")
         .args(["-x", "Hyprland"])
         .output()
+        .await
         && output.status.success()
     {
         return DesktopEnv::Hyprland;
     }
 
-    if let Ok(output) = std::process::Command::new("pgrep")
+    if let Ok(output) = tokio::process::Command::new("pgrep")
         .args(["-x", "kwin_wayland"])
         .output()
+        .await
         && output.status.success()
     {
         return DesktopEnv::Kde;

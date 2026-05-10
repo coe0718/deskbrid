@@ -96,6 +96,67 @@ cargo build --release
 ./target/release/deskbrid screenshot
 ```
 
+### KDE Plasma
+```bash
+git clone https://github.com/coe0718/deskbrid
+cd deskbrid
+
+# System deps
+sudo apt install spectacle imagemagick wl-clipboard ydotool   # Debian
+# or
+sudo pacman -S spectacle imagemagick wl-clipboard ydotool     # Arch
+
+# ydotoold must run as user (not root). Add to KDE autostart:
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/ydotoold.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=ydotoold
+Exec=ydotoold
+Terminal=false
+X-KDE-autostart-phase=2
+EOF
+
+# Fix /dev/uinput permissions (ydotool needs write access)
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo udevadm control --reload-rules
+sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+sudo usermod -aG input $USER  # log out and back in
+
+# Build and run
+cargo build --release
+./target/release/deskbrid daemon &
+
+# Test it
+./target/release/deskbrid windows list
+./target/release/deskbrid screenshot
+```
+
+## Auto-setup
+
+Deskbrid provides a `setup` subcommand that auto-detects your desktop and configures dependencies:
+
+```bash
+deskbrid setup
+```
+
+What it does per desktop:
+
+| Desktop | Action |
+|---------|--------|
+| **GNOME** | Installs the Shell extension to `~/.local/share/gnome-shell/extensions/` and enables it |
+| **Hyprland** | Prints ydotool setup tips (udev rules, `exec-once` config) |
+| **KDE** | Prints ydotoold autostart tips (XDG autostart file, udev rules) |
+
+```bash
+# Example output on KDE
+$ deskbrid setup
+Detected desktop: KDE
+ℹ  Install dependencies: sudo apt install spectacle imagemagick wl-clipboard ydotool
+ℹ  Add ydotoold autostart: see DEPENDENCIES.md
+ℹ  Fix /dev/uinput permissions: sudo usermod -aG input $USER
+```
+
 ## Supported desktops
 
 | Desktop | Session | Status | Backend |
@@ -239,7 +300,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 | wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on both GNOME and Hyprland.
+Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, and KDE.
 
 ## Full protocol
 

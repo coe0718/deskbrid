@@ -145,5 +145,6 @@ finally:
 ## Notes
 
 - Requires a running Deskbrid daemon on `$XDG_RUNTIME_DIR/deskbrid.sock`
-- Desktop is auto-detected: GNOME (Mutter RemoteDesktop) or Hyprland (hyprctl + ydotool) — same client, same API
-- On Hyprland: `ydotoold` must be running and `/dev/uinput` must be writable by the `input` group
+- Desktop is auto-detected: GNOME (Mutter RemoteDesktop), Hyprland (hyprctl + ydotool + grim), or KDE (KWin D-Bus + ydotool + spectacle) — same client, same API
+- On Hyprland and KDE: `ydotoold` must be running and `/dev/uinput` must be writable by the `input` group
+- On KDE: screenshots use `spectacle` + ImageMagick `convert` (not grim)
