@@ -18,15 +18,38 @@ pub struct HyprBackend {
     last_mouse: std::sync::Mutex<(f64, f64)>,
     /// Cached monitor info from hyprctl monitors.
     monitors: std::sync::Mutex<Vec<protocol::MonitorInfo>>,
+    /// Auto-detected Hyprland instance signature for IPC.
+    instance_sig: Option<String>,
+    /// Auto-detected WAYLAND_DISPLAY value.
+    wl_socket: Option<String>,
+    /// XDG_RUNTIME_DIR for Wayland client connections.
+    xdg_runtime: String,
 }
 
 impl HyprBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
+        // Auto-detect the Hyprland instance and Wayland socket
+        let (instance_sig, wl_socket) = detect_hypr_instance();
+        let xdg_runtime = std::env::var("XDG_RUNTIME_DIR")
+            .unwrap_or_else(|_| "/run/user/1000".to_string());
+        if let Some(ref sig) = instance_sig {
+            if sig.is_empty() {
+                eprintln!("[deskbrid] WARN: detected empty instance sig (found dirs but name empty)");
+            } else {
+                eprintln!("[deskbrid] detected Hyprland instance: {sig}");
+            }
+        } else {
+            eprintln!("[deskbrid] WARN: no Hyprland instance detected (xdg={xdg_runtime})");
+        }
+
         let backend = Self {
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),
             last_mouse: std::sync::Mutex::new((960.0, 540.0)),
             monitors: std::sync::Mutex::new(Vec::new()),
+            instance_sig,
+            wl_socket,
+            xdg_runtime,
         };
         // Cache monitor list on startup
         if let Ok(monitors) = backend.monitors_inner().await {
@@ -41,13 +64,14 @@ impl HyprBackend {
 
     /// Run `hyprctl` with JSON output, return parsed JSON value.
     async fn hyprctl_json(&self, args: &[&str]) -> anyhow::Result<serde_json::Value> {
-        let output = Command::new("hyprctl")
-            .args(args)
-            .arg("-j")
+        let mut cmd = Command::new("hyprctl");
+        cmd.args(args).arg("-j")
             .stdin(Stdio::null())
-            .stderr(Stdio::piped())
-            .output()
-            .await?;
+            .stderr(Stdio::piped());
+        if let Some(sig) = &self.instance_sig {
+            cmd.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+        }
+        let output = cmd.output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("hyprctl failed: {}", stderr.trim());
@@ -58,12 +82,15 @@ impl HyprBackend {
 
     /// Run `hyprctl dispatch` (no JSON output, just success/fail).
     async fn hyprctl_dispatch(&self, dispatch: &str) -> anyhow::Result<()> {
-        let output = Command::new("hyprctl")
-            .args(["dispatch", dispatch])
+        let mut cmd = std::process::Command::new("hyprctl");
+        cmd.arg("dispatch").arg(dispatch)
             .stdin(Stdio::null())
-            .stderr(Stdio::piped())
-            .output()
-            .await?;
+            .stderr(Stdio::piped());
+        if let Some(sig) = &self.instance_sig {
+            cmd.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+        }
+        // Convert to tokio::process::Command for async execution
+        let output = tokio::process::Command::from(cmd).output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("hyprctl dispatch '{}' failed: {}", dispatch, stderr.trim());
@@ -73,12 +100,16 @@ impl HyprBackend {
 
     /// Run a shell command and return stdout.
     async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
-        let output = Command::new(cmd)
-            .args(args)
+        let mut command = Command::new(cmd);
+        command.args(args)
             .stdin(Stdio::null())
-            .stderr(Stdio::piped())
-            .output()
-            .await?;
+            .stderr(Stdio::piped());
+        // Set wayland env for grim, wl-clipboard, etc.
+        command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        if let Some(sock) = &self.wl_socket {
+            command.env("WAYLAND_DISPLAY", sock);
+        }
+        let output = command.output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("{} failed: {}", cmd, stderr.trim());
@@ -88,15 +119,21 @@ impl HyprBackend {
 
     /// Run a command, return true if exit code is 0.
     async fn sh_ok(&self, cmd: &str, args: &[&str]) -> bool {
-        Command::new(cmd)
-            .args(args)
+        let mut command = Command::new(cmd);
+        command.args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .await
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .stderr(Stdio::null());
+        command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        if let Some(sock) = &self.wl_socket {
+            command.env("WAYLAND_DISPLAY", sock);
+        }
+        if let Some(sig) = &self.instance_sig {
+            if !sig.is_empty() {
+                command.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+            }
+        }
+        command.status().await.map(|s| s.success()).unwrap_or(false)
     }
 
     // ─── Internal helpers ────────────────────────────────
@@ -130,16 +167,13 @@ impl HyprBackend {
 
     fn hyprctl_client_to_window(c: &serde_json::Value) -> protocol::WindowInfo {
         let geometry = protocol::Geometry {
-            x: c.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            y: c.get("y").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            width: c.get("w").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            height: c.get("h").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            x: c.get("at").and_then(|v| v.as_array()).and_then(|a| a.first()).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+            y: c.get("at").and_then(|v| v.as_array()).and_then(|a| a.get(1)).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+            width: c.get("size").and_then(|v| v.as_array()).and_then(|a| a.first()).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            height: c.get("size").and_then(|v| v.as_array()).and_then(|a| a.get(1)).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         };
         protocol::WindowInfo {
-            id: format!(
-                "{}",
-                c.get("x").and_then(|v| v.as_i64()).unwrap_or(0)
-            ),
+            id: c.get("address").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
             title: c
                 .get("title")
                 .and_then(|v| v.as_str())
@@ -486,17 +520,15 @@ impl crate::backend::DesktopBackend for HyprBackend {
 
     async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
         let version = self
-            .sh("hyprctl", &["version"])
+            .hyprctl_json(&["version"])
             .await
+            .map(|v| {
+                // hyprctl -j version returns: {"version":"v0.54.3","branch":"v0.54.3",...}
+                v.get("version").and_then(|s| s.as_str()).unwrap_or("unknown").to_string()
+            })
             .unwrap_or_else(|_| "unknown".into());
-        // Parse "v0.54.3" or similar from "Hyprland v0.54.3..."
-        let version = version
-            .strip_prefix("Hyprland ")
-            .unwrap_or(&version)
-            .trim()
-            .to_string();
 
-        let session_type = if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        let session_type = if self.wl_socket.is_some() {
             "wayland"
         } else if std::env::var("DISPLAY").is_ok() {
             "x11"
@@ -946,6 +978,47 @@ impl HyprBackend {
         } else {
             Ok(0)
         }
+    }
+}
+
+// ─── Detect Hyprland instance ────────────────────────────
+
+/// Auto-detect the running Hyprland instance and Wayland display
+/// by scanning the Hyprland socket directory.
+fn detect_hypr_instance() -> (Option<String>, Option<String>) {
+    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR")
+        .unwrap_or_else(|_| "/run/user/1000".to_string());
+    let hypr_dir = std::path::Path::new(&xdg_runtime).join("hypr");
+
+    let entries = match std::fs::read_dir(&hypr_dir) {
+        Ok(e) => e,
+        Err(_) => return (None, None),
+    };
+
+    // Find the most recent instance by directory mtime
+    let mut instances: Vec<(std::path::PathBuf, std::time::SystemTime)> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .filter_map(|e| {
+            e.metadata().ok().and_then(|m| m.modified().ok()).map(|t| (e.path(), t))
+        })
+        .collect();
+
+    instances.sort_by(|a, b| b.1.cmp(&a.1)); // newest first
+
+    if let Some((path, _)) = instances.first() {
+        let sig = path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|s| s.to_string());
+        // Try to read .wayland_socket symlink, else default to "wayland-1"
+        let wl_sock = std::fs::read_link(path.join(".wayland_socket"))
+            .ok()
+            .and_then(|p| p.file_name().and_then(|n| n.to_str().map(|s| s.to_string())))
+            .or_else(|| Some("wayland-1".to_string()));
+
+        (sig, wl_sock)
+    } else {
+        (None, None)
     }
 }
 
