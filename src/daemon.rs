@@ -565,6 +565,11 @@ async fn execute_action(
                     if errno == libc::ESRCH {
                         break;
                     }
+                    anyhow::bail!(
+                        "failed to wait on pid {}: {}",
+                        pid,
+                        std::io::Error::last_os_error()
+                    );
                 }
                 if started.elapsed() >= timeout {
                     return Ok(
