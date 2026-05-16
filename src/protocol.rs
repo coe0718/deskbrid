@@ -169,6 +169,8 @@ pub enum Action {
 
     // System
     SystemInfo,
+    SystemCapabilities,
+    SystemHealth,
     SystemIdle,
     SystemPower {
         action: String,
@@ -305,6 +307,8 @@ impl Action {
             "notification.send",
             "notification.close",
             "system.info",
+            "system.capabilities",
+            "system.health",
             "system.idle",
             "system.power",
             "system.battery",
@@ -448,6 +452,8 @@ impl Action {
 
             // System
             "system.info" => Action::SystemInfo,
+            "system.capabilities" => Action::SystemCapabilities,
+            "system.health" => Action::SystemHealth,
             "system.idle" => Action::SystemIdle,
             "system.power" => Action::SystemPower {
                 action: raw["action"].as_str().unwrap_or("").into(),
@@ -730,6 +736,8 @@ impl Action {
 
             // System
             Action::SystemInfo => json!({"type": "system.info", "id": id}),
+            Action::SystemCapabilities => json!({"type": "system.capabilities", "id": id}),
+            Action::SystemHealth => json!({"type": "system.health", "id": id}),
             Action::SystemIdle => json!({"type": "system.idle", "id": id}),
             Action::SystemPower { action } => {
                 json!({"type": "system.power", "id": id, "action": action})
@@ -900,6 +908,8 @@ impl Action {
             Action::NotificationSend { .. } => "notification.send",
             Action::NotificationClose { .. } => "notification.close",
             Action::SystemInfo => "system.info",
+            Action::SystemCapabilities => "system.capabilities",
+            Action::SystemHealth => "system.health",
             Action::SystemIdle => "system.idle",
             Action::SystemPower { .. } => "system.power",
             Action::SystemBattery => "system.battery",
