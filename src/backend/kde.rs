@@ -105,7 +105,15 @@ impl KdeBackend {
             let resp = self
                 .sh(
                     "journalctl",
-                    &["--since", "30 seconds ago", "_COMM=kwin_wayland", "-o", "cat", "-n", "300"],
+                    &[
+                        "--since",
+                        "30 seconds ago",
+                        "_COMM=kwin_wayland",
+                        "-o",
+                        "cat",
+                        "-n",
+                        "300",
+                    ],
                 )
                 .await
                 .unwrap_or_default();

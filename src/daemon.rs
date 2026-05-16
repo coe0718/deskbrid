@@ -865,7 +865,6 @@ fn check_uinput() -> serde_json::Value {
     }
 }
 
-
 fn check_clipboard_tools() -> serde_json::Value {
     let copy = std::process::Command::new("sh")
         .arg("-c")
