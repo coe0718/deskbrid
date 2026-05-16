@@ -1447,8 +1447,69 @@ impl GnomeBackend {
     }
 
     async fn get_monitors(&self) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
-        // Try wlr-randr, fall back to placeholder
+        // Try gnome-randr first (GNOME-friendly), then wlr-randr, then fallback.
         let mut monitors = Vec::new();
+        if let Ok(out) = self.sh("gnome-randr", &[]).await {
+            let mut current_name = String::new();
+            let mut current_width = 1920u32;
+            let mut current_height = 1080u32;
+            let mut current_scale = 1.0f64;
+            let mut idx = 0u32;
+            for line in out.lines() {
+                if line.starts_with("  ") || line.trim().is_empty() {
+                    if line.contains("x") && line.contains('@') {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if let Some(res) = parts.first() {
+                            let dims: Vec<&str> = res.split('x').collect();
+                            if dims.len() == 2 {
+                                current_width = dims[0].parse().unwrap_or(1920);
+                                current_height = dims[1]
+                                    .split('@')
+                                    .next()
+                                    .unwrap_or("1080")
+                                    .parse()
+                                    .unwrap_or(1080);
+                            }
+                        }
+                    }
+                    if line.to_lowercase().contains("scale") {
+                        current_scale = line
+                            .split(':')
+                            .nth(1)
+                            .unwrap_or("1.0")
+                            .trim()
+                            .parse()
+                            .unwrap_or(1.0);
+                    }
+                    continue;
+                }
+                if !current_name.is_empty() {
+                    monitors.push(protocol::MonitorInfo {
+                        id: idx,
+                        name: current_name.clone(),
+                        width: current_width,
+                        height: current_height,
+                        scale: current_scale,
+                        primary: idx == 0,
+                    });
+                    idx += 1;
+                }
+                current_name = line.split_whitespace().next().unwrap_or("").to_string();
+            }
+            if !current_name.is_empty() {
+                monitors.push(protocol::MonitorInfo {
+                    id: idx,
+                    name: current_name,
+                    width: current_width,
+                    height: current_height,
+                    scale: current_scale,
+                    primary: idx == 0,
+                });
+            }
+            if !monitors.is_empty() {
+                return Ok(monitors);
+            }
+        }
         // Try wlr-randr (wlroots-based but sometimes available)
         if let Ok(out) = self.sh("wlr-randr", &[]).await {
             let mut current_name = String::new();

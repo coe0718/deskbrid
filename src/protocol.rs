@@ -1018,4 +1018,34 @@ pub enum DeskbridEvent {
         new_path: String,
         timestamp: u64,
     },
+    #[serde(rename = "window.focused")]
+    WindowFocused { window_id: String, timestamp: u64 },
+    #[serde(rename = "workspace.changed")]
+    WorkspaceChanged { workspace_id: u32, timestamp: u64 },
+    #[serde(rename = "workspace.window_moved")]
+    WorkspaceWindowMoved {
+        window_id: String,
+        workspace_id: u32,
+        timestamp: u64,
+    },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Action;
+
+    #[test]
+    fn parses_system_capabilities_and_health() {
+        let (_, a1) = Action::from_json(r#"{"type":"system.capabilities","id":"x"}"#).unwrap();
+        let (_, a2) = Action::from_json(r#"{"type":"system.health","id":"y"}"#).unwrap();
+        assert!(matches!(a1, Action::SystemCapabilities));
+        assert!(matches!(a2, Action::SystemHealth));
+    }
+
+    #[test]
+    fn public_actions_include_system_capabilities_and_health() {
+        let actions = Action::public_action_types();
+        assert!(actions.contains(&"system.capabilities"));
+        assert!(actions.contains(&"system.health"));
+    }
 }

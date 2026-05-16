@@ -260,12 +260,15 @@ async fn dispatch_action(
         }
     };
 
-    let result = execute_action(action, backend.as_ref()).await;
+    let result = execute_action(action.clone(), backend.as_ref()).await;
 
     match result {
-        Ok(data) => serde_json::json!({
-            "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
-        }),
+        Ok(data) => {
+            emit_action_event(state, &action, &data);
+            serde_json::json!({
+                "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
+            })
+        }
         Err(e) => {
             warn!("Action failed: {}", e);
             serde_json::json!({
@@ -274,6 +277,37 @@ async fn dispatch_action(
             })
         }
     }
+}
+
+fn emit_action_event(state: &DaemonState, action: &Action, data: &serde_json::Value) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let event = match action {
+        Action::WindowsFocus(id) => Some(crate::protocol::DeskbridEvent::WindowFocused {
+            window_id: id.clone(),
+            timestamp: now,
+        }),
+        Action::WorkspaceSwitch(id) => Some(crate::protocol::DeskbridEvent::WorkspaceChanged {
+            workspace_id: *id,
+            timestamp: now,
+        }),
+        Action::WorkspaceMoveWindow {
+            window_id,
+            workspace_id,
+            ..
+        } => Some(crate::protocol::DeskbridEvent::WorkspaceWindowMoved {
+            window_id: window_id.clone(),
+            workspace_id: *workspace_id,
+            timestamp: now,
+        }),
+        _ => None,
+    };
+    if let Some(evt) = event {
+        let _ = state.event_tx.send(evt);
+    }
+    let _ = data;
 }
 
 async fn execute_action(
@@ -751,8 +785,14 @@ async fn build_system_capabilities(
     }
 
     Ok(serde_json::json!({
+        "schema_version": 1,
         "backend": desktop,
-        "actions": actions
+        "actions": actions,
+        "backend_notes": {
+            "gnome": "window control via Shell extension + Mutter DBus",
+            "kde": "window control via KWin scripting/DBus",
+            "hyprland": "window control via hyprctl dispatch"
+        }
     }))
 }
 
@@ -795,8 +835,10 @@ async fn build_system_health(
     }
 
     Ok(serde_json::json!({
+        "schema_version": 1,
         "backend": desktop,
-        "deps": deps
+        "deps": deps,
+        "remediation": health_remediation()
     }))
 }
 
@@ -832,6 +874,16 @@ fn check_in_path(cmd: &str) -> serde_json::Value {
         Ok(_) => serde_json::json!({"ok": false, "details": "missing"}),
         Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
     }
+}
+
+fn health_remediation() -> serde_json::Value {
+    serde_json::json!({
+        "ydotoold": "Start ydotoold in your user session (e.g. autostart entry).",
+        "uinput": "Configure udev: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\" and add your user to input group.",
+        "gnome_extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
+        "grim": "Install grim package for screenshots.",
+        "spectacle": "Install spectacle package for KDE screenshots."
+    })
 }
 
 async fn check_process(proc_name: &str) -> serde_json::Value {
