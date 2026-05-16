@@ -363,23 +363,25 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        // Pass the user's string directly to the extension's FocusWindow.
-        // The extension already does case-insensitive substring matching on both
-        // app_id and title, so "code" finds VS Code, "kinsafe" finds the right window.
-        // For hex XIDs (0x...), find the window locally first and pass its title.
-        if id.starts_with("0x") || id.starts_with("0X") {
-            let windows = self.windows_list().await?;
-            let target = windows
-                .iter()
-                .find(|w| w.id == id)
-                .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
-            self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
-                .await?;
-        } else {
-            // Direct pass-through: extension matches title fragment
-            self.ext_call_parsed("FocusWindow", &[id, id, "false"])
-                .await?;
-        }
+        // Deterministic targeting order:
+        // exact id -> exact app_id -> exact title -> case-insensitive contains(app_id/title)
+        let windows = self.windows_list().await?;
+        let id_l = id.to_lowercase();
+        let target = windows
+            .iter()
+            .find(|w| w.id.eq_ignore_ascii_case(id))
+            .or_else(|| windows.iter().find(|w| w.app_id.eq_ignore_ascii_case(id)))
+            .or_else(|| windows.iter().find(|w| w.title.eq_ignore_ascii_case(id)))
+            .or_else(|| {
+                windows.iter().find(|w| {
+                    w.app_id.to_lowercase().contains(&id_l)
+                        || w.title.to_lowercase().contains(&id_l)
+                })
+            })
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
+
+        self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
+            .await?;
         Ok(())
     }
 
