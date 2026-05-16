@@ -1,6 +1,6 @@
 ---
 name: deskbrid
-description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows. Supports GNOME, Hyprland, and KDE.
+description: Desktop control via Deskbrid daemon — inject keystrokes, read clipboard, take screenshots, list windows, check system health. Supports GNOME, Hyprland, KDE, and X11.
 ---
 
 # Deskbrid Hermes Skill
@@ -9,15 +9,16 @@ Use this skill when a Hermes agent needs to interact with the local Linux deskto
 
 ## Compositor support
 
-Deskbrid v0.3.0 auto-detects the running desktop environment at startup. Detection order: `$XDG_CURRENT_DESKTOP` → process scan (`pgrep Hyprland`, `pgrep kwin_wayland`) → GNOME fallback.
+Deskbrid v0.6.0 auto-detects the running desktop environment at startup via `$XDG_CURRENT_DESKTOP` and process scanning.
 
 | Compositor | Status | Backend |
 |---|---|---|
 | **GNOME (Mutter)** | ✅ Full support | RemoteDesktop DBus + Shell Extension |
-| **Hyprland** | ✅ Full support (v0.3.0) | hyprctl + ydotool + grim |
-| **KDE (KWin)** | ✅ Supported (v0.4.1) | KWin D-Bus + ydotool + spectacle |
+| **Hyprland** | ✅ Full support | hyprctl + ydotool + grim |
+| **KDE (KWin)** | ✅ Full support | KWin D-Bus + ydotool + spectacle |
+| **X11** | ✅ Basic support | xdotool + xclip + ImageMagick import |
 
-**All CLI commands work identically on all three backends.** Your agent doesn't need to know which compositor is running — `deskbrid windows list`, `deskbrid input type`, `deskbrid screenshot` all work the same way.
+**All CLI commands work identically on all four backends.** Your agent doesn't need to know which compositor is running.
 
 ## Requirement
 
@@ -41,9 +42,40 @@ The daemon auto-detects your compositor and loads the right backend.
 deskbrid setup
 ```
 
-This auto-detects the desktop, installs the GNOME Shell extension if needed, or prints setup instructions for Hyprland/KDE.
+Auto-detects the desktop, installs the GNOME Shell extension if needed, or prints setup instructions for Hyprland/KDE/X11.
 
-## Permissions (v0.5.0)
+## Dependencies by backend
+
+| Backend | Required tools |
+|---|---|
+| **GNOME** | GNOME Shell extension (installed via `deskbrid setup`), grim, wl-copy/wl-paste |
+| **Hyprland** | hyprctl, ydotoold + ydotool, grim, wl-copy/wl-paste |
+| **KDE** | qdbus6, spectacle, imagemagick convert, ydotoold + ydotool, wl-copy/wl-paste |
+| **X11** | xdotool, xclip, imagemagick import, notify-send |
+
+## Actions (v0.6.0 schema)
+
+Each action returns a capabilities descriptor with:
+- `supported` (bool) — whether the backend implements this
+- `degraded` (bool) — works with limitations
+- `reason` — why it's degraded (if applicable)
+- `requires` — list of dependency keys to check via `system.health`
+- `session` — wayland or any (session-type constraint)
+- `degraded_modes` — modes that don't work fully
+
+Check capabilities at runtime:
+```bash
+deskbrid system capabilities
+```
+
+### Unsupported across all backends
+
+These actions are registered but return unsupported on all current backends:
+- `windows.close`, `windows.minimize`, `windows.maximize`, `windows.move_resize`
+- `ui.tree.get`, `ui.element.click`, `ui.element.set_text`
+- `bluetooth.pair`, `bluetooth.forget`
+
+## Permissions (v0.5.0+)
 
 v0.5.0 adds scoped, per-UID permission gating via TOML config. By default (no config file) all actions are allowed. When a permissions file exists, the daemon checks every action against the caller's UID via `SO_PEERCRED`.
 
@@ -89,9 +121,11 @@ input.keyboard, input.mouse
 clipboard.read, clipboard.write
 screenshot
 notifications.send, notifications.close
-system.info, system.idle, system.power, system.battery
+system.info, system.capabilities, system.health, system.remediation
+system.normalize_coords, system.idle, system.power, system.battery
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect
-bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
+bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect,
+bluetooth.disconnect, bluetooth.pair, bluetooth.forget
 files.watch, files.unwatch, files.search
 process.list, process.start
 hotkeys.register, hotkeys.unregister
@@ -105,14 +139,98 @@ monitor.list, location.get
 {"type": "response", "status": "error", "error": {"code": "PERMISSION_DENIED", "message": "Caller UID 1001 not allowed: screenshot"}}
 ```
 
+## System APIs (v0.6.0)
+
+### system.capabilities
+
+Returns the full action map with per-action metadata. Use this to discover what's available on the current backend before calling actions.
+
+```bash
+deskbrid system capabilities
+```
+
+Example response:
+```json
+{
+  "schema_version": 1,
+  "backend": "gnome",
+  "actions": {
+    "input.keyboard": {
+      "supported": true,
+      "degraded": false,
+      "reason": null,
+      "requires": [],
+      "session": "any",
+      "degraded_modes": []
+    },
+    "windows.focus": {
+      "supported": true,
+      "degraded": false,
+      "reason": null,
+      "requires": ["gnome-extension"],
+      "session": "any",
+      "degraded_modes": []
+    }
+  }
+}
+```
+
+### system.health
+
+Returns per-dependency health checks plus remediation instructions.
+
+```bash
+deskbrid system health
+```
+
+Example:
+```json
+{
+  "schema_version": 1,
+  "backend": "hyprland",
+  "deps": {
+    "ydotoold": {"ok": false, "details": "not running"},
+    "uinput": {"ok": true, "details": "write access"}
+  },
+  "remediation": {
+    "ydotoold": "Start ydotoold in your user session (e.g. autostart entry).",
+    "uinput": "udev rule: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\""
+  }
+}
+```
+
+### system.remediation
+
+Auto-apply a remediation. Pass the dep key and `apply=true`.
+
+```bash
+# Check what would be done (dry-run)
+deskbrid system remediate ydotoold
+
+# Apply the fix
+deskbrid system remediate ydotoold --apply
+```
+
+Supported remediations:
+- `ydotoold` — starts ydotoold via nohup (verified by pgrep after launch)
+- `kde_ydotoold_autostart` — creates XDG autostart desktop entry
+
+### system.normalize_coords
+
+Transform fractional coordinates to backend pixel coordinates given monitor scale. If no monitor specified, uses primary or first monitor.
+
+```bash
+deskbrid system normalize 0.5 0.5          # primary monitor center
+deskbrid system normalize 0.5 0.5 --monitor 0
+```
+
 ## CLI usage
 
 ```bash
 # Windows
 deskbrid windows list
 deskbrid windows focus firefox
-deskbrid windows focus "code"        # by app_id substring
-deskbrid windows focus "0x55f..."    # by hex address
+deskbrid windows get 0x55f...        # v0.6.0 — get window metadata by ID
 
 # Workspaces
 deskbrid workspaces list
@@ -132,6 +250,10 @@ deskbrid clipboard write "text"
 
 # System
 deskbrid system info
+deskbrid system capabilities          # v0.6.0
+deskbrid system health                # v0.6.0
+deskbrid system remediate <dep>       # v0.6.0
+deskbrid system normalize <x> <y>     # v0.6.0
 ```
 
 ## Connect from Hermes (Python)
@@ -163,6 +285,35 @@ try:
     focused = [w for w in windows if w.is_focused]
     if focused:
         print(f"Focused: {focused[0].app_id} — {focused[0].title}")
+finally:
+    client.close()
+```
+
+### Get window metadata by ID
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+try:
+    # Get a specific window's title, app_id, workspace, geometry
+    win = client.get_window(window_id="0x55f...")
+    print(f"{win.title} — geometry: {win.geometry}")
+finally:
+    client.close()
+```
+
+### Check system health before acting
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+try:
+    health = client.system_health()
+    if not health["deps"]["ydotoold"]["ok"]:
+        client.system_remediate("ydotoold", apply=True)
+        print("Started ydotoold")
 finally:
     client.close()
 ```
@@ -236,7 +387,7 @@ Two causes:
 
 1. **ydotoold not running** — start it via `hyprctl dispatch exec ydotoold` or add `exec-once = ydotoold` to `hyprland.conf`.
 
-2. **/dev/uinput permissions** — ydotool needs write access. On Arch/EndeavourOS, `/dev/uinput` is root-only by default:
+2. **/dev/uinput permissions** — ydotool needs write access:
    ```bash
    echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
    sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
@@ -245,20 +396,19 @@ Two causes:
 
 ### Hyprland: all hyprctl commands fail from daemon
 
-The daemon auto-detects the Hyprland instance at startup by scanning `/run/user/1000/hypr/` for the newest instance directory. Verify detection works:
+The daemon auto-detects the Hyprland instance at startup by scanning `/run/user/1000/hypr/` for the newest instance directory.
 
 ```bash
-# Check if daemon found the instance
 cat /proc/$(pgrep -f "deskbrid daemon" | head -1)/environ | tr '\0' '\n' | grep HYPRLAND
 ```
 
-If `HYPRLAND_INSTANCE_SIGNATURE` is empty or unset, the detection failed. Most common cause: the daemon started before the Hyprland session created its socket directory. Restart the daemon.
+If `HYPRLAND_INSTANCE_SIGNATURE` is empty, the detection failed. Most common cause: the daemon started before the Hyprland session created its socket directory. Restart the daemon.
 
 ### KDE: ydotool returns empty error
 
-Same root causes as Hyprland, with one KDE-specific twist:
+Same root causes as Hyprland:
 
-1. **ydotoold not running** — Unlike Hyprland (where `exec-once` in the compositor config works), on KDE you need an XDG autostart entry:
+1. **ydotoold not running** — on KDE you need an XDG autostart entry:
    ```bash
    mkdir -p ~/.config/autostart
    cat > ~/.config/autostart/ydotoold.desktop << 'EOF'
@@ -272,7 +422,23 @@ Same root causes as Hyprland, with one KDE-specific twist:
    ```
    Then log out and back in, or start manually: `ydotoold &`
 
-2. **/dev/uinput permissions** — Same fix as Hyprland (udev rule + `input` group). The socket permission issue is not KWin blocking input — ydotool works fine once ydotoold is running with proper permissions.
+2. **/dev/uinput permissions** — Same fix as Hyprland (udev rule + `input` group).
+
+### X11: commands return "not found"
+
+X11 backend depends on:
+```bash
+# Required
+xdotool          # window/input/workspace control
+xclip            # clipboard read/write
+imagemagick      # screenshots (import command)
+notify-send      # desktop notifications
+```
+
+Install:
+```bash
+sudo apt install xdotool xclip imagemagick libnotify-bin
+```
 
 ### Daemon not running
 

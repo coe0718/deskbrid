@@ -1,6 +1,6 @@
 kind = "Http"
 name = "deskbrid"
-description = "Send actions to the deskbrid daemon via Unix socket"
+description = "Send actions to the deskbrid daemon via Unix socket. Backends: GNOME, Hyprland, KDE, X11."
 required_level = 2
 requires_approval = true
 
@@ -13,7 +13,7 @@ content_type = "application/json"
 [endpoint.params]
 type = "action"
 id = "string UUID generated per request"
-action = "string action name such as info, window:list, inject:type, screenshot"
+action = "string action name: windows.list, windows.focus, windows.get, workspaces.list, workspaces.switch, input.keyboard, input.mouse, screenshot, clipboard.read, clipboard.write, system.info, system.capabilities, system.health, system.idle"
 params = "object containing action-specific parameters"
 
 [response]
