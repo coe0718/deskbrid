@@ -104,6 +104,16 @@ pub enum Action {
     WindowsList,
     WindowsFocus(String),
     WindowsGet(String),
+    WindowsClose(String),
+    WindowsMinimize(String),
+    WindowsMaximize(String),
+    WindowsMoveResize {
+        window_id: String,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    },
 
     // Workspaces
     WorkspacesList,
@@ -215,6 +225,22 @@ pub enum Action {
         workdir: Option<String>,
         env: Option<std::collections::HashMap<String, String>>,
     },
+    ProcessStop {
+        pid: u32,
+        signal: Option<String>,
+    },
+    ProcessSignal {
+        pid: u32,
+        signal: String,
+    },
+    ProcessExists {
+        pid: u32,
+    },
+    ProcessWait {
+        pid: u32,
+        timeout_ms: Option<u64>,
+    },
+    CapabilitiesList,
 
     // Hotkeys
     HotkeysRegister {
@@ -237,6 +263,14 @@ pub enum Action {
 
     // Location
     LocationGet,
+    UiTreeGet,
+    UiElementClick {
+        selector: String,
+    },
+    UiElementSetText {
+        selector: String,
+        text: String,
+    },
 
     // Connection
     Subscribe {
@@ -249,6 +283,64 @@ pub enum Action {
 }
 
 impl Action {
+    /// Public action names that clients may invoke.
+    /// Excludes connection-level messages like ping/subscribe/disconnect.
+    pub fn public_action_types() -> &'static [&'static str] {
+        &[
+            "windows.list",
+            "windows.focus",
+            "windows.get",
+            "windows.close",
+            "windows.minimize",
+            "windows.maximize",
+            "windows.move_resize",
+            "workspaces.list",
+            "workspaces.switch",
+            "workspaces.move_window",
+            "input.keyboard",
+            "input.mouse",
+            "clipboard.read",
+            "clipboard.write",
+            "screenshot",
+            "notification.send",
+            "notification.close",
+            "system.info",
+            "system.idle",
+            "system.power",
+            "system.battery",
+            "network.status",
+            "network.interfaces",
+            "network.wifi.scan",
+            "network.wifi.connect",
+            "bluetooth.list",
+            "bluetooth.scan",
+            "bluetooth.scan_stop",
+            "bluetooth.connect",
+            "bluetooth.disconnect",
+            "bluetooth.pair",
+            "bluetooth.forget",
+            "files.watch",
+            "files.unwatch",
+            "files.search",
+            "process.list",
+            "process.start",
+            "process.stop",
+            "process.signal",
+            "process.exists",
+            "process.wait",
+            "hotkeys.register",
+            "hotkeys.unregister",
+            "audio.list_sinks",
+            "audio.set_sink_volume",
+            "monitor.list",
+            "location.get",
+            "ui.tree.get",
+            "ui.element.click",
+            "ui.element.set_text",
+            "capabilities.list",
+        ]
+    }
+
     /// Parse an incoming NDJSON line into an Action.
     pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
         let raw: serde_json::Value = serde_json::from_str(line)?;
@@ -265,6 +357,20 @@ impl Action {
             "windows.list" => Action::WindowsList,
             "windows.focus" => Action::WindowsFocus(raw["window_id"].as_str().unwrap_or("").into()),
             "windows.get" => Action::WindowsGet(raw["window_id"].as_str().unwrap_or("").into()),
+            "windows.close" => Action::WindowsClose(raw["window_id"].as_str().unwrap_or("").into()),
+            "windows.minimize" => {
+                Action::WindowsMinimize(raw["window_id"].as_str().unwrap_or("").into())
+            }
+            "windows.maximize" => {
+                Action::WindowsMaximize(raw["window_id"].as_str().unwrap_or("").into())
+            }
+            "windows.move_resize" => Action::WindowsMoveResize {
+                window_id: raw["window_id"].as_str().unwrap_or("").into(),
+                x: raw["x"].as_i64().unwrap_or(0) as i32,
+                y: raw["y"].as_i64().unwrap_or(0) as i32,
+                width: raw["width"].as_u64().unwrap_or(0) as u32,
+                height: raw["height"].as_u64().unwrap_or(0) as u32,
+            },
 
             // Workspaces
             "workspaces.list" => Action::WorkspacesList,
@@ -413,6 +519,22 @@ impl Action {
                         .collect()
                 }),
             },
+            "process.stop" => Action::ProcessStop {
+                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                signal: raw["signal"].as_str().map(String::from),
+            },
+            "process.signal" => Action::ProcessSignal {
+                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                signal: raw["signal"].as_str().unwrap_or("TERM").to_string(),
+            },
+            "process.exists" => Action::ProcessExists {
+                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+            },
+            "process.wait" => Action::ProcessWait {
+                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                timeout_ms: raw["timeout_ms"].as_u64(),
+            },
+            "capabilities.list" => Action::CapabilitiesList,
 
             // Hotkeys
             "hotkeys.register" => Action::HotkeysRegister {
@@ -442,6 +564,14 @@ impl Action {
 
             // Location
             "location.get" => Action::LocationGet,
+            "ui.tree.get" => Action::UiTreeGet,
+            "ui.element.click" => Action::UiElementClick {
+                selector: raw["selector"].as_str().unwrap_or("").into(),
+            },
+            "ui.element.set_text" => Action::UiElementSetText {
+                selector: raw["selector"].as_str().unwrap_or("").into(),
+                text: raw["text"].as_str().unwrap_or("").into(),
+            },
 
             // Connection
             "subscribe" => Action::Subscribe {
@@ -486,6 +616,24 @@ impl Action {
             }
             Action::WindowsGet(window_id) => {
                 json!({"type": "windows.get", "id": id, "window_id": window_id})
+            }
+            Action::WindowsClose(window_id) => {
+                json!({"type":"windows.close","id":id,"window_id":window_id})
+            }
+            Action::WindowsMinimize(window_id) => {
+                json!({"type":"windows.minimize","id":id,"window_id":window_id})
+            }
+            Action::WindowsMaximize(window_id) => {
+                json!({"type":"windows.maximize","id":id,"window_id":window_id})
+            }
+            Action::WindowsMoveResize {
+                window_id,
+                x,
+                y,
+                width,
+                height,
+            } => {
+                json!({"type":"windows.move_resize","id":id,"window_id":window_id,"x":x,"y":y,"width":width,"height":height})
             }
 
             // Workspaces
@@ -663,6 +811,27 @@ impl Action {
                 }
                 obj
             }
+            Action::ProcessStop { pid, signal } => {
+                let mut obj = json!({"type": "process.stop", "id": id, "pid": pid});
+                if let Some(sig) = signal {
+                    obj["signal"] = json!(sig);
+                }
+                obj
+            }
+            Action::ProcessSignal { pid, signal } => {
+                json!({"type": "process.signal", "id": id, "pid": pid, "signal": signal})
+            }
+            Action::ProcessExists { pid } => {
+                json!({"type": "process.exists", "id": id, "pid": pid})
+            }
+            Action::ProcessWait { pid, timeout_ms } => {
+                let mut obj = json!({"type": "process.wait", "id": id, "pid": pid});
+                if let Some(ms) = timeout_ms {
+                    obj["timeout_ms"] = json!(ms);
+                }
+                obj
+            }
+            Action::CapabilitiesList => json!({"type": "capabilities.list", "id": id}),
 
             // Hotkeys
             Action::HotkeysRegister { hotkey_id, keys } => {
@@ -683,6 +852,13 @@ impl Action {
 
             // Location
             Action::LocationGet => json!({"type": "location.get", "id": id}),
+            Action::UiTreeGet => json!({"type":"ui.tree.get","id":id}),
+            Action::UiElementClick { selector } => {
+                json!({"type":"ui.element.click","id":id,"selector":selector})
+            }
+            Action::UiElementSetText { selector, text } => {
+                json!({"type":"ui.element.set_text","id":id,"selector":selector,"text":text})
+            }
 
             // Connection
             Action::Subscribe { events } => {
@@ -703,6 +879,10 @@ impl Action {
             Action::WindowsList => "windows.list",
             Action::WindowsFocus(_) => "windows.focus",
             Action::WindowsGet(_) => "windows.get",
+            Action::WindowsClose(_) => "windows.close",
+            Action::WindowsMinimize(_) => "windows.minimize",
+            Action::WindowsMaximize(_) => "windows.maximize",
+            Action::WindowsMoveResize { .. } => "windows.move_resize",
             Action::WorkspacesList => "workspaces.list",
             Action::WorkspaceSwitch(_) => "workspaces.switch",
             Action::WorkspaceMoveWindow { .. } => "workspaces.move_window",
@@ -735,12 +915,20 @@ impl Action {
             Action::FilesSearch { .. } => "files.search",
             Action::ProcessList => "process.list",
             Action::ProcessStart { .. } => "process.start",
+            Action::ProcessStop { .. } => "process.stop",
+            Action::ProcessSignal { .. } => "process.signal",
+            Action::ProcessExists { .. } => "process.exists",
+            Action::ProcessWait { .. } => "process.wait",
+            Action::CapabilitiesList => "capabilities.list",
             Action::HotkeysRegister { .. } => "hotkeys.register",
             Action::HotkeysUnregister { .. } => "hotkeys.unregister",
             Action::AudioListSinks => "audio.list_sinks",
             Action::AudioSetSinkVolume { .. } => "audio.set_sink_volume",
             Action::MonitorList => "monitor.list",
             Action::LocationGet => "location.get",
+            Action::UiTreeGet => "ui.tree.get",
+            Action::UiElementClick { .. } => "ui.element.click",
+            Action::UiElementSetText { .. } => "ui.element.set_text",
             Action::Subscribe { .. } => "subscribe",
             Action::Unsubscribe { .. } => "unsubscribe",
             Action::Disconnect => "disconnect",

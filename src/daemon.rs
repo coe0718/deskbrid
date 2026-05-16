@@ -289,6 +289,25 @@ async fn execute_action(
             serde_json::json!({"focused": id})
         }
         WindowsGet(ref id) => serde_json::json!(backend.window_get(id).await?),
+        WindowsClose(ref id) => {
+            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no close API yet"})
+        }
+        WindowsMinimize(ref id) => {
+            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no minimize API yet"})
+        }
+        WindowsMaximize(ref id) => {
+            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no maximize API yet"})
+        }
+        WindowsMoveResize {
+            ref window_id,
+            x,
+            y,
+            width,
+            height,
+        } => serde_json::json!({
+            "window_id": window_id, "x": x, "y": y, "width": width, "height": height,
+            "supported": false, "reason": "backend has no move_resize API yet"
+        }),
 
         WorkspacesList => serde_json::json!(backend.workspaces_list().await?),
         WorkspaceSwitch(id) => {
@@ -495,6 +514,83 @@ async fn execute_action(
                 .spawn()?;
             serde_json::json!({"pid": child.id().unwrap_or(0), "command": command})
         }
+        ProcessStop { pid, ref signal } => {
+            ensure_safe_pid(pid)?;
+            let sig = parse_signal(signal.as_deref().unwrap_or("TERM"))?;
+            let rc = unsafe { libc::kill(pid as i32, sig) };
+            if rc != 0 {
+                let err = std::io::Error::last_os_error();
+                anyhow::bail!("failed to stop pid {}: {}", pid, err);
+            }
+            serde_json::json!({"stopped": pid, "signal": sig})
+        }
+        ProcessSignal { pid, ref signal } => {
+            ensure_safe_pid(pid)?;
+            let sig = parse_signal(signal)?;
+            let rc = unsafe { libc::kill(pid as i32, sig) };
+            if rc != 0 {
+                let err = std::io::Error::last_os_error();
+                anyhow::bail!("failed to signal pid {}: {}", pid, err);
+            }
+            serde_json::json!({"signaled": pid, "signal": sig})
+        }
+        ProcessExists { pid } => {
+            ensure_safe_pid(pid)?;
+            let rc = unsafe { libc::kill(pid as i32, 0) };
+            if rc == 0 {
+                serde_json::json!({"pid": pid, "exists": true})
+            } else {
+                let errno = std::io::Error::last_os_error()
+                    .raw_os_error()
+                    .unwrap_or_default();
+                if errno == libc::ESRCH {
+                    serde_json::json!({"pid": pid, "exists": false})
+                } else {
+                    anyhow::bail!(
+                        "failed to check pid {}: {}",
+                        pid,
+                        std::io::Error::last_os_error()
+                    )
+                }
+            }
+        }
+        ProcessWait { pid, timeout_ms } => {
+            ensure_safe_pid(pid)?;
+            let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
+            let started = std::time::Instant::now();
+            loop {
+                let rc = unsafe { libc::kill(pid as i32, 0) };
+                if rc != 0 {
+                    let errno = std::io::Error::last_os_error()
+                        .raw_os_error()
+                        .unwrap_or_default();
+                    if errno == libc::ESRCH {
+                        break;
+                    }
+                }
+                if started.elapsed() >= timeout {
+                    return Ok(
+                        serde_json::json!({"pid": pid, "exited": false, "timeout_ms": timeout.as_millis()}),
+                    );
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            serde_json::json!({"pid": pid, "exited": true, "elapsed_ms": started.elapsed().as_millis()})
+        }
+        CapabilitiesList => serde_json::json!({
+            "desktop": backend.system_info().await?.desktop,
+            "actions": crate::protocol::Action::public_action_types(),
+            "supported": crate::protocol::Action::public_action_types(),
+            "unsupported": [
+                {"action":"windows.close","reason":"not implemented in backend trait"},
+                {"action":"windows.minimize","reason":"not implemented in backend trait"},
+                {"action":"windows.maximize","reason":"not implemented in backend trait"},
+                {"action":"windows.move_resize","reason":"not implemented in backend trait"},
+                {"action":"ui.tree.get","reason":"AT-SPI not integrated yet"},
+                {"action":"ui.element.click","reason":"AT-SPI not integrated yet"},
+                {"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}
+            ]
+        }),
 
         HotkeysRegister {
             ref hotkey_id,
@@ -510,10 +606,51 @@ async fn execute_action(
 
         MonitorList => serde_json::json!(backend.system_info().await?.monitors),
         LocationGet => serde_json::json!({"location": "not yet implemented"}),
+        UiTreeGet => {
+            serde_json::json!({"supported": false, "reason":"AT-SPI not integrated yet", "nodes":[]})
+        }
+        UiElementClick { ref selector } => {
+            serde_json::json!({"supported": false, "reason":"AT-SPI not integrated yet", "selector": selector})
+        }
+        UiElementSetText {
+            ref selector,
+            ref text,
+        } => {
+            serde_json::json!({"supported": false, "reason":"AT-SPI not integrated yet", "selector": selector, "text": text})
+        }
 
         // Handled before dispatch
         Ping | Subscribe { .. } | Unsubscribe { .. } | Disconnect => unreachable!(),
     })
+}
+
+fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
+    if pid <= 1 {
+        anyhow::bail!("refusing to target reserved pid {}", pid);
+    }
+    let self_pid = std::process::id();
+    if pid == self_pid {
+        anyhow::bail!("refusing to target deskbrid daemon pid {}", pid);
+    }
+    Ok(())
+}
+
+fn parse_signal(sig: &str) -> anyhow::Result<i32> {
+    let normalized = sig.trim().to_ascii_uppercase();
+    let normalized = normalized.strip_prefix("SIG").unwrap_or(&normalized);
+    let value = match normalized {
+        "HUP" => libc::SIGHUP,
+        "INT" => libc::SIGINT,
+        "QUIT" => libc::SIGQUIT,
+        "KILL" => libc::SIGKILL,
+        "TERM" => libc::SIGTERM,
+        "USR1" => libc::SIGUSR1,
+        "USR2" => libc::SIGUSR2,
+        "CONT" => libc::SIGCONT,
+        "STOP" => libc::SIGSTOP,
+        _ => anyhow::bail!("unsupported signal: {}", sig),
+    };
+    Ok(value)
 }
 
 fn ok_response(id: &str, seq: u64) -> serde_json::Value {
