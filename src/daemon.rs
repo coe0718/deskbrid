@@ -868,11 +868,13 @@ async fn build_system_health(
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
         deps.insert("ydotool".to_string(), check_in_path("ydotool"));
+
         deps.insert("uinput".to_string(), check_uinput());
     } else if desktop.contains("hyprland") {
         deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
         deps.insert("ydotool".to_string(), check_in_path("ydotool"));
+
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
     }
@@ -1046,7 +1048,6 @@ fn check_uinput() -> serde_json::Value {
         Err(e) => serde_json::json!({"ok": false, "details": format!("no write access: {}", e)}),
     }
 }
-
 fn check_clipboard_tools() -> serde_json::Value {
     let copy = std::process::Command::new("sh")
         .arg("-c")
