@@ -640,6 +640,12 @@ fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
     if pid <= 1 {
         anyhow::bail!("refusing to target reserved pid {}", pid);
     }
+    if pid > i32::MAX as u32 {
+        anyhow::bail!(
+            "refusing to target out-of-range pid {} (exceeds i32::MAX)",
+            pid
+        );
+    }
     let self_pid = std::process::id();
     if pid == self_pid {
         anyhow::bail!("refusing to target deskbrid daemon pid {}", pid);
