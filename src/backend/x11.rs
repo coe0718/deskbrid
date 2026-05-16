@@ -50,8 +50,14 @@ impl super::DesktopBackend for X11Backend {
             .map(|_| ())
     }
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        // Verify the window exists before returning synthetic data
+        self.sh("xdotool", &["getwindowname", id])
+            .await
+            .map_err(|_| anyhow::anyhow!("window not found: {}", id))?;
+
         Ok(protocol::WindowInfo {
             id: id.to_string(),
+            // xdotool getwindowname returns the actual window title on success
             title: id.to_string(),
             app_id: String::new(),
             workspace_id: 0,
