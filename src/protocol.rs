@@ -171,6 +171,15 @@ pub enum Action {
     SystemInfo,
     SystemCapabilities,
     SystemHealth,
+    SystemRemediate {
+        check: String,
+        apply: bool,
+    },
+    SystemNormalizeCoords {
+        x: f64,
+        y: f64,
+        monitor: Option<u32>,
+    },
     SystemIdle,
     SystemPower {
         action: String,
@@ -309,6 +318,8 @@ impl Action {
             "system.info",
             "system.capabilities",
             "system.health",
+            "system.remediate",
+            "system.normalize_coords",
             "system.idle",
             "system.power",
             "system.battery",
@@ -454,6 +465,15 @@ impl Action {
             "system.info" => Action::SystemInfo,
             "system.capabilities" => Action::SystemCapabilities,
             "system.health" => Action::SystemHealth,
+            "system.remediate" => Action::SystemRemediate {
+                check: raw["check"].as_str().unwrap_or("").into(),
+                apply: raw["apply"].as_bool().unwrap_or(false),
+            },
+            "system.normalize_coords" => Action::SystemNormalizeCoords {
+                x: raw["x"].as_f64().unwrap_or(0.0),
+                y: raw["y"].as_f64().unwrap_or(0.0),
+                monitor: raw["monitor"].as_u64().map(|m| m as u32),
+            },
             "system.idle" => Action::SystemIdle,
             "system.power" => Action::SystemPower {
                 action: raw["action"].as_str().unwrap_or("").into(),
@@ -738,6 +758,16 @@ impl Action {
             Action::SystemInfo => json!({"type": "system.info", "id": id}),
             Action::SystemCapabilities => json!({"type": "system.capabilities", "id": id}),
             Action::SystemHealth => json!({"type": "system.health", "id": id}),
+            Action::SystemRemediate { check, apply } => {
+                json!({"type": "system.remediate", "id": id, "check": check, "apply": apply})
+            }
+            Action::SystemNormalizeCoords { x, y, monitor } => {
+                let mut obj = json!({"type":"system.normalize_coords","id":id,"x":x,"y":y});
+                if let Some(m) = monitor {
+                    obj["monitor"] = json!(m);
+                }
+                obj
+            }
             Action::SystemIdle => json!({"type": "system.idle", "id": id}),
             Action::SystemPower { action } => {
                 json!({"type": "system.power", "id": id, "action": action})
@@ -910,6 +940,8 @@ impl Action {
             Action::SystemInfo => "system.info",
             Action::SystemCapabilities => "system.capabilities",
             Action::SystemHealth => "system.health",
+            Action::SystemRemediate { .. } => "system.remediate",
+            Action::SystemNormalizeCoords { .. } => "system.normalize_coords",
             Action::SystemIdle => "system.idle",
             Action::SystemPower { .. } => "system.power",
             Action::SystemBattery => "system.battery",

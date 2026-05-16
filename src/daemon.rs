@@ -453,7 +453,15 @@ async fn execute_action(
         SystemInfo => serde_json::json!(backend.system_info().await?),
         SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
         SystemHealth => serde_json::json!(build_system_health(backend).await?),
+
         SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
+        SystemRemediate { ref check, apply } => {
+            serde_json::json!(run_system_remediation(check, apply).await?)
+        }
+        SystemNormalizeCoords { x, y, monitor } => {
+            let info = backend.system_info().await?;
+            serde_json::json!(normalize_coords(&info, x, y, monitor))
+        }
         SystemPower { ref action } => {
             backend.power_action(action).await?;
             serde_json::json!({"power": action})
@@ -774,6 +782,11 @@ async fn build_system_capabilities(
             "input.mouse",
             "absolute_move_may_be_unavailable_without_screencast",
         );
+        set_requires(&mut actions, "windows.list", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.focus", &["gnome-extension"]);
+        set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
+        set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
+        set_session(&mut actions, "input.mouse", "wayland");
     }
 
     if desktop.contains("kde") || desktop.contains("hyprland") {
@@ -908,7 +921,6 @@ fn set_session(
         v["session"] = serde_json::json!(session);
     }
 }
-
 fn check_in_path(cmd: &str) -> serde_json::Value {
     match std::process::Command::new("sh")
         .arg("-c")
@@ -929,6 +941,72 @@ fn health_remediation() -> serde_json::Value {
         "grim": "Install grim package for screenshots.",
         "spectacle": "Install spectacle package for KDE screenshots."
     })
+}
+
+async fn run_system_remediation(check: &str, apply: bool) -> anyhow::Result<serde_json::Value> {
+    match check {
+        "ydotoold" => {
+            if !apply {
+                return Ok(serde_json::json!({
+                    "check":"ydotoold",
+                    "applied": false,
+                    "command":"ydotoold &",
+                    "note":"Set apply=true to start ydotoold in current user session"
+                }));
+            }
+            let out = tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg("pgrep -x ydotoold >/dev/null 2>&1 || (nohup ydotoold >/tmp/deskbrid-ydotoold.log 2>&1 &)")
+                .output()
+                .await?;
+            Ok(serde_json::json!({
+                "check":"ydotoold",
+                "applied": out.status.success(),
+                "details": if out.status.success() { "started_or_already_running" } else { "failed_to_start" }
+            }))
+        }
+        "kde_ydotoold_autostart" => {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let path = format!("{}/.config/autostart/ydotoold.desktop", home);
+            if !apply {
+                return Ok(
+                    serde_json::json!({"check":"kde_ydotoold_autostart","applied":false,"path":path}),
+                );
+            }
+            tokio::fs::create_dir_all(format!("{}/.config/autostart", home)).await?;
+            let desktop = "[Desktop Entry]\nType=Application\nExec=ydotoold\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\nName=Deskbrid ydotool Daemon\nComment=Auto-start ydotoold for input injection\n";
+            tokio::fs::write(&path, desktop).await?;
+            Ok(serde_json::json!({"check":"kde_ydotoold_autostart","applied":true,"path":path}))
+        }
+        _ => Ok(serde_json::json!({"check": check,"applied": false,"error": "unknown check"})),
+    }
+}
+
+fn normalize_coords(
+    info: &crate::protocol::SystemInfo,
+    x: f64,
+    y: f64,
+    monitor: Option<u32>,
+) -> serde_json::Value {
+    let target = monitor
+        .and_then(|m| info.monitors.iter().find(|mon| mon.id == m))
+        .or_else(|| info.monitors.iter().find(|m| m.primary))
+        .or_else(|| info.monitors.first());
+    if let Some(mon) = target {
+        let px = (x * mon.scale).round();
+        let py = (y * mon.scale).round();
+        serde_json::json!({
+            "input": {"x": x, "y": y, "monitor": monitor},
+            "monitor": {"id": mon.id, "name": mon.name, "scale": mon.scale, "width": mon.width, "height": mon.height},
+            "backend_coords": {"x": px, "y": py}
+        })
+    } else {
+        serde_json::json!({
+            "input": {"x": x, "y": y, "monitor": monitor},
+            "backend_coords": {"x": x, "y": y},
+            "note": "no monitor metadata available"
+        })
+    }
 }
 
 async fn check_process(proc_name: &str) -> serde_json::Value {
