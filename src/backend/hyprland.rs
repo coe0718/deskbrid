@@ -242,24 +242,24 @@ impl crate::backend::DesktopBackend for HyprBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        // Focus by app_id/title fragment via hyprctl dispatch
-        // hyprctl dispatch focuswindow class:firefox or title:Kitty
-        if id.starts_with("0x") || id.starts_with("0X") {
-            // hex ID — use address-based focus
-            self.hyprctl_dispatch(&format!("focuswindow address:{}", id))
-                .await
-        } else {
-            // Try class match first, then title fragment
-            if self
-                .hyprctl_dispatch(&format!("focuswindow class:{}", id))
-                .await
-                .is_ok()
-            {
-                return Ok(());
-            }
-            self.hyprctl_dispatch(&format!("focuswindow title:{}", id))
-                .await
-        }
+        let windows = self.windows_list().await?;
+        let id_l = id.to_lowercase();
+
+        let target = windows
+            .iter()
+            .find(|w| w.id.eq_ignore_ascii_case(id))
+            .or_else(|| windows.iter().find(|w| w.app_id.eq_ignore_ascii_case(id)))
+            .or_else(|| windows.iter().find(|w| w.title.eq_ignore_ascii_case(id)))
+            .or_else(|| {
+                windows.iter().find(|w| {
+                    w.app_id.to_lowercase().contains(&id_l)
+                        || w.title.to_lowercase().contains(&id_l)
+                })
+            })
+            .ok_or_else(|| anyhow::anyhow!("no window matched id: {}", id))?;
+
+        self.hyprctl_dispatch(&format!("focuswindow address:{}", target.id))
+            .await
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {

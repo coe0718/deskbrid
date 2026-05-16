@@ -260,12 +260,15 @@ async fn dispatch_action(
         }
     };
 
-    let result = execute_action(action, backend.as_ref()).await;
+    let result = execute_action(action.clone(), backend.as_ref()).await;
 
     match result {
-        Ok(data) => serde_json::json!({
-            "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
-        }),
+        Ok(data) => {
+            emit_action_event(state, &action, &data);
+            serde_json::json!({
+                "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
+            })
+        }
         Err(e) => {
             warn!("Action failed: {}", e);
             serde_json::json!({
@@ -274,6 +277,37 @@ async fn dispatch_action(
             })
         }
     }
+}
+
+fn emit_action_event(state: &DaemonState, action: &Action, data: &serde_json::Value) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let event = match action {
+        Action::WindowsFocus(id) => Some(crate::protocol::DeskbridEvent::WindowFocused {
+            window_id: id.clone(),
+            timestamp: now,
+        }),
+        Action::WorkspaceSwitch(id) => Some(crate::protocol::DeskbridEvent::WorkspaceChanged {
+            workspace_id: *id,
+            timestamp: now,
+        }),
+        Action::WorkspaceMoveWindow {
+            window_id,
+            workspace_id,
+            ..
+        } => Some(crate::protocol::DeskbridEvent::WorkspaceWindowMoved {
+            window_id: window_id.clone(),
+            workspace_id: *workspace_id,
+            timestamp: now,
+        }),
+        _ => None,
+    };
+    if let Some(evt) = event {
+        let _ = state.event_tx.send(evt);
+    }
+    let _ = data;
 }
 
 async fn execute_action(
@@ -401,6 +435,15 @@ async fn execute_action(
         }
 
         SystemInfo => serde_json::json!(backend.system_info().await?),
+        SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
+        SystemHealth => serde_json::json!(build_system_health(backend).await?),
+        SystemRemediate { ref check, apply } => {
+            serde_json::json!(run_system_remediation(check, apply).await?)
+        }
+        SystemNormalizeCoords { x, y, monitor } => {
+            let info = backend.system_info().await?;
+            serde_json::json!(normalize_coords(&info, x, y, monitor))
+        }
         SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
         SystemPower { ref action } => {
             backend.power_action(action).await?;
@@ -695,4 +738,291 @@ fn permission_denied_response(seq: u64) -> serde_json::Value {
         "type": "response", "id": "?", "seq": seq, "status": "error",
         "error": { "code": "PERMISSION_DENIED", "message": "action not permitted" }
     })
+}
+
+async fn build_system_capabilities(
+    backend: &dyn crate::backend::DesktopBackend,
+) -> anyhow::Result<serde_json::Value> {
+    let desktop = backend.system_info().await?.desktop.to_lowercase();
+    let mut actions = serde_json::Map::new();
+    for action in crate::protocol::Action::public_action_types() {
+        actions.insert(
+            (*action).to_string(),
+            serde_json::json!({
+                "supported": true,
+                "degraded": false,
+                "reason": serde_json::Value::Null,
+                "requires": [],
+                "session": "any",
+                "degraded_modes": []
+            }),
+        );
+    }
+
+    if desktop.contains("gnome") {
+        set_degraded(
+            &mut actions,
+            "input.mouse",
+            "absolute_move_may_be_unavailable_without_screencast",
+        );
+        set_requires(&mut actions, "windows.list", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.focus", &["gnome-extension"]);
+        set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
+        set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
+        set_session(&mut actions, "input.mouse", "wayland");
+    }
+
+    if desktop.contains("kde") || desktop.contains("hyprland") {
+        set_degraded(
+            &mut actions,
+            "input.keyboard",
+            "depends_on_ydotoold_and_uinput_permissions",
+        );
+        set_degraded(
+            &mut actions,
+            "input.mouse",
+            "depends_on_ydotoold_and_uinput_permissions",
+        );
+        set_requires(&mut actions, "input.keyboard", &["ydotoold", "/dev/uinput"]);
+        set_requires(&mut actions, "input.mouse", &["ydotoold", "/dev/uinput"]);
+        set_session(&mut actions, "input.keyboard", "wayland");
+        set_session(&mut actions, "input.mouse", "wayland");
+    }
+
+    for action in [
+        "windows.close",
+        "windows.minimize",
+        "windows.maximize",
+        "windows.move_resize",
+        "ui.tree.get",
+        "ui.element.click",
+        "ui.element.set_text",
+    ] {
+        set_unsupported(&mut actions, action, "not_implemented");
+    }
+
+    Ok(serde_json::json!({
+        "schema_version": 1,
+        "backend": desktop,
+        "actions": actions,
+        "backend_notes": {
+            "gnome": "window control via Shell extension + Mutter DBus",
+            "kde": "window control via KWin scripting/DBus",
+            "hyprland": "window control via hyprctl dispatch"
+        }
+    }))
+}
+
+async fn build_system_health(
+    backend: &dyn crate::backend::DesktopBackend,
+) -> anyhow::Result<serde_json::Value> {
+    let desktop = backend.system_info().await?.desktop.to_lowercase();
+    let mut deps = serde_json::Map::new();
+
+    if desktop.contains("gnome") {
+        deps.insert(
+            "gnome_extension".to_string(),
+            check_cmd(
+                "gdbus",
+                &[
+                    "introspect",
+                    "--session",
+                    "--dest",
+                    "org.deskbrid.WindowManager",
+                    "--object-path",
+                    "/org/deskbrid/WindowManager",
+                ],
+            ),
+        );
+        deps.insert("grim".to_string(), check_in_path("grim"));
+        deps.insert("wl_clipboard".to_string(), check_in_path("wl-copy"));
+    } else if desktop.contains("kde") {
+        deps.insert("qdbus6".to_string(), check_in_path("qdbus6"));
+        deps.insert("spectacle".to_string(), check_in_path("spectacle"));
+        deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
+        deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("uinput".to_string(), check_uinput());
+    } else if desktop.contains("hyprland") {
+        deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
+        deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("uinput".to_string(), check_uinput());
+        deps.insert("grim".to_string(), check_in_path("grim"));
+    }
+
+    Ok(serde_json::json!({
+        "schema_version": 1,
+        "backend": desktop,
+        "deps": deps,
+        "remediation": health_remediation()
+    }))
+}
+
+fn set_degraded(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    reason: &str,
+) {
+    actions.insert(
+        action.to_string(),
+        serde_json::json!({"supported": true, "degraded": true, "reason": reason, "requires": [], "session": "any", "degraded_modes": [reason]}),
+    );
+}
+
+fn set_unsupported(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    reason: &str,
+) {
+    actions.insert(
+        action.to_string(),
+        serde_json::json!({"supported": false, "degraded": false, "reason": reason, "requires": [], "session": "any", "degraded_modes": []}),
+    );
+}
+
+fn set_requires(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    requires: &[&str],
+) {
+    if let Some(v) = actions.get_mut(action) {
+        v["requires"] = serde_json::json!(requires);
+    }
+}
+
+fn set_session(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    session: &str,
+) {
+    if let Some(v) = actions.get_mut(action) {
+        v["session"] = serde_json::json!(session);
+    }
+}
+
+fn check_in_path(cmd: &str) -> serde_json::Value {
+    match std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {} >/dev/null 2>&1", cmd))
+        .status()
+    {
+        Ok(status) if status.success() => serde_json::json!({"ok": true, "details": "present"}),
+        Ok(_) => serde_json::json!({"ok": false, "details": "missing"}),
+        Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
+    }
+}
+
+fn health_remediation() -> serde_json::Value {
+    serde_json::json!({
+        "ydotoold": "Start ydotoold in your user session (e.g. autostart entry).",
+        "uinput": "Configure udev: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\" and add your user to input group.",
+        "gnome_extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
+        "grim": "Install grim package for screenshots.",
+        "spectacle": "Install spectacle package for KDE screenshots."
+    })
+}
+
+async fn run_system_remediation(check: &str, apply: bool) -> anyhow::Result<serde_json::Value> {
+    match check {
+        "ydotoold" => {
+            if !apply {
+                return Ok(serde_json::json!({
+                    "check":"ydotoold",
+                    "applied": false,
+                    "command":"ydotoold &",
+                    "note":"Set apply=true to start ydotoold in current user session"
+                }));
+            }
+            let out = tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg("pgrep -x ydotoold >/dev/null 2>&1 || (nohup ydotoold >/tmp/deskbrid-ydotoold.log 2>&1 &)")
+                .output()
+                .await?;
+            Ok(serde_json::json!({
+                "check":"ydotoold",
+                "applied": out.status.success(),
+                "details": if out.status.success() { "started_or_already_running" } else { "failed_to_start" }
+            }))
+        }
+        "kde_ydotoold_autostart" => {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let path = format!("{}/.config/autostart/ydotoold.desktop", home);
+            if !apply {
+                return Ok(
+                    serde_json::json!({"check":"kde_ydotoold_autostart","applied":false,"path":path}),
+                );
+            }
+            tokio::fs::create_dir_all(format!("{}/.config/autostart", home)).await?;
+            tokio::fs::write(
+                &path,
+                "[Desktop Entry]\nType=Application\nName=ydotoold\nExec=ydotoold\nTerminal=false\nX-KDE-autostart-phase=2\n",
+            )
+            .await?;
+            Ok(serde_json::json!({"check":"kde_ydotoold_autostart","applied":true,"path":path}))
+        }
+        _ => Ok(serde_json::json!({
+            "check": check,
+            "applied": false,
+            "error": "unknown remediation check"
+        })),
+    }
+}
+
+fn normalize_coords(
+    info: &crate::protocol::SystemInfo,
+    x: f64,
+    y: f64,
+    monitor: Option<u32>,
+) -> serde_json::Value {
+    let target = monitor
+        .and_then(|m| info.monitors.iter().find(|mon| mon.id == m))
+        .or_else(|| info.monitors.iter().find(|m| m.primary))
+        .or_else(|| info.monitors.first());
+    if let Some(mon) = target {
+        let px = (x * mon.scale).round();
+        let py = (y * mon.scale).round();
+        serde_json::json!({
+            "input": {"x": x, "y": y, "monitor": monitor},
+            "monitor": {"id": mon.id, "name": mon.name, "scale": mon.scale, "width": mon.width, "height": mon.height},
+            "backend_coords": {"x": px, "y": py}
+        })
+    } else {
+        serde_json::json!({
+            "input": {"x": x, "y": y, "monitor": monitor},
+            "backend_coords": {"x": x, "y": y},
+            "note": "no monitor metadata available"
+        })
+    }
+}
+
+async fn check_process(proc_name: &str) -> serde_json::Value {
+    match tokio::process::Command::new("pgrep")
+        .args(["-x", proc_name])
+        .output()
+        .await
+    {
+        Ok(out) if out.status.success() => serde_json::json!({"ok": true, "details": "running"}),
+        Ok(_) => serde_json::json!({"ok": false, "details": "not running"}),
+        Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
+    }
+}
+
+fn check_cmd(cmd: &str, args: &[&str]) -> serde_json::Value {
+    match std::process::Command::new(cmd).args(args).output() {
+        Ok(out) if out.status.success() => serde_json::json!({"ok": true, "details": "reachable"}),
+        Ok(out) => {
+            serde_json::json!({"ok": false, "details": format!("failed (code {:?})", out.status.code())})
+        }
+        Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
+    }
+}
+
+fn check_uinput() -> serde_json::Value {
+    let path = std::path::Path::new("/dev/uinput");
+    if !path.exists() {
+        return serde_json::json!({"ok": false, "details": "missing /dev/uinput"});
+    }
+    match std::fs::OpenOptions::new().write(true).open(path) {
+        Ok(_) => serde_json::json!({"ok": true, "details": "write access"}),
+        Err(e) => serde_json::json!({"ok": false, "details": format!("no write access: {}", e)}),
+    }
 }
