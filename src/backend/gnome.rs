@@ -380,7 +380,9 @@ impl crate::backend::DesktopBackend for GnomeBackend {
             })
             .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
 
-        self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
+        // Rust already matched deterministically above — pass exact=true so the
+        // extension doesn't re-match by app_id and potentially pick the wrong window.
+        self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "true"])
             .await?;
         Ok(())
     }
