@@ -285,10 +285,19 @@ fn emit_action_event(state: &DaemonState, action: &Action, data: &serde_json::Va
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let event = match action {
-        Action::WindowsFocus(id) => Some(crate::protocol::DeskbridEvent::WindowFocused {
-            window_id: id.clone(),
-            timestamp: now,
-        }),
+        // Use the resolved window ID from the response data when available,
+        // so subscribers get the canonical ID, not the caller-provided selector.
+        Action::WindowsFocus(_) => {
+            let window_id = data
+                .get("focused")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            Some(crate::protocol::DeskbridEvent::WindowFocused {
+                window_id,
+                timestamp: now,
+            })
+        }
         Action::WorkspaceSwitch(id) => Some(crate::protocol::DeskbridEvent::WorkspaceChanged {
             workspace_id: *id,
             timestamp: now,
@@ -834,11 +843,13 @@ async fn build_system_health(
         deps.insert("spectacle".to_string(), check_in_path("spectacle"));
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
 
         deps.insert("uinput".to_string(), check_uinput());
     } else if desktop.contains("hyprland") {
         deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
 
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
