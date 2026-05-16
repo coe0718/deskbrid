@@ -104,6 +104,48 @@ impl GnomeBackend {
         self.sh("gdbus", &args).await
     }
 
+    async fn ext_call_bool(&self, method: &str, extra_args: &[&str]) -> anyhow::Result<()> {
+        let raw = self.ext_call_parsed(method, extra_args).await?;
+        if raw.contains("true") {
+            Ok(())
+        } else {
+            anyhow::bail!("GNOME extension method {} returned false", method)
+        }
+    }
+
+    async fn resolve_window(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        let raw = self.ext_call_parsed("ListWindows", &[]).await?;
+        let windows = parse_extension_json_windows(&raw)?;
+        let id_l = id.to_lowercase();
+
+        windows
+            .iter()
+            .find(|w| w.id.eq_ignore_ascii_case(id))
+            .cloned()
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| w.app_id.eq_ignore_ascii_case(id))
+                    .cloned()
+            })
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| w.title.eq_ignore_ascii_case(id))
+                    .cloned()
+            })
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| {
+                        w.app_id.to_lowercase().contains(&id_l)
+                            || w.title.to_lowercase().contains(&id_l)
+                    })
+                    .cloned()
+            })
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))
+    }
+
     // ─── Remote Desktop input injection ─────────────────
 
     /// Initialise a Mutter RemoteDesktop session for input injection.
@@ -363,22 +405,7 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        // Deterministic targeting order:
-        // exact id -> exact app_id -> exact title -> case-insensitive contains(app_id/title)
-        let windows = self.windows_list().await?;
-        let id_l = id.to_lowercase();
-        let target = windows
-            .iter()
-            .find(|w| w.id.eq_ignore_ascii_case(id))
-            .or_else(|| windows.iter().find(|w| w.app_id.eq_ignore_ascii_case(id)))
-            .or_else(|| windows.iter().find(|w| w.title.eq_ignore_ascii_case(id)))
-            .or_else(|| {
-                windows.iter().find(|w| {
-                    w.app_id.to_lowercase().contains(&id_l)
-                        || w.title.to_lowercase().contains(&id_l)
-                })
-            })
-            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
+        let target = self.resolve_window(id).await?;
 
         // Rust already matched deterministically above — pass exact=true so the
         // extension doesn't re-match by app_id and potentially pick the wrong window.
@@ -388,11 +415,44 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
-        let windows = self.windows_list().await?;
-        windows
-            .into_iter()
-            .find(|w| w.id == id || w.app_id == id)
-            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))
+        self.resolve_window(id).await
+    }
+
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.ext_call_bool("CloseWindow", &[&target.id]).await
+    }
+
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.ext_call_bool("MinimizeWindow", &[&target.id]).await
+    }
+
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.ext_call_bool("MaximizeWindow", &[&target.id]).await
+    }
+
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.ext_call_bool(
+            "MoveResizeWindow",
+            &[
+                &target.id,
+                &x.to_string(),
+                &y.to_string(),
+                &width.to_string(),
+                &height.to_string(),
+            ],
+        )
+        .await
     }
 
     // ═══════════════════════════════════════════════════════
@@ -427,16 +487,12 @@ impl crate::backend::DesktopBackend for GnomeBackend {
         workspace_id: u32,
         _follow: bool,
     ) -> anyhow::Result<()> {
-        // Call extension's MoveWindowToWorkspace(app_id, workspace_index) over DBus
-        let windows = self.windows_list().await?;
-        let target = windows
-            .iter()
-            .find(|w| w.id == window_id || w.app_id == window_id)
-            .ok_or_else(|| anyhow::anyhow!("window not found: {}", window_id))?;
+        // Call extension's MoveWindowToWorkspace(window_id, workspace_index) over DBus
+        let target = self.resolve_window(window_id).await?;
 
         self.ext_call_parsed(
             "MoveWindowToWorkspace",
-            &[&target.app_id, &workspace_id.to_string()],
+            &[&target.id, &workspace_id.to_string()],
         )
         .await?;
         Ok(())
