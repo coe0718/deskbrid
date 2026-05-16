@@ -285,10 +285,19 @@ fn emit_action_event(state: &DaemonState, action: &Action, data: &serde_json::Va
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let event = match action {
-        Action::WindowsFocus(id) => Some(crate::protocol::DeskbridEvent::WindowFocused {
-            window_id: id.clone(),
-            timestamp: now,
-        }),
+        // Use the resolved window ID from the response data when available,
+        // so subscribers get the canonical ID, not the caller-provided selector.
+        Action::WindowsFocus(_) => {
+            let window_id = data
+                .get("focused")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            Some(crate::protocol::DeskbridEvent::WindowFocused {
+                window_id,
+                timestamp: now,
+            })
+        }
         Action::WorkspaceSwitch(id) => Some(crate::protocol::DeskbridEvent::WorkspaceChanged {
             workspace_id: *id,
             timestamp: now,
@@ -320,7 +329,14 @@ async fn execute_action(
         WindowsList => serde_json::json!(backend.windows_list().await?),
         WindowsFocus(ref id) => {
             backend.window_focus(id).await?;
-            serde_json::json!({"focused": id})
+            // Try to get the resolved window so events publish the canonical ID,
+            // not the caller-provided selector. Falls back to the raw selector.
+            let resolved = backend
+                .window_get(id)
+                .await
+                .map(|w| w.id)
+                .unwrap_or_else(|_| id.clone());
+            serde_json::json!({"focused": resolved, "id": id})
         }
         WindowsGet(ref id) => serde_json::json!(backend.window_get(id).await?),
         WindowsClose(ref id) => {
@@ -437,6 +453,8 @@ async fn execute_action(
         SystemInfo => serde_json::json!(backend.system_info().await?),
         SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
         SystemHealth => serde_json::json!(build_system_health(backend).await?),
+
+        SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
         SystemRemediate { ref check, apply } => {
             serde_json::json!(run_system_remediation(check, apply).await?)
         }
@@ -444,7 +462,6 @@ async fn execute_action(
             let info = backend.system_info().await?;
             serde_json::json!(normalize_coords(&info, x, y, monitor))
         }
-        SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
         SystemPower { ref action } => {
             backend.power_action(action).await?;
             serde_json::json!({"power": action})
@@ -797,6 +814,8 @@ async fn build_system_capabilities(
         "ui.tree.get",
         "ui.element.click",
         "ui.element.set_text",
+        "bluetooth.pair",
+        "bluetooth.forget",
     ] {
         set_unsupported(&mut actions, action, "not_implemented");
     }
@@ -835,16 +854,18 @@ async fn build_system_health(
             ),
         );
         deps.insert("grim".to_string(), check_in_path("grim"));
-        deps.insert("wl_clipboard".to_string(), check_in_path("wl-copy"));
+        deps.insert("wl_clipboard".to_string(), check_clipboard_tools());
     } else if desktop.contains("kde") {
         deps.insert("qdbus6".to_string(), check_in_path("qdbus6"));
         deps.insert("spectacle".to_string(), check_in_path("spectacle"));
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
         deps.insert("uinput".to_string(), check_uinput());
     } else if desktop.contains("hyprland") {
         deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
     }
@@ -898,7 +919,6 @@ fn set_session(
         v["session"] = serde_json::json!(session);
     }
 }
-
 fn check_in_path(cmd: &str) -> serde_json::Value {
     match std::process::Command::new("sh")
         .arg("-c")
@@ -952,18 +972,11 @@ async fn run_system_remediation(check: &str, apply: bool) -> anyhow::Result<serd
                 );
             }
             tokio::fs::create_dir_all(format!("{}/.config/autostart", home)).await?;
-            tokio::fs::write(
-                &path,
-                "[Desktop Entry]\nType=Application\nName=ydotoold\nExec=ydotoold\nTerminal=false\nX-KDE-autostart-phase=2\n",
-            )
-            .await?;
+            let desktop = "[Desktop Entry]\nType=Application\nExec=ydotoold\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\nName=Deskbrid ydotool Daemon\nComment=Auto-start ydotoold for input injection\n";
+            tokio::fs::write(&path, desktop).await?;
             Ok(serde_json::json!({"check":"kde_ydotoold_autostart","applied":true,"path":path}))
         }
-        _ => Ok(serde_json::json!({
-            "check": check,
-            "applied": false,
-            "error": "unknown remediation check"
-        })),
+        _ => Ok(serde_json::json!({"check": check,"applied": false,"error": "unknown check"})),
     }
 }
 
@@ -1024,5 +1037,32 @@ fn check_uinput() -> serde_json::Value {
     match std::fs::OpenOptions::new().write(true).open(path) {
         Ok(_) => serde_json::json!({"ok": true, "details": "write access"}),
         Err(e) => serde_json::json!({"ok": false, "details": format!("no write access: {}", e)}),
+    }
+}
+
+fn check_clipboard_tools() -> serde_json::Value {
+    let copy = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("command -v wl-copy >/dev/null 2>&1")
+        .status();
+    let paste = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("command -v wl-paste >/dev/null 2>&1")
+        .status();
+
+    let copy_ok = copy.map(|s| s.success()).unwrap_or(false);
+    let paste_ok = paste.map(|s| s.success()).unwrap_or(false);
+
+    if copy_ok && paste_ok {
+        serde_json::json!({"ok": true, "details": "wl-copy and wl-paste present"})
+    } else {
+        let mut missing = Vec::new();
+        if !copy_ok {
+            missing.push("wl-copy");
+        }
+        if !paste_ok {
+            missing.push("wl-paste");
+        }
+        serde_json::json!({"ok": false, "details": format!("missing: {}", missing.join(", "))})
     }
 }
