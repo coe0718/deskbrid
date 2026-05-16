@@ -1,6 +1,7 @@
 pub mod gnome;
 pub mod hyprland;
 pub mod kde;
+pub mod x11;
 
 use crate::protocol;
 use async_trait::async_trait;
@@ -16,6 +17,9 @@ pub async fn create_backend(
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         DesktopEnv::Kde => kde::KdeBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::X11 => x11::X11Backend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
@@ -39,6 +43,13 @@ async fn detect_desktop() -> DesktopEnv {
         if lower.contains("gnome") {
             return DesktopEnv::Gnome;
         }
+        if lower.contains("x11")
+            || lower.contains("xfce")
+            || lower.contains("mate")
+            || lower.contains("cinnamon")
+        {
+            return DesktopEnv::X11;
+        }
     }
 
     // 2. Check running compositor processes
@@ -61,6 +72,9 @@ async fn detect_desktop() -> DesktopEnv {
     }
 
     // Default to GNOME
+    if std::env::var("DISPLAY").is_ok() && std::env::var("WAYLAND_DISPLAY").is_err() {
+        return DesktopEnv::X11;
+    }
     DesktopEnv::Gnome
 }
 
@@ -68,6 +82,7 @@ enum DesktopEnv {
     Gnome,
     Hyprland,
     Kde,
+    X11,
 }
 
 /// The DesktopBackend trait defines all actions deskbrid can perform on a desktop
