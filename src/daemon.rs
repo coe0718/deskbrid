@@ -340,13 +340,16 @@ async fn execute_action(
         }
         WindowsGet(ref id) => serde_json::json!(backend.window_get(id).await?),
         WindowsClose(ref id) => {
-            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no close API yet"})
+            backend.window_close(id).await?;
+            serde_json::json!({"closed": id})
         }
         WindowsMinimize(ref id) => {
-            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no minimize API yet"})
+            backend.window_minimize(id).await?;
+            serde_json::json!({"minimized": id})
         }
         WindowsMaximize(ref id) => {
-            serde_json::json!({"window_id": id, "supported": false, "reason": "backend has no maximize API yet"})
+            backend.window_maximize(id).await?;
+            serde_json::json!({"maximized": id})
         }
         WindowsMoveResize {
             ref window_id,
@@ -354,10 +357,14 @@ async fn execute_action(
             y,
             width,
             height,
-        } => serde_json::json!({
-            "window_id": window_id, "x": x, "y": y, "width": width, "height": height,
-            "supported": false, "reason": "backend has no move_resize API yet"
-        }),
+        } => {
+            backend
+                .window_move_resize(window_id, x, y, width, height)
+                .await?;
+            serde_json::json!({
+                "window_id": window_id, "x": x, "y": y, "width": width, "height": height
+            })
+        }
 
         WorkspacesList => serde_json::json!(backend.workspaces_list().await?),
         WorkspaceSwitch(id) => {
@@ -644,15 +651,19 @@ async fn execute_action(
         }
         CapabilitiesList => {
             let actions = crate::protocol::Action::public_action_types();
-            let unsupported = vec![
-                serde_json::json!({"action":"windows.close","reason":"not implemented in backend trait"}),
-                serde_json::json!({"action":"windows.minimize","reason":"not implemented in backend trait"}),
-                serde_json::json!({"action":"windows.maximize","reason":"not implemented in backend trait"}),
-                serde_json::json!({"action":"windows.move_resize","reason":"not implemented in backend trait"}),
+            let desktop = backend.system_info().await?.desktop;
+            let desktop_l = desktop.to_lowercase();
+            let mut unsupported = vec![
                 serde_json::json!({"action":"ui.tree.get","reason":"AT-SPI not integrated yet"}),
                 serde_json::json!({"action":"ui.element.click","reason":"AT-SPI not integrated yet"}),
                 serde_json::json!({"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}),
             ];
+            if desktop_l.contains("hyprland") {
+                unsupported.push(serde_json::json!({
+                    "action":"windows.minimize",
+                    "reason":"Hyprland does not expose a native minimize dispatcher"
+                }));
+            }
             // Keep `supported` and `unsupported` mutually exclusive for clients.
             let unsupported_actions: std::collections::HashSet<&str> = unsupported
                 .iter()
@@ -665,7 +676,7 @@ async fn execute_action(
                 .collect();
 
             serde_json::json!({
-                "desktop": backend.system_info().await?.desktop,
+                "desktop": desktop,
                 "actions": actions,
                 "supported": supported,
                 "unsupported": unsupported
@@ -784,6 +795,10 @@ async fn build_system_capabilities(
         );
         set_requires(&mut actions, "windows.list", &["gnome-extension"]);
         set_requires(&mut actions, "windows.focus", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.close", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.minimize", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.maximize", &["gnome-extension"]);
+        set_requires(&mut actions, "windows.move_resize", &["gnome-extension"]);
         set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
         set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
         set_session(&mut actions, "input.mouse", "wayland");
@@ -807,6 +822,7 @@ async fn build_system_capabilities(
     }
 
     if desktop.contains("x11") {
+        set_requires(&mut actions, "windows.maximize", &["wmctrl"]);
         // X11 backend doesn't support notification actions via GNOME/KDE APIs
         set_unsupported(&mut actions, "notification.send", "x11_unsupported");
         set_unsupported(&mut actions, "notification.close", "x11_unsupported");
@@ -815,10 +831,6 @@ async fn build_system_capabilities(
     }
 
     for action in [
-        "windows.close",
-        "windows.minimize",
-        "windows.maximize",
-        "windows.move_resize",
         "ui.tree.get",
         "ui.element.click",
         "ui.element.set_text",
@@ -826,6 +838,14 @@ async fn build_system_capabilities(
         "bluetooth.forget",
     ] {
         set_unsupported(&mut actions, action, "not_implemented");
+    }
+
+    if desktop.contains("hyprland") {
+        set_unsupported(
+            &mut actions,
+            "windows.minimize",
+            "hyprland_has_no_native_minimize_dispatcher",
+        );
     }
 
     Ok(serde_json::json!({

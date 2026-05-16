@@ -209,7 +209,7 @@ allow = [
 Full list of available permission names:
 
 ```
-windows.list, windows.focus, windows.get
+windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write
@@ -239,9 +239,9 @@ When an action is denied, the daemon returns:
 | **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
-| Cinnamon | X11 | 🔄 Planned | xdotool + xprop + xclip |
-| MATE | X11 | 🔄 Planned | xdotool + xprop + xclip |
-| X11 (generic) | X11 | 🔄 Planned | xdotool + import |
+| Cinnamon | X11 | 🔄 Planned | xdotool + wmctrl + xprop + xclip |
+| MATE | X11 | 🔄 Planned | xdotool + wmctrl + xprop + xclip |
+| X11 (generic) | X11 | 🔄 Planned | xdotool + wmctrl + import |
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
@@ -253,6 +253,10 @@ Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → proces
 | `windows.list` | List all open windows (title, app_id, workspace, geometry) |
 | `windows.focus` | Focus a window by app_id, title substring, or hex address |
 | `windows.get` | Get details for a specific window |
+| `windows.close` | Request that a window close |
+| `windows.minimize` | Minimize a window where the compositor supports it |
+| `windows.maximize` | Maximize a window |
+| `windows.move_resize` | Move and resize a window |
 | `workspaces.list` | List workspaces |
 | `workspaces.switch` | Switch to a workspace |
 | `workspaces.move_window` | Move a window to another workspace |
@@ -361,7 +365,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 - **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
 - **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
 - **KDE** — uses KWin D-Bus + scripting API for windows/workspaces, `ydotool` for input (run ydotoold as user, not root), `spectacle` + ImageMagick `convert` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
-- **Cinnamon / MATE / X11** — planned, will use xdotool, xclip, and X11 utilities
+- **Cinnamon / MATE / X11** — planned, will use xdotool, wmctrl, xclip, and X11 utilities
 
 ## Compared to alternatives
 

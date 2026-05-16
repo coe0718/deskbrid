@@ -67,6 +67,42 @@ impl super::DesktopBackend for X11Backend {
             pid: None,
         })
     }
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        self.sh("xdotool", &["windowclose", id]).await.map(|_| ())
+    }
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        self.sh("xdotool", &["windowminimize", id])
+            .await
+            .map(|_| ())
+    }
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        self.sh(
+            "wmctrl",
+            &["-ir", id, "-b", "add,maximized_vert,maximized_horz"],
+        )
+        .await
+        .map(|_| ())
+    }
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        self.sh(
+            "xdotool",
+            &["windowmove", id, &x.to_string(), &y.to_string()],
+        )
+        .await?;
+        self.sh(
+            "xdotool",
+            &["windowsize", id, &width.to_string(), &height.to_string()],
+        )
+        .await
+        .map(|_| ())
+    }
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
         Ok(vec![protocol::WorkspaceInfo {
             id: 0,

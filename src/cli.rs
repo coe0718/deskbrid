@@ -156,6 +156,20 @@ pub enum WindowCmd {
     Focus { window_id: String },
     /// Get window details
     Get { window_id: String },
+    /// Close a window
+    Close { window_id: String },
+    /// Minimize a window
+    Minimize { window_id: String },
+    /// Maximize a window
+    Maximize { window_id: String },
+    /// Move and resize a window
+    MoveResize {
+        window_id: String,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    },
 }
 
 #[derive(Subcommand)]
@@ -291,6 +305,22 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             WindowCmd::List => Action::WindowsList,
             WindowCmd::Focus { window_id } => Action::WindowsFocus(window_id),
             WindowCmd::Get { window_id } => Action::WindowsGet(window_id),
+            WindowCmd::Close { window_id } => Action::WindowsClose(window_id),
+            WindowCmd::Minimize { window_id } => Action::WindowsMinimize(window_id),
+            WindowCmd::Maximize { window_id } => Action::WindowsMaximize(window_id),
+            WindowCmd::MoveResize {
+                window_id,
+                x,
+                y,
+                width,
+                height,
+            } => Action::WindowsMoveResize {
+                window_id,
+                x,
+                y,
+                width,
+                height,
+            },
         },
 
         Command::Workspaces { cmd } => match cmd {
