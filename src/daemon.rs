@@ -535,6 +535,7 @@ async fn execute_action(
             serde_json::json!({"signaled": pid, "signal": sig})
         }
         ProcessExists { pid } => {
+            ensure_safe_pid(pid)?;
             let rc = unsafe { libc::kill(pid as i32, 0) };
             if rc == 0 {
                 serde_json::json!({"pid": pid, "exists": true})
@@ -554,6 +555,7 @@ async fn execute_action(
             }
         }
         ProcessWait { pid, timeout_ms } => {
+            ensure_safe_pid(pid)?;
             let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
             let started = std::time::Instant::now();
             loop {
