@@ -38,8 +38,8 @@ Deskbrid fills that gap. It auto-detects your compositor and loads the right bac
 Download the latest release binary from the [releases page](https://github.com/coe0718/deskbrid/releases):
 
 ```bash
-# Pick your version — replace v0.4.1 with the latest tag
-curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.4.1/deskbrid
+# Pick your version — replace v0.6.0 with the latest tag
+curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.6.0/deskbrid
 chmod +x deskbrid
 sudo mv deskbrid /usr/local/bin/
 ```
