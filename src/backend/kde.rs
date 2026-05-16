@@ -214,19 +214,46 @@ impl super::DesktopBackend for KdeBackend {
         let js = format!(
             r#"
 var windows = workspace.windowList();
+var idLower = "{}".toLowerCase();
+
+function containsFold(haystack, needle) {{
+    if (!haystack) return false;
+    return String(haystack).toLowerCase().indexOf(needle) !== -1;
+}}
+
+var target = null;
 for (var i = 0; i < windows.length; i++) {{
     var w = windows[i];
-            if (String(w.internalId) === "{}" ||
-        String(w.resourceClass) === "{}" ||
-        (w.caption && String(w.caption).indexOf("{}") !== -1)) {{
-        if (w.minimized) w.minimized = false;
-        workspace.activeClient = w;
-        print("FOCUSED:" + String(w.internalId));
+    if (String(w.internalId) === "{}") {{ target = w; break; }}
+}}
+if (!target) {{
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (String(w.resourceClass) === "{}") {{ target = w; break; }}
+    }}
+}}
+if (!target) {{
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (w.caption && String(w.caption) === "{}") {{ target = w; break; }}
+    }}
+}}
+if (!target) {{
+for (var i = 0; i < windows.length; i++) {{
+    var w = windows[i];
+    if (containsFold(w.resourceClass, idLower) || containsFold(w.caption, idLower)) {{
+        target = w;
         break;
     }}
 }}
+}}
+if (target) {{
+    if (target.minimized) target.minimized = false;
+    workspace.activeClient = target;
+    print("FOCUSED:" + String(target.internalId));
+}}
 "#,
-            id_escaped, id_escaped, id_escaped
+            id_escaped, id_escaped, id_escaped, id_escaped
         );
         let lines = self.kwin_js(&js).await?;
         if !lines.iter().any(|l| l.starts_with("FOCUSED:")) {
