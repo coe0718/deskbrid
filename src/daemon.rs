@@ -787,6 +787,10 @@ async fn build_system_capabilities(
             "input.mouse",
             "depends_on_ydotoold_and_uinput_permissions",
         );
+        set_requires(&mut actions, "input.keyboard", &["ydotoold", "/dev/uinput"]);
+        set_requires(&mut actions, "input.mouse", &["ydotoold", "/dev/uinput"]);
+        set_session(&mut actions, "input.keyboard", "wayland");
+        set_session(&mut actions, "input.mouse", "wayland");
     }
 
     for action in [
@@ -885,7 +889,6 @@ fn set_unsupported(
     );
 }
 
-#[allow(dead_code)]
 fn set_requires(
     actions: &mut serde_json::Map<String, serde_json::Value>,
     action: &str,
@@ -896,7 +899,6 @@ fn set_requires(
     }
 }
 
-#[allow(dead_code)]
 fn set_session(
     actions: &mut serde_json::Map<String, serde_json::Value>,
     action: &str,
