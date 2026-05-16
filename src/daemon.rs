@@ -806,6 +806,14 @@ async fn build_system_capabilities(
         set_session(&mut actions, "input.mouse", "wayland");
     }
 
+    if desktop.contains("x11") {
+        // X11 backend doesn't support notification actions via GNOME/KDE APIs
+        set_unsupported(&mut actions, "notification.send", "x11_unsupported");
+        set_unsupported(&mut actions, "notification.close", "x11_unsupported");
+        set_unsupported(&mut actions, "screencast.start", "x11_unsupported");
+        set_unsupported(&mut actions, "screencast.stop", "x11_unsupported");
+    }
+
     for action in [
         "windows.close",
         "windows.minimize",
