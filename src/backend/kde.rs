@@ -98,7 +98,7 @@ impl KdeBackend {
         .await
         .ok();
 
-        // Poll journalctl in a loop — exit as soon as the marker appears
+        // Poll journalctl in a loop — but only the latest KWin logs to reduce stale matches.
         let mut out = String::new();
         for _ in 0..10 {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -106,11 +106,13 @@ impl KdeBackend {
                 .sh(
                     "journalctl",
                     &[
+                        "--since",
+                        "30 seconds ago",
                         "_COMM=kwin_wayland",
                         "-o",
                         "cat",
-                        "--since",
-                        "30 seconds ago",
+                        "-n",
+                        "300",
                     ],
                 )
                 .await
