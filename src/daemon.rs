@@ -285,10 +285,19 @@ fn emit_action_event(state: &DaemonState, action: &Action, data: &serde_json::Va
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let event = match action {
-        Action::WindowsFocus(id) => Some(crate::protocol::DeskbridEvent::WindowFocused {
-            window_id: id.clone(),
-            timestamp: now,
-        }),
+        // Use the resolved window ID from the response data when available,
+        // so subscribers get the canonical ID, not the caller-provided selector.
+        Action::WindowsFocus(_) => {
+            let window_id = data
+                .get("focused")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            Some(crate::protocol::DeskbridEvent::WindowFocused {
+                window_id,
+                timestamp: now,
+            })
+        }
         Action::WorkspaceSwitch(id) => Some(crate::protocol::DeskbridEvent::WorkspaceChanged {
             workspace_id: *id,
             timestamp: now,
@@ -320,7 +329,14 @@ async fn execute_action(
         WindowsList => serde_json::json!(backend.windows_list().await?),
         WindowsFocus(ref id) => {
             backend.window_focus(id).await?;
-            serde_json::json!({"focused": id})
+            // Try to get the resolved window so events publish the canonical ID,
+            // not the caller-provided selector. Falls back to the raw selector.
+            let resolved = backend
+                .window_get(id)
+                .await
+                .map(|w| w.id)
+                .unwrap_or_else(|_| id.clone());
+            serde_json::json!({"focused": resolved, "id": id})
         }
         WindowsGet(ref id) => serde_json::json!(backend.window_get(id).await?),
         WindowsClose(ref id) => {
