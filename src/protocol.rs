@@ -528,10 +528,16 @@ impl Action {
                 signal: raw["signal"].as_str().unwrap_or("TERM").to_string(),
             },
             "process.exists" => Action::ProcessExists {
-                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                pid: raw["pid"]
+                    .as_u64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'pid' in process.exists request"))?
+                    as u32,
             },
             "process.wait" => Action::ProcessWait {
-                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                pid: raw["pid"]
+                    .as_u64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'pid' in process.wait request"))?
+                    as u32,
                 timeout_ms: raw["timeout_ms"].as_u64(),
             },
             "capabilities.list" => Action::CapabilitiesList,
