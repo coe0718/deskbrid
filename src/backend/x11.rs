@@ -50,15 +50,15 @@ impl super::DesktopBackend for X11Backend {
             .map(|_| ())
     }
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
-        // Verify the window exists before returning synthetic data
-        self.sh("xdotool", &["getwindowname", id])
+        // xdotool getwindowname verifies existence AND returns the real window title
+        let title = self
+            .sh("xdotool", &["getwindowname", id])
             .await
             .map_err(|_| anyhow::anyhow!("window not found: {}", id))?;
 
         Ok(protocol::WindowInfo {
             id: id.to_string(),
-            // xdotool getwindowname returns the actual window title on success
-            title: id.to_string(),
+            title,
             app_id: String::new(),
             workspace_id: 0,
             is_focused: false,
@@ -164,10 +164,18 @@ impl super::DesktopBackend for X11Backend {
             })
         } else {
             self.sh("import", &["-window", "root", &path]).await?;
+            // Read back real dimensions from the captured PNG
+            let dims = self
+                .sh("identify", &["-format", "%w %h", &path])
+                .await
+                .unwrap_or_else(|_| "0 0".into());
+            let mut parts = dims.split_whitespace();
+            let w: u32 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+            let h: u32 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
             Ok(protocol::ScreenshotResult {
                 path,
-                width: 0,
-                height: 0,
+                width: w,
+                height: h,
                 format: "png".into(),
             })
         }
@@ -179,9 +187,8 @@ impl super::DesktopBackend for X11Backend {
         body: &str,
         urgency: &str,
     ) -> anyhow::Result<u32> {
-        let _ = self
-            .sh("notify-send", &["-a", app_name, "-u", urgency, title, body])
-            .await;
+        self.sh("notify-send", &["-a", app_name, "-u", urgency, title, body])
+            .await?;
         Ok(0)
     }
     async fn notification_close(&self, _id: u32) -> anyhow::Result<()> {
