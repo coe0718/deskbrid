@@ -593,6 +593,7 @@ async fn execute_action(
                 serde_json::json!({"action":"ui.element.click","reason":"AT-SPI not integrated yet"}),
                 serde_json::json!({"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}),
             ];
+            // Keep `supported` and `unsupported` mutually exclusive for clients.
             let unsupported_actions: std::collections::HashSet<&str> = unsupported
                 .iter()
                 .filter_map(|entry| entry.get("action").and_then(|value| value.as_str()))
