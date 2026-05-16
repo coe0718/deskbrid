@@ -166,26 +166,58 @@ impl GnomeBackend {
             )
             .await?;
 
-        // RecordMonitor with the known connector name.
+        // Try dynamic monitor selection first (primary monitor from get_monitors()).
         // RecordVirtual returns "Unknown monitor" on GNOME 46.
-        let connector = "DP-1";
-        tracing::info!("Recording monitor: {}", connector);
+        let mut monitor_candidates = Vec::new();
+        if let Ok(monitors) = self.get_monitors().await {
+            if let Some(primary) = monitors
+                .iter()
+                .find(|m| m.primary)
+                .or_else(|| monitors.first())
+            {
+                monitor_candidates.push(primary.name.clone());
+            }
+            for m in monitors {
+                if !monitor_candidates.iter().any(|n| n == &m.name) {
+                    monitor_candidates.push(m.name);
+                }
+            }
+        }
+        // Last-resort fallback for legacy setups.
+        if !monitor_candidates.iter().any(|n| n == "DP-1") {
+            monitor_candidates.push("DP-1".to_string());
+        }
 
         let stream_props: HashMap<&str, zbus::zvariant::Value<'_>> = HashMap::new();
-        let reply = self
-            .conn
-            .call_method(
-                Some("org.gnome.Mutter.ScreenCast"),
-                session_path.as_str(),
-                Some("org.gnome.Mutter.ScreenCast.Session"),
-                "RecordMonitor",
-                &(connector, stream_props),
-            )
-            .await?;
-        let stream_path: zbus::zvariant::OwnedObjectPath = reply.body().deserialize()?;
-        self.sc_stream_path = stream_path.to_string();
-        tracing::info!("ScreenCast stream created: {}", self.sc_stream_path);
-        Ok(())
+        let mut last_err: Option<anyhow::Error> = None;
+        for connector in monitor_candidates {
+            tracing::info!("Trying ScreenCast monitor: {}", connector);
+            match self
+                .conn
+                .call_method(
+                    Some("org.gnome.Mutter.ScreenCast"),
+                    session_path.as_str(),
+                    Some("org.gnome.Mutter.ScreenCast.Session"),
+                    "RecordMonitor",
+                    &(connector.as_str(), stream_props.clone()),
+                )
+                .await
+            {
+                Ok(reply) => {
+                    let stream_path: zbus::zvariant::OwnedObjectPath =
+                        reply.body().deserialize()?;
+                    self.sc_stream_path = stream_path.to_string();
+                    tracing::info!("ScreenCast stream created: {}", self.sc_stream_path);
+                    return Ok(());
+                }
+                Err(e) => {
+                    tracing::warn!("RecordMonitor failed for {}: {}", connector, e);
+                    last_err = Some(e.into());
+                }
+            }
+        }
+
+        Err(last_err.unwrap_or_else(|| anyhow::anyhow!("failed to record any monitor")))
     }
 
     /// Call a void method on the RemoteDesktop session.
@@ -331,23 +363,25 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        // Pass the user's string directly to the extension's FocusWindow.
-        // The extension already does case-insensitive substring matching on both
-        // app_id and title, so "code" finds VS Code, "kinsafe" finds the right window.
-        // For hex XIDs (0x...), find the window locally first and pass its title.
-        if id.starts_with("0x") || id.starts_with("0X") {
-            let windows = self.windows_list().await?;
-            let target = windows
-                .iter()
-                .find(|w| w.id == id)
-                .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
-            self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
-                .await?;
-        } else {
-            // Direct pass-through: extension matches title fragment
-            self.ext_call_parsed("FocusWindow", &[id, id, "false"])
-                .await?;
-        }
+        // Deterministic targeting order:
+        // exact id -> exact app_id -> exact title -> case-insensitive contains(app_id/title)
+        let windows = self.windows_list().await?;
+        let id_l = id.to_lowercase();
+        let target = windows
+            .iter()
+            .find(|w| w.id.eq_ignore_ascii_case(id))
+            .or_else(|| windows.iter().find(|w| w.app_id.eq_ignore_ascii_case(id)))
+            .or_else(|| windows.iter().find(|w| w.title.eq_ignore_ascii_case(id)))
+            .or_else(|| {
+                windows.iter().find(|w| {
+                    w.app_id.to_lowercase().contains(&id_l)
+                        || w.title.to_lowercase().contains(&id_l)
+                })
+            })
+            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))?;
+
+        self.ext_call_parsed("FocusWindow", &[&target.app_id, &target.title, "false"])
+            .await?;
         Ok(())
     }
 
