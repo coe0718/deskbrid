@@ -760,7 +760,10 @@ async fn build_system_capabilities(
             serde_json::json!({
                 "supported": true,
                 "degraded": false,
-                "reason": serde_json::Value::Null
+                "reason": serde_json::Value::Null,
+                "requires": [],
+                "session": "any",
+                "degraded_modes": []
             }),
         );
     }
@@ -841,11 +844,13 @@ async fn build_system_health(
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
         deps.insert("ydotool".to_string(), check_in_path("ydotool"));
+
         deps.insert("uinput".to_string(), check_uinput());
     } else if desktop.contains("hyprland") {
         deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
         deps.insert("ydotool".to_string(), check_in_path("ydotool"));
+
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
     }
@@ -865,7 +870,7 @@ fn set_degraded(
 ) {
     actions.insert(
         action.to_string(),
-        serde_json::json!({"supported": true, "degraded": true, "reason": reason}),
+        serde_json::json!({"supported": true, "degraded": true, "reason": reason, "requires": [], "session": "any", "degraded_modes": [reason]}),
     );
 }
 
@@ -876,8 +881,30 @@ fn set_unsupported(
 ) {
     actions.insert(
         action.to_string(),
-        serde_json::json!({"supported": false, "degraded": false, "reason": reason}),
+        serde_json::json!({"supported": false, "degraded": false, "reason": reason, "requires": [], "session": "any", "degraded_modes": []}),
     );
+}
+
+#[allow(dead_code)]
+fn set_requires(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    requires: &[&str],
+) {
+    if let Some(v) = actions.get_mut(action) {
+        v["requires"] = serde_json::json!(requires);
+    }
+}
+
+#[allow(dead_code)]
+fn set_session(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    action: &str,
+    session: &str,
+) {
+    if let Some(v) = actions.get_mut(action) {
+        v["session"] = serde_json::json!(session);
+    }
 }
 
 fn check_in_path(cmd: &str) -> serde_json::Value {
@@ -934,7 +961,6 @@ fn check_uinput() -> serde_json::Value {
         Err(e) => serde_json::json!({"ok": false, "details": format!("no write access: {}", e)}),
     }
 }
-
 fn check_clipboard_tools() -> serde_json::Value {
     let copy = std::process::Command::new("sh")
         .arg("-c")
