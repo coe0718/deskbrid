@@ -215,6 +215,11 @@ pub enum Action {
         workdir: Option<String>,
         env: Option<std::collections::HashMap<String, String>>,
     },
+    ProcessStop {
+        pid: u32,
+        signal: Option<String>,
+    },
+    CapabilitiesList,
 
     // Hotkeys
     HotkeysRegister {
@@ -249,6 +254,54 @@ pub enum Action {
 }
 
 impl Action {
+    /// Public action names that clients may invoke.
+    /// Excludes connection-level messages like ping/subscribe/disconnect.
+    pub fn public_action_types() -> &'static [&'static str] {
+        &[
+            "windows.list",
+            "windows.focus",
+            "windows.get",
+            "workspaces.list",
+            "workspaces.switch",
+            "workspaces.move_window",
+            "input.keyboard",
+            "input.mouse",
+            "clipboard.read",
+            "clipboard.write",
+            "screenshot",
+            "notification.send",
+            "notification.close",
+            "system.info",
+            "system.idle",
+            "system.power",
+            "system.battery",
+            "network.status",
+            "network.interfaces",
+            "network.wifi.scan",
+            "network.wifi.connect",
+            "bluetooth.list",
+            "bluetooth.scan",
+            "bluetooth.scan_stop",
+            "bluetooth.connect",
+            "bluetooth.disconnect",
+            "bluetooth.pair",
+            "bluetooth.forget",
+            "files.watch",
+            "files.unwatch",
+            "files.search",
+            "process.list",
+            "process.start",
+            "process.stop",
+            "hotkeys.register",
+            "hotkeys.unregister",
+            "audio.list_sinks",
+            "audio.set_sink_volume",
+            "monitor.list",
+            "location.get",
+            "capabilities.list",
+        ]
+    }
+
     /// Parse an incoming NDJSON line into an Action.
     pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
         let raw: serde_json::Value = serde_json::from_str(line)?;
@@ -413,6 +466,11 @@ impl Action {
                         .collect()
                 }),
             },
+            "process.stop" => Action::ProcessStop {
+                pid: raw["pid"].as_u64().unwrap_or(0) as u32,
+                signal: raw["signal"].as_str().map(String::from),
+            },
+            "capabilities.list" => Action::CapabilitiesList,
 
             // Hotkeys
             "hotkeys.register" => Action::HotkeysRegister {
@@ -663,6 +721,14 @@ impl Action {
                 }
                 obj
             }
+            Action::ProcessStop { pid, signal } => {
+                let mut obj = json!({"type": "process.stop", "id": id, "pid": pid});
+                if let Some(sig) = signal {
+                    obj["signal"] = json!(sig);
+                }
+                obj
+            }
+            Action::CapabilitiesList => json!({"type": "capabilities.list", "id": id}),
 
             // Hotkeys
             Action::HotkeysRegister { hotkey_id, keys } => {
@@ -735,6 +801,8 @@ impl Action {
             Action::FilesSearch { .. } => "files.search",
             Action::ProcessList => "process.list",
             Action::ProcessStart { .. } => "process.start",
+            Action::ProcessStop { .. } => "process.stop",
+            Action::CapabilitiesList => "capabilities.list",
             Action::HotkeysRegister { .. } => "hotkeys.register",
             Action::HotkeysUnregister { .. } => "hotkeys.unregister",
             Action::AudioListSinks => "audio.list_sinks",

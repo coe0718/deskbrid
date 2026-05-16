@@ -495,6 +495,19 @@ async fn execute_action(
                 .spawn()?;
             serde_json::json!({"pid": child.id().unwrap_or(0), "command": command})
         }
+        ProcessStop { pid, ref signal } => {
+            let sig = parse_signal(signal.as_deref().unwrap_or("TERM"))?;
+            let rc = unsafe { libc::kill(pid as i32, sig) };
+            if rc != 0 {
+                let err = std::io::Error::last_os_error();
+                anyhow::bail!("failed to stop pid {}: {}", pid, err);
+            }
+            serde_json::json!({"stopped": pid, "signal": sig})
+        }
+        CapabilitiesList => serde_json::json!({
+            "desktop": backend.system_info().await?.desktop,
+            "actions": crate::protocol::Action::public_action_types()
+        }),
 
         HotkeysRegister {
             ref hotkey_id,
@@ -514,6 +527,24 @@ async fn execute_action(
         // Handled before dispatch
         Ping | Subscribe { .. } | Unsubscribe { .. } | Disconnect => unreachable!(),
     })
+}
+
+fn parse_signal(sig: &str) -> anyhow::Result<i32> {
+    let normalized = sig.trim().to_ascii_uppercase();
+    let normalized = normalized.strip_prefix("SIG").unwrap_or(&normalized);
+    let value = match normalized {
+        "HUP" => libc::SIGHUP,
+        "INT" => libc::SIGINT,
+        "QUIT" => libc::SIGQUIT,
+        "KILL" => libc::SIGKILL,
+        "TERM" => libc::SIGTERM,
+        "USR1" => libc::SIGUSR1,
+        "USR2" => libc::SIGUSR2,
+        "CONT" => libc::SIGCONT,
+        "STOP" => libc::SIGSTOP,
+        _ => anyhow::bail!("unsupported signal: {}", sig),
+    };
+    Ok(value)
 }
 
 fn ok_response(id: &str, seq: u64) -> serde_json::Value {
