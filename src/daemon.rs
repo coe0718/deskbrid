@@ -744,6 +744,8 @@ async fn build_system_capabilities(
         "ui.tree.get",
         "ui.element.click",
         "ui.element.set_text",
+        "bluetooth.pair",
+        "bluetooth.forget",
     ] {
         set_unsupported(&mut actions, action, "not_implemented");
     }
