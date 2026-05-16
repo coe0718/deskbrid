@@ -1,344 +1,487 @@
-# Deskbrid Architecture
+# Architecture
 
-Deskbrid is a Unix socket daemon that provides programmatic control over the Linux desktop through a JSON-over-Unix-socket protocol. It acts as a bridge between client applications (AI agents, CLI tools, scripts) and desktop functionality — window management, input simulation, system queries, clipboard, audio, network, Bluetooth, and more.
+Deskbrid is a Rust daemon that exposes a desktop automation API over a Unix socket. It auto-detects the running desktop environment, loads the matching backend, and translates JSON messages into desktop-specific operations.
 
-## Overview
+## High-Level Design
 
 ```
-┌─────────────────┐     NDJSON/Unix Socket     ┌──────────────────────┐
-│  Client Apps     │◄──────────────────────────►│  Deskbrid Daemon     │
-│  (Python, CLI,   │                            │                      │
-│   any lang)      │                            │  ┌────────────────┐  │
-│                  │                            │  │  GNOME Backend  │  │
-│                  │                            │  │  ┌────────────┐ │  │
-│                  │                            │  │  │  DBus Ext.  │ │  │
-│                  │                            │  │  │  (window mgmt)│  │
-│                  │                            │  │  ├────────────┤ │  │
-│                  │                            │  │  │  System DBus│ │  │
-│                  │                            │  │  │  (UPower, NM,│ │  │
-│                  │                            │  │  │   BlueZ)    │ │  │
-│                  │                            │  │  ├────────────┤ │  │
-│                  │                            │  │  │  CLI Tools  │ │  │
-│                  │                            │  │  │  (wtype,    │ │  │
-│                  │                            │  │  │  grim, wl-* │ │  │
-│                  │                            │  │  │  pactl...)  │ │  │
-│                  │                            │  │  └────────────┘ │  │
-│                  │                            │  └────────────────┘  │
-│                  │                            │                      │
-│                  │                            │  ┌────────────────┐  │
-│                  │                            │  │  Event         │  │
-│                  │  ◄─── events ──────────────│  │  Broadcast     │  │
-│                  │                            │  │  Channel       │  │
-│                  │                            │  └────────────────┘  │
-└─────────────────┘                            └──────────────────────┘
+┌─────────────┐   NDJSON   ┌──────────────────────────────────────┐
+│   Client 1  │◄──────────►│                                      │
+└─────────────┘  Unix Sock │           deskbrid daemon            │
+                           │                                      │
+┌─────────────┐            │  ┌────────────────────────────────┐  │
+│   Client 2  │◄──────────►│  │          DaemonState            │  │
+└─────────────┘            │  │  ┌──────────────────────────┐   │  │
+                           │  │  │  Backend (trait object)   │   │  │
+┌─────────────┐            │  │  │  ┌──────────┐            │   │  │
+│ Python SDK  │◄──────────►│  │  │  │ Gnome ◄──┤            │   │  │
+└─────────────┘            │  │  │  ├──────────┤            │   │  │
+                           │  │  │  │Hyprland◄─┤            │   │  │
+┌─────────────┐            │  │  │  ├──────────┤            │   │  │
+│ GNOME Ext.  │◄─── DBus ─►│  │  │  │   KDE   ◄┤            │   │  │
+└─────────────┘            │  │  │  ├──────────┤            │   │  │
+                           │  │  │  │   X11   ◄┤            │   │  │
+                           │  │  │  └──────────┘            │   │  │
+                           │  │  │  Permissions (per-UID)   │   │  │
+                           │  │  │  Event broadcast          │   │  │
+                           │  │  └──────────────────────────┘   │  │
+                           │  │                                  │  │
+                           │  └──────────────────────────────────┘  │
+                           └──────────────────────────────────────┘
 ```
 
-## Core Components
+## Transport: Unix Domain Socket
 
-### 1. Unix Socket Transport
+The daemon binds to:
 
-**Socket path:** `$XDG_RUNTIME_DIR/deskbrid.sock` (falls back to `/run/user/1000/deskbrid.sock`).
-
-The daemon starts by removing any leftover socket file, creating the parent directory, and binding a `tokio::net::UnixListener` on the path. On each incoming connection the listener spawns an asynchronous `handle_client` task. The socket path is predictable and scoped to the user's session, so only processes running under the same session user can connect.
-
-**Lifecycle:**
-1. Daemon starts → removes stale socket → binds listener
-2. Listener accepts connections in a loop, spawning one `tokio::spawn` task per client
-3. Each client task owns a split `(reader, writer)` pair on the socket
-4. On graceful disconnect, the client sends a `disconnect` action and the daemon responds with `disconnected`, then the read loop breaks
-5. On socket close (client drops), `reader.read_line()` returns `n == 0` and the task exits cleanly
-6. On daemon shutdown, the socket file remains (cleaned up next start)
-
-### 2. NDJSON Protocol
-
-All communication uses **NDJSON (Newline-Delimited JSON)** — one complete JSON object per line, terminated by `\n`. No framing, no length prefixes, no binary encoding. Every line is a self-contained message.
-
-**Message types:**
-
-`type` field   | Direction       | Purpose                                |
----------------|----------------|----------------------------------------|
-`action`      | Client → Daemon | Execute a desktop action               |
-`ping`        | Client → Daemon | Health check (no backend needed)       |
-`subscribe`   | Client → Daemon | Subscribe to event patterns            |
-`unsubscribe` | Client → Daemon | Unsubscribe from event patterns        |
-`disconnect`  | Client → Daemon | Gracefully close the connection        |
-`response`    | Daemon → Client | Action result (ok or error)            |
-`connected`   | Daemon → Client | Sent immediately after socket connect  |
-`disconnected`| Daemon → Client | Confirms graceful disconnect           |
-`pong`        | Daemon → Client | Response to `ping`                     |
-`event`       | Daemon → Client | Push event matching subscription       |
-
-**Request structure — flat key-value at the top level (not nested JSON-RPC):**
-
-```json
-{"type": "action", "id": "windows.list", "seq": 1, "action": {"windows.list": {}}}
+```
+$XDG_RUNTIME_DIR/deskbrid.sock      # typically /run/user/1000/deskbrid.sock
 ```
 
-The `action` field in the original message is optional — the daemon's `Action::from_json` parser reads `type` as the action discriminator. What matters is that each action type has a corresponding string value in the `type` field (e.g. `"windows.list"`, `"input.keyboard"`).
+Socket lifecycle:
+1. **Bind**: `UnixListener::bind()` on daemon start (`src/daemon.rs:24`)
+2. **Cleanup**: stale socket removed before bind (`src/daemon.rs:18`)
+3. **Accept**: each connection gets a `tokio::spawn` task (`src/daemon.rs:47-55`)
+4. **Close**: implicit on client disconnect or `disconnect` action
 
-**Response structure:**
+The socket uses `SO_PEERCRED` (`src/permissions.rs:218-236`) to extract the connecting process's UID for permission evaluation. This is a Linux-specific security mechanism — the kernel provides the peer's UID/GID/PID on each connection, which is not forgeable by the client.
 
-```json
-{
- "type": "response",
- "id": "action",
- "seq": 1,
- "status": "ok",
- "data": [ ... ]
+## Protocol: NDJSON
+
+Messages are newline-delimited JSON (`\n` separator, 1 MiB max). The protocol is fully documented in [PROTOCOL.md](../PROTOCOL.md), but the key architectural patterns are:
+
+### Request Flow
+
+```
+Client ──→ {"type": "windows.list", "id": "req-1"}
+              ↓
+          Action::from_json() parses the line
+              ↓
+          permissions.check(peer_uid, &action)
+              ↓
+          backend.windows_list().await
+              ↓
+Daemon  ──→ {"type": "response", "id": "req-1", "seq": 1, "status": "ok", "data": [...]}
+```
+
+### Action Dispatch (`src/daemon.rs:322-705`)
+
+The `execute_action()` function is a large `match` on the `Action` enum that calls the corresponding backend trait method and wraps the result as `serde_json::Value`. Most actions are one-liners:
+
+```rust
+WindowsList => serde_json::json!(backend.windows_list().await?),
+ClipboardRead => serde_json::json!({"text": backend.clipboard_read().await?}),
+```
+
+Actions not implemented in the backend trait return graceful stubs:
+
+```rust
+WindowsClose(ref id) => serde_json::json!({
+    "window_id": id,
+    "supported": false,
+    "reason": "backend has no close API yet"
+}),
+```
+
+### Connection Lifecycle
+
+Each client connection follows this lifecycle inside `handle_client()` (`src/daemon.rs:64-217`):
+
+1. **Peer identity**: `socket_peer_uid()` extracts the connecting UID
+2. **Stream split**: `stream.into_split()` gives separate reader/writer halves
+3. **Connected handshake**: daemon immediately sends the `connected` message with version, protocol name, and UID
+4. **Event forwarder**: a background task subscribes to the broadcast channel and forwards matching events to this client's writer
+5. **Command loop**: `tokio::select!` between event forwarding and reading lines — the daemon reads one NDJSON line, parses it with `Action::from_json()`, checks permissions, dispatches, and writes a response
+6. **Cleanup**: on EOF or `disconnect`, the loop exits and the writer half is dropped
+
+```rust
+// src/daemon.rs:64-80 — handshake
+let peer_uid = socket_peer_uid(&stream).unwrap_or(u32::MAX);
+let (reader, mut writer) = stream.into_split();
+let mut conn = ConnectionState::default();
+
+let connected = serde_json::json!({
+    "type": "connected", "id": "server", "seq": 0,
+    "data": { "version": "0.6.0", "protocol": "deskbrid-v2", "uid": peer_uid }
+});
+writer.write_all(...).await?;
+```
+
+### Event Subscription Model
+
+Events are pushed via a tokio `broadcast::channel(256)` (`src/lib.rs:27`). The daemon's event flow:
+
+```
+Backend    ──→ event_tx.send(DeskbridEvent::FileCreated { ... })
+                    │
+                    ▼
+             broadcast::channel(256)
+                    │
+          ┌─────────┼──────────┐
+          ▼         ▼          ▼
+      Client 1  Client 2   Client 3
+      (writer)  (writer)   (writer)
+```
+
+Each client spawns a forwarder task that:
+1. Subscribes to the broadcast channel
+2. Receives every event
+3. Checks if it matches the client's subscription patterns (`conn.subscriptions`)
+4. If matched, wraps it in an event envelope and writes to the client socket
+
+Subscription matching supports glob patterns (`src/daemon.rs:221-239`):
+
+```rust
+fn event_matches_any(subscriptions: &HashSet<String>, event_type: &str) -> bool {
+    // Exact match: "file.created" == "file.created"
+    // Category match: "file.*" matches "file.created", "file.modified"
+    // Wildcard: "*" matches everything
 }
 ```
 
-On failure, `status` is `"error"` and an `error` object carries `code` and `message`:
+This means a subscription of `"file.*"` will receive `file.created`, `file.modified`, `file.deleted`, and `file.renamed` events — without needing to enumerate them.
 
-```json
-{
- "type": "response",
- "id": "action",
- "seq": 1,
- "status": "error",
- "error": { "code": "INTERNAL_ERROR", "message": "no backend loaded" }
+The daemon also emits synthetic events from certain actions via `emit_action_event()` (`src/daemon.rs:282-320`):
+
+| Action | Event Type Emitted |
+|--------|-------------------|
+| `windows.focus` | `WindowFocused { window_id, timestamp }` |
+| `workspaces.switch` | `WorkspaceChanged { workspace_id, timestamp }` |
+| `workspaces.move_window` | `WorkspaceWindowMoved { window_id, workspace_id, timestamp }` |
+
+These let subscribers react to state changes that result from the daemon's own actions.
+
+### Event Types
+
+Defined in the `DeskbridEvent` enum (`src/protocol.rs`):
+
+- `FileCreated`, `FileModified`, `FileDeleted`, `FileRenamed` — from `notify::Watcher`
+- `WindowFocused` — from focus action
+- `WorkspaceChanged` — from workspace switch
+- `WorkspaceWindowMoved` — from move-window action
+
+Each carries a Unix timestamp.
+
+## Backend Architecture
+
+All backends implement the `DesktopBackend` trait (`src/backend/mod.rs:91-174`):
+
+```rust
+#[async_trait]
+pub trait DesktopBackend: Send + Sync {
+    async fn windows_list(&self) -> anyhow::Result<Vec<WindowInfo>>;
+    async fn window_focus(&self, id: &str) -> anyhow::Result<()>;
+    async fn keyboard_type(&self, text: &str) -> anyhow::Result<()>;
+    async fn clipboard_read(&self) -> anyhow::Result<String>;
+    async fn screenshot(&self, monitor: Option<u32>, region: Option<Region>,
+                        window_id: Option<String>) -> anyhow::Result<ScreenshotResult>;
+    // ... 30+ more methods
 }
 ```
 
-**Error codes used:**
-- `INVALID_PARAMS` — malformed JSON or unknown action type
-- `INTERNAL_ERROR` — backend operation failed
-- `NOT_SUPPORTED` — no backend loaded
+The trait covers 14 domains: windows, workspaces, input, clipboard, screenshot, notifications, system, network, bluetooth, files, process, audio, hotkeys, UI accessibility. New domains start from the trait, then each backend implements them.
 
-**`connected` message** (sent immediately after socket connect, before any client message):
+### Desktop Detection (`src/backend/mod.rs:33-79`)
 
-```json
-{"type": "connected", "id": "server", "seq": 0, "data": {"version": "0.4.1", "protocol": "deskbrid-v2"}}
-```
+Detection runs in this priority order:
+1. **`XDG_CURRENT_DESKTOP`** env var — fastest, covers all major DEs
+2. **Process scan** (`pgrep -x Hyprland`, `pgrep -x kwin_wayland`) — catches compositors without the env var
+3. **`$DISPLAY` without `$WAYLAND_DISPLAY`** — signals X11
+4. **Fallback to GNOME** — safe default
 
-Clients should wait for this message before sending commands.
-
-### 3. Message Dispatch Flow
-
-The daemon's `handle_client` function runs a `tokio::select!` loop with two branches:
-
-1. **Event forwarding** — reads from the per-client MPSC channel attached to the broadcast receiver, checks the event type against the client's subscription set, and writes matching events to the socket
-2. **Client input** — reads one line from the socket, parses it into an `Action`, then dispatches:
-
-```
-Client line → Action::from_json() → match action {
-   Action::Ping          → respond with "pong"
-   Action::Subscribe     → insert patterns into conn.subscriptions
-   Action::Unsubscribe   → remove patterns from conn.subscriptions
-   Action::Disconnect    → respond with "disconnected", break
-   Action::FilesWatch    → track path in conn.watched_paths + dispatch
-   Action::FilesUnwatch  → remove path from conn.watched_paths + dispatch
-   _                     → dispatch_action(action, state, seq)
+```rust
+async fn detect_desktop() -> DesktopEnv {
+    // 1. Check XDG_CURRENT_DESKTOP
+    if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
+        let lower = desktop.to_lowercase();
+        if lower.contains("hyprland") { return DesktopEnv::Hyprland; }
+        if lower.contains("kde") || lower.contains("plasma") { return DesktopEnv::Kde; }
+        if lower.contains("gnome") { return DesktopEnv::Gnome; }
+        if lower.contains("x11") || lower.contains("xfce")
+            || lower.contains("mate") || lower.contains("cinnamon") { return DesktopEnv::X11; }
+    }
+    // 2. Process scan
+    if pgrep("Hyprland") { return DesktopEnv::Hyprland; }
+    if pgrep("kwin_wayland") { return DesktopEnv::Kde; }
+    // 3. X11 detection
+    if std::env::var("DISPLAY").is_ok() && std::env::var("WAYLAND_DISPLAY").is_err() { return DesktopEnv::X11; }
+    // 4. Default
+    DesktopEnv::Gnome
 }
 ```
 
-`dispatch_action` locks the backend (read lock) and calls `execute_action` which pattern-matches on the `Action` variant and calls the corresponding `DesktopBackend` trait method. Results are serialised to a JSON response envelope. If no backend is loaded, it returns a `NOT_SUPPORTED` error.
+### GNOME Backend (`src/backend/gnome.rs`)
 
-### 4. Daemon State
+The primary backend — 1,853 lines, the most complete implementation. It uses:
 
-Defined in `src/lib.rs` and shared across all connections via `Arc`:
+**Mutter RemoteDesktop** — for input injection (keyboard/mouse) via the `zbus` crate. The backend opens a RemoteDesktop session on startup (`init_remote_desktop()`) and a ScreenCast session for absolute mouse positioning (`init_screen_cast()` — best-effort, relative motion works without it).
+
+**GNOME Shell Extension** — for window/workspace management via D-Bus at `org.deskbrid.WindowManager`. The extension communicates through the standard GNOME Shell D-Bus service and the `imports.ui` APIs.
+
+**CLI tools** — for operations outside the extension's scope:
+
+| Tool | Purpose | Used For |
+|------|---------|----------|
+| `ydotool` | Keyboard + mouse input | `keyboard_type`, `keyboard_key`, `keyboard_combo`, `mouse_move`, `mouse_click`, `mouse_scroll` |
+| `wl-copy` / `wl-paste` | Clipboard | `clipboard_write`, `clipboard_read` |
+| `grim` | Screenshot | `screenshot` |
+| `notify-send` | Notifications | `notification_send`, `notification_close` |
+| `nmcli` | WiFi | `wifi_scan`, `wifi_connect` |
+| `bluetoothctl` | Bluetooth | `bluetooth_list`, `bluetooth_scan`, `bluetooth_connect` |
+| `pactl` | Audio | `audio_list_sinks`, `audio_set_sink_volume` |
+
+**File watching** — uses the `notify` crate (inotify on Linux) with `std::sync::Mutex<HashMap<String, RecommendedWatcher>>` to manage per-path watchers. File events are forwarded through the broadcast channel as `DeskbridEvent` variants.
+
+### Hyprland Backend (`src/backend/hyprland.rs`)
+
+Uses `hyprctl` CLI for window/workspace management (no D-Bus, no extension). Input injection via `ydotool`, screenshots via `grim`. 822 lines.
+
+```
+hyprctl clients -j                                  → windows list
+hyprctl dispatch focuswindow address:<id>            → window focus
+hyprctl dispatch workspace <id>                      → workspace switch
+grim -g "<x>,<y> <w>x<h>" /tmp/deskbrid/screenshot  → screenshot
+```
+
+### KDE Backend (`src/backend/kde.rs`)
+
+Uses `qdbus6` for KWin control, `ydotool` for input, `spectacle` for screenshots (cropped by `imagemagick convert`).
+
+```
+qdbus6 org.kde.KWin /KWin supportInformation  → windows
+spectacle --background --nonotify --fullscreen  → screenshot
+```
+
+### X11 Backend (`src/backend/x11.rs`)
+
+A functional X11 backend using xdotool, xclip, ImageMagick, and notify-send. Clocking in at 284 lines, it covers the most commonly used operations with real CLI-based implementations:
+
+| Domain | Tool | Operations Implemented |
+|--------|------|----------------------|
+| Window focus | `xdotool search --name <id> windowactivate` | `window_focus` |
+| Window info | `xdotool getwindowname <id>` | `window_get` |
+| Workspace switch | `xdotool set_desktop <id>` | `workspace_switch`, `workspaces_list` |
+| Keyboard input | `xdotool type/key/key+` | `keyboard_type`, `keyboard_key`, `keyboard_combo` |
+| Mouse input | `xdotool mousemove/click` | `mouse_move`, `mouse_click`, `mouse_scroll` |
+| Clipboard | `xclip -o/-i -selection clipboard` | `clipboard_read`, `clipboard_write` |
+| Screenshot | `import -window root` (ImageMagick) | `screenshot` (fullscreen + region crop) |
+| Notifications | `notify-send` | `notification_send` (close is a no-op) |
+| System info | Hardcoded defaults | `system_info`, `idle_seconds` |
+
+Operations **not** implemented (return `"not implemented on x11 backend"`): `workspace_move_window`, `power_action`, `wifi_connect`, `bluetooth_scan/stop_scan/connect/disconnect`, `files_watch/unwatch`, `audio_set_sink_volume`. The `windows_list` method returns an empty vector — X11 window enumeration is an open contribution target.
+
+The `system_info()` method returns a monitor with `id: 0, name: "X11", width: 1920, height: 1080, scale: 1.0` as a reasonable default for coordinate normalization.
+
+## Daemon State
+
+The `DaemonState` struct (`src/lib.rs:17-23`) is the shared state for the entire daemon:
 
 ```rust
 pub struct DaemonState {
-   pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
-   pub event_tx: broadcast::Sender<DeskbridEvent>,
+    /// The loaded desktop backend (writable — hot-reloadable)
+    pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
+    /// Broadcast channel for push events (file changes, workspace switches, etc.)
+    pub event_tx: broadcast::Sender<DeskbridEvent>,
+    /// Scoped permissions per UID, loaded from ~/.config/deskbrid/permissions.toml
+    pub permissions: Permissions,
 }
 ```
 
-- **backend** — wrapped in `RwLock` so multiple connections can dispatch concurrently. Only the daemon startup writes to it (inserting the loaded backend). Clients read it.
-- **event_tx** — a `tokio::sync::broadcast::channel(256)`. The GNOME backend holds a clone of the sender and pushes events into it. Each client connection subscribes to the broadcast and forwards matching events through an intermediate MPSC channel.
+Wrapped in `Arc<DaemonState>` so all connection tasks share the same state.
 
-**Per-connection state** (`ConnectionState`):
+The `ConnectionState` struct (`src/lib.rs:43-51`) holds per-connection data:
 
 ```rust
 pub struct ConnectionState {
-   pub subscriptions: HashSet<String>,  // glob patterns like "file.*"
-   pub hotkeys: HashSet<String>,        // registered hotkey IDs
-   pub watched_paths: HashSet<String>,  // file watch paths
+    /// Glob-pattern event subscriptions (e.g. "file.*", "window.focused")
+    pub subscriptions: HashSet<String>,
+    /// Registered hotkey IDs (for cleanup on disconnect)
+    pub hotkeys: HashSet<String>,
+    /// Watched file paths (for cleanup on disconnect)
+    pub watched_paths: HashSet<String>,
 }
 ```
 
-### 5. Event Broadcast System
+## Permissions System (`src/permissions.rs`)
 
-Events flow through a three-stage pipeline:
+The permissions file lives at `~/.config/deskbrid/permissions.toml`. Format:
 
-1. **Backend produces events** — the GNOME backend's `files_watch` method sets up a `notify` watcher on a directory. When `notify` fires, the callback constructs a `DeskbridEvent` and sends it through the `event_tx` broadcast sender.
+```toml
+[permissions.uid:1000]
+allow = ["*"]
 
-2. **Broadcast fan-out** — `event_tx.send()` distributes the event to all subscribed receivers. Each client connection holds a `broadcast::Receiver` that it obtained by calling `state.event_tx.subscribe()`.
-
-3. **Subscription matching** — each client task runs a forwarder that reads from the broadcast, serialises the event to JSON, and writes it to the per-client MPSC channel. The main `select!` loop reads from the MPSC receiver and checks the event type against `conn.subscriptions` using glob-style matching:
-
-```
-event_matches_any(subscriptions, event_type):
-
-- exact match: sub == event_type
-- prefix glob: sub = "file.*" matches "file.created", "file.modified", etc.
-- wildcard:    sub = "*" matches everything
+[permissions.uid:1001]
+allow = ["windows.*", "clipboard.read"]
+deny = ["screenshot"]
 ```
 
-**Supported events** (from `DeskbridEvent` enum):
+Key design decisions:
+- **No file** → allow-all (backward compatible with existing installs)
+- **Invalid file** → logged warning + allow-all fallback
+- **Glob matching**: `"*"` matches everything, `"windows.*"` matches `windows.list`, `windows.focus`, etc.
+- **Deny wins**: explicit deny always overrides allow
+- **Default deny**: if no rule matches a UID's action, it's denied
+- **Per-connection**: `DaemonState.permissions` is shared across all connections; loaded once at startup
 
-Event type        | Fields                                    |
--------------------|-------------------------------------------|
-`file.created`    | `path: String`, `timestamp: u64`          |
-`file.modified`   | `path: String`, `timestamp: u64`          |
-`file.deleted`    | `path: String`, `timestamp: u64`          |
-`file.renamed`    | `old_path: String`, `new_path: String`, `timestamp: u64` |
-
-The GNOME Shell extension also emits a `WindowStateChanged` DBus signal (debounced at 150ms), but this is not yet forwarded through the broadcast channel — it's available for future use.
-
-**Event envelope** (sent to client):
-
-```json
-{"type": "event", "id": "file.created", "data": {"event": "file.created", "path": "/tmp/test.txt", "timestamp": 1715000000}}
-```
-
-### 6. The GNOME Backend
-
-The GNOME backend (`src/backend/gnome.rs`) implements the `DesktopBackend` trait and uses four distinct integration strategies:
-
-#### 6a. GNOME Shell DBus Extension
-
-A custom GNOME Shell extension (`extensions/deskbrid@deskbrid/extension.js`) exposes a DBus interface at:
-
-- **Service:** `org.deskbrid.WindowManager`
-- **Object path:** `/org/deskbrid/WindowManager`
-- **Interface:** `org.deskbrid.WindowManager`
-
-**Methods:**
-
-Method        | Input args                 | Output      | Purpose                        |
----------------|---------------------------|-------------|--------------------------------|
-`ListWindows` | none                      | `s` (JSON)  | Returns serialised window list |
-`FocusedWindow` | none                   | `s` (JSON)  | Returns focused window info    |
-`FocusWindow` | `app_id`, `title`, `exact` | `b` (bool) | Focus a window by app_id/title |
-
-**Signals:**
-
-Signal               | Payload                              | Debounce |
-----------------------|--------------------------------------|----------|
-`WindowStateChanged` | JSON string of focused window info   | 150ms    |
-
-The backend accesses this extension via `gdbus call` (CLI) rather than a direct `zbus` call — the `gdbus` CLI handles the session bus and GNOME-specific marshalling:
+Permission checking happens in `dispatch_action()` (`src/daemon.rs:248-250`), before the backend is even consulted:
 
 ```rust
-self.sh("gdbus", &[
-   "call", "--session",
-   "--dest", "org.deskbrid.WindowManager",
-   "--object-path", "/org/deskbrid/WindowManager",
-   "--method", "org.deskbrid.WindowManager.ListWindows"
-]).await?
-```
-
-The JSON returned by the extension is wrapped in gdbus's tuple format `('[json]',)` and parsed by `parse_extension_json_windows()`.
-
-#### 6b. System DBus (zbus)
-
-The backend uses the `zbus` crate to call system DBus services directly:
-
-- **UPower** (`org.freedesktop.UPower`) — battery status via `org.freedesktop.UPower.Device` properties (`Percentage`, `State`, `TimeToEmpty`)
-- **NetworkManager** (`org.freedesktop.NetworkManager`) — connectivity state, interface list, Wi-Fi access point scanning via `GetAllDevices`, device properties, and `org.freedesktop.NetworkManager.Device.Wireless` for AP lists
-- **BlueZ** (`org.bluez`) — Bluetooth device discovery via `ObjectManager.GetManagedObjects`, adapter management, and device connection/disconnection
-- **Mutter IdleMonitor** (`org.gnome.Mutter.IdleMonitor`) — idle time via `GetIdletime` on `/org/gnome/Mutter/IdleMonitor/Core`
-
-All zbus calls go through a shared `zbus::Connection` instance stored in the backend struct:
-
-```rust
-pub struct GnomeBackend {
-   conn: zbus::Connection,
-   event_tx: broadcast::Sender<DeskbridEvent>,
-   watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
+if !state.permissions.check(peer_uid, &action) {
+    return permission_denied_response(seq);
 }
 ```
 
-#### 6c. CLI Wrappers
+## Screen Capture (`src/capture.rs`)
 
-For desktop operations that lack a stable DBus API or are better handled by ecosystem CLIs:
+The `fallback_screenshot()` function tries two methods in order:
 
-Operation          | CLI tool(s)                        | Notes                                   |
---------------------|------------------------------------|-----------------------------------------|
-Keyboard input     | `wtype` (primary), `ydotool` (fallback) | Text typing and key combos          |
-Mouse control      | `ydotool` mouse subcommands        | Move, click, scroll                     |
-Screenshots        | `grim` + `slurp` (region/window)  | Outputs PNG to temp dir                 |
-Clipboard read     | `wl-paste`                        | Requires wl-clipboard                   |
-Clipboard write    | `wl-copy`                         | Requires wl-clipboard                   |
-Notifications      | `notify-send`                     | Standard libnotify interface            |
-Audio              | `pactl`                           | List sinks, set volume (PipeWire compat)|
-Wi-Fi connect      | `nmcli`                           | Reliable connection setup               |
-Idle time (fallback)| `loginctl` + `xssstate`          | Used when Mutter idle monitor is unavailable |
+1. **`gnome-screenshot -f <path>`** — works on GNOME X11 and some Wayland sessions
+2. **XDG Desktop Portal** — Python script at `scripts/screenshot_portal.py` using `dbus` portal API
 
-The backend's `sh()` method runs CLI commands asynchronously via `tokio::process::Command` and returns stdout. The companion `sh_ok()` method checks if a command is available without error output.
+Both save to `/tmp/deskbrid/screenshot_<timestamp>.png`. Returns the file path on success.
 
-#### 6d. File Watching
+The pipewire screencast method (via Mutter ScreenCast) is noted as a future improvement.
 
-File system monitoring uses the `notify` crate, creating a `notify::RecommendedWatcher` per watched path. Watchers are stored in an `Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>` so they live for the duration of the backend. When a file event fires, the `notify` callback sends a `DeskbridEvent` through the broadcast channel.
+## System Health & Remediation (`src/daemon.rs:843-998`)
 
-### 7. Backend Plugin System
+The `system.health` action checks per-backend dependencies:
 
-Backends implement the `DesktopBackend` trait defined in `src/backend/mod.rs`. The factory function `create_backend()` attempts to initialise an available backend:
+- **GNOME**: extension D-Bus reachability, `grim`, `wl-clipboard`
+- **KDE**: `qdbus6`, `spectacle`, `imagemagick convert`, `ydotoold`, `/dev/uinput`
+- **Hyprland**: `hyprctl`, `ydotoold`, `/dev/uinput`, `grim`
+
+The `system.remediate` action can auto-fix:
+- **ydotoold**: start it as a background process (`nohup ydotoold &`)
+- **KDE ydotoold autostart**: create the KDE autostart `.desktop` entry
 
 ```rust
-pub async fn create_backend(
-    event_tx: broadcast::Sender<DeskbridEvent>,
-) -> anyhow::Result<Box<dyn DesktopBackend>> {
-    // Auto-detect desktop and load matching backend
-    match detect_desktop().await? {
-        Desktop::Gnome => GnomeBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
-        Desktop::Hyprland => HyprlandBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
-        Desktop::Kde => KdeBackend::new(event_tx).await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+match check {
+    "ydotoold" => {
+        // nohup ydotoold >/tmp/deskbrid-ydotoold.log 2>&1 &
+        // Then verify with pgrep
+    }
+    "kde_ydotoold_autostart" => {
+        // Write ~/.config/autostart/ydotoold.desktop
     }
 }
 ```
 
-When the daemon starts, it calls `create_backend()`:
+## Safety Boundaries
 
-- On success: stores the backend in `DaemonState.backend`, logs which backend loaded (e.g. "GNOME backend loaded", "Hyprland backend loaded", "KDE backend loaded")
-- On failure: logs a warning, continues without desktop features. All desktop actions return `NOT_SUPPORTED` errors
+The daemon protects against dangerous operations:
 
-The trait is designed to be implemented for other desktop environments (Sway, Xfce, Cinnamon, etc.) by adding a new backend module and updating `create_backend()`.
-
-### 8. Connection Lifecycle (Detailed)
-
-```
-1. Client connects to Unix socket
-2. Daemon receives connection in accept loop
-3. Daemon sends "connected" message with version info
-4. Client receives "connected" and knows it can send commands
-5. Loop:
-  a. Client sends JSON action line
-  b. Daemon increments seq counter
-  c. Daemon parses action → dispatches → serialises response
-  d. Daemon writes response line back to socket
-  e. Concurrently: daemon reads broadcast events and forwards
-     matching ones to client
-6. Optional: client sends "subscribe" to register event patterns
-7. Client sends "disconnect" → daemon responds "disconnected" → break
-  OR client closes socket → read returns 0 → break
-8. Daemon task exits, connection state dropped
+**PID guards** (`src/daemon.rs:707-722`):
+```rust
+fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
+    if pid <= 1 { bail!("refusing to target reserved pid {}", pid); }
+    if pid > i32::MAX as u32 { bail!("refusing out-of-range pid"); }
+    if pid == std::process::id() { bail!("refusing to target deskbrid daemon"); }
+    Ok(())
+}
 ```
 
-### 9. Module Map
+Blocked PIDs: 0, 1, and the daemon's own PID.
+
+## Client SDK
+
+The Python client at `clients/python/` provides both async and sync interfaces:
+
+```python
+from deskbrid import Client
+
+# Async
+async with Client() as client:
+    windows = await client.windows_list()
+    await client.window_focus("0x3a0000b")
+
+# Sync
+client = Client()
+client.connect()
+windows = client.windows_list()
+```
+
+Key features:
+- Automatic socket path discovery (`$XDG_RUNTIME_DIR/deskbrid.sock`)
+- Async event subscription via callback
+- Pydantic models for all response types
+- Token bucket rate limiting (10 req/s default)
+
+## systemd Integration
+
+The `deploy/deskbrid.service` systemd user service manages the daemon lifecycle:
+
+```ini
+[Unit]
+Description=Deskbrid desktop automation daemon
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/local/bin/deskbrid
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+```
+
+Install with:
+```bash
+cp deploy/deskbrid.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now deskbrid
+```
+
+## Module Map
 
 ```
 src/
-├── main.rs         — Entry point: parses args, dispatches to daemon or client mode
-├── lib.rs          — DaemonState, ConnectionState, module declarations
-├── daemon.rs       — Unix socket listener, client handler, message dispatch loop
-├── protocol.rs     — Action enum, Envelope, response/event types, JSON (de)serialisation
-├── cli.rs          — CLI argument parsing (subcommands: daemon, status, stop, restart, install, setup)
-├── client.rs       — Embedded client mode (reads NDJSON from stdin, sends to daemon)
-├── capture.rs      — Screenshot helpers (grim on GNOME/Hyprland, spectacle+convert on KDE)
-└── backend/
-    ├── mod.rs      — DesktopBackend trait definition, create_backend() factory, desktop detection
-    ├── gnome.rs    — GNOME backend implementation (DBus, CLI wrappers, file watching)
-    ├── hyprland.rs — Hyprland backend implementation (hyprctl JSON, ydotool, grim)
-    └── kde.rs      — KDE backend implementation (KWin D-Bus scripting, ydotool, spectacle)
+├── main.rs              # CLI entry: daemon (default), setup, install
+├── lib.rs               # DaemonState, ConnectionState
+├── daemon.rs            # Unix socket listener, client handler, action dispatch
+├── protocol.rs          # Action enum, DeskbridEvent enum, parse/serialize
+├── cli.rs               # CLI argument parsing with clap
+├── client.rs            # Sync TCP client for testing
+├── backend/
+│   ├── mod.rs           # DesktopBackend trait, DesktopEnv, desktop detection
+│   ├── gnome.rs         # GNOME backend (Mutter DBus + tools)
+│   ├── hyprland.rs      # Hyprland backend (hyprctl + tools)
+│   ├── kde.rs           # KDE backend (qdbus + tools)
+│   └── x11.rs           # X11 backend (xdotool + xclip + ImageMagick)
+├── permissions.rs       # Per-UID permission system, SO_PEERCRED
+├── capture.rs           # Screenshot fallback (gnome-screenshot → portal)
+├── setup.rs             # `deskbrid setup` — auto-detect + install deps
+└── extensions/          # GNOME Shell extension source
+    └── deskbrid@deskbrid/
+        ├── extension.js
+        └── metadata.json
+
+clients/
+└── python/
+    └── deskbrid/
+        ├── __init__.py  # Re-exports: Client, models, events
+        ├── client.py    # Async/sync client, event subscription
+        ├── models.py    # Pydantic models for API responses
+        └── events.py    # Event types
+
+scripts/
+├── screenshot_portal.py # XDG Desktop Portal screenshot helper
+
+deploy/
+├── deskbrid.service     # systemd user service
 ```
 
-### 10. Key Design Decisions
+## Dependency Graph
 
-- **Async throughout** — built on `tokio` with async trait methods, async CLI execution, and async socket I/O. No blocking calls in the hot path.
-- **No auth** — the Unix socket's filesystem permissions are the security boundary. Only the owning user can connect. There is no API key, token, or authentication layer.
-- **Backend-optional startup** — the daemon starts even without a backend, so it can respond to `ping` and manage connections. Desktop features are absent but the daemon doesn't crash.
-- **CLI-first for certain operations** — `nmcli` for Wi-Fi connect, `pactl` for audio, `notify-send` for notifications — these tools are well-tested, handle edge cases the daemon shouldn't replicate, and are forward-compatible across desktop environments.
-- **gdbus for extension, zbus for system services** — the GNOME Shell extension is called through the `gdbus` CLI because it runs on the session bus and GNOME Shell's GIO DBus implementation; system services (UPower, NetworkManager, BlueZ) use the `zbus` Rust crate for type-safe, async DBus calls.
+```
+deskbrid
+├── tokio                # Async runtime (net, fs, process, sync)
+├── serde / serde_json   # JSON serialization
+├── clap                 # CLI argument parsing
+├── tracing              # Structured logging
+├── async-trait          # Async trait methods
+├── zbus                 # D-Bus client (GNOME backend only)
+├── notify               # File watching (inotify)
+├── libc                 # SO_PEERCRED, kill syscall, PID protection
+├── toml                 # Permissions file parsing (serde-based)
+└── futures-util         # Stream combinators
+```

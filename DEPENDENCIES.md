@@ -92,6 +92,30 @@ sudo usermod -aG input $USER
 # Log out and back in for group to take effect
 ```
 
+## X11
+
+The X11 backend uses xdotool for input and window operations, xclip for clipboard, and ImageMagick for screenshots — no ydotoold required since X11 grants direct XTest extension access.
+
+| Dependency | Package | Purpose |
+|---|---|---|
+| `xdotool` | `xdotool` | Window focus/get, keyboard input (type/key/combo), mouse (move/click/scroll), workspace switch |
+| `xclip` | `xclip` | Clipboard read/write |
+| `import` | `imagemagick` | Screenshot capture (fullscreen and region crop) |
+| `notify-send` | `libnotify` | Desktop notifications |
+
+```bash
+# Debian/Ubuntu
+sudo apt install -y xdotool xclip imagemagick libnotify-bin
+
+# Arch
+sudo pacman -S xdotool xclip imagemagick libnotify
+
+# Fedora
+sudo dnf install -y xdotool xclip ImageMagick libnotify
+```
+
+X11 does **not** need ydotoold, udev rules, or any compositor-specific extension. It works immediately on any X11 desktop (Xfce, MATE, Cinnamon, i3, etc.).
+
 ## Optional (all backends)
 
 | Dependency | Package | Purpose |
