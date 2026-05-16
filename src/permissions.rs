@@ -146,6 +146,8 @@ fn action_name(action: &Action) -> &'static str {
         SystemInfo => "system.info",
         SystemCapabilities => "system.capabilities",
         SystemHealth => "system.health",
+        SystemRemediate { .. } => "system.remediate",
+        SystemNormalizeCoords { .. } => "system.normalize_coords",
         SystemIdle => "system.idle",
         SystemPower { .. } => "system.power",
         SystemBattery => "system.battery",
