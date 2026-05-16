@@ -567,6 +567,11 @@ async fn execute_action(
                     if errno == libc::ESRCH {
                         break;
                     }
+                    anyhow::bail!(
+                        "failed to wait on pid {}: {}",
+                        pid,
+                        std::io::Error::last_os_error()
+                    );
                 }
                 if started.elapsed() >= timeout {
                     return Ok(
@@ -577,20 +582,34 @@ async fn execute_action(
             }
             serde_json::json!({"pid": pid, "exited": true, "elapsed_ms": started.elapsed().as_millis()})
         }
-        CapabilitiesList => serde_json::json!({
-            "desktop": backend.system_info().await?.desktop,
-            "actions": crate::protocol::Action::public_action_types(),
-            "supported": crate::protocol::Action::public_action_types(),
-            "unsupported": [
-                {"action":"windows.close","reason":"not implemented in backend trait"},
-                {"action":"windows.minimize","reason":"not implemented in backend trait"},
-                {"action":"windows.maximize","reason":"not implemented in backend trait"},
-                {"action":"windows.move_resize","reason":"not implemented in backend trait"},
-                {"action":"ui.tree.get","reason":"AT-SPI not integrated yet"},
-                {"action":"ui.element.click","reason":"AT-SPI not integrated yet"},
-                {"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}
-            ]
-        }),
+        CapabilitiesList => {
+            let actions = crate::protocol::Action::public_action_types();
+            let unsupported = vec![
+                serde_json::json!({"action":"windows.close","reason":"not implemented in backend trait"}),
+                serde_json::json!({"action":"windows.minimize","reason":"not implemented in backend trait"}),
+                serde_json::json!({"action":"windows.maximize","reason":"not implemented in backend trait"}),
+                serde_json::json!({"action":"windows.move_resize","reason":"not implemented in backend trait"}),
+                serde_json::json!({"action":"ui.tree.get","reason":"AT-SPI not integrated yet"}),
+                serde_json::json!({"action":"ui.element.click","reason":"AT-SPI not integrated yet"}),
+                serde_json::json!({"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}),
+            ];
+            let unsupported_actions: std::collections::HashSet<&str> = unsupported
+                .iter()
+                .filter_map(|entry| entry.get("action").and_then(|value| value.as_str()))
+                .collect();
+            let supported: Vec<&'static str> = actions
+                .iter()
+                .copied()
+                .filter(|name| !unsupported_actions.contains(name))
+                .collect();
+
+            serde_json::json!({
+                "desktop": backend.system_info().await?.desktop,
+                "actions": actions,
+                "supported": supported,
+                "unsupported": unsupported
+            })
+        }
 
         HotkeysRegister {
             ref hotkey_id,
@@ -627,6 +646,12 @@ async fn execute_action(
 fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
     if pid <= 1 {
         anyhow::bail!("refusing to target reserved pid {}", pid);
+    }
+    if pid > i32::MAX as u32 {
+        anyhow::bail!(
+            "refusing to target out-of-range pid {} (exceeds i32::MAX)",
+            pid
+        );
     }
     let self_pid = std::process::id();
     if pid == self_pid {
