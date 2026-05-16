@@ -144,6 +144,8 @@ fn action_name(action: &Action) -> &'static str {
         NotificationSend { .. } => "notification.send",
         NotificationClose { .. } => "notification.close",
         SystemInfo => "system.info",
+        SystemCapabilities => "system.capabilities",
+        SystemHealth => "system.health",
         SystemIdle => "system.idle",
         SystemPower { .. } => "system.power",
         SystemBattery => "system.battery",
