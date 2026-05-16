@@ -816,16 +816,18 @@ async fn build_system_health(
             ),
         );
         deps.insert("grim".to_string(), check_in_path("grim"));
-        deps.insert("wl_clipboard".to_string(), check_in_path("wl-copy"));
+        deps.insert("wl_clipboard".to_string(), check_clipboard_tools());
     } else if desktop.contains("kde") {
         deps.insert("qdbus6".to_string(), check_in_path("qdbus6"));
         deps.insert("spectacle".to_string(), check_in_path("spectacle"));
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
         deps.insert("uinput".to_string(), check_uinput());
     } else if desktop.contains("hyprland") {
         deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
+        deps.insert("ydotool".to_string(), check_in_path("ydotool"));
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
     }
@@ -912,5 +914,32 @@ fn check_uinput() -> serde_json::Value {
     match std::fs::OpenOptions::new().write(true).open(path) {
         Ok(_) => serde_json::json!({"ok": true, "details": "write access"}),
         Err(e) => serde_json::json!({"ok": false, "details": format!("no write access: {}", e)}),
+    }
+}
+
+fn check_clipboard_tools() -> serde_json::Value {
+    let copy = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("command -v wl-copy >/dev/null 2>&1")
+        .status();
+    let paste = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("command -v wl-paste >/dev/null 2>&1")
+        .status();
+
+    let copy_ok = copy.map(|s| s.success()).unwrap_or(false);
+    let paste_ok = paste.map(|s| s.success()).unwrap_or(false);
+
+    if copy_ok && paste_ok {
+        serde_json::json!({"ok": true, "details": "wl-copy and wl-paste present"})
+    } else {
+        let mut missing = Vec::new();
+        if !copy_ok {
+            missing.push("wl-copy");
+        }
+        if !paste_ok {
+            missing.push("wl-paste");
+        }
+        serde_json::json!({"ok": false, "details": format!("missing: {}", missing.join(", "))})
     }
 }
