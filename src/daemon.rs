@@ -840,7 +840,7 @@ async fn build_system_health(
 
     if desktop.contains("gnome") {
         deps.insert(
-            "gnome_extension".to_string(),
+            "gnome-extension".to_string(),
             check_cmd(
                 "gdbus",
                 &[
@@ -937,7 +937,7 @@ fn health_remediation() -> serde_json::Value {
     serde_json::json!({
         "ydotoold": "Start ydotoold in your user session (e.g. autostart entry).",
         "uinput": "Configure udev: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\" and add your user to input group.",
-        "gnome_extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
+        "gnome-extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
         "grim": "Install grim package for screenshots.",
         "spectacle": "Install spectacle package for KDE screenshots."
     })
@@ -954,15 +954,23 @@ async fn run_system_remediation(check: &str, apply: bool) -> anyhow::Result<serd
                     "note":"Set apply=true to start ydotoold in current user session"
                 }));
             }
-            let out = tokio::process::Command::new("sh")
+            tokio::process::Command::new("sh")
                 .arg("-c")
                 .arg("pgrep -x ydotoold >/dev/null 2>&1 || (nohup ydotoold >/tmp/deskbrid-ydotoold.log 2>&1 &)")
                 .output()
                 .await?;
+            // Don't trust nohup's exit code — it exits 0 even if ydotoold crashes immediately.
+            // Verify the process actually started.
+            let running = tokio::process::Command::new("pgrep")
+                .args(["-x", "ydotoold"])
+                .output()
+                .await
+                .map(|o| o.status.success())
+                .unwrap_or(false);
             Ok(serde_json::json!({
                 "check":"ydotoold",
-                "applied": out.status.success(),
-                "details": if out.status.success() { "started_or_already_running" } else { "failed_to_start" }
+                "applied": running,
+                "details": if running { "started_or_already_running" } else { "failed_to_start" }
             }))
         }
         "kde_ydotoold_autostart" => {
