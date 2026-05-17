@@ -235,7 +235,8 @@ files.watch, files.unwatch, files.search
 process.list, process.start
 hotkeys.register, hotkeys.unregister
 audio.list_sinks, audio.set_sink_volume
-monitor.list, location.get
+monitor.list, monitor.set_primary, monitor.set_resolution, monitor.set_scale, monitor.set_rotation, monitor.enable, monitor.disable
+location.get
 ```
 
 ### Error response
@@ -323,9 +324,18 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `bluetooth.connect` | Connect to a device |
 | `audio.list_sinks` | List audio output devices |
 | `audio.set_sink_volume` | Set sink volume (0.0-1.0) |
+| `monitor.list` | List display outputs |
+| `monitor.set_primary` | Set the primary output where supported |
+| `monitor.set_resolution` | Set output resolution and optional refresh rate |
+| `monitor.set_scale` | Set output scale |
+| `monitor.set_rotation` | Set output rotation: normal, left, right, inverted |
+| `monitor.enable` | Enable an output |
+| `monitor.disable` | Disable an output |
 | `files.search` | Search files by name |
 | `files.watch` | Watch a path for changes (creates, modifies, deletes) |
 | `files.unwatch` | Stop watching a path |
+
+Monitor control uses compositor-native tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, X11 uses `xrandr`, and GNOME uses `xrandr` on X11 or `wlr-randr` where available. Hyprland does not expose a native primary-monitor setting.
 
 ### 📡 Events (subscribe)
 ```json

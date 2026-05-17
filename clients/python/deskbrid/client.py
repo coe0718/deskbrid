@@ -230,6 +230,36 @@ class AsyncDeskbrid:
     async def list_displays(self) -> list[MonitorInfo]:
         return decode_monitors(await self._request("monitor.list"))
 
+    async def set_primary_monitor(self, output: str) -> dict[str, Any]:
+        return await self._request("monitor.set_primary", {"output": output})
+
+    async def set_monitor_resolution(
+        self,
+        output: str,
+        width: int,
+        height: int,
+        refresh_rate: float | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"output": output, "width": width, "height": height}
+        if refresh_rate is not None:
+            params["refresh_rate"] = refresh_rate
+        return await self._request("monitor.set_resolution", params)
+
+    async def set_monitor_scale(self, output: str, scale: float) -> dict[str, Any]:
+        return await self._request("monitor.set_scale", {"output": output, "scale": scale})
+
+    async def set_monitor_rotation(self, output: str, rotation: str) -> dict[str, Any]:
+        return await self._request(
+            "monitor.set_rotation",
+            {"output": output, "rotation": rotation},
+        )
+
+    async def enable_monitor(self, output: str) -> dict[str, Any]:
+        return await self._request("monitor.enable", {"output": output})
+
+    async def disable_monitor(self, output: str) -> dict[str, Any]:
+        return await self._request("monitor.disable", {"output": output})
+
     async def info(self) -> DaemonInfo:
         return decode_info(await self._request("system.info"))
 
@@ -519,6 +549,39 @@ class Deskbrid:
 
     def list_displays(self) -> list[MonitorInfo]:
         return self._loop.submit(self._client.list_displays()).result()
+
+    def set_primary_monitor(self, output: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.set_primary_monitor(output)).result()
+
+    def set_monitor_resolution(
+        self,
+        output: str,
+        width: int,
+        height: int,
+        refresh_rate: float | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.set_monitor_resolution(
+                output=output,
+                width=width,
+                height=height,
+                refresh_rate=refresh_rate,
+            )
+        ).result()
+
+    def set_monitor_scale(self, output: str, scale: float) -> dict[str, Any]:
+        return self._loop.submit(self._client.set_monitor_scale(output, scale)).result()
+
+    def set_monitor_rotation(self, output: str, rotation: str) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.set_monitor_rotation(output, rotation)
+        ).result()
+
+    def enable_monitor(self, output: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.enable_monitor(output)).result()
+
+    def disable_monitor(self, output: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.disable_monitor(output)).result()
 
     def info(self) -> DaemonInfo:
         return self._loop.submit(self._client.info()).result()

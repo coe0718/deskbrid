@@ -61,6 +61,24 @@ pub struct MonitorInfo {
     pub height: u32,
     pub scale: f64,
     pub primary: bool,
+    #[serde(default = "default_monitor_enabled")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub x: i32,
+    #[serde(default)]
+    pub y: i32,
+    #[serde(default)]
+    pub refresh_rate: Option<f64>,
+    #[serde(default = "default_monitor_rotation")]
+    pub rotation: String,
+}
+
+fn default_monitor_enabled() -> bool {
+    true
+}
+
+fn default_monitor_rotation() -> String {
+    "normal".into()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -320,6 +338,29 @@ pub enum Action {
 
     // Monitor
     MonitorList,
+    MonitorSetPrimary {
+        output: String,
+    },
+    MonitorSetResolution {
+        output: String,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    },
+    MonitorSetScale {
+        output: String,
+        scale: f64,
+    },
+    MonitorSetRotation {
+        output: String,
+        rotation: String,
+    },
+    MonitorEnable {
+        output: String,
+    },
+    MonitorDisable {
+        output: String,
+    },
 
     // Location
     LocationGet,
@@ -403,6 +444,12 @@ impl Action {
             "audio.list_sinks",
             "audio.set_sink_volume",
             "monitor.list",
+            "monitor.set_primary",
+            "monitor.set_resolution",
+            "monitor.set_scale",
+            "monitor.set_rotation",
+            "monitor.enable",
+            "monitor.disable",
             "location.get",
             "ui.tree.get",
             "ui.element.click",
@@ -693,6 +740,35 @@ impl Action {
 
             // Monitor
             "monitor.list" => Action::MonitorList,
+            "monitor.set_primary" => Action::MonitorSetPrimary {
+                output: required_non_empty_string(&raw, "output")?,
+            },
+            "monitor.set_resolution" => {
+                let refresh_rate = match optional_positive_f64(&raw, "refresh_rate")? {
+                    Some(refresh_rate) => Some(refresh_rate),
+                    None => optional_positive_f64(&raw, "refresh")?,
+                };
+                Action::MonitorSetResolution {
+                    output: required_non_empty_string(&raw, "output")?,
+                    width: required_positive_u32(&raw, "width")?,
+                    height: required_positive_u32(&raw, "height")?,
+                    refresh_rate,
+                }
+            }
+            "monitor.set_scale" => Action::MonitorSetScale {
+                output: required_non_empty_string(&raw, "output")?,
+                scale: required_positive_f64(&raw, "scale")?,
+            },
+            "monitor.set_rotation" => Action::MonitorSetRotation {
+                output: required_non_empty_string(&raw, "output")?,
+                rotation: required_rotation(&raw, "rotation")?,
+            },
+            "monitor.enable" => Action::MonitorEnable {
+                output: required_non_empty_string(&raw, "output")?,
+            },
+            "monitor.disable" => Action::MonitorDisable {
+                output: required_non_empty_string(&raw, "output")?,
+            },
 
             // Location
             "location.get" => Action::LocationGet,
@@ -1026,6 +1102,33 @@ impl Action {
 
             // Monitor
             Action::MonitorList => json!({"type": "monitor.list", "id": id}),
+            Action::MonitorSetPrimary { output } => {
+                json!({"type": "monitor.set_primary", "id": id, "output": output})
+            }
+            Action::MonitorSetResolution {
+                output,
+                width,
+                height,
+                refresh_rate,
+            } => {
+                let mut obj = json!({"type": "monitor.set_resolution", "id": id, "output": output, "width": width, "height": height});
+                if let Some(refresh) = refresh_rate {
+                    obj["refresh_rate"] = json!(refresh);
+                }
+                obj
+            }
+            Action::MonitorSetScale { output, scale } => {
+                json!({"type": "monitor.set_scale", "id": id, "output": output, "scale": scale})
+            }
+            Action::MonitorSetRotation { output, rotation } => {
+                json!({"type": "monitor.set_rotation", "id": id, "output": output, "rotation": rotation})
+            }
+            Action::MonitorEnable { output } => {
+                json!({"type": "monitor.enable", "id": id, "output": output})
+            }
+            Action::MonitorDisable { output } => {
+                json!({"type": "monitor.disable", "id": id, "output": output})
+            }
 
             // Location
             Action::LocationGet => json!({"type": "location.get", "id": id}),
@@ -1112,6 +1215,12 @@ impl Action {
             Action::AudioListSinks => "audio.list_sinks",
             Action::AudioSetSinkVolume { .. } => "audio.set_sink_volume",
             Action::MonitorList => "monitor.list",
+            Action::MonitorSetPrimary { .. } => "monitor.set_primary",
+            Action::MonitorSetResolution { .. } => "monitor.set_resolution",
+            Action::MonitorSetScale { .. } => "monitor.set_scale",
+            Action::MonitorSetRotation { .. } => "monitor.set_rotation",
+            Action::MonitorEnable { .. } => "monitor.enable",
+            Action::MonitorDisable { .. } => "monitor.disable",
             Action::LocationGet => "location.get",
             Action::UiTreeGet => "ui.tree.get",
             Action::UiElementClick { .. } => "ui.element.click",
@@ -1131,6 +1240,50 @@ fn required_non_empty_string(raw: &serde_json::Value, field: &str) -> anyhow::Re
         anyhow::bail!("'{}' must not be empty", field);
     }
     Ok(value.to_string())
+}
+
+fn required_positive_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result<u32> {
+    let value = raw[field]
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
+    if value == 0 || value > u32::MAX as u64 {
+        anyhow::bail!("'{}' must be a positive 32-bit integer", field);
+    }
+    Ok(value as u32)
+}
+
+fn required_positive_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<f64> {
+    let value = raw[field]
+        .as_f64()
+        .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
+    if !value.is_finite() || value <= 0.0 {
+        anyhow::bail!("'{}' must be a positive finite number", field);
+    }
+    Ok(value)
+}
+
+fn optional_positive_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<f64>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_f64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if !value.is_finite() || value <= 0.0 {
+        anyhow::bail!("'{}' must be a positive finite number", field);
+    }
+    Ok(Some(value))
+}
+
+fn required_rotation(raw: &serde_json::Value, field: &str) -> anyhow::Result<String> {
+    let value = required_non_empty_string(raw, field)?;
+    match value.as_str() {
+        "normal" | "left" | "right" | "inverted" => Ok(value),
+        _ => anyhow::bail!("'{}' must be one of: normal, left, right, inverted", field),
+    }
 }
 
 fn optional_string_array(raw: &serde_json::Value, field: &str) -> anyhow::Result<Vec<String>> {
@@ -1254,6 +1407,9 @@ mod tests {
         assert!(actions.contains(&"windows.activate_or_launch"));
         assert!(actions.contains(&"layout_profiles.save"));
         assert!(actions.contains(&"layout_profiles.restore"));
+        assert!(actions.contains(&"monitor.set_primary"));
+        assert!(actions.contains(&"monitor.set_resolution"));
+        assert!(actions.contains(&"monitor.disable"));
     }
 
     #[test]
@@ -1316,5 +1472,44 @@ mod tests {
         assert!(
             Action::from_json(r#"{"type":"layout_profiles.save","id":"x","name":""}"#).is_err()
         );
+    }
+
+    #[test]
+    fn parses_monitor_control_actions() {
+        let (_, resolution) = Action::from_json(
+            r#"{"type":"monitor.set_resolution","id":"x","output":"DP-1","width":2560,"height":1440,"refresh_rate":144}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            resolution,
+            Action::MonitorSetResolution {
+                output,
+                width: 2560,
+                height: 1440,
+                refresh_rate: Some(144.0),
+            } if output == "DP-1"
+        ));
+
+        let (_, rotation) = Action::from_json(
+            r#"{"type":"monitor.set_rotation","id":"x","output":"eDP-1","rotation":"left"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            rotation,
+            Action::MonitorSetRotation { output, rotation }
+                if output == "eDP-1" && rotation == "left"
+        ));
+
+        assert!(
+            Action::from_json(r#"{"type":"monitor.set_scale","id":"x","output":"DP-1","scale":0}"#)
+                .is_err()
+        );
+        assert!(
+            Action::from_json(
+                r#"{"type":"monitor.set_rotation","id":"x","output":"DP-1","rotation":"sideways"}"#
+            )
+            .is_err()
+        );
+        assert!(Action::from_json(r#"{"type":"monitor.disable","id":"x","output":""}"#).is_err());
     }
 }
