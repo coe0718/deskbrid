@@ -10,6 +10,15 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
 
+const MONITOR_CONTROL_ACTIONS: &[&str] = &[
+    "monitor.set_primary",
+    "monitor.set_resolution",
+    "monitor.set_scale",
+    "monitor.set_rotation",
+    "monitor.enable",
+    "monitor.disable",
+];
+
 fn socket_path() -> String {
     std::env::var("XDG_RUNTIME_DIR")
         .map(|d| format!("{}/deskbrid.sock", d))
@@ -790,6 +799,45 @@ async fn execute_action(
         }
 
         MonitorList => serde_json::json!(backend.system_info().await?.monitors),
+        MonitorSetPrimary { ref output } => {
+            backend.monitor_set_primary(output).await?;
+            serde_json::json!({"output": output, "primary": true})
+        }
+        MonitorSetResolution {
+            ref output,
+            width,
+            height,
+            refresh_rate,
+        } => {
+            backend
+                .monitor_set_resolution(output, width, height, refresh_rate)
+                .await?;
+            serde_json::json!({
+                "output": output,
+                "width": width,
+                "height": height,
+                "refresh_rate": refresh_rate
+            })
+        }
+        MonitorSetScale { ref output, scale } => {
+            backend.monitor_set_scale(output, scale).await?;
+            serde_json::json!({"output": output, "scale": scale})
+        }
+        MonitorSetRotation {
+            ref output,
+            ref rotation,
+        } => {
+            backend.monitor_set_rotation(output, rotation).await?;
+            serde_json::json!({"output": output, "rotation": rotation})
+        }
+        MonitorEnable { ref output } => {
+            backend.monitor_set_enabled(output, true).await?;
+            serde_json::json!({"output": output, "enabled": true})
+        }
+        MonitorDisable { ref output } => {
+            backend.monitor_set_enabled(output, false).await?;
+            serde_json::json!({"output": output, "enabled": false})
+        }
         LocationGet => serde_json::json!({"location": "not yet implemented"}),
         UiTreeGet => {
             serde_json::json!({"supported": false, "reason":"AT-SPI not integrated yet", "nodes":[]})
@@ -1223,6 +1271,9 @@ async fn build_system_capabilities(
         set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
         set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
         set_session(&mut actions, "input.mouse", "wayland");
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(&mut actions, action, &["xrandr-or-wlr-randr"]);
+        }
     }
 
     if desktop.contains("kde") || desktop.contains("hyprland") {
@@ -1242,7 +1293,27 @@ async fn build_system_capabilities(
         set_session(&mut actions, "input.mouse", "wayland");
     }
 
+    if desktop.contains("kde") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(&mut actions, action, &["kscreen-doctor"]);
+        }
+    }
+
+    if desktop.contains("hyprland") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(&mut actions, action, &["hyprctl"]);
+        }
+        set_unsupported(
+            &mut actions,
+            "monitor.set_primary",
+            "hyprland_has_no_primary_monitor_setting",
+        );
+    }
+
     if desktop.contains("x11") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(&mut actions, action, &["xrandr"]);
+        }
         set_degraded(
             &mut actions,
             "windows.activate_or_launch",
@@ -1319,8 +1390,14 @@ async fn build_system_health(
         );
         deps.insert("grim".to_string(), check_in_path("grim"));
         deps.insert("wl_clipboard".to_string(), check_clipboard_tools());
+        deps.insert("xrandr".to_string(), check_in_path("xrandr"));
+        deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr"));
     } else if desktop.contains("kde") {
         deps.insert("qdbus6".to_string(), check_in_path("qdbus6"));
+        deps.insert(
+            "kscreen-doctor".to_string(),
+            check_in_path("kscreen-doctor"),
+        );
         deps.insert("spectacle".to_string(), check_in_path("spectacle"));
         deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
         deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
@@ -1334,6 +1411,8 @@ async fn build_system_health(
 
         deps.insert("uinput".to_string(), check_uinput());
         deps.insert("grim".to_string(), check_in_path("grim"));
+    } else if desktop.contains("x11") {
+        deps.insert("xrandr".to_string(), check_in_path("xrandr"));
     }
 
     Ok(serde_json::json!({

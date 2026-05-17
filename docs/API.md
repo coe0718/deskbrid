@@ -634,7 +634,8 @@ Get desktop environment information, including connected monitors.
     "monitors": [
       { "id": 0, "name": "eDP-1", "primary": true,
         "width": 1920, "height": 1080, "scale": 1.0,
-        "x": 0, "y": 0, "refresh_rate": 60.0 }
+        "enabled": true, "x": 0, "y": 0,
+        "refresh_rate": 60.0, "rotation": "normal" }
     ]
   }
 }
@@ -1320,10 +1321,78 @@ List connected monitors/displays.
   "data": [
     { "id": 0, "name": "eDP-1", "primary": true,
       "width": 1920, "height": 1080, "scale": 1.0,
-      "x": 0, "y": 0, "refresh_rate": 60.0 }
+      "enabled": true, "x": 0, "y": 0,
+      "refresh_rate": 60.0, "rotation": "normal" }
   ]
 }
 ```
+
+### `monitor.set_primary`
+
+Set the primary output where the compositor supports a primary monitor concept.
+
+**Request:**
+```json
+{"type": "monitor.set_primary", "id": "req-52", "output": "DP-1"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-52", "seq": 52, "status": "ok",
+  "data": { "output": "DP-1", "primary": true }
+}
+```
+
+Hyprland does not expose a native primary-monitor setting, so this action returns an error there.
+
+### `monitor.set_resolution`
+
+Set an output resolution, with optional refresh rate.
+
+**Request:**
+```json
+{"type": "monitor.set_resolution", "id": "req-53",
+ "output": "DP-1", "width": 2560, "height": 1440, "refresh_rate": 144}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-53", "seq": 53, "status": "ok",
+  "data": { "output": "DP-1", "width": 2560, "height": 1440, "refresh_rate": 144 }
+}
+```
+
+### `monitor.set_scale`
+
+Set output scale.
+
+**Request:**
+```json
+{"type": "monitor.set_scale", "id": "req-54", "output": "eDP-1", "scale": 1.25}
+```
+
+### `monitor.set_rotation`
+
+Set output rotation. Valid values: `normal`, `left`, `right`, `inverted`.
+
+**Request:**
+```json
+{"type": "monitor.set_rotation", "id": "req-55", "output": "DP-1", "rotation": "left"}
+```
+
+### `monitor.enable` / `monitor.disable`
+
+Enable or disable an output.
+
+**Requests:**
+```json
+{"type": "monitor.enable", "id": "req-56", "output": "HDMI-A-1"}
+{"type": "monitor.disable", "id": "req-57", "output": "HDMI-A-1"}
+```
+
+Monitor control uses compositor tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, X11 uses `xrandr`, and GNOME uses `xrandr` on X11 or `wlr-randr` where available. Permission-gated deployments should grant only the specific `monitor.*` write actions they intend to allow.
 
 ### `location.get`
 
@@ -1331,13 +1400,13 @@ Get geolocation. **Not yet implemented** — returns a placeholder.
 
 **Request:**
 ```json
-{"type": "location.get", "id": "req-52"}
+{"type": "location.get", "id": "req-58"}
 ```
 
 **Response:**
 ```json
 {
-  "type": "response", "id": "req-52", "seq": 52, "status": "ok",
+  "type": "response", "id": "req-58", "seq": 58, "status": "ok",
   "data": { "location": "not yet implemented" }
 }
 ```
