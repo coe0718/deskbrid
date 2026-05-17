@@ -170,6 +170,13 @@ pub enum WindowCmd {
         width: u32,
         height: u32,
     },
+    /// Focus an app if open, launch it if not
+    ActivateOrLaunch {
+        app_id: String,
+        /// Command to launch when no matching window exists. Defaults to app_id.
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -320,6 +327,12 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
                 y,
                 width,
                 height,
+            },
+            WindowCmd::ActivateOrLaunch { app_id, command } => Action::WindowsActivateOrLaunch {
+                app_id,
+                command,
+                workdir: None,
+                env: None,
             },
         },
 

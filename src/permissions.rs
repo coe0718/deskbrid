@@ -131,6 +131,7 @@ fn action_name(action: &Action) -> &'static str {
         WindowsMinimize(_) => "windows.minimize",
         WindowsMaximize(_) => "windows.maximize",
         WindowsMoveResize { .. } => "windows.move_resize",
+        WindowsActivateOrLaunch { .. } => "windows.activate_or_launch",
         WorkspacesList => "workspaces.list",
         WorkspaceSwitch(_) => "workspaces.switch",
         WorkspaceMoveWindow { .. } => "workspaces.move_window",
@@ -436,6 +437,15 @@ mod tests {
                 env: None
             }),
             "process.start"
+        );
+        assert_eq!(
+            action_name(&Action::WindowsActivateOrLaunch {
+                app_id: "code".into(),
+                command: vec!["code".into()],
+                workdir: None,
+                env: None,
+            }),
+            "windows.activate_or_launch"
         );
     }
 }

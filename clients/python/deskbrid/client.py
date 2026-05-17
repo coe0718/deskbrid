@@ -184,6 +184,22 @@ class AsyncDeskbrid:
             raise DeskbridError("not_found", f"window not found: {app_id or title}")
         await self._request("windows.focus", {"window_id": target.id})
 
+    async def activate_or_launch(
+        self,
+        app_id: str,
+        command: list[str] | None = None,
+        workdir: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"app_id": app_id}
+        if command:
+            params["command"] = command
+        if workdir is not None:
+            params["workdir"] = workdir
+        if env:
+            params["env"] = env
+        return await self._request("windows.activate_or_launch", params)
+
     async def list_displays(self) -> list[MonitorInfo]:
         return decode_monitors(await self._request("monitor.list"))
 
@@ -439,6 +455,22 @@ class Deskbrid:
     ) -> None:
         self._loop.submit(
             self._client.focus_window(app_id=app_id, title=title, exact=exact)
+        ).result()
+
+    def activate_or_launch(
+        self,
+        app_id: str,
+        command: list[str] | None = None,
+        workdir: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.activate_or_launch(
+                app_id=app_id,
+                command=command,
+                workdir=workdir,
+                env=env,
+            )
         ).result()
 
     def list_displays(self) -> list[MonitorInfo]:
