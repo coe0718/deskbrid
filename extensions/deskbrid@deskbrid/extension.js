@@ -1,6 +1,6 @@
 // deskbrid@deskbrid — GNOME Shell extension for window management over DBus
 // GNOME 46+ compatible (ES module import syntax)
-// Provides: ListWindows, FocusedWindow, FocusWindow, ListWorkspaces, SwitchWorkspace, WindowStateChanged signal
+// Provides: ListWindows, FocusedWindow, FocusWindow, window actions, workspaces, WindowStateChanged signal
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -25,6 +25,26 @@ const DeskbridIface = `
       <arg type="b" name="exact" direction="in"/>
       <arg type="b" name="success" direction="out"/>
     </method>
+    <method name="CloseWindow">
+      <arg type="s" name="window_id" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
+    <method name="MinimizeWindow">
+      <arg type="s" name="window_id" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
+    <method name="MaximizeWindow">
+      <arg type="s" name="window_id" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
+    <method name="MoveResizeWindow">
+      <arg type="s" name="window_id" direction="in"/>
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
     <method name="ListWorkspaces">
       <arg type="s" name="result" direction="out"/>
     </method>
@@ -32,7 +52,7 @@ const DeskbridIface = `
       <arg type="u" name="index" direction="in"/>
     </method>
     <method name="MoveWindowToWorkspace">
-      <arg type="s" name="app_id" direction="in"/>
+      <arg type="s" name="window_id" direction="in"/>
       <arg type="u" name="workspace_index" direction="in"/>
       <arg type="b" name="success" direction="out"/>
     </method>
@@ -85,6 +105,23 @@ function serializeWorkspaces() {
     return JSON.stringify(workspaces);
 }
 
+function findWindow(windowId) {
+    const needle = String(windowId || '');
+    if (needle.trim() === '') return null;
+
+    const needleLower = needle.toLowerCase();
+    const windows = global.get_window_actors().map(w => w.meta_window);
+
+    return windows.find(w => String(w.get_stable_sequence?.() ?? 0) === needle)
+        || windows.find(w => (w.get_wm_class() || '') === needle)
+        || windows.find(w => (w.get_title() || '') === needle)
+        || windows.find(w => {
+            const wmClass = (w.get_wm_class() || '').toLowerCase();
+            const title = (w.get_title() || '').toLowerCase();
+            return wmClass.includes(needleLower) || title.includes(needleLower);
+        });
+}
+
 function emitWindowStateChanged() {
     if (_debounceTimer) {
         GLib.source_remove(_debounceTimer);
@@ -131,6 +168,36 @@ export default class Extension {
                 found.activate(global.get_current_time());
                 return true;
             },
+            CloseWindow(window_id) {
+                const found = findWindow(window_id);
+                if (!found) return false;
+                found.delete(global.get_current_time());
+                emitWindowStateChanged();
+                return true;
+            },
+            MinimizeWindow(window_id) {
+                const found = findWindow(window_id);
+                if (!found) return false;
+                found.minimize();
+                emitWindowStateChanged();
+                return true;
+            },
+            MaximizeWindow(window_id) {
+                const found = findWindow(window_id);
+                if (!found) return false;
+                const flags = Meta.MaximizeFlags.BOTH
+                    ?? (Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
+                found.maximize(flags);
+                emitWindowStateChanged();
+                return true;
+            },
+            MoveResizeWindow(window_id, x, y, width, height) {
+                const found = findWindow(window_id);
+                if (!found) return false;
+                found.move_resize_frame(true, x, y, width, height);
+                emitWindowStateChanged();
+                return true;
+            },
             ListWorkspaces() {
                 return serializeWorkspaces();
             },
@@ -140,15 +207,15 @@ export default class Extension {
                 const ws = wm.get_workspace_by_index(index);
                 if (ws) ws.activate(global.get_current_time());
             },
-            MoveWindowToWorkspace(app_id, workspace_index) {
+            MoveWindowToWorkspace(window_id, workspace_index) {
                 const wm = global.workspace_manager;
                 if (workspace_index < 0 || workspace_index >= wm.n_workspaces)
                     return false;
                 const ws = wm.get_workspace_by_index(workspace_index);
-                const windows = global.get_window_actors().map(w => w.meta_window);
-                const found = windows.find(w => (w.get_wm_class() || '').toLowerCase().includes(app_id.toLowerCase()));
+                const found = findWindow(window_id);
                 if (!found || !ws) return false;
                 found.change_workspace(ws);
+                emitWindowStateChanged();
                 return true;
             }
         });

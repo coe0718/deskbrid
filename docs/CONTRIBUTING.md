@@ -365,15 +365,14 @@ These areas are explicitly marked as incomplete and are good targets for contrib
 
 | Area | Status | What's Needed |
 |------|--------|--------------|
-| `windows.close/minimize/maximize/move_resize` | Stub | Backend trait methods exist but every backend returns "not implemented" |
 | `ui.tree.get`, `ui.element.click/set_text` | Stub | AT-SPI D-Bus integration for accessibility tree traversal |
 | `bluetooth.pair/forget` | Stub | Trait methods exist, no backend implements them |
 | `location.get` | Placeholder | Returns `"not yet implemented"` |
 | `screencast.start/stop` | Stub | PipeWire-based screen capture (behind `pipewire` feature flag, not wired) |
 | `hotkeys.register/unregister` | Placeholder | Accepts requests but does nothing — needs backend wiring |
-|| X11 backend | Functional | Implemented: window focus/get, keyboard/mouse input, clipboard, screenshot, notifications, workspace switch. Missing: window close/minimize/maximize/move_resize, audio, bluetooth, WiFi, file watching |
+| X11 backend | Functional | Implemented: window focus/get/close/minimize/maximize/move_resize, keyboard/mouse input, clipboard, screenshot, notifications, workspace switch. Missing: audio, bluetooth, WiFi, file watching |
 | Integration tests | Missing | No `tests/` directory yet. End-to-end tests against a running daemon |
-|| CI pipeline | Release only | GitHub Actions builds on `v*` tag push. No per-PR CI (tests not run automatically) |
+| CI pipeline | Release only | GitHub Actions builds on `v*` tag push. No per-PR CI (tests not run automatically) |
 
 ## Architecture Reference
 

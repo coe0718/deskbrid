@@ -93,6 +93,17 @@ pub trait DesktopBackend: Send + Sync {
     async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>>;
     async fn window_focus(&self, id: &str) -> anyhow::Result<()>;
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo>;
+    async fn window_close(&self, id: &str) -> anyhow::Result<()>;
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()>;
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()>;
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()>;
 
     // ─── Workspaces ─────────────────────────────────────
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>>;

@@ -108,7 +108,7 @@ Get details for a specific window.
 
 ### `windows.close`
 
-Close a window. **Not yet implemented** — returns a stub response.
+Request that a window close.
 
 **Request:**
 ```json
@@ -119,27 +119,68 @@ Close a window. **Not yet implemented** — returns a stub response.
 ```json
 {
   "type": "response", "id": "req-4", "seq": 4, "status": "ok",
-  "data": { "window_id": "0x3a0000b", "supported": false,
-            "reason": "backend has no close API yet" }
+  "data": { "closed": "0x3a0000b" }
 }
 ```
 
 ### `windows.minimize`
 
-Minimize a window. **Not yet implemented.**
-
-### `windows.maximize`
-
-Maximize a window. **Not yet implemented.**
-
-### `windows.move_resize`
-
-Move and resize a window. **Not yet implemented.**
+Minimize a window where the compositor supports it.
 
 **Request:**
 ```json
-{"type": "windows.move_resize", "id": "req-5", "window_id": "0x3a0000b",
+{"type": "windows.minimize", "id": "req-5", "window_id": "0x3a0000b"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-5", "seq": 5, "status": "ok",
+  "data": { "minimized": "0x3a0000b" }
+}
+```
+
+Hyprland does not expose a native minimize dispatcher, so this action returns an error and is marked unsupported in `system.capabilities` on that backend.
+
+### `windows.maximize`
+
+Maximize a window.
+
+**Request:**
+```json
+{"type": "windows.maximize", "id": "req-6", "window_id": "0x3a0000b"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-6", "seq": 6, "status": "ok",
+  "data": { "maximized": "0x3a0000b" }
+}
+```
+
+### `windows.move_resize`
+
+Move and resize a window.
+
+**Request:**
+```json
+{"type": "windows.move_resize", "id": "req-7", "window_id": "0x3a0000b",
  "x": 0, "y": 0, "width": 1920, "height": 1080}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-7", "seq": 7, "status": "ok",
+  "data": {
+    "window_id": "0x3a0000b",
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+  }
+}
 ```
 
 ---
@@ -513,8 +554,8 @@ Get a detailed capability matrix for the current backend. Returns every action w
       "input.mouse": { "supported": true, "degraded": true,
                        "reason": "absolute_move_may_be_unavailable_without_screencast",
                        "requires": [], "session": "wayland", "degraded_modes": ["..."] },
-      "windows.close": { "supported": false, "degraded": false,
-                         "reason": "not_implemented", "requires": [],
+      "windows.close": { "supported": true, "degraded": false,
+                         "reason": null, "requires": ["gnome-extension"],
                          "session": "any", "degraded_modes": [] }
     },
     "backend_notes": {
@@ -1143,7 +1184,7 @@ Get geolocation. **Not yet implemented** — returns a placeholder.
 
 ### `capabilities.list`
 
-List all known actions with per-backend support status. Returns both the full action list and two sub-lists: `supported` (actions that work on this backend) and `unsupported` (actions that are stubbed or require future work).
+List all known actions with per-backend support status. Returns both the full action list and two sub-lists: `supported` (actions that work on this backend) and `unsupported` (actions that are stubbed, compositor-limited, or require future work).
 
 **Request:**
 ```json
@@ -1159,7 +1200,6 @@ List all known actions with per-backend support status. Returns both the full ac
     "actions": ["windows.list", "windows.focus", "windows.get", ...],
     "supported": ["windows.list", "windows.focus", "workspaces.list", ...],
     "unsupported": [
-      { "action": "windows.close", "reason": "not implemented in backend trait" },
       { "action": "ui.tree.get", "reason": "AT-SPI not integrated yet" }
     ]
   }

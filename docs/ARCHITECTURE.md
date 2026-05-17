@@ -70,18 +70,14 @@ The `execute_action()` function is a large `match` on the `Action` enum that cal
 
 ```rust
 WindowsList => serde_json::json!(backend.windows_list().await?),
+WindowsClose(ref id) => {
+    backend.window_close(id).await?;
+    serde_json::json!({"closed": id})
+},
 ClipboardRead => serde_json::json!({"text": backend.clipboard_read().await?}),
 ```
 
-Actions not implemented in the backend trait return graceful stubs:
-
-```rust
-WindowsClose(ref id) => serde_json::json!({
-    "window_id": id,
-    "supported": false,
-    "reason": "backend has no close API yet"
-}),
-```
+Actions that are unavailable on a specific compositor return backend errors and are reflected in `system.capabilities` / `capabilities.list` when the limitation is known.
 
 ### Connection Lifecycle
 
@@ -258,7 +254,7 @@ A functional X11 backend using xdotool, xclip, ImageMagick, and notify-send. Clo
 
 | Domain | Tool | Operations Implemented |
 |--------|------|----------------------|
-| Window focus | `xdotool search --name <id> windowactivate` | `window_focus` |
+| Window focus/control | `xdotool` + `wmctrl` | `window_focus`, `window_close`, `window_minimize`, `window_maximize`, `window_move_resize` |
 | Window info | `xdotool getwindowname <id>` | `window_get` |
 | Workspace switch | `xdotool set_desktop <id>` | `workspace_switch`, `workspaces_list` |
 | Keyboard input | `xdotool type/key/key+` | `keyboard_type`, `keyboard_key`, `keyboard_combo` |

@@ -37,6 +37,13 @@ impl X11Backend {
         }
         Ok(String::from_utf8(out.stdout)?.trim().to_string())
     }
+
+    fn ensure_window_id(id: &str) -> anyhow::Result<()> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -45,11 +52,13 @@ impl super::DesktopBackend for X11Backend {
         Ok(Vec::new())
     }
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         self.sh("xdotool", &["search", "--name", id, "windowactivate"])
             .await
             .map(|_| ())
     }
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        Self::ensure_window_id(id)?;
         // xdotool getwindowname verifies existence AND returns the real window title
         let title = self
             .sh("xdotool", &["getwindowname", id])
@@ -66,6 +75,46 @@ impl super::DesktopBackend for X11Backend {
             geometry: None,
             pid: None,
         })
+    }
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        self.sh("xdotool", &["windowclose", id]).await.map(|_| ())
+    }
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        self.sh("xdotool", &["windowminimize", id])
+            .await
+            .map(|_| ())
+    }
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        self.sh(
+            "wmctrl",
+            &["-ir", id, "-b", "add,maximized_vert,maximized_horz"],
+        )
+        .await
+        .map(|_| ())
+    }
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        self.sh(
+            "xdotool",
+            &["windowmove", id, &x.to_string(), &y.to_string()],
+        )
+        .await?;
+        self.sh(
+            "xdotool",
+            &["windowsize", id, &width.to_string(), &height.to_string()],
+        )
+        .await
+        .map(|_| ())
     }
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
         Ok(vec![protocol::WorkspaceInfo {

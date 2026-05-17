@@ -151,6 +151,68 @@ impl KdeBackend {
         Ok(results)
     }
 
+    fn kwin_find_window_js(id: &str) -> String {
+        let id_json = serde_json::to_string(id).unwrap_or_else(|_| "\"\"".to_string());
+        format!(
+            r#"
+var windows = workspace.windowList();
+var deskbridNeedle = {id_json};
+var deskbridNeedleLower = String(deskbridNeedle).toLowerCase();
+
+function deskbridContainsFold(haystack, needle) {{
+    if (!haystack) return false;
+    return String(haystack).toLowerCase().indexOf(needle) !== -1;
+}}
+
+function deskbridFindWindow() {{
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (String(w.internalId) === deskbridNeedle) return w;
+    }}
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (String(w.resourceClass) === deskbridNeedle) return w;
+    }}
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (w.caption && String(w.caption) === deskbridNeedle) return w;
+    }}
+    for (var i = 0; i < windows.length; i++) {{
+        var w = windows[i];
+        if (deskbridContainsFold(w.resourceClass, deskbridNeedleLower)
+            || deskbridContainsFold(w.caption, deskbridNeedleLower)) return w;
+    }}
+    return null;
+}}
+
+var target = deskbridFindWindow();
+"#
+        )
+    }
+
+    fn ensure_window_id(id: &str) -> anyhow::Result<()> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+        Ok(())
+    }
+
+    async fn kwin_expect_marker(
+        &self,
+        js: &str,
+        marker: &str,
+        missing_message: &str,
+    ) -> anyhow::Result<()> {
+        let lines = self.kwin_js(js).await?;
+        if lines.iter().any(|l| l.starts_with(marker)) {
+            return Ok(());
+        }
+        if let Some(err) = lines.iter().find(|l| l.starts_with("ERROR:")) {
+            anyhow::bail!("{}", err.trim_start_matches("ERROR:"));
+        }
+        anyhow::bail!("{}", missing_message)
+    }
+
     async fn kwin_windows_json(&self) -> anyhow::Result<Vec<serde_json::Value>> {
         let js = r#"
 var windows = workspace.windowList();
@@ -210,6 +272,7 @@ impl super::DesktopBackend for KdeBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let id_escaped = id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"
@@ -263,6 +326,7 @@ if (target) {{
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        Self::ensure_window_id(id)?;
         let id_escaped = id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"
@@ -312,6 +376,154 @@ for (var i = 0; i < windows.length; i++) {{
             }
         }
         anyhow::bail!("window not found: {}", id)
+    }
+
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        let js = format!(
+            r#"
+{}
+if (target) {{
+    try {{
+        if (typeof target.closeWindow === "function") {{
+            target.closeWindow();
+            print("CLOSED:" + String(target.internalId));
+        }} else if (typeof target.close === "function") {{
+            target.close();
+            print("CLOSED:" + String(target.internalId));
+        }} else {{
+            print("ERROR:no close method available");
+        }}
+    }} catch (e) {{
+        print("ERROR:" + e);
+    }}
+}}
+"#,
+            Self::kwin_find_window_js(id)
+        );
+        self.kwin_expect_marker(&js, "CLOSED:", &format!("window not found: {}", id))
+            .await
+    }
+
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        let js = format!(
+            r#"
+{}
+if (target) {{
+    try {{
+        target.minimized = true;
+        print("MINIMIZED:" + String(target.internalId));
+    }} catch (e) {{
+        print("ERROR:" + e);
+    }}
+}}
+"#,
+            Self::kwin_find_window_js(id)
+        );
+        self.kwin_expect_marker(&js, "MINIMIZED:", &format!("window not found: {}", id))
+            .await
+    }
+
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        let js = format!(
+            r#"
+{}
+if (target) {{
+    try {{
+        var ok = false;
+        if (typeof target.setMaximize === "function") {{
+            target.setMaximize(true, true);
+            ok = true;
+        }} else {{
+            if ("maximized" in target) {{
+                target.maximized = true;
+                ok = true;
+            }}
+            if ("maximizedHorizontally" in target) {{
+                target.maximizedHorizontally = true;
+                ok = true;
+            }}
+            if ("maximizedVertically" in target) {{
+                target.maximizedVertically = true;
+                ok = true;
+            }}
+        }}
+        if (ok) {{
+            print("MAXIMIZED:" + String(target.internalId));
+        }} else {{
+            print("ERROR:no maximize method available");
+        }}
+    }} catch (e) {{
+        print("ERROR:" + e);
+    }}
+}}
+"#,
+            Self::kwin_find_window_js(id)
+        );
+        self.kwin_expect_marker(&js, "MAXIMIZED:", &format!("window not found: {}", id))
+            .await
+    }
+
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
+        let js = format!(
+            r#"
+{}
+if (target) {{
+    try {{
+        var geom = {{x: {}, y: {}, width: {}, height: {}}};
+        var ok = false;
+        if (typeof target.moveResize === "function") {{
+            target.moveResize({}, {}, {}, {});
+            ok = true;
+        }} else if ("frameGeometry" in target) {{
+            target.frameGeometry = geom;
+            ok = true;
+        }} else if ("geometry" in target) {{
+            target.geometry = geom;
+            ok = true;
+        }} else {{
+            target.x = {};
+            target.y = {};
+            target.width = {};
+            target.height = {};
+            ok = true;
+        }}
+        if (ok) {{
+            print("MOVED_RESIZED:" + String(target.internalId));
+        }} else {{
+            print("ERROR:no move/resize method available");
+        }}
+    }} catch (e) {{
+        print("ERROR:" + e);
+    }}
+}}
+"#,
+            Self::kwin_find_window_js(id),
+            x,
+            y,
+            width,
+            height,
+            x,
+            y,
+            width,
+            height,
+            x,
+            y,
+            width,
+            height
+        );
+        self.kwin_expect_marker(&js, "MOVED_RESIZED:", &format!("window not found: {}", id))
+            .await
     }
 
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
@@ -366,6 +578,7 @@ if (manager) {
         workspace_id: u32,
         follow: bool,
     ) -> anyhow::Result<()> {
+        Self::ensure_window_id(window_id)?;
         let wid = window_id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"

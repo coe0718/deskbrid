@@ -1,3 +1,4 @@
+use crate::backend::DesktopBackend;
 use crate::protocol;
 use crate::protocol::DeskbridEvent;
 use async_trait::async_trait;
@@ -223,6 +224,68 @@ impl HyprBackend {
             pid: c.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32),
         }
     }
+
+    async fn resolve_window(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+
+        let windows = self.windows_list().await?;
+        let id_l = id.to_lowercase();
+
+        windows
+            .iter()
+            .find(|w| w.id.eq_ignore_ascii_case(id))
+            .cloned()
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| w.app_id.eq_ignore_ascii_case(id))
+                    .cloned()
+            })
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| w.title.eq_ignore_ascii_case(id))
+                    .cloned()
+            })
+            .or_else(|| {
+                windows
+                    .iter()
+                    .find(|w| {
+                        w.app_id.to_lowercase().contains(&id_l)
+                            || w.title.to_lowercase().contains(&id_l)
+                    })
+                    .cloned()
+            })
+            .ok_or_else(|| anyhow::anyhow!("no window matched id: {}", id))
+    }
+
+    async fn window_is_fullscreen(&self, id: &str) -> anyhow::Result<bool> {
+        let window = self.hyprctl_json(&["activewindow"]).await?;
+        let active_id = window
+            .get("address")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if !active_id.eq_ignore_ascii_case(id) {
+            return Ok(false);
+        }
+        Ok(json_truthy(window.get("fullscreen"))
+            || json_truthy(window.get("fullscreenClient"))
+            || json_truthy(window.get("fullscreenMode")))
+    }
+}
+
+fn json_truthy(value: Option<&serde_json::Value>) -> bool {
+    match value {
+        Some(serde_json::Value::Bool(v)) => *v,
+        Some(serde_json::Value::Number(v)) => v.as_i64().unwrap_or(0) != 0,
+        Some(serde_json::Value::String(v)) => {
+            let normalized = v.trim().to_ascii_lowercase();
+            normalized == "true" || normalized.parse::<i64>().is_ok_and(|n| n != 0)
+        }
+        _ => false,
+    }
 }
 
 // ─── Trait implementation ───────────────────────────────
@@ -242,32 +305,64 @@ impl crate::backend::DesktopBackend for HyprBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
-        let windows = self.windows_list().await?;
-        let id_l = id.to_lowercase();
-
-        let target = windows
-            .iter()
-            .find(|w| w.id.eq_ignore_ascii_case(id))
-            .or_else(|| windows.iter().find(|w| w.app_id.eq_ignore_ascii_case(id)))
-            .or_else(|| windows.iter().find(|w| w.title.eq_ignore_ascii_case(id)))
-            .or_else(|| {
-                windows.iter().find(|w| {
-                    w.app_id.to_lowercase().contains(&id_l)
-                        || w.title.to_lowercase().contains(&id_l)
-                })
-            })
-            .ok_or_else(|| anyhow::anyhow!("no window matched id: {}", id))?;
-
+        let target = self.resolve_window(id).await?;
         self.hyprctl_dispatch(&format!("focuswindow address:{}", target.id))
             .await
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
-        let windows = self.windows_list().await?;
-        windows
-            .into_iter()
-            .find(|w| w.id == id || w.app_id.contains(id) || w.title.contains(id))
-            .ok_or_else(|| anyhow::anyhow!("window not found: {}", id))
+        self.resolve_window(id).await
+    }
+
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.hyprctl_dispatch(&format!("closewindow address:{}", target.id))
+            .await
+    }
+
+    async fn window_minimize(&self, _id: &str) -> anyhow::Result<()> {
+        anyhow::bail!("Hyprland does not expose a native minimize dispatcher")
+    }
+
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.hyprctl_dispatch(&format!("focuswindow address:{}", target.id))
+            .await?;
+
+        if self
+            .hyprctl_dispatch("fullscreenstate 1 1 set")
+            .await
+            .is_ok()
+        {
+            return Ok(());
+        }
+
+        if self.window_is_fullscreen(&target.id).await.unwrap_or(false) {
+            return Ok(());
+        }
+
+        self.hyprctl_dispatch("fullscreenstate 1 1").await
+    }
+
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        let target = self.resolve_window(id).await?;
+        self.hyprctl_dispatch(&format!(
+            "movewindowpixel exact {} {},address:{}",
+            x, y, target.id
+        ))
+        .await?;
+        self.hyprctl_dispatch(&format!(
+            "resizewindowpixel exact {} {},address:{}",
+            width, height, target.id
+        ))
+        .await
     }
 
     // ═══════════════════════════════════════════════════════
@@ -304,11 +399,7 @@ impl crate::backend::DesktopBackend for HyprBackend {
         _follow: bool,
     ) -> anyhow::Result<()> {
         // Find the window to get its address
-        let windows = self.windows_list().await?;
-        let target = windows
-            .iter()
-            .find(|w| w.id == window_id || w.app_id.contains(window_id))
-            .ok_or_else(|| anyhow::anyhow!("window not found: {}", window_id))?;
+        let target = self.resolve_window(window_id).await?;
         // hyprctl dispatch movetoworkspacesilent <workspace>,address:<hex>
         self.hyprctl_dispatch(&format!(
             "movetoworkspacesilent {},address:{}",
