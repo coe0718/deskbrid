@@ -114,6 +114,10 @@ impl GnomeBackend {
     }
 
     async fn resolve_window(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+
         let raw = self.ext_call_parsed("ListWindows", &[]).await?;
         let windows = parse_extension_json_windows(&raw)?;
         let id_l = id.to_lowercase();

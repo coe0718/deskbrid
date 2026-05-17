@@ -370,17 +370,17 @@ impl Action {
 
             // Windows
             "windows.list" => Action::WindowsList,
-            "windows.focus" => Action::WindowsFocus(raw["window_id"].as_str().unwrap_or("").into()),
-            "windows.get" => Action::WindowsGet(raw["window_id"].as_str().unwrap_or("").into()),
-            "windows.close" => Action::WindowsClose(raw["window_id"].as_str().unwrap_or("").into()),
+            "windows.focus" => Action::WindowsFocus(required_non_empty_string(&raw, "window_id")?),
+            "windows.get" => Action::WindowsGet(required_non_empty_string(&raw, "window_id")?),
+            "windows.close" => Action::WindowsClose(required_non_empty_string(&raw, "window_id")?),
             "windows.minimize" => {
-                Action::WindowsMinimize(raw["window_id"].as_str().unwrap_or("").into())
+                Action::WindowsMinimize(required_non_empty_string(&raw, "window_id")?)
             }
             "windows.maximize" => {
-                Action::WindowsMaximize(raw["window_id"].as_str().unwrap_or("").into())
+                Action::WindowsMaximize(required_non_empty_string(&raw, "window_id")?)
             }
             "windows.move_resize" => Action::WindowsMoveResize {
-                window_id: raw["window_id"].as_str().unwrap_or("").into(),
+                window_id: required_non_empty_string(&raw, "window_id")?,
                 x: raw["x"].as_i64().unwrap_or(0) as i32,
                 y: raw["y"].as_i64().unwrap_or(0) as i32,
                 width: raw["width"].as_u64().unwrap_or(0) as u32,
@@ -393,7 +393,7 @@ impl Action {
                 Action::WorkspaceSwitch(raw["workspace_id"].as_u64().unwrap_or(0) as u32)
             }
             "workspaces.move_window" => Action::WorkspaceMoveWindow {
-                window_id: raw["window_id"].as_str().unwrap_or("").into(),
+                window_id: required_non_empty_string(&raw, "window_id")?,
                 workspace_id: raw["workspace_id"].as_u64().unwrap_or(0) as u32,
                 follow: raw["follow"].as_bool().unwrap_or(false),
             },
@@ -982,6 +982,16 @@ impl Action {
     }
 }
 
+fn required_non_empty_string(raw: &serde_json::Value, field: &str) -> anyhow::Result<String> {
+    let value = raw[field]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
+    if value.trim().is_empty() {
+        anyhow::bail!("'{}' must not be empty", field);
+    }
+    Ok(value.to_string())
+}
+
 // ─── Event Data Types (for subscription events) ─────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1079,5 +1089,15 @@ mod tests {
         let actions = Action::public_action_types();
         assert!(actions.contains(&"system.capabilities"));
         assert!(actions.contains(&"system.health"));
+    }
+
+    #[test]
+    fn rejects_empty_window_ids() {
+        assert!(Action::from_json(r#"{"type":"windows.close","id":"x"}"#).is_err());
+        assert!(Action::from_json(r#"{"type":"windows.close","id":"x","window_id":""}"#).is_err());
+        assert!(
+            Action::from_json(r#"{"type":"windows.move_resize","id":"x","window_id":" ","x":0,"y":0,"width":1,"height":1}"#)
+                .is_err()
+        );
     }
 }
