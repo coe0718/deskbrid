@@ -204,7 +204,13 @@ class AsyncDeskbrid:
         response = await self._request("layout_profiles.list")
         if isinstance(response, list):
             return response
-        return list(response.get("profiles", []))
+        data = response.get("data")
+        if isinstance(data, list):
+            return list(data)
+        profiles = response.get("profiles")
+        if isinstance(profiles, list):
+            return list(profiles)
+        return []
 
     async def save_layout_profile(self, name: str, overwrite: bool = False) -> dict[str, Any]:
         return await self._request(

@@ -882,13 +882,13 @@ async fn restore_layout_profile(
     backend: &dyn crate::backend::DesktopBackend,
 ) -> anyhow::Result<serde_json::Value> {
     let current_info = backend.system_info().await?;
-    let current_windows = backend.windows_list().await?;
+    let mut unmatched_windows = backend.windows_list().await?;
     let mut restored = Vec::new();
     let mut missing = Vec::new();
     let mut errors = Vec::new();
 
     for saved in &profile.windows {
-        let Some(target) = match_profile_window(saved, &current_windows) else {
+        let Some(target_index) = match_profile_window_index(saved, &unmatched_windows) else {
             missing.push(serde_json::json!({
                 "id": saved.id,
                 "app_id": saved.app_id,
@@ -896,6 +896,7 @@ async fn restore_layout_profile(
             }));
             continue;
         };
+        let target = unmatched_windows.remove(target_index);
 
         let mut window_errors = Vec::new();
         if target.workspace_id != saved.workspace_id
@@ -982,36 +983,30 @@ fn layout_profile_summary(profile: &LayoutProfile) -> LayoutProfileSummary {
     }
 }
 
-fn match_profile_window(
+fn match_profile_window_index(
     saved: &crate::protocol::WindowInfo,
     current: &[crate::protocol::WindowInfo],
-) -> Option<crate::protocol::WindowInfo> {
+) -> Option<usize> {
     current
         .iter()
-        .find(|w| w.id == saved.id)
-        .cloned()
+        .position(|w| w.id == saved.id)
         .or_else(|| {
-            current
-                .iter()
-                .find(|w| {
-                    !saved.app_id.is_empty()
-                        && !saved.title.is_empty()
-                        && w.app_id == saved.app_id
-                        && w.title == saved.title
-                })
-                .cloned()
+            current.iter().position(|w| {
+                !saved.app_id.is_empty()
+                    && !saved.title.is_empty()
+                    && w.app_id == saved.app_id
+                    && w.title == saved.title
+            })
         })
         .or_else(|| {
             current
                 .iter()
-                .find(|w| !saved.app_id.is_empty() && w.app_id == saved.app_id)
-                .cloned()
+                .position(|w| !saved.app_id.is_empty() && w.app_id == saved.app_id)
         })
         .or_else(|| {
             current
                 .iter()
-                .find(|w| !saved.title.is_empty() && w.title == saved.title)
-                .cloned()
+                .position(|w| !saved.title.is_empty() && w.title == saved.title)
         })
 }
 
@@ -1542,5 +1537,66 @@ fn check_clipboard_tools() -> serde_json::Value {
             missing.push("wl-paste");
         }
         serde_json::json!({"ok": false, "details": format!("missing: {}", missing.join(", "))})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::WindowInfo;
+
+    fn window(id: &str, app_id: &str, title: &str) -> WindowInfo {
+        WindowInfo {
+            id: id.to_string(),
+            title: title.to_string(),
+            app_id: app_id.to_string(),
+            workspace_id: 1,
+            is_focused: false,
+            is_minimized: false,
+            geometry: None,
+            pid: None,
+        }
+    }
+
+    #[test]
+    fn layout_profile_matching_prefers_saved_id() {
+        let saved = window("saved-id", "app.one", "Editor");
+        let current = vec![
+            window("other-id", "app.one", "Editor"),
+            window("saved-id", "app.two", "Terminal"),
+        ];
+
+        assert_eq!(match_profile_window_index(&saved, &current), Some(1));
+    }
+
+    #[test]
+    fn layout_profile_matching_consumes_fallback_matches() {
+        let saved = [
+            window("old-a", "app.editor", "Notes"),
+            window("old-b", "app.editor", "Notes"),
+        ];
+        let mut current = vec![
+            window("live-a", "app.editor", "Notes"),
+            window("live-b", "app.editor", "Notes"),
+        ];
+
+        let first = current.remove(match_profile_window_index(&saved[0], &current).unwrap());
+        let second = current.remove(match_profile_window_index(&saved[1], &current).unwrap());
+
+        assert_eq!(first.id, "live-a");
+        assert_eq!(second.id, "live-b");
+    }
+
+    #[test]
+    fn layout_profile_matching_missing_after_only_live_match_is_consumed() {
+        let saved = [
+            window("old-a", "app.editor", "Notes"),
+            window("old-b", "app.editor", "Notes"),
+        ];
+        let mut current = vec![window("live-a", "app.editor", "Notes")];
+
+        let _ = current.remove(match_profile_window_index(&saved[0], &current).unwrap());
+
+        assert_eq!(match_profile_window_index(&saved[1], &current), None);
     }
 }
