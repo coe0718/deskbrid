@@ -89,6 +89,7 @@ client.listen()  # blocks, streaming events
 |---|---|
 | `list_windows() -> list[WindowInfo]` | List all open windows |
 | `focus_window(*, app_id=None, title=None, exact=False)` | Focus a window by app_id or title |
+| `activate_or_launch(app_id, command=None, workdir=None, env=None) -> dict` | Focus an app if open, launch it if not |
 
 ### Input
 

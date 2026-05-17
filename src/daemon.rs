@@ -2,6 +2,8 @@ use crate::permissions::socket_peer_uid;
 use crate::protocol::Action;
 use crate::{ConnectionState, DaemonState};
 use anyhow::Context;
+use std::collections::HashMap;
+use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
@@ -248,6 +250,22 @@ async fn dispatch_action(
     if !state.permissions.check(peer_uid, &action) {
         return permission_denied_response(seq);
     }
+    if let Action::WindowsActivateOrLaunch {
+        command,
+        workdir,
+        env,
+        ..
+    } = &action
+    {
+        let process_start = Action::ProcessStart {
+            command: command.clone(),
+            workdir: workdir.clone(),
+            env: env.clone(),
+        };
+        if !state.permissions.check(peer_uid, &process_start) {
+            return permission_denied_response(seq);
+        }
+    }
 
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
@@ -364,6 +382,37 @@ async fn execute_action(
             serde_json::json!({
                 "window_id": window_id, "x": x, "y": y, "width": width, "height": height
             })
+        }
+        WindowsActivateOrLaunch {
+            ref app_id,
+            ref command,
+            ref workdir,
+            ref env,
+        } => {
+            if let Some(window) = find_app_window(backend, app_id).await? {
+                backend.window_focus(&window.id).await?;
+                serde_json::json!({
+                    "app_id": app_id,
+                    "activated": true,
+                    "launched": false,
+                    "window_id": window.id
+                })
+            } else {
+                let launch_command = if command.is_empty() {
+                    vec![app_id.clone()]
+                } else {
+                    command.clone()
+                };
+                let pid = spawn_detached_process(&launch_command, workdir.as_deref(), env.as_ref())
+                    .await?;
+                serde_json::json!({
+                    "app_id": app_id,
+                    "activated": false,
+                    "launched": true,
+                    "pid": pid,
+                    "command": launch_command
+                })
+            }
         }
 
         WorkspacesList => serde_json::json!(backend.workspaces_list().await?),
@@ -564,22 +613,8 @@ async fn execute_action(
             ref workdir,
             ref env,
         } => {
-            let mut cmd = tokio::process::Command::new(&command[0]);
-            cmd.args(&command[1..]);
-            if let Some(wd) = workdir {
-                cmd.current_dir(wd);
-            }
-            if let Some(env_vars) = env {
-                for (k, v) in env_vars {
-                    cmd.env(k, v);
-                }
-            }
-            let child = cmd
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()?;
-            serde_json::json!({"pid": child.id().unwrap_or(0), "command": command})
+            let pid = spawn_detached_process(command, workdir.as_deref(), env.as_ref()).await?;
+            serde_json::json!({"pid": pid, "command": command})
         }
         ProcessStop { pid, ref signal } => {
             ensure_safe_pid(pid)?;
@@ -715,6 +750,66 @@ async fn execute_action(
     })
 }
 
+async fn find_app_window(
+    backend: &dyn crate::backend::DesktopBackend,
+    app_id: &str,
+) -> anyhow::Result<Option<crate::protocol::WindowInfo>> {
+    if app_id.trim().is_empty() {
+        anyhow::bail!("app_id must not be empty");
+    }
+
+    let windows = backend.windows_list().await?;
+    let app_l = app_id.to_lowercase();
+    Ok(windows
+        .iter()
+        .find(|w| w.app_id.eq_ignore_ascii_case(app_id))
+        .cloned()
+        .or_else(|| {
+            windows
+                .iter()
+                .find(|w| w.title.eq_ignore_ascii_case(app_id))
+                .cloned()
+        })
+        .or_else(|| {
+            windows
+                .iter()
+                .find(|w| {
+                    w.app_id.to_lowercase().contains(&app_l)
+                        || w.title.to_lowercase().contains(&app_l)
+                })
+                .cloned()
+        }))
+}
+
+async fn spawn_detached_process(
+    command: &[String],
+    workdir: Option<&str>,
+    env: Option<&HashMap<String, String>>,
+) -> anyhow::Result<u32> {
+    let program = command
+        .first()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| anyhow::anyhow!("command must not be empty"))?;
+
+    let mut cmd = tokio::process::Command::new(program);
+    cmd.args(&command[1..]);
+    if let Some(wd) = workdir {
+        cmd.current_dir(wd);
+    }
+    if let Some(env_vars) = env {
+        for (k, v) in env_vars {
+            cmd.env(k, v);
+        }
+    }
+
+    let child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    Ok(child.id().unwrap_or(0))
+}
+
 fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
     if pid <= 1 {
         anyhow::bail!("refusing to target reserved pid {}", pid);
@@ -799,6 +894,11 @@ async fn build_system_capabilities(
         set_requires(&mut actions, "windows.minimize", &["gnome-extension"]);
         set_requires(&mut actions, "windows.maximize", &["gnome-extension"]);
         set_requires(&mut actions, "windows.move_resize", &["gnome-extension"]);
+        set_requires(
+            &mut actions,
+            "windows.activate_or_launch",
+            &["gnome-extension"],
+        );
         set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
         set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
         set_session(&mut actions, "input.mouse", "wayland");
@@ -822,6 +922,11 @@ async fn build_system_capabilities(
     }
 
     if desktop.contains("x11") {
+        set_degraded(
+            &mut actions,
+            "windows.activate_or_launch",
+            "x11_window_enumeration_unavailable_launch_only",
+        );
         set_requires(&mut actions, "windows.maximize", &["wmctrl"]);
         // X11 backend doesn't support notification actions via GNOME/KDE APIs
         set_unsupported(&mut actions, "notification.send", "x11_unsupported");

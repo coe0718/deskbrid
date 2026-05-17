@@ -254,7 +254,7 @@ A functional X11 backend using xdotool, xclip, ImageMagick, and notify-send. Clo
 
 | Domain | Tool | Operations Implemented |
 |--------|------|----------------------|
-| Window focus/control | `xdotool` + `wmctrl` | `window_focus`, `window_close`, `window_minimize`, `window_maximize`, `window_move_resize` |
+| Window focus/control | `xdotool` + `wmctrl` | `window_focus`, `window_close`, `window_minimize`, `window_maximize`, `window_move_resize`, `windows.activate_or_launch` launch fallback |
 | Window info | `xdotool getwindowname <id>` | `window_get` |
 | Workspace switch | `xdotool set_desktop <id>` | `workspace_switch`, `workspaces_list` |
 | Keyboard input | `xdotool type/key/key+` | `keyboard_type`, `keyboard_key`, `keyboard_combo` |

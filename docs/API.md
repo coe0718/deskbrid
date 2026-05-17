@@ -183,6 +183,47 @@ Move and resize a window.
 }
 ```
 
+### `windows.activate_or_launch`
+
+Focus an app if a matching window is already open; otherwise launch a command.
+
+**Request:**
+```json
+{"type": "windows.activate_or_launch", "id": "req-8",
+ "app_id": "code", "command": ["code", "."]}
+```
+
+`app_id` is matched against open window `app_id` first, then title. `command` is optional; when omitted, Deskbrid tries to launch `app_id` as the executable name.
+
+When permissions are configured, callers need both `windows.activate_or_launch` and `process.start` because the action may launch a process.
+
+**Response when activated:**
+```json
+{
+  "type": "response", "id": "req-8", "seq": 8, "status": "ok",
+  "data": {
+    "app_id": "code",
+    "activated": true,
+    "launched": false,
+    "window_id": "0x3a0000b"
+  }
+}
+```
+
+**Response when launched:**
+```json
+{
+  "type": "response", "id": "req-8", "seq": 8, "status": "ok",
+  "data": {
+    "app_id": "code",
+    "activated": false,
+    "launched": true,
+    "pid": 12345,
+    "command": ["code", "."]
+  }
+}
+```
+
 ---
 
 ## Workspaces
