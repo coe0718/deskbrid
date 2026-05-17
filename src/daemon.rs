@@ -1,8 +1,9 @@
 use crate::permissions::socket_peer_uid;
-use crate::protocol::Action;
+use crate::protocol::{Action, LayoutProfile, LayoutProfileSummary};
 use crate::{ConnectionState, DaemonState};
 use anyhow::Context;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -250,6 +251,11 @@ async fn dispatch_action(
     if !state.permissions.check(peer_uid, &action) {
         return permission_denied_response(seq);
     }
+    for implied_action in implied_permission_actions(&action) {
+        if !state.permissions.check(peer_uid, &implied_action) {
+            return permission_denied_response(seq);
+        }
+    }
     if let Action::WindowsActivateOrLaunch {
         command,
         workdir,
@@ -294,6 +300,35 @@ async fn dispatch_action(
                 "error": { "code": "INTERNAL_ERROR", "message": format!("{}", e) }
             })
         }
+    }
+}
+
+fn implied_permission_actions(action: &Action) -> Vec<Action> {
+    match action {
+        Action::LayoutProfileSave { .. } => {
+            vec![
+                Action::WindowsList,
+                Action::WorkspacesList,
+                Action::SystemInfo,
+            ]
+        }
+        Action::LayoutProfileRestore { .. } => vec![
+            Action::WindowsMoveResize {
+                window_id: "profile".into(),
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+            },
+            Action::WindowsMinimize("profile".into()),
+            Action::WorkspaceSwitch(0),
+            Action::WorkspaceMoveWindow {
+                window_id: "profile".into(),
+                workspace_id: 0,
+                follow: false,
+            },
+        ],
+        _ => Vec::new(),
     }
 }
 
@@ -429,6 +464,30 @@ async fn execute_action(
                 .workspace_move_window(window_id, workspace_id, follow)
                 .await?;
             serde_json::json!({"moved": true})
+        }
+        LayoutProfilesList => serde_json::json!(list_layout_profiles().await?),
+        LayoutProfileGet { ref name } => serde_json::json!(load_layout_profile(name).await?),
+        LayoutProfileSave {
+            ref name,
+            overwrite,
+        } => {
+            let profile = capture_layout_profile(name, backend).await?;
+            let path = save_layout_profile(&profile, overwrite).await?;
+            serde_json::json!({
+                "profile": profile,
+                "path": path.to_string_lossy()
+            })
+        }
+        LayoutProfileDelete { ref name } => {
+            let path = layout_profile_path(name)?;
+            tokio::fs::remove_file(&path)
+                .await
+                .with_context(|| format!("failed to delete layout profile '{}'", name))?;
+            serde_json::json!({"deleted": name})
+        }
+        LayoutProfileRestore { ref name } => {
+            let profile = load_layout_profile(name).await?;
+            serde_json::json!(restore_layout_profile(&profile, backend).await?)
         }
 
         InputKeyboardType { ref text } => {
@@ -750,6 +809,268 @@ async fn execute_action(
     })
 }
 
+async fn capture_layout_profile(
+    name: &str,
+    backend: &dyn crate::backend::DesktopBackend,
+) -> anyhow::Result<LayoutProfile> {
+    let name = validate_layout_profile_name(name)?.to_string();
+    let info = backend.system_info().await?;
+    Ok(LayoutProfile {
+        schema_version: 1,
+        name,
+        saved_at: unix_timestamp(),
+        desktop: info.desktop,
+        session_type: info.session_type,
+        current_workspace: info.current_workspace,
+        monitors: info.monitors,
+        workspaces: backend.workspaces_list().await?,
+        windows: backend.windows_list().await?,
+    })
+}
+
+async fn save_layout_profile(profile: &LayoutProfile, overwrite: bool) -> anyhow::Result<PathBuf> {
+    let path = layout_profile_path(&profile.name)?;
+    if !overwrite && tokio::fs::metadata(&path).await.is_ok() {
+        anyhow::bail!("layout profile '{}' already exists", profile.name);
+    }
+
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let data = serde_json::to_vec_pretty(profile)?;
+    tokio::fs::write(&path, data).await?;
+    Ok(path)
+}
+
+async fn load_layout_profile(name: &str) -> anyhow::Result<LayoutProfile> {
+    let path = layout_profile_path(name)?;
+    let data = tokio::fs::read(&path)
+        .await
+        .with_context(|| format!("failed to read layout profile '{}'", name))?;
+    serde_json::from_slice(&data)
+        .with_context(|| format!("failed to parse layout profile '{}'", name))
+}
+
+async fn list_layout_profiles() -> anyhow::Result<Vec<LayoutProfileSummary>> {
+    let dir = layout_profiles_dir();
+    let mut reader = match tokio::fs::read_dir(&dir).await {
+        Ok(reader) => reader,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut profiles = Vec::new();
+    while let Some(entry) = reader.next_entry().await? {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(data) = tokio::fs::read(&path).await else {
+            continue;
+        };
+        let Ok(profile) = serde_json::from_slice::<LayoutProfile>(&data) else {
+            continue;
+        };
+        profiles.push(layout_profile_summary(&profile));
+    }
+    profiles.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(profiles)
+}
+
+async fn restore_layout_profile(
+    profile: &LayoutProfile,
+    backend: &dyn crate::backend::DesktopBackend,
+) -> anyhow::Result<serde_json::Value> {
+    let current_info = backend.system_info().await?;
+    let mut unmatched_windows = backend.windows_list().await?;
+    let mut restored = Vec::new();
+    let mut missing = Vec::new();
+    let mut errors = Vec::new();
+
+    for saved in &profile.windows {
+        let Some(target_index) = match_profile_window_index(saved, &unmatched_windows) else {
+            missing.push(serde_json::json!({
+                "id": saved.id,
+                "app_id": saved.app_id,
+                "title": saved.title
+            }));
+            continue;
+        };
+        let target = unmatched_windows.remove(target_index);
+
+        let mut window_errors = Vec::new();
+        if target.workspace_id != saved.workspace_id
+            && let Err(e) = backend
+                .workspace_move_window(&target.id, saved.workspace_id, false)
+                .await
+        {
+            window_errors.push(format!("workspace: {}", e));
+        }
+        if let Some(ref geometry) = saved.geometry
+            && geometry.width > 0
+            && geometry.height > 0
+            && let Err(e) = backend
+                .window_move_resize(
+                    &target.id,
+                    geometry.x,
+                    geometry.y,
+                    geometry.width,
+                    geometry.height,
+                )
+                .await
+        {
+            window_errors.push(format!("geometry: {}", e));
+        }
+        if saved.is_minimized
+            && let Err(e) = backend.window_minimize(&target.id).await
+        {
+            window_errors.push(format!("minimize: {}", e));
+        }
+
+        if window_errors.is_empty() {
+            restored.push(serde_json::json!({
+                "profile_window_id": saved.id,
+                "window_id": target.id,
+                "app_id": saved.app_id,
+                "title": saved.title,
+                "workspace_id": saved.workspace_id
+            }));
+        } else {
+            errors.push(serde_json::json!({
+                "profile_window_id": saved.id,
+                "window_id": target.id,
+                "app_id": saved.app_id,
+                "title": saved.title,
+                "errors": window_errors
+            }));
+        }
+    }
+
+    let workspace_switched = match backend.workspace_switch(profile.current_workspace).await {
+        Ok(()) => true,
+        Err(e) => {
+            errors.push(serde_json::json!({
+                "workspace_id": profile.current_workspace,
+                "errors": [format!("switch: {}", e)]
+            }));
+            false
+        }
+    };
+
+    Ok(serde_json::json!({
+        "profile": profile.name,
+        "restored": restored,
+        "missing": missing,
+        "errors": errors,
+        "workspace_switched": workspace_switched,
+        "current_workspace": profile.current_workspace,
+        "monitor_topology_matches": monitors_match(&profile.monitors, &current_info.monitors),
+        "saved_monitor_count": profile.monitors.len(),
+        "current_monitor_count": current_info.monitors.len()
+    }))
+}
+
+fn layout_profile_summary(profile: &LayoutProfile) -> LayoutProfileSummary {
+    LayoutProfileSummary {
+        name: profile.name.clone(),
+        saved_at: profile.saved_at,
+        desktop: profile.desktop.clone(),
+        session_type: profile.session_type.clone(),
+        current_workspace: profile.current_workspace,
+        monitor_count: profile.monitors.len(),
+        workspace_count: profile.workspaces.len(),
+        window_count: profile.windows.len(),
+    }
+}
+
+fn match_profile_window_index(
+    saved: &crate::protocol::WindowInfo,
+    current: &[crate::protocol::WindowInfo],
+) -> Option<usize> {
+    current
+        .iter()
+        .position(|w| w.id == saved.id)
+        .or_else(|| {
+            current.iter().position(|w| {
+                !saved.app_id.is_empty()
+                    && !saved.title.is_empty()
+                    && w.app_id == saved.app_id
+                    && w.title == saved.title
+            })
+        })
+        .or_else(|| {
+            current
+                .iter()
+                .position(|w| !saved.app_id.is_empty() && w.app_id == saved.app_id)
+        })
+        .or_else(|| {
+            current
+                .iter()
+                .position(|w| !saved.title.is_empty() && w.title == saved.title)
+        })
+}
+
+fn monitors_match(
+    saved: &[crate::protocol::MonitorInfo],
+    current: &[crate::protocol::MonitorInfo],
+) -> bool {
+    if saved.len() != current.len() {
+        return false;
+    }
+    saved.iter().zip(current).all(|(a, b)| {
+        a.name == b.name
+            && a.width == b.width
+            && a.height == b.height
+            && (a.scale - b.scale).abs() < f64::EPSILON
+            && a.primary == b.primary
+    })
+}
+
+fn layout_profile_path(name: &str) -> anyhow::Result<PathBuf> {
+    let name = validate_layout_profile_name(name)?;
+    Ok(layout_profiles_dir().join(format!("{}.json", name)))
+}
+
+fn layout_profiles_dir() -> PathBuf {
+    if let Ok(config_home) = std::env::var("XDG_CONFIG_HOME") {
+        return PathBuf::from(config_home)
+            .join("deskbrid")
+            .join("layout_profiles");
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home)
+        .join(".config")
+        .join("deskbrid")
+        .join("layout_profiles")
+}
+
+fn validate_layout_profile_name(name: &str) -> anyhow::Result<&str> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("layout profile name must not be empty");
+    }
+    if name.len() != trimmed.len() {
+        anyhow::bail!("layout profile name must not start or end with whitespace");
+    }
+    if name == "." || name == ".." {
+        anyhow::bail!("invalid layout profile name: {}", name);
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        anyhow::bail!("layout profile name may only contain letters, numbers, '.', '-' and '_'");
+    }
+    Ok(name)
+}
+
+fn unix_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 async fn find_app_window(
     backend: &dyn crate::backend::DesktopBackend,
     app_id: &str,
@@ -926,6 +1247,16 @@ async fn build_system_capabilities(
             &mut actions,
             "windows.activate_or_launch",
             "x11_window_enumeration_unavailable_launch_only",
+        );
+        set_degraded(
+            &mut actions,
+            "layout_profiles.save",
+            "x11_window_enumeration_unavailable",
+        );
+        set_degraded(
+            &mut actions,
+            "layout_profiles.restore",
+            "x11_window_enumeration_unavailable",
         );
         set_requires(&mut actions, "windows.maximize", &["wmctrl"]);
         // X11 backend doesn't support notification actions via GNOME/KDE APIs
@@ -1206,5 +1537,66 @@ fn check_clipboard_tools() -> serde_json::Value {
             missing.push("wl-paste");
         }
         serde_json::json!({"ok": false, "details": format!("missing: {}", missing.join(", "))})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::WindowInfo;
+
+    fn window(id: &str, app_id: &str, title: &str) -> WindowInfo {
+        WindowInfo {
+            id: id.to_string(),
+            title: title.to_string(),
+            app_id: app_id.to_string(),
+            workspace_id: 1,
+            is_focused: false,
+            is_minimized: false,
+            geometry: None,
+            pid: None,
+        }
+    }
+
+    #[test]
+    fn layout_profile_matching_prefers_saved_id() {
+        let saved = window("saved-id", "app.one", "Editor");
+        let current = vec![
+            window("other-id", "app.one", "Editor"),
+            window("saved-id", "app.two", "Terminal"),
+        ];
+
+        assert_eq!(match_profile_window_index(&saved, &current), Some(1));
+    }
+
+    #[test]
+    fn layout_profile_matching_consumes_fallback_matches() {
+        let saved = [
+            window("old-a", "app.editor", "Notes"),
+            window("old-b", "app.editor", "Notes"),
+        ];
+        let mut current = vec![
+            window("live-a", "app.editor", "Notes"),
+            window("live-b", "app.editor", "Notes"),
+        ];
+
+        let first = current.remove(match_profile_window_index(&saved[0], &current).unwrap());
+        let second = current.remove(match_profile_window_index(&saved[1], &current).unwrap());
+
+        assert_eq!(first.id, "live-a");
+        assert_eq!(second.id, "live-b");
+    }
+
+    #[test]
+    fn layout_profile_matching_missing_after_only_live_match_is_consumed() {
+        let saved = [
+            window("old-a", "app.editor", "Notes"),
+            window("old-b", "app.editor", "Notes"),
+        ];
+        let mut current = vec![window("live-a", "app.editor", "Notes")];
+
+        let _ = current.remove(match_profile_window_index(&saved[0], &current).unwrap());
+
+        assert_eq!(match_profile_window_index(&saved[1], &current), None);
     }
 }

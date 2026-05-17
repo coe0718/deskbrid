@@ -215,6 +215,7 @@ Full list of available permission names:
 ```
 windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.activate_or_launch
 workspaces.list, workspaces.switch, workspaces.move_window
+layout_profiles.list, layout_profiles.get, layout_profiles.save, layout_profiles.delete, layout_profiles.restore
 input.keyboard, input.mouse
 clipboard.read, clipboard.write
 screenshot
@@ -267,6 +268,17 @@ Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → proces
 | `workspaces.move_window` | Move a window to another workspace |
 
 `windows.activate_or_launch` may start a process, so permission-gated deployments must grant both `windows.activate_or_launch` and `process.start`.
+
+### 🧩 Layout Profiles
+| Action | Description |
+|---|---|
+| `layout_profiles.save` | Save current windows, monitors, workspaces, and active workspace |
+| `layout_profiles.list` | List saved layout profile summaries |
+| `layout_profiles.get` | Get a saved layout profile snapshot |
+| `layout_profiles.restore` | Restore saved workspace placement, window geometry, minimized state, and active workspace |
+| `layout_profiles.delete` | Delete a saved layout profile |
+
+Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare monitor topology and report mismatches; monitor mode changes are not applied yet. Permission-gated deployments should grant `windows.list`, `workspaces.list`, and `system.info` for saving, and window/workspace control permissions for restoring.
 
 ### ⌨️ Input
 | Action | Description |
