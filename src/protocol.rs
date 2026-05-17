@@ -71,6 +71,33 @@ pub struct BatteryInfo {
     pub time_remaining_minutes: Option<u32>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct LayoutProfile {
+    pub schema_version: u32,
+    pub name: String,
+    pub saved_at: u64,
+    pub desktop: String,
+    pub session_type: String,
+    pub current_workspace: u32,
+    pub monitors: Vec<MonitorInfo>,
+    pub workspaces: Vec<WorkspaceInfo>,
+    pub windows: Vec<WindowInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct LayoutProfileSummary {
+    pub name: String,
+    pub saved_at: u64,
+    pub desktop: String,
+    pub session_type: String,
+    pub current_workspace: u32,
+    pub monitor_count: usize,
+    pub workspace_count: usize,
+    pub window_count: usize,
+}
+
 // ─── Envelope ───────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -128,6 +155,22 @@ pub enum Action {
         window_id: String,
         workspace_id: u32,
         follow: bool,
+    },
+
+    // Layout profiles
+    LayoutProfilesList,
+    LayoutProfileGet {
+        name: String,
+    },
+    LayoutProfileSave {
+        name: String,
+        overwrite: bool,
+    },
+    LayoutProfileDelete {
+        name: String,
+    },
+    LayoutProfileRestore {
+        name: String,
     },
 
     // Input
@@ -315,6 +358,11 @@ impl Action {
             "workspaces.list",
             "workspaces.switch",
             "workspaces.move_window",
+            "layout_profiles.list",
+            "layout_profiles.get",
+            "layout_profiles.save",
+            "layout_profiles.delete",
+            "layout_profiles.restore",
             "input.keyboard",
             "input.mouse",
             "clipboard.read",
@@ -434,6 +482,22 @@ impl Action {
                 window_id: required_non_empty_string(&raw, "window_id")?,
                 workspace_id: raw["workspace_id"].as_u64().unwrap_or(0) as u32,
                 follow: raw["follow"].as_bool().unwrap_or(false),
+            },
+
+            // Layout profiles
+            "layout_profiles.list" => Action::LayoutProfilesList,
+            "layout_profiles.get" => Action::LayoutProfileGet {
+                name: required_non_empty_string(&raw, "name")?,
+            },
+            "layout_profiles.save" => Action::LayoutProfileSave {
+                name: required_non_empty_string(&raw, "name")?,
+                overwrite: raw["overwrite"].as_bool().unwrap_or(false),
+            },
+            "layout_profiles.delete" => Action::LayoutProfileDelete {
+                name: required_non_empty_string(&raw, "name")?,
+            },
+            "layout_profiles.restore" => Action::LayoutProfileRestore {
+                name: required_non_empty_string(&raw, "name")?,
             },
 
             // Input
@@ -735,6 +799,21 @@ impl Action {
                 json!({"type": "workspaces.move_window", "id": id, "window_id": window_id, "workspace_id": workspace_id, "follow": follow})
             }
 
+            // Layout profiles
+            Action::LayoutProfilesList => json!({"type": "layout_profiles.list", "id": id}),
+            Action::LayoutProfileGet { name } => {
+                json!({"type": "layout_profiles.get", "id": id, "name": name})
+            }
+            Action::LayoutProfileSave { name, overwrite } => {
+                json!({"type": "layout_profiles.save", "id": id, "name": name, "overwrite": overwrite})
+            }
+            Action::LayoutProfileDelete { name } => {
+                json!({"type": "layout_profiles.delete", "id": id, "name": name})
+            }
+            Action::LayoutProfileRestore { name } => {
+                json!({"type": "layout_profiles.restore", "id": id, "name": name})
+            }
+
             // Input
             Action::InputKeyboardType { text } => {
                 json!({"type": "input.keyboard", "id": id, "action": "type", "text": text})
@@ -985,6 +1064,11 @@ impl Action {
             Action::WorkspacesList => "workspaces.list",
             Action::WorkspaceSwitch(_) => "workspaces.switch",
             Action::WorkspaceMoveWindow { .. } => "workspaces.move_window",
+            Action::LayoutProfilesList => "layout_profiles.list",
+            Action::LayoutProfileGet { .. } => "layout_profiles.get",
+            Action::LayoutProfileSave { .. } => "layout_profiles.save",
+            Action::LayoutProfileDelete { .. } => "layout_profiles.delete",
+            Action::LayoutProfileRestore { .. } => "layout_profiles.restore",
             Action::InputKeyboardType { .. } => "input.keyboard",
             Action::InputKeyboardKey { .. } => "input.keyboard",
             Action::InputKeyboardCombo { .. } => "input.keyboard",
@@ -1168,6 +1252,8 @@ mod tests {
         assert!(actions.contains(&"system.capabilities"));
         assert!(actions.contains(&"system.health"));
         assert!(actions.contains(&"windows.activate_or_launch"));
+        assert!(actions.contains(&"layout_profiles.save"));
+        assert!(actions.contains(&"layout_profiles.restore"));
     }
 
     #[test]
@@ -1203,6 +1289,32 @@ mod tests {
                 r#"{"type":"windows.activate_or_launch","id":"x","app_id":"code","command":[""]}"#
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn parses_layout_profile_actions() {
+        let (_, save) = Action::from_json(
+            r#"{"type":"layout_profiles.save","id":"x","name":"coding","overwrite":true}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            save,
+            Action::LayoutProfileSave {
+                name,
+                overwrite: true
+            } if name == "coding"
+        ));
+
+        let (_, restore) =
+            Action::from_json(r#"{"type":"layout_profiles.restore","id":"x","name":"coding"}"#)
+                .unwrap();
+        assert!(matches!(
+            restore,
+            Action::LayoutProfileRestore { name } if name == "coding"
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"layout_profiles.save","id":"x","name":""}"#).is_err()
         );
     }
 }

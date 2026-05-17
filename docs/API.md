@@ -226,6 +226,129 @@ When permissions are configured, callers need both `windows.activate_or_launch` 
 
 ---
 
+## Layout Profiles
+
+Layout profiles are named snapshots of open windows, monitors, workspaces, and the active workspace. Profile names may contain only letters, numbers, `.`, `-`, and `_`. Profiles are stored under `~/.config/deskbrid/layout_profiles/`.
+
+Restore reapplies window workspace placement, geometry, minimized state, and the active workspace. Monitor topology is saved and compared during restore, but monitor mode changes are not applied yet.
+
+Permission-gated deployments should grant `windows.list`, `workspaces.list`, and `system.info` for saving. Restoring requires `layout_profiles.restore` plus window and workspace control permissions because restore can move/resize windows and switch workspaces.
+
+### `layout_profiles.save`
+
+Save the current layout.
+
+**Request:**
+```json
+{"type": "layout_profiles.save", "id": "req-9", "name": "coding", "overwrite": true}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-9", "seq": 9, "status": "ok",
+  "data": {
+    "profile": {
+      "schema_version": 1,
+      "name": "coding",
+      "saved_at": 1778976000,
+      "desktop": "gnome",
+      "session_type": "wayland",
+      "current_workspace": 1,
+      "monitors": [],
+      "workspaces": [],
+      "windows": []
+    },
+    "path": "/home/alice/.config/deskbrid/layout_profiles/coding.json"
+  }
+}
+```
+
+### `layout_profiles.list`
+
+List saved profile summaries.
+
+**Request:**
+```json
+{"type": "layout_profiles.list", "id": "req-10"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-10", "seq": 10, "status": "ok",
+  "data": [
+    {
+      "name": "coding",
+      "saved_at": 1778976000,
+      "desktop": "gnome",
+      "session_type": "wayland",
+      "current_workspace": 1,
+      "monitor_count": 2,
+      "workspace_count": 4,
+      "window_count": 6
+    }
+  ]
+}
+```
+
+### `layout_profiles.get`
+
+Get a saved profile snapshot.
+
+**Request:**
+```json
+{"type": "layout_profiles.get", "id": "req-11", "name": "coding"}
+```
+
+**Response:** same profile object returned by `layout_profiles.save` under `data.profile`, but directly as `data`.
+
+### `layout_profiles.restore`
+
+Restore a saved profile.
+
+**Request:**
+```json
+{"type": "layout_profiles.restore", "id": "req-12", "name": "coding"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-12", "seq": 12, "status": "ok",
+  "data": {
+    "profile": "coding",
+    "restored": [],
+    "missing": [],
+    "errors": [],
+    "workspace_switched": true,
+    "current_workspace": 1,
+    "monitor_topology_matches": true,
+    "saved_monitor_count": 2,
+    "current_monitor_count": 2
+  }
+}
+```
+
+### `layout_profiles.delete`
+
+Delete a saved profile.
+
+**Request:**
+```json
+{"type": "layout_profiles.delete", "id": "req-13", "name": "coding"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-13", "seq": 13, "status": "ok",
+  "data": { "deleted": "coding" }
+}
+```
+
+---
+
 ## Workspaces
 
 ### `workspaces.list`

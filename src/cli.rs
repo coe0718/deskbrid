@@ -41,6 +41,13 @@ pub enum Command {
         cmd: WorkspaceCmd,
     },
 
+    // ─── Layout Profiles ───────────────────────────────
+    #[command(name = "profiles")]
+    Profiles {
+        #[command(subcommand)]
+        cmd: ProfileCmd,
+    },
+
     // ─── Input ──────────────────────────────────────────
     #[command(name = "input")]
     Input {
@@ -192,6 +199,24 @@ pub enum WorkspaceCmd {
         #[arg(long)]
         follow: bool,
     },
+}
+
+#[derive(Subcommand)]
+pub enum ProfileCmd {
+    /// List saved layout profiles
+    List,
+    /// Save the current window/workspace layout
+    Save {
+        name: String,
+        #[arg(long)]
+        overwrite: bool,
+    },
+    /// Show one saved layout profile
+    Get { name: String },
+    /// Delete a saved layout profile
+    Delete { name: String },
+    /// Restore a saved layout profile
+    Restore { name: String },
 }
 
 #[derive(Subcommand)]
@@ -348,6 +373,14 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
                 workspace_id,
                 follow,
             },
+        },
+
+        Command::Profiles { cmd } => match cmd {
+            ProfileCmd::List => Action::LayoutProfilesList,
+            ProfileCmd::Save { name, overwrite } => Action::LayoutProfileSave { name, overwrite },
+            ProfileCmd::Get { name } => Action::LayoutProfileGet { name },
+            ProfileCmd::Delete { name } => Action::LayoutProfileDelete { name },
+            ProfileCmd::Restore { name } => Action::LayoutProfileRestore { name },
         },
 
         Command::Combo { keys } => {
