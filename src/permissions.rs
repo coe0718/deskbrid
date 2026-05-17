@@ -135,6 +135,11 @@ fn action_name(action: &Action) -> &'static str {
         WorkspacesList => "workspaces.list",
         WorkspaceSwitch(_) => "workspaces.switch",
         WorkspaceMoveWindow { .. } => "workspaces.move_window",
+        LayoutProfilesList => "layout_profiles.list",
+        LayoutProfileGet { .. } => "layout_profiles.get",
+        LayoutProfileSave { .. } => "layout_profiles.save",
+        LayoutProfileDelete { .. } => "layout_profiles.delete",
+        LayoutProfileRestore { .. } => "layout_profiles.restore",
         InputKeyboardType { .. } | InputKeyboardKey { .. } | InputKeyboardCombo { .. } => {
             "input.keyboard"
         }
@@ -446,6 +451,12 @@ mod tests {
                 env: None,
             }),
             "windows.activate_or_launch"
+        );
+        assert_eq!(
+            action_name(&Action::LayoutProfileRestore {
+                name: "coding".into()
+            }),
+            "layout_profiles.restore"
         );
     }
 }

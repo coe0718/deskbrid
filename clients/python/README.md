@@ -91,6 +91,16 @@ client.listen()  # blocks, streaming events
 | `focus_window(*, app_id=None, title=None, exact=False)` | Focus a window by app_id or title |
 | `activate_or_launch(app_id, command=None, workdir=None, env=None) -> dict` | Focus an app if open, launch it if not |
 
+### Layout Profiles
+
+| Method | Description |
+|---|---|
+| `save_layout_profile(name, overwrite=False) -> dict` | Save current windows, monitors, workspaces, and active workspace |
+| `list_layout_profiles() -> list[dict]` | List saved profile summaries |
+| `get_layout_profile(name) -> dict` | Get a saved profile snapshot |
+| `restore_layout_profile(name) -> dict` | Restore a saved profile |
+| `delete_layout_profile(name) -> dict` | Delete a saved profile |
+
 ### Input
 
 | Method | Description |

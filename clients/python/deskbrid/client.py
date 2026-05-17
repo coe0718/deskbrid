@@ -200,6 +200,27 @@ class AsyncDeskbrid:
             params["env"] = env
         return await self._request("windows.activate_or_launch", params)
 
+    async def list_layout_profiles(self) -> list[dict[str, Any]]:
+        response = await self._request("layout_profiles.list")
+        if isinstance(response, list):
+            return response
+        return list(response.get("profiles", []))
+
+    async def save_layout_profile(self, name: str, overwrite: bool = False) -> dict[str, Any]:
+        return await self._request(
+            "layout_profiles.save",
+            {"name": name, "overwrite": overwrite},
+        )
+
+    async def get_layout_profile(self, name: str) -> dict[str, Any]:
+        return await self._request("layout_profiles.get", {"name": name})
+
+    async def delete_layout_profile(self, name: str) -> dict[str, Any]:
+        return await self._request("layout_profiles.delete", {"name": name})
+
+    async def restore_layout_profile(self, name: str) -> dict[str, Any]:
+        return await self._request("layout_profiles.restore", {"name": name})
+
     async def list_displays(self) -> list[MonitorInfo]:
         return decode_monitors(await self._request("monitor.list"))
 
@@ -472,6 +493,23 @@ class Deskbrid:
                 env=env,
             )
         ).result()
+
+    def list_layout_profiles(self) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.list_layout_profiles()).result()
+
+    def save_layout_profile(self, name: str, overwrite: bool = False) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.save_layout_profile(name=name, overwrite=overwrite)
+        ).result()
+
+    def get_layout_profile(self, name: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.get_layout_profile(name)).result()
+
+    def delete_layout_profile(self, name: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.delete_layout_profile(name)).result()
+
+    def restore_layout_profile(self, name: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.restore_layout_profile(name)).result()
 
     def list_displays(self) -> list[MonitorInfo]:
         return self._loop.submit(self._client.list_displays()).result()

@@ -79,6 +79,10 @@ ClipboardRead => serde_json::json!({"text": backend.clipboard_read().await?}),
 
 Actions that are unavailable on a specific compositor return backend errors and are reflected in `system.capabilities` / `capabilities.list` when the limitation is known.
 
+### Layout Profiles
+
+Layout profiles are daemon-managed JSON snapshots under `~/.config/deskbrid/layout_profiles/`. `layout_profiles.save` captures `system.info`, `workspaces.list`, and `windows.list`; `layout_profiles.restore` reloads the snapshot, matches current windows by ID/app/title, reapplies workspace placement and geometry through backend methods, minimizes windows that were saved minimized, and switches back to the saved active workspace. Monitor topology is saved for comparison and reported on restore, but monitor mode changes are not applied yet.
+
 ### Connection Lifecycle
 
 Each client connection follows this lifecycle inside `handle_client()` (`src/daemon.rs:64-217`):
