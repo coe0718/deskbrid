@@ -61,7 +61,15 @@ sudo apt install -y grim wl-clipboard
 # Install GNOME Shell extension
 cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
 gnome-extensions enable deskbrid@deskbrid
-# Log out and back in (or Alt+F2 → r on X11)
+
+# If enable fails (Ubuntu 26.04 / GNOME 50+):
+# The extension needs its shell-version updated to match. Check yours:
+#   gnome-shell --version
+#   cat ~/.local/share/gnome-shell/extensions/deskbrid@deskbrid/metadata.json
+# If your version isn't listed, bump shell-version in metadata.json.
+# Quick workaround (disables version checking entirely):
+#   gsettings set org.gnome.shell disable-extension-version-validation "true"
+# Then: Alt+F2 → r (restart shell) or log out and back in
 
 # Build and run
 cargo build --release
@@ -241,7 +249,7 @@ When an action is denied, the daemon returns:
 ## Supported desktops
 | Desktop | Session | Status | Backend |
 |---------|---------|--------|---------|
-| **GNOME 46+** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
+| **GNOME 46–50** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
 | Cinnamon | X11 | 🔄 Planned | xdotool + wmctrl + xprop + xclip |

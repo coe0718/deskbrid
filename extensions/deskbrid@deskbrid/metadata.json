@@ -2,7 +2,7 @@
   "name": "Deskbrid Window Manager",
   "description": "Exposes window management API over DBus for deskbrid desktop control",
   "uuid": "deskbrid@deskbrid",
-  "shell-version": ["46", "47"],
-  "version": 1,
+  "shell-version": ["46", "47", "48", "49", "50"],
+  "version": 2,
   "url": "https://github.com/coe0718/deskbrid"
 }
