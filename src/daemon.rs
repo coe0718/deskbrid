@@ -1235,7 +1235,9 @@ fn permission_denied_response(seq: u64) -> serde_json::Value {
 async fn build_system_capabilities(
     backend: &dyn crate::backend::DesktopBackend,
 ) -> anyhow::Result<serde_json::Value> {
-    let desktop = backend.system_info().await?.desktop.to_lowercase();
+    let info = backend.system_info().await?;
+    let desktop = info.desktop.to_lowercase();
+    let session_type = info.session_type.to_lowercase();
     let mut actions = serde_json::Map::new();
     for action in crate::protocol::Action::public_action_types() {
         actions.insert(
@@ -1252,28 +1254,7 @@ async fn build_system_capabilities(
     }
 
     if desktop.contains("gnome") {
-        set_degraded(
-            &mut actions,
-            "input.mouse",
-            "absolute_move_may_be_unavailable_without_screencast",
-        );
-        set_requires(&mut actions, "windows.list", &["gnome-extension"]);
-        set_requires(&mut actions, "windows.focus", &["gnome-extension"]);
-        set_requires(&mut actions, "windows.close", &["gnome-extension"]);
-        set_requires(&mut actions, "windows.minimize", &["gnome-extension"]);
-        set_requires(&mut actions, "windows.maximize", &["gnome-extension"]);
-        set_requires(&mut actions, "windows.move_resize", &["gnome-extension"]);
-        set_requires(
-            &mut actions,
-            "windows.activate_or_launch",
-            &["gnome-extension"],
-        );
-        set_requires(&mut actions, "workspaces.list", &["gnome-extension"]);
-        set_requires(&mut actions, "workspaces.switch", &["gnome-extension"]);
-        set_session(&mut actions, "input.mouse", "wayland");
-        for action in MONITOR_CONTROL_ACTIONS {
-            set_requires(&mut actions, action, &["xrandr-or-wlr-randr"]);
-        }
+        apply_gnome_capability_overrides(&mut actions, &session_type);
     }
 
     if desktop.contains("kde") || desktop.contains("hyprland") {
@@ -1432,6 +1413,37 @@ fn set_degraded(
         action.to_string(),
         serde_json::json!({"supported": true, "degraded": true, "reason": reason, "requires": [], "session": "any", "degraded_modes": [reason]}),
     );
+}
+
+fn apply_gnome_capability_overrides(
+    actions: &mut serde_json::Map<String, serde_json::Value>,
+    session_type: &str,
+) {
+    set_degraded(
+        actions,
+        "input.mouse",
+        "absolute_move_may_be_unavailable_without_screencast",
+    );
+    set_requires(actions, "windows.list", &["gnome-extension"]);
+    set_requires(actions, "windows.focus", &["gnome-extension"]);
+    set_requires(actions, "windows.close", &["gnome-extension"]);
+    set_requires(actions, "windows.minimize", &["gnome-extension"]);
+    set_requires(actions, "windows.maximize", &["gnome-extension"]);
+    set_requires(actions, "windows.move_resize", &["gnome-extension"]);
+    set_requires(actions, "windows.activate_or_launch", &["gnome-extension"]);
+    set_requires(actions, "workspaces.list", &["gnome-extension"]);
+    set_requires(actions, "workspaces.switch", &["gnome-extension"]);
+    set_session(actions, "input.mouse", "wayland");
+    for action in MONITOR_CONTROL_ACTIONS {
+        set_requires(actions, action, &["xrandr-or-wlr-randr"]);
+    }
+    if session_type != "x11" {
+        set_unsupported(
+            actions,
+            "monitor.set_primary",
+            "gnome_wayland_has_no_primary_monitor_helper",
+        );
+    }
 }
 
 fn set_unsupported(
@@ -1677,5 +1689,49 @@ mod tests {
         let _ = current.remove(match_profile_window_index(&saved[0], &current).unwrap());
 
         assert_eq!(match_profile_window_index(&saved[1], &current), None);
+    }
+
+    fn default_capability_actions() -> serde_json::Map<String, serde_json::Value> {
+        let mut actions = serde_json::Map::new();
+        for action in crate::protocol::Action::public_action_types() {
+            actions.insert(
+                (*action).to_string(),
+                serde_json::json!({
+                    "supported": true,
+                    "degraded": false,
+                    "reason": serde_json::Value::Null,
+                    "requires": [],
+                    "session": "any",
+                    "degraded_modes": []
+                }),
+            );
+        }
+        actions
+    }
+
+    #[test]
+    fn gnome_wayland_marks_primary_monitor_capability_unsupported() {
+        let mut actions = default_capability_actions();
+
+        apply_gnome_capability_overrides(&mut actions, "wayland");
+
+        assert_eq!(actions["monitor.set_primary"]["supported"], false);
+        assert_eq!(
+            actions["monitor.set_primary"]["reason"],
+            "gnome_wayland_has_no_primary_monitor_helper"
+        );
+    }
+
+    #[test]
+    fn gnome_x11_keeps_primary_monitor_capability_supported() {
+        let mut actions = default_capability_actions();
+
+        apply_gnome_capability_overrides(&mut actions, "x11");
+
+        assert_eq!(actions["monitor.set_primary"]["supported"], true);
+        assert_eq!(
+            actions["monitor.set_primary"]["requires"],
+            serde_json::json!(["xrandr-or-wlr-randr"])
+        );
     }
 }
