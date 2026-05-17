@@ -199,4 +199,17 @@ pub trait DesktopBackend: Send + Sync {
     // ─── Audio ──────────────────────────────────────────
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>>;
     async fn audio_set_sink_volume(&self, sink_id: u32, volume: f64) -> anyhow::Result<()>;
+
+    // ─── Monitor ────────────────────────────────────────
+    async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()>;
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()>;
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()>;
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()>;
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()>;
 }

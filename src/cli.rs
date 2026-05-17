@@ -143,6 +143,13 @@ pub enum Command {
         cmd: AudioCmd,
     },
 
+    // ─── Monitors ───────────────────────────────────────
+    #[command(name = "monitors")]
+    Monitors {
+        #[command(subcommand)]
+        cmd: MonitorCmd,
+    },
+
     // ─── Wait ───────────────────────────────────────────
     #[command(name = "wait")]
     Wait {
@@ -324,6 +331,30 @@ pub enum AudioCmd {
     Volume { sink_id: u32, volume: f64 },
 }
 
+#[derive(Subcommand)]
+pub enum MonitorCmd {
+    /// List monitors and outputs
+    List,
+    /// Set the primary monitor/output
+    Primary { output: String },
+    /// Set output resolution
+    Resolution {
+        output: String,
+        width: u32,
+        height: u32,
+        #[arg(long)]
+        refresh: Option<f64>,
+    },
+    /// Set output scale
+    Scale { output: String, scale: f64 },
+    /// Set output rotation: normal, left, right, inverted
+    Rotate { output: String, rotation: String },
+    /// Enable an output
+    Enable { output: String },
+    /// Disable an output
+    Disable { output: String },
+}
+
 pub fn parse() -> Args {
     Args::parse()
 }
@@ -503,6 +534,28 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         Command::Audio { cmd } => match cmd {
             AudioCmd::Sinks => Action::AudioListSinks,
             AudioCmd::Volume { sink_id, volume } => Action::AudioSetSinkVolume { sink_id, volume },
+        },
+
+        Command::Monitors { cmd } => match cmd {
+            MonitorCmd::List => Action::MonitorList,
+            MonitorCmd::Primary { output } => Action::MonitorSetPrimary { output },
+            MonitorCmd::Resolution {
+                output,
+                width,
+                height,
+                refresh,
+            } => Action::MonitorSetResolution {
+                output,
+                width,
+                height,
+                refresh_rate: refresh,
+            },
+            MonitorCmd::Scale { output, scale } => Action::MonitorSetScale { output, scale },
+            MonitorCmd::Rotate { output, rotation } => {
+                Action::MonitorSetRotation { output, rotation }
+            }
+            MonitorCmd::Enable { output } => Action::MonitorEnable { output },
+            MonitorCmd::Disable { output } => Action::MonitorDisable { output },
         },
 
         Command::Wait { event } => Action::Subscribe {

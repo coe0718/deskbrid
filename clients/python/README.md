@@ -126,6 +126,12 @@ client.listen()  # blocks, streaming events
 |---|---|
 | `info() -> DaemonInfo` | Desktop info, monitors, capabilities |
 | `list_displays() -> list[MonitorInfo]` | List connected displays |
+| `set_primary_monitor(output) -> dict` | Set the primary output where supported |
+| `set_monitor_resolution(output, width, height, refresh_rate=None) -> dict` | Set output resolution and optional refresh rate |
+| `set_monitor_scale(output, scale) -> dict` | Set output scale |
+| `set_monitor_rotation(output, rotation) -> dict` | Set output rotation: `normal`, `left`, `right`, `inverted` |
+| `enable_monitor(output) -> dict` | Enable an output |
+| `disable_monitor(output) -> dict` | Disable an output |
 
 ## Data Models
 
@@ -133,7 +139,7 @@ client.listen()  # blocks, streaming events
 |---|---|
 | `WindowInfo` | `id`, `title`, `app_id`, `pid`, `workspace_id`, `is_focused`, `is_minimized`, `geometry` |
 | `ClipboardContent` | `text`, `mime_types`, `timestamp` |
-| `MonitorInfo` | `id`, `name`, `width`, `height`, `scale`, `primary` |
+| `MonitorInfo` | `id`, `name`, `width`, `height`, `scale`, `primary`, `enabled`, `x`, `y`, `refresh_rate`, `rotation` |
 | `ScreenshotResult` | `path`, `width`, `height` |
 | `DaemonInfo` | `desktop`, `desktop_version`, `compositor`, `session_type`, `monitors`, `workspace_count`, `current_workspace`, `idle_seconds` |
 

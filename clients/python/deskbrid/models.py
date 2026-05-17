@@ -31,6 +31,11 @@ class MonitorInfo:
     height: int = 0
     scale: float = 1.0
     primary: bool = False
+    enabled: bool = True
+    x: int = 0
+    y: int = 0
+    refresh_rate: float | None = None
+    rotation: str = "normal"
 
 
 @dataclass(slots=True)
@@ -101,6 +106,11 @@ def decode_monitors(payload: dict[str, Any]) -> list[MonitorInfo]:
             height=int(item.get("height", 0)),
             scale=float(item.get("scale", 1.0)),
             primary=bool(item.get("primary", False)),
+            enabled=bool(item.get("enabled", True)),
+            x=int(item.get("x", 0)),
+            y=int(item.get("y", 0)),
+            refresh_rate=_optional_float(item.get("refresh_rate")),
+            rotation=str(item.get("rotation", "normal")),
         )
         for item in items
     ]
@@ -124,6 +134,11 @@ def decode_info(payload: dict[str, Any]) -> DaemonInfo:
             height=int(m.get("height", 0)),
             scale=float(m.get("scale", 1.0)),
             primary=bool(m.get("primary", False)),
+            enabled=bool(m.get("enabled", True)),
+            x=int(m.get("x", 0)),
+            y=int(m.get("y", 0)),
+            refresh_rate=_optional_float(m.get("refresh_rate")),
+            rotation=str(m.get("rotation", "normal")),
         )
         for m in (monitors_raw if isinstance(monitors_raw, list) else [])
     ]
@@ -160,3 +175,9 @@ def _optional_int(value: Any) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)

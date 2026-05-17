@@ -103,6 +103,25 @@ impl HyprBackend {
         Ok(())
     }
 
+    /// Run `hyprctl keyword` for live compositor settings.
+    async fn hyprctl_keyword(&self, keyword: &str, value: &str) -> anyhow::Result<()> {
+        let mut cmd = std::process::Command::new("hyprctl");
+        cmd.arg("keyword")
+            .arg(keyword)
+            .arg(value)
+            .stdin(Stdio::null())
+            .stderr(Stdio::piped());
+        if let Some(sig) = &self.instance_sig {
+            cmd.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
+        }
+        let output = tokio::process::Command::from(cmd).output().await?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("hyprctl keyword {} failed: {}", keyword, stderr.trim());
+        }
+        Ok(())
+    }
+
     /// Run a shell command and return stdout.
     async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
         let mut command = Command::new(cmd);
@@ -163,9 +182,79 @@ impl HyprBackend {
                 height: m.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32,
                 scale: m.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0),
                 primary: i == 0,
+                enabled: !m.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false),
+                x: m.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+                y: m.get("y").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+                refresh_rate: m.get("refreshRate").and_then(|v| v.as_f64()),
+                rotation: hypr_transform_to_rotation(
+                    m.get("transform").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+                )
+                .to_string(),
             });
         }
         Ok(monitors)
+    }
+
+    async fn monitor_config(&self, output: &str) -> anyhow::Result<HyprMonitorConfig> {
+        let json = match self.hyprctl_json(&["monitors", "all"]).await {
+            Ok(json) => json,
+            Err(_) => self.hyprctl_json(&["monitors"]).await?,
+        };
+        let arr = json
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("expected array"))?;
+        let monitor = arr
+            .iter()
+            .find(|m| m.get("name").and_then(|v| v.as_str()) == Some(output))
+            .ok_or_else(|| anyhow::anyhow!("monitor output not found: {}", output))?;
+
+        Ok(HyprMonitorConfig {
+            name: output.to_string(),
+            width: monitor
+                .get("width")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1920) as u32,
+            height: monitor
+                .get("height")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1080) as u32,
+            refresh_rate: monitor
+                .get("refreshRate")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(60.0),
+            x: monitor.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+            y: monitor.get("y").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+            scale: monitor.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0),
+            transform: monitor
+                .get("transform")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as i32,
+        })
+    }
+
+    async fn apply_monitor_config(&self, config: &HyprMonitorConfig) -> anyhow::Result<()> {
+        let value = format!(
+            "{},{}x{}@{},{}x{},{},transform,{}",
+            config.name,
+            config.width,
+            config.height,
+            format_monitor_float(config.refresh_rate),
+            config.x,
+            config.y,
+            format_monitor_float(config.scale),
+            config.transform
+        );
+        self.hyprctl_keyword("monitor", &value).await?;
+        self.refresh_monitors_cache().await;
+        Ok(())
+    }
+
+    async fn refresh_monitors_cache(&self) {
+        if let Ok(monitors) = self.monitors_inner().await
+            && let Ok(mut m) = self.monitors.lock()
+        {
+            *m = monitors;
+        }
     }
 
     fn hyprctl_client_to_window(c: &serde_json::Value) -> protocol::WindowInfo {
@@ -1065,6 +1154,53 @@ impl crate::backend::DesktopBackend for HyprBackend {
         .await?;
         Ok(())
     }
+
+    // ═══════════════════════════════════════════════════════
+    //  MONITOR
+    // ═══════════════════════════════════════════════════════
+
+    async fn monitor_set_primary(&self, _output: &str) -> anyhow::Result<()> {
+        anyhow::bail!("Hyprland does not expose a primary monitor setting")
+    }
+
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()> {
+        let mut config = self.monitor_config(output).await?;
+        config.width = width;
+        config.height = height;
+        if let Some(refresh_rate) = refresh_rate {
+            config.refresh_rate = refresh_rate;
+        }
+        self.apply_monitor_config(&config).await
+    }
+
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
+        let mut config = self.monitor_config(output).await?;
+        config.scale = scale;
+        self.apply_monitor_config(&config).await
+    }
+
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
+        let mut config = self.monitor_config(output).await?;
+        config.transform = rotation_to_hypr_transform(rotation)?;
+        self.apply_monitor_config(&config).await
+    }
+
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
+        let value = if enabled {
+            format!("{},preferred,auto,1", output)
+        } else {
+            format!("{},disable", output)
+        };
+        self.hyprctl_keyword("monitor", &value).await?;
+        self.refresh_monitors_cache().await;
+        Ok(())
+    }
 }
 
 // ─── HyprBackend internal methods ───────────────────────
@@ -1151,6 +1287,47 @@ fn detect_hypr_instance() -> (Option<String>, Option<String>) {
 }
 
 // ─── Helpers ────────────────────────────────────────────
+
+struct HyprMonitorConfig {
+    name: String,
+    width: u32,
+    height: u32,
+    refresh_rate: f64,
+    x: i32,
+    y: i32,
+    scale: f64,
+    transform: i32,
+}
+
+fn rotation_to_hypr_transform(rotation: &str) -> anyhow::Result<i32> {
+    match rotation {
+        "normal" => Ok(0),
+        "left" => Ok(1),
+        "inverted" => Ok(2),
+        "right" => Ok(3),
+        _ => anyhow::bail!("unsupported monitor rotation: {}", rotation),
+    }
+}
+
+fn hypr_transform_to_rotation(transform: i32) -> &'static str {
+    match transform {
+        1 => "left",
+        2 => "inverted",
+        3 => "right",
+        _ => "normal",
+    }
+}
+
+fn format_monitor_float(value: f64) -> String {
+    let mut out = format!("{:.3}", value);
+    while out.contains('.') && out.ends_with('0') {
+        out.pop();
+    }
+    if out.ends_with('.') {
+        out.pop();
+    }
+    out
+}
 
 /// Map a human-readable key name to ydotool keycode name.
 fn ydotool_key_name(key: &str) -> String {

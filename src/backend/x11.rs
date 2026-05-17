@@ -38,11 +38,21 @@ impl X11Backend {
         Ok(String::from_utf8(out.stdout)?.trim().to_string())
     }
 
+    async fn sh_owned(&self, cmd: &str, args: Vec<String>) -> anyhow::Result<String> {
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.sh(cmd, &refs).await
+    }
+
     fn ensure_window_id(id: &str) -> anyhow::Result<()> {
         if id.trim().is_empty() {
             anyhow::bail!("window id must not be empty");
         }
         Ok(())
+    }
+
+    async fn xrandr_monitors(&self) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
+        let out = self.sh("xrandr", &["--query"]).await?;
+        Ok(parse_xrandr_query(&out))
     }
 }
 
@@ -249,14 +259,21 @@ impl super::DesktopBackend for X11Backend {
             desktop_version: "unknown".into(),
             compositor: "x11".into(),
             session_type: "x11".into(),
-            monitors: vec![protocol::MonitorInfo {
-                id: 0,
-                name: "X11".into(),
-                width: 1920,
-                height: 1080,
-                scale: 1.0,
-                primary: true,
-            }],
+            monitors: self.xrandr_monitors().await.unwrap_or_else(|_| {
+                vec![protocol::MonitorInfo {
+                    id: 0,
+                    name: "X11".into(),
+                    width: 1920,
+                    height: 1080,
+                    scale: 1.0,
+                    primary: true,
+                    enabled: true,
+                    x: 0,
+                    y: 0,
+                    refresh_rate: None,
+                    rotation: "normal".into(),
+                }]
+            }),
             workspace_count: 1,
             current_workspace: 0,
             idle_seconds: 0,
@@ -326,8 +343,175 @@ impl super::DesktopBackend for X11Backend {
     async fn audio_set_sink_volume(&self, _sink_id: u32, _volume: f64) -> anyhow::Result<()> {
         anyhow::bail!("not implemented on x11 backend")
     }
+
+    async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()> {
+        self.sh("xrandr", &["--output", output, "--primary"])
+            .await
+            .map(|_| ())
+    }
+
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()> {
+        let mut args = vec![
+            "--output".to_string(),
+            output.to_string(),
+            "--mode".into(),
+            format!("{}x{}", width, height),
+        ];
+        if let Some(refresh) = refresh_rate {
+            args.push("--rate".into());
+            args.push(format_monitor_float(refresh));
+        }
+        self.sh_owned("xrandr", args).await.map(|_| ())
+    }
+
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
+        let scale_arg = format!("{0}x{0}", format_monitor_float(scale));
+        self.sh_owned(
+            "xrandr",
+            vec![
+                "--output".into(),
+                output.into(),
+                "--scale".into(),
+                scale_arg,
+            ],
+        )
+        .await
+        .map(|_| ())
+    }
+
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
+        self.sh(
+            "xrandr",
+            &["--output", output, "--rotate", xrandr_rotation(rotation)?],
+        )
+        .await
+        .map(|_| ())
+    }
+
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
+        self.sh(
+            "xrandr",
+            &["--output", output, if enabled { "--auto" } else { "--off" }],
+        )
+        .await
+        .map(|_| ())
+    }
 }
 
 fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+fn parse_xrandr_query(raw: &str) -> Vec<protocol::MonitorInfo> {
+    let mut monitors = Vec::new();
+    let mut current: Option<protocol::MonitorInfo> = None;
+
+    for line in raw.lines() {
+        if !line.starts_with(' ') && line.contains(" connected") {
+            if let Some(monitor) = current.take() {
+                monitors.push(monitor);
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            let geometry = parts
+                .iter()
+                .find(|part| part.contains('+') && part.contains('x'));
+            let mut monitor = protocol::MonitorInfo {
+                id: monitors.len() as u32,
+                name: parts.first().copied().unwrap_or("").to_string(),
+                width: 0,
+                height: 0,
+                scale: 1.0,
+                primary: parts.contains(&"primary"),
+                enabled: geometry.is_some(),
+                x: 0,
+                y: 0,
+                refresh_rate: None,
+                rotation: parse_xrandr_rotation(line),
+            };
+            if let Some(geometry) = geometry {
+                parse_xrandr_geometry(geometry, &mut monitor);
+            }
+            current = Some(monitor);
+            continue;
+        }
+
+        let Some(ref mut monitor) = current else {
+            continue;
+        };
+        let trimmed = line.trim();
+        if trimmed.contains('*') {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if let Some(size) = parts.first() {
+                let mut wh = size.split('x');
+                monitor.width = wh
+                    .next()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(monitor.width);
+                monitor.height = wh
+                    .next()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(monitor.height);
+            }
+            if let Some(refresh) = parts.iter().find(|part| part.contains('*')) {
+                monitor.refresh_rate = refresh
+                    .trim_end_matches('*')
+                    .trim_end_matches('+')
+                    .parse()
+                    .ok();
+            }
+        }
+    }
+
+    if let Some(monitor) = current.take() {
+        monitors.push(monitor);
+    }
+    monitors
+}
+
+fn parse_xrandr_geometry(value: &str, monitor: &mut protocol::MonitorInfo) {
+    let mut parts = value.split('+');
+    if let Some(size) = parts.next() {
+        let mut wh = size.split('x');
+        monitor.width = wh.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+        monitor.height = wh.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    }
+    monitor.x = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    monitor.y = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+}
+
+fn parse_xrandr_rotation(line: &str) -> String {
+    let rotations = ["normal", "left", "right", "inverted"];
+    for rotation in rotations {
+        if line.split_whitespace().any(|part| part == rotation) {
+            return rotation.to_string();
+        }
+    }
+    "normal".into()
+}
+
+fn xrandr_rotation(rotation: &str) -> anyhow::Result<&'static str> {
+    match rotation {
+        "normal" => Ok("normal"),
+        "left" => Ok("left"),
+        "right" => Ok("right"),
+        "inverted" => Ok("inverted"),
+        _ => anyhow::bail!("unsupported monitor rotation: {}", rotation),
+    }
+}
+
+fn format_monitor_float(value: f64) -> String {
+    let mut out = format!("{:.3}", value);
+    while out.contains('.') && out.ends_with('0') {
+        out.pop();
+    }
+    if out.ends_with('.') {
+        out.pop();
+    }
+    out
 }

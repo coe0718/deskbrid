@@ -182,6 +182,12 @@ fn action_name(action: &Action) -> &'static str {
         AudioListSinks => "audio.list_sinks",
         AudioSetSinkVolume { .. } => "audio.set_sink_volume",
         MonitorList => "monitor.list",
+        MonitorSetPrimary { .. } => "monitor.set_primary",
+        MonitorSetResolution { .. } => "monitor.set_resolution",
+        MonitorSetScale { .. } => "monitor.set_scale",
+        MonitorSetRotation { .. } => "monitor.set_rotation",
+        MonitorEnable { .. } => "monitor.enable",
+        MonitorDisable { .. } => "monitor.disable",
         LocationGet => "location.get",
         UiTreeGet => "ui.tree.get",
         UiElementClick { .. } => "ui.element.click",
@@ -457,6 +463,19 @@ mod tests {
                 name: "coding".into()
             }),
             "layout_profiles.restore"
+        );
+        assert_eq!(
+            action_name(&Action::MonitorSetScale {
+                output: "DP-1".into(),
+                scale: 1.25,
+            }),
+            "monitor.set_scale"
+        );
+        assert_eq!(
+            action_name(&Action::MonitorDisable {
+                output: "HDMI-A-1".into(),
+            }),
+            "monitor.disable"
         );
     }
 }

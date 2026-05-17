@@ -83,6 +83,10 @@ Actions that are unavailable on a specific compositor return backend errors and 
 
 Layout profiles are daemon-managed JSON snapshots under `~/.config/deskbrid/layout_profiles/`. `layout_profiles.save` captures `system.info`, `workspaces.list`, and `windows.list`; `layout_profiles.restore` reloads the snapshot, matches current windows by ID/app/title, reapplies workspace placement and geometry through backend methods, minimizes windows that were saved minimized, and switches back to the saved active workspace. Monitor topology is saved for comparison and reported on restore, but monitor mode changes are not applied yet.
 
+### Monitor Control
+
+Monitor writes are explicit protocol actions: `monitor.set_primary`, `monitor.set_resolution`, `monitor.set_scale`, `monitor.set_rotation`, `monitor.enable`, and `monitor.disable`. Backends translate these to compositor-native tools: `kscreen-doctor` on KDE, `hyprctl keyword monitor` on Hyprland, `xrandr` on X11, and `xrandr`/`wlr-randr` fallbacks on GNOME. Hyprland intentionally reports `monitor.set_primary` as unsupported because it has no native primary-monitor concept.
+
 ### Connection Lifecycle
 
 Each client connection follows this lifecycle inside `handle_client()` (`src/daemon.rs:64-217`):
@@ -175,11 +179,11 @@ pub trait DesktopBackend: Send + Sync {
     async fn clipboard_read(&self) -> anyhow::Result<String>;
     async fn screenshot(&self, monitor: Option<u32>, region: Option<Region>,
                         window_id: Option<String>) -> anyhow::Result<ScreenshotResult>;
-    // ... 30+ more methods
+    // ... 40+ more methods
 }
 ```
 
-The trait covers 14 domains: windows, workspaces, input, clipboard, screenshot, notifications, system, network, bluetooth, files, process, audio, hotkeys, UI accessibility. New domains start from the trait, then each backend implements them.
+The trait covers 15 domains: windows, workspaces, input, clipboard, screenshot, notifications, system, network, bluetooth, files, process, audio, monitor, hotkeys, UI accessibility. New domains start from the trait, then each backend implements them.
 
 ### Desktop Detection (`src/backend/mod.rs:33-79`)
 
@@ -234,21 +238,23 @@ The primary backend — 1,853 lines, the most complete implementation. It uses:
 
 ### Hyprland Backend (`src/backend/hyprland.rs`)
 
-Uses `hyprctl` CLI for window/workspace management (no D-Bus, no extension). Input injection via `ydotool`, screenshots via `grim`. 822 lines.
+Uses `hyprctl` CLI for window/workspace/monitor management (no D-Bus, no extension). Input injection via `ydotool`, screenshots via `grim`.
 
 ```
 hyprctl clients -j                                  → windows list
 hyprctl dispatch focuswindow address:<id>            → window focus
 hyprctl dispatch workspace <id>                      → workspace switch
+hyprctl keyword monitor DP-1,2560x1440@144,0x0,1    → monitor mode/scale
 grim -g "<x>,<y> <w>x<h>" /tmp/deskbrid/screenshot  → screenshot
 ```
 
 ### KDE Backend (`src/backend/kde.rs`)
 
-Uses `qdbus6` for KWin control, `ydotool` for input, `spectacle` for screenshots (cropped by `imagemagick convert`).
+Uses `qdbus6` for KWin control, `kscreen-doctor` for monitor control, `ydotool` for input, `spectacle` for screenshots (cropped by `imagemagick convert`).
 
 ```
 qdbus6 org.kde.KWin /KWin supportInformation  → windows
+kscreen-doctor output.DP-1.mode.2560x1440@144  → monitor mode
 spectacle --background --nonotify --fullscreen  → screenshot
 ```
 
@@ -266,11 +272,12 @@ A functional X11 backend using xdotool, xclip, ImageMagick, and notify-send. Clo
 | Clipboard | `xclip -o/-i -selection clipboard` | `clipboard_read`, `clipboard_write` |
 | Screenshot | `import -window root` (ImageMagick) | `screenshot` (fullscreen + region crop) |
 | Notifications | `notify-send` | `notification_send` (close is a no-op) |
-| System info | Hardcoded defaults | `system_info`, `idle_seconds` |
+| Monitor control | `xrandr` | `monitor.list`, `monitor.set_primary`, `monitor.set_resolution`, `monitor.set_scale`, `monitor.set_rotation`, `monitor.enable`, `monitor.disable` |
+| System info | `xrandr` with fallback defaults | `system_info`, `idle_seconds` |
 
 Operations **not** implemented (return `"not implemented on x11 backend"`): `workspace_move_window`, `power_action`, `wifi_connect`, `bluetooth_scan/stop_scan/connect/disconnect`, `files_watch/unwatch`, `audio_set_sink_volume`. The `windows_list` method returns an empty vector — X11 window enumeration is an open contribution target.
 
-The `system_info()` method returns a monitor with `id: 0, name: "X11", width: 1920, height: 1080, scale: 1.0` as a reasonable default for coordinate normalization.
+The `system_info()` method parses `xrandr --query` when available and falls back to a single `id: 0, name: "X11", width: 1920, height: 1080, scale: 1.0` monitor for coordinate normalization.
 
 ## Daemon State
 
