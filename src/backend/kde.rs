@@ -190,6 +190,13 @@ var target = deskbridFindWindow();
         )
     }
 
+    fn ensure_window_id(id: &str) -> anyhow::Result<()> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+        Ok(())
+    }
+
     async fn kwin_expect_marker(
         &self,
         js: &str,
@@ -265,6 +272,7 @@ impl super::DesktopBackend for KdeBackend {
     }
 
     async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let id_escaped = id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"
@@ -318,6 +326,7 @@ if (target) {{
     }
 
     async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        Self::ensure_window_id(id)?;
         let id_escaped = id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"
@@ -370,6 +379,7 @@ for (var i = 0; i < windows.length; i++) {{
     }
 
     async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let js = format!(
             r#"
 {}
@@ -396,6 +406,7 @@ if (target) {{
     }
 
     async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let js = format!(
             r#"
 {}
@@ -415,6 +426,7 @@ if (target) {{
     }
 
     async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let js = format!(
             r#"
 {}
@@ -462,6 +474,7 @@ if (target) {{
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        Self::ensure_window_id(id)?;
         let js = format!(
             r#"
 {}
@@ -565,6 +578,7 @@ if (manager) {
         workspace_id: u32,
         follow: bool,
     ) -> anyhow::Result<()> {
+        Self::ensure_window_id(window_id)?;
         let wid = window_id.replace('\\', "\\\\").replace('\'', "\\'");
         let js = format!(
             r#"

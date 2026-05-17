@@ -107,6 +107,8 @@ function serializeWorkspaces() {
 
 function findWindow(windowId) {
     const needle = String(windowId || '');
+    if (needle.trim() === '') return null;
+
     const needleLower = needle.toLowerCase();
     const windows = global.get_window_actors().map(w => w.meta_window);
 

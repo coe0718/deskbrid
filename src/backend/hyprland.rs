@@ -226,6 +226,10 @@ impl HyprBackend {
     }
 
     async fn resolve_window(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        if id.trim().is_empty() {
+            anyhow::bail!("window id must not be empty");
+        }
+
         let windows = self.windows_list().await?;
         let id_l = id.to_lowercase();
 
@@ -255,6 +259,32 @@ impl HyprBackend {
                     .cloned()
             })
             .ok_or_else(|| anyhow::anyhow!("no window matched id: {}", id))
+    }
+
+    async fn window_is_fullscreen(&self, id: &str) -> anyhow::Result<bool> {
+        let window = self.hyprctl_json(&["activewindow"]).await?;
+        let active_id = window
+            .get("address")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if !active_id.eq_ignore_ascii_case(id) {
+            return Ok(false);
+        }
+        Ok(json_truthy(window.get("fullscreen"))
+            || json_truthy(window.get("fullscreenClient"))
+            || json_truthy(window.get("fullscreenMode")))
+    }
+}
+
+fn json_truthy(value: Option<&serde_json::Value>) -> bool {
+    match value {
+        Some(serde_json::Value::Bool(v)) => *v,
+        Some(serde_json::Value::Number(v)) => v.as_i64().unwrap_or(0) != 0,
+        Some(serde_json::Value::String(v)) => {
+            let normalized = v.trim().to_ascii_lowercase();
+            normalized == "true" || normalized.parse::<i64>().is_ok_and(|n| n != 0)
+        }
+        _ => false,
     }
 }
 
@@ -304,6 +334,10 @@ impl crate::backend::DesktopBackend for HyprBackend {
             .await
             .is_ok()
         {
+            return Ok(());
+        }
+
+        if self.window_is_fullscreen(&target.id).await.unwrap_or(false) {
             return Ok(());
         }
 
