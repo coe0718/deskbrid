@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deskbrid — Desktop Control Daemon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --accent:#06b6d4;
+  --accent-light:#22d3ee;
+  --accent-dark:#0891b2;
+  --accent-glow:rgba(6,182,212,0.3);
+  --accent-subtle:rgba(6,182,212,0.08);
+  --bg:#0a0a0f;
+  --bg-card:#111118;
+  --bg-card-hover:#161622;
+  --text:#e2e8f0;
+  --text-muted:#94a3b8;
+  --border:#1e293b;
+  --border-hover:#334155;
+  --success:#22c55e;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:Inter,system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';
+  position:fixed;
+  top:-50%;left:-50%;width:200%;height:200%;
+  background:
+    radial-gradient(ellipse at 20% 30%,rgba(6,182,212,0.08) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 70%,rgba(168,85,247,0.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.05) 0%,transparent 40%);
+  pointer-events:none;z-index:0;
+}
+
+/* Navigation */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;
+  background:rgba(10,10,15,0.85);
+  backdrop-filter:blur(16px) saturate(1.2);
+  -webkit-backdrop-filter:blur(16px) saturate(1.2);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.2rem;color:var(--text);text-decoration:none}
+.brand:hover{color:var(--accent-light)}
+.nav-right{display:flex;align-items:center;gap:20px}
+.nav-right a{color:var(--text-muted);text-decoration:none;font-size:0.9rem;font-weight:500;transition:color .2s}
+.nav-right a:hover{color:var(--text)}
+.nav-cta{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+  color:#fff!important;font-weight:600;font-size:0.85rem;
+  box-shadow:0 0 20px var(--accent-glow);
+  transition:transform .2s,box-shadow .2s;
+  white-space:nowrap;
+}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 0 30px var(--accent-glow)}
+
+/* Hero */
+.hero{
+  position:relative;z-index:1;
+  min-height:90vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:120px 24px 80px;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 16px;border-radius:100px;
+  background:var(--accent-subtle);border:1px solid rgba(6,182,212,0.2);
+  color:var(--accent-light);font-size:0.85rem;font-weight:600;
+  margin-bottom:24px;
+}
+.hero h1{
+  font-size:clamp(2.8rem,8vw,5.5rem);font-weight:900;line-height:1.1;
+  margin-bottom:16px;
+}
+.gradient-text{
+  background:linear-gradient(135deg,var(--accent-light),var(--accent),var(--accent-dark));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero p{
+  max-width:640px;font-size:1.15rem;color:var(--text-muted);
+  margin-bottom:32px;line-height:1.7;
+}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:48px}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+  color:#fff;font-weight:700;font-size:1rem;cursor:pointer;
+  text-decoration:none;
+  box-shadow:0 0 24px var(--accent-glow);
+  transition:transform .2s,box-shadow .2s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 36px var(--accent-glow)}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-weight:600;font-size:1rem;
+  text-decoration:none;transition:all .2s;
+}
+.btn-secondary:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateY(-2px)}
+
+/* Code Mockup */
+.hero-mockup{
+  width:100%;max-width:720px;margin-top:16px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  text-align:left;box-shadow:0 24px 80px rgba(0,0,0,0.5);
+}
+.mockup-header{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;
+  background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);
+}
+.mockup-dot{width:10px;height:10px;border-radius:50%}
+.mockup-dot.r{background:#ef4444}
+.mockup-dot.y{background:#f59e0b}
+.mockup-dot.g{background:#22c55e}
+.mockup-title{font-size:0.8rem;color:var(--text-muted);margin-left:8px;font-family:JetBrains Mono,monospace}
+.mockup-body{padding:16px;overflow-x:auto;font-family:JetBrains Mono,monospace;font-size:0.82rem;line-height:1.7}
+.mockup-body .kw{color:#c084fc}
+.mockup-body .fn{color:#22d3ee}
+.mockup-body .str{color:#34d399}
+.mockup-body .num{color:#f472b6}
+.mockup-body .cm{color:#64748b;font-style:italic}
+.mockup-body .ok{color:#22c55e;font-weight:600}
+
+/* Section common */
+.section{padding:80px 24px;position:relative;z-index:1}
+.section-inner{max-width:1100px;margin:0 auto}
+.section h2{
+  text-align:center;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;
+  margin-bottom:48px;
+}
+
+/* Features Grid */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.feature-card{
+  padding:32px;border-radius:16px;
+  background:var(--bg-card);border:1px solid var(--border);
+  transition:all .3s;cursor:default;
+}
+.feature-card:hover{
+  transform:translateY(-3px);border-color:var(--accent);
+  box-shadow:0 8px 40px rgba(6,182,212,0.1);
+  background:var(--bg-card-hover);
+}
+.feature-card .icon{font-size:2rem;margin-bottom:12px;display:block}
+.feature-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+.feature-card p{font-size:0.9rem;color:var(--text-muted);line-height:1.6}
+
+/* Backend Grid */
+.backend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:32px}
+.backend-card{
+  padding:24px;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+  text-align:center;transition:all .3s;
+}
+.backend-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.backend-card .icon{font-size:2rem;margin-bottom:8px}
+.backend-card h4{font-size:0.95rem;font-weight:700;margin-bottom:4px}
+.backend-card .status{font-size:0.8rem;font-weight:600}
+.backend-card .status.ok{color:var(--success)}
+.backend-card .status.planned{color:#f59e0b}
+
+/* Install */
+.install-cmds{max-width:700px;margin:0 auto}
+.install-cmd{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;padding:20px 24px;margin-bottom:16px;
+  font-family:JetBrains Mono,monospace;font-size:0.85rem;
+  overflow-x:auto;white-space:pre-wrap;word-break:break-all;
+}
+.install-cmd.primary{
+  border-color:var(--accent);background:var(--accent-subtle);
+}
+.install-cmd .prompt{color:var(--accent-light);user-select:none}
+.install-cmd .comment{color:var(--text-muted);font-style:italic;margin-bottom:4px}
+.install-cmd .badge{
+  display:inline-block;padding:2px 10px;border-radius:100px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+  color:#fff;font-size:0.65rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.04em;margin-left:8px;vertical-align:middle;
+}
+
+/* Agent install block */
+.install-cmd.agent{
+  margin-top:24px;
+  background:linear-gradient(135deg,var(--accent-subtle),rgba(168,85,247,0.05));
+  border-color:rgba(6,182,212,0.3);
+  font-family:Inter,system-ui,sans-serif;
+  white-space:normal;word-break:normal;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.install-cmd.agent .icon{font-size:1.4rem;flex-shrink:0;margin-top:2px}
+.install-cmd.agent .body{flex:1}
+.install-cmd.agent .body .label{font-size:0.75rem;color:var(--text-muted);font-weight:600;margin-bottom:2px}
+.install-cmd.agent .body p{font-size:0.9rem;color:var(--text);line-height:1.5;font-family:Inter,system-ui,sans-serif}
+.install-cmd.agent code{
+  display:inline-block;padding:2px 8px;border-radius:6px;
+  background:var(--bg-card);border:1px solid var(--border);
+  font-family:JetBrains Mono,monospace;font-size:0.8rem;
+  color:var(--accent-light);margin-top:6px;
+}
+
+/* CTA Section */
+.cta-section{
+  text-align:center;padding:100px 24px;
+  position:relative;z-index:1;
+}
+.cta-section h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:16px}
+.cta-section p{color:var(--text-muted);max-width:500px;margin:0 auto 32px;font-size:1.05rem}
+.cta-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+
+/* Footer */
+footer{
+  text-align:center;padding:40px 24px;
+  border-top:1px solid var(--border);
+  color:var(--text-muted);font-size:0.85rem;position:relative;z-index:1;
+}
+footer a{color:var(--text-muted);text-decoration:none;transition:color .2s}
+footer a:hover{color:var(--accent-light)}
+
+/* Animations */
+.reveal{opacity:0;transform:translateY(30px);transition:all .6s cubic-bezier(.22,1,.36,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* Mobile */
+@media(max-width:768px){
+  nav{padding:10px 16px}
+  .nav-right{gap:12px}
+  .hero{padding:100px 16px 60px}
+  .section{padding:60px 16px}
+  .hero-actions{flex-direction:column;align-items:center}
+  .features-grid{grid-template-columns:1fr}
+  .backend-grid{grid-template-columns:1fr 1fr}
+  .install-cmd{padding:14px 16px;font-size:0.8rem}
+  .install-cmd.agent{padding:14px 16px}
+}
+@media(max-width:480px){
+  .backend-grid{grid-template-columns:1fr}
+  .hero h1{font-size:2.2rem}
+  .hero{padding:80px 12px 40px}
+  .section{padding:40px 12px}
+  .hero-mockup{font-size:0.75rem}
+  .mockup-body{font-size:0.7rem}
+  .install-cmd{font-size:0.75rem;padding:12px}
+  .install-cmd.agent{padding:12px}
+  .install-cmds{max-width:100%}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/" aria-label="Deskbrid home">
+    <span>🖥️</span> Deskbrid
+  </a>
+  <div class="nav-right">
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/coe0718/deskbrid" class="nav-cta">View on GitHub →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge">🖥️ AI-powered desktop control</div>
+  <h1>
+    Control your<br>
+    <span class="gradient-text">Linux Desktop</span><br>
+    from an AI Agent
+  </h1>
+  <p>
+    Deskbrid is a lightweight daemon that bridges AI assistants to your Linux desktop.
+    Control windows, inject keystrokes, take screenshots, and manage clipboards —
+    all over a simple Unix socket protocol.
+  </p>
+  <div class="hero-actions">
+    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.6.0</a>
+    <a href="https://github.com/coe0718/deskbrid" class="btn-secondary">View on GitHub →</a>
+  </div>
+
+  <!-- Code Mockup -->
+  <div class="hero-mockup">
+    <div class="mockup-header">
+      <div class="mockup-dot r"></div>
+      <div class="mockup-dot y"></div>
+      <div class="mockup-dot g"></div>
+      <span class="mockup-title">deskbrid — interactive demo</span>
+    </div>
+    <div class="mockup-body">
+      <span class="cm"># Connect to the daemon and control your desktop</span><br>
+      <br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.list","id":"req-1"}</span>' | socat - ~/.deskbrid/socket<br>
+      <span class="ok">  ← 4 windows · active: 0x3a0000b (Firefox)</span><br>
+      <br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.focus","id":"req-2","window_id":"0x3a0000b"}</span>' | socat - ~/.deskbrid/socket<br>
+      <span class="ok">  ← ok · focused: 0x3a0000b</span><br>
+      <br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"input.type","id":"req-3","text":"git push origin main"}</span>' | socat - ~/.deskbrid/socket<br>
+      <span class="ok">  ← typed 20 characters</span><br>
+      <br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"screenshot","id":"req-4"}</span>' | socat - ~/.deskbrid/socket<br>
+      <span class="ok">  ← captured 1920×1080 screenshot</span>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-inner">
+    <h2>Every control surface, <span class="gradient-text">one socket</span></h2>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <span class="icon">🪟</span>
+        <h3>Window Control</h3>
+        <p>List, focus, close, minimize, maximize, move, resize — full programmatic window management across any desktop environment.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">⌨️</span>
+        <h3>Input Injection</h3>
+        <p>Type text, press keys, click coordinates, drag, scroll. Full keyboard and mouse automation through ydotoold or XTest.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">📷</span>
+        <h3>Screenshots</h3>
+        <p>Capture full-screen or region screenshots with real pixel-dimension reporting. GNOME screencast, grim, spectacle, import — whichever fits your DE.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">📋</span>
+        <h3>Clipboard</h3>
+        <p>Read and write clipboard contents with explicit format negotiation. Primary and clipboard selections supported on Wayland.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🔔</span>
+        <h3>Notifications</h3>
+        <p>Send desktop notifications with custom urgency, summary, and body. Works via notify-send or native DBus on KDE/GNOME.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">📺</span>
+        <h3>Workspaces</h3>
+        <p>List and switch workspaces, move windows between them. Full multi-monitor awareness with per-monitor workspace isolation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:40px">
+  <div class="section-inner">
+    <h2><span class="gradient-text">Backend</span> Support</h2>
+    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:8px">Auto-detected at startup — no config needed</p>
+    <div class="backend-grid">
+      <div class="backend-card reveal">
+        <div class="icon">🐚</div>
+        <h4>GNOME 46+</h4>
+        <div class="status ok">✅ Supported</div>
+      </div>
+      <div class="backend-card reveal">
+        <div class="icon">🌀</div>
+        <h4>Hyprland</h4>
+        <div class="status ok">✅ Supported</div>
+      </div>
+      <div class="backend-card reveal">
+        <div class="icon">💜</div>
+        <h4>KDE Plasma 6</h4>
+        <div class="status ok">✅ Supported</div>
+      </div>
+      <div class="backend-card reveal">
+        <div class="icon">🖥️</div>
+        <h4>X11 (generic)</h4>
+        <div class="status ok">✅ Supported</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="install">
+  <div class="section-inner">
+    <h2>Get started in <span class="gradient-text">30 seconds</span></h2>
+    <div class="install-cmds">
+      <div class="install-cmd primary reveal">
+        <div class="comment"># One-shot install — auto-detects desktop + installs deps <span class="badge">recommended</span></div>
+        <span class="prompt">$</span> bash &lt;(curl -fsSL https://deskbrid.patchhive.dev/install.sh)
+      </div>
+      <div class="install-cmd reveal">
+        <div class="comment"># Download binary directly</div>
+        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.6.0/deskbrid && chmod +x deskbrid
+      </div>
+      <div class="install-cmd reveal">
+        <div class="comment"># Or build from source</div>
+        <span class="prompt">$</span> git clone https://github.com/coe0718/deskbrid.git && cd deskbrid && cargo build --release
+      </div>
+      <div class="install-cmd reveal">
+        <div class="comment"># Start the daemon</div>
+        <span class="prompt">$</span> deskbrid daemon
+      </div>
+      <div class="install-cmd agent reveal">
+        <span class="icon">🤖</span>
+        <div class="body">
+          <div class="label">AGENT PROMPT</div>
+          <p>Tell your AI assistant: <strong>"Hey, install Deskbrid for me"</strong></p>
+          <code>bash &lt;(curl -fsSL deskbrid.patchhive.dev/install.sh)</code>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Ready to bridge your <span class="gradient-text">AI to your desktop</span>?</h2>
+  <p>Deskbrid is open source, MIT licensed, and ready to run on any modern Linux desktop.</p>
+  <div class="cta-actions">
+    <a href="https://github.com/coe0718/deskbrid" class="btn-primary">⭐ Star on GitHub</a>
+    <a href="https://github.com/coe0718/deskbrid/issues" class="btn-secondary">Report an Issue</a>
+  </div>
+</section>
+
+<footer>
+  <p>Built by <a href="https://github.com/coe0718">coe0718</a> &middot; MIT License &middot; <a href="https://github.com/coe0718/deskbrid">GitHub</a></p>
+</footer>
+
+<script>
+const observer=new IntersectionObserver((e)=>{e.forEach(e=>{e.isIntersecting&&(e.target.classList.add("visible"),observer.unobserve(e.target))})},{threshold:.12});
+document.querySelectorAll(".reveal").forEach(e=>observer.observe(e));
+</script>
+</body>
+</html>
