@@ -209,7 +209,7 @@ allow = [
 Full list of available permission names:
 
 ```
-windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize
+windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.activate_or_launch
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write
@@ -257,9 +257,12 @@ Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → proces
 | `windows.minimize` | Minimize a window where the compositor supports it |
 | `windows.maximize` | Maximize a window |
 | `windows.move_resize` | Move and resize a window |
+| `windows.activate_or_launch` | Focus an app if open, launch it if not |
 | `workspaces.list` | List workspaces |
 | `workspaces.switch` | Switch to a workspace |
 | `workspaces.move_window` | Move a window to another workspace |
+
+`windows.activate_or_launch` may start a process, so permission-gated deployments must grant both `windows.activate_or_launch` and `process.start`.
 
 ### ⌨️ Input
 | Action | Description |

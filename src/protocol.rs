@@ -114,6 +114,12 @@ pub enum Action {
         width: u32,
         height: u32,
     },
+    WindowsActivateOrLaunch {
+        app_id: String,
+        command: Vec<String>,
+        workdir: Option<String>,
+        env: Option<std::collections::HashMap<String, String>>,
+    },
 
     // Workspaces
     WorkspacesList,
@@ -305,6 +311,7 @@ impl Action {
             "windows.minimize",
             "windows.maximize",
             "windows.move_resize",
+            "windows.activate_or_launch",
             "workspaces.list",
             "workspaces.switch",
             "workspaces.move_window",
@@ -385,6 +392,16 @@ impl Action {
                 y: raw["y"].as_i64().unwrap_or(0) as i32,
                 width: raw["width"].as_u64().unwrap_or(0) as u32,
                 height: raw["height"].as_u64().unwrap_or(0) as u32,
+            },
+            "windows.activate_or_launch" => Action::WindowsActivateOrLaunch {
+                app_id: required_non_empty_string(&raw, "app_id")?,
+                command: optional_string_array(&raw, "command")?,
+                workdir: raw["workdir"].as_str().map(String::from),
+                env: raw["env"].as_object().map(|o| {
+                    o.iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                        .collect()
+                }),
             },
 
             // Workspaces
@@ -665,6 +682,24 @@ impl Action {
             } => {
                 json!({"type":"windows.move_resize","id":id,"window_id":window_id,"x":x,"y":y,"width":width,"height":height})
             }
+            Action::WindowsActivateOrLaunch {
+                app_id,
+                command,
+                workdir,
+                env,
+            } => {
+                let mut obj = json!({"type":"windows.activate_or_launch","id":id,"app_id":app_id});
+                if !command.is_empty() {
+                    obj["command"] = json!(command);
+                }
+                if let Some(wd) = workdir {
+                    obj["workdir"] = json!(wd);
+                }
+                if let Some(e) = env {
+                    obj["env"] = json!(e);
+                }
+                obj
+            }
 
             // Workspaces
             Action::WorkspacesList => json!({"type": "workspaces.list", "id": id}),
@@ -925,6 +960,7 @@ impl Action {
             Action::WindowsMinimize(_) => "windows.minimize",
             Action::WindowsMaximize(_) => "windows.maximize",
             Action::WindowsMoveResize { .. } => "windows.move_resize",
+            Action::WindowsActivateOrLaunch { .. } => "windows.activate_or_launch",
             Action::WorkspacesList => "workspaces.list",
             Action::WorkspaceSwitch(_) => "workspaces.switch",
             Action::WorkspaceMoveWindow { .. } => "workspaces.move_window",
@@ -990,6 +1026,27 @@ fn required_non_empty_string(raw: &serde_json::Value, field: &str) -> anyhow::Re
         anyhow::bail!("'{}' must not be empty", field);
     }
     Ok(value.to_string())
+}
+
+fn optional_string_array(raw: &serde_json::Value, field: &str) -> anyhow::Result<Vec<String>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(Vec::new());
+    };
+    let Some(values) = value.as_array() else {
+        anyhow::bail!("'{}' must be an array of strings", field);
+    };
+
+    let mut items = Vec::with_capacity(values.len());
+    for value in values {
+        let Some(item) = value.as_str() else {
+            anyhow::bail!("'{}' must be an array of strings", field);
+        };
+        if item.trim().is_empty() {
+            anyhow::bail!("'{}' entries must not be empty", field);
+        }
+        items.push(item.to_string());
+    }
+    Ok(items)
 }
 
 // ─── Event Data Types (for subscription events) ─────────
@@ -1089,6 +1146,7 @@ mod tests {
         let actions = Action::public_action_types();
         assert!(actions.contains(&"system.capabilities"));
         assert!(actions.contains(&"system.health"));
+        assert!(actions.contains(&"windows.activate_or_launch"));
     }
 
     #[test]
@@ -1098,6 +1156,32 @@ mod tests {
         assert!(
             Action::from_json(r#"{"type":"windows.move_resize","id":"x","window_id":" ","x":0,"y":0,"width":1,"height":1}"#)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn parses_windows_activate_or_launch() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"windows.activate_or_launch","id":"x","app_id":"code","command":["code","."]}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::WindowsActivateOrLaunch {
+                app_id,
+                command,
+                ..
+            } if app_id == "code" && command == vec!["code".to_string(), ".".to_string()]
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"windows.activate_or_launch","id":"x","app_id":""}"#)
+                .is_err()
+        );
+        assert!(
+            Action::from_json(
+                r#"{"type":"windows.activate_or_launch","id":"x","app_id":"code","command":[""]}"#
+            )
+            .is_err()
         );
     }
 }
