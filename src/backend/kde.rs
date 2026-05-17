@@ -1247,7 +1247,7 @@ fn parse_kscreen_outputs(raw: &str) -> Vec<protocol::MonitorInfo> {
                 width: 0,
                 height: 0,
                 scale: 1.0,
-                primary: trimmed.contains("primary"),
+                primary: trimmed.contains("primary") || has_kscreen_primary_priority(trimmed),
                 enabled: trimmed.contains(" enabled "),
                 x: 0,
                 y: 0,
@@ -1283,6 +1283,9 @@ fn parse_kscreen_outputs(raw: &str) -> Vec<protocol::MonitorInfo> {
             monitor.enabled = false;
         }
         if trimmed.contains("primary") {
+            monitor.primary = true;
+        }
+        if has_kscreen_primary_priority(trimmed) {
             monitor.primary = true;
         }
         if let Some(geometry) = trimmed.strip_prefix("Geometry:") {
@@ -1323,12 +1326,7 @@ fn parse_current_mode(value: &str, monitor: &mut protocol::MonitorInfo) {
     let Some(current) = value.split_whitespace().find(|part| part.contains('*')) else {
         return;
     };
-    let mode = current
-        .split(':')
-        .next_back()
-        .unwrap_or(current)
-        .trim_end_matches('*')
-        .trim_end_matches('+');
+    let mode = clean_kscreen_mode_token(current);
     let mut mode_parts = mode.split('@');
     if let Some(size) = mode_parts.next() {
         let mut wh = size.split('x');
@@ -1362,19 +1360,33 @@ fn find_kscreen_mode(raw: &str, output: &str, width: u32, height: u32) -> Option
             if !token.contains(&target) {
                 continue;
             }
-            let mode = token
-                .split(':')
-                .next_back()
-                .unwrap_or(token)
-                .trim_end_matches('*')
-                .trim_end_matches('+')
-                .to_string();
+            let mode = clean_kscreen_mode_token(token);
             if !mode.is_empty() {
-                return Some(mode);
+                return Some(mode.to_string());
             }
         }
     }
     None
+}
+
+fn clean_kscreen_mode_token(token: &str) -> &str {
+    token
+        .split(':')
+        .next_back()
+        .unwrap_or(token)
+        .trim_end_matches(['*', '+', '!'])
+}
+
+fn has_kscreen_primary_priority(value: &str) -> bool {
+    let mut saw_priority = false;
+    for token in value.split_whitespace() {
+        let normalized = token.trim_matches([':', ',', ';']).to_ascii_lowercase();
+        if saw_priority && normalized == "1" {
+            return true;
+        }
+        saw_priority = normalized == "priority";
+    }
+    false
 }
 
 fn kde_rotation(rotation: &str) -> anyhow::Result<&'static str> {
@@ -1405,4 +1417,63 @@ fn format_monitor_float(value: f64) -> String {
         out.pop();
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const KSCREEN_SAMPLE: &str = r#"
+Output: 1 eDP-1 enabled connected priority 1 Panel
+    Geometry: 0,0 1920x1080
+    Scale: 1.25
+    Rotation: 1
+    Modes: 0:1920x1080@60*! 1:1920x1080@48 2:1280x720@60+
+Output: 2 DP-1 enabled connected priority 2 DisplayPort
+    Geometry: 1920,0 2560x1440
+    Scale: 1
+    Modes: 0:2560x1440@144! 1:1920x1080@60+
+"#;
+
+    #[test]
+    fn cleans_kscreen_mode_markers() {
+        assert_eq!(clean_kscreen_mode_token("0:1920x1080@60*!"), "1920x1080@60");
+        assert_eq!(clean_kscreen_mode_token("2:1280x720@60+"), "1280x720@60");
+        assert_eq!(clean_kscreen_mode_token("2560x1440@144!"), "2560x1440@144");
+    }
+
+    #[test]
+    fn finds_kscreen_mode_without_status_markers() {
+        assert_eq!(
+            find_kscreen_mode(KSCREEN_SAMPLE, "eDP-1", 1920, 1080).as_deref(),
+            Some("1920x1080@60")
+        );
+        assert_eq!(
+            find_kscreen_mode(KSCREEN_SAMPLE, "DP-1", 2560, 1440).as_deref(),
+            Some("2560x1440@144")
+        );
+    }
+
+    #[test]
+    fn parses_kscreen_primary_from_priority_metadata() {
+        let monitors = parse_kscreen_outputs(KSCREEN_SAMPLE);
+
+        let primary = monitors
+            .iter()
+            .find(|monitor| monitor.name == "eDP-1")
+            .unwrap();
+        let secondary = monitors
+            .iter()
+            .find(|monitor| monitor.name == "DP-1")
+            .unwrap();
+
+        assert!(primary.primary);
+        assert!(!secondary.primary);
+    }
+
+    #[test]
+    fn parses_kscreen_primary_from_colon_priority_line() {
+        assert!(has_kscreen_primary_priority("Priority: 1"));
+        assert!(!has_kscreen_primary_priority("Priority: 2"));
+    }
 }
