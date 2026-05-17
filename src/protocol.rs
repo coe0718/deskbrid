@@ -386,13 +386,34 @@ impl Action {
             "windows.maximize" => {
                 Action::WindowsMaximize(required_non_empty_string(&raw, "window_id")?)
             }
-            "windows.move_resize" => Action::WindowsMoveResize {
-                window_id: required_non_empty_string(&raw, "window_id")?,
-                x: raw["x"].as_i64().unwrap_or(0) as i32,
-                y: raw["y"].as_i64().unwrap_or(0) as i32,
-                width: raw["width"].as_u64().unwrap_or(0) as u32,
-                height: raw["height"].as_u64().unwrap_or(0) as u32,
-            },
+            "windows.move_resize" => {
+                let x = raw["x"]
+                    .as_i64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'x' field"))?
+                    as i32;
+                let y = raw["y"]
+                    .as_i64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'y' field"))?
+                    as i32;
+                let width = raw["width"]
+                    .as_u64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'width' field"))?
+                    as u32;
+                let height = raw["height"]
+                    .as_u64()
+                    .ok_or_else(|| anyhow::anyhow!("missing or invalid 'height' field"))?
+                    as u32;
+                if width == 0 || height == 0 {
+                    anyhow::bail!("'width' and 'height' must be positive");
+                }
+                Action::WindowsMoveResize {
+                    window_id: required_non_empty_string(&raw, "window_id")?,
+                    x,
+                    y,
+                    width,
+                    height,
+                }
+            }
             "windows.activate_or_launch" => Action::WindowsActivateOrLaunch {
                 app_id: required_non_empty_string(&raw, "app_id")?,
                 command: optional_string_array(&raw, "command")?,
