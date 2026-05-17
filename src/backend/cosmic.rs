@@ -335,7 +335,7 @@ impl DesktopBackend for CosmicBackend {
 
         // Get dimensions from the file
         let dims_output = self.sh("identify", &["-format", "%w %h", &path]).await?;
-        let dims: Vec<&str> = dims_output.trim().split_whitespace().collect();
+        let dims: Vec<&str> = dims_output.split_whitespace().collect();
         let width = dims.first().and_then(|s| s.parse().ok()).unwrap_or(0);
         let height = dims.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
