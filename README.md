@@ -10,6 +10,10 @@
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2024%20edition-orange.svg" alt="Rust 2024"></a>
 </p>
 
+<p align="center">
+  <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
+</p>
+
 **The HAL your Linux desktop agents are missing.**
 
 Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE, Cinnamon, MATE — one daemon, one protocol, one binary.
