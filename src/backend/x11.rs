@@ -487,9 +487,21 @@ fn parse_xrandr_geometry(value: &str, monitor: &mut protocol::MonitorInfo) {
 
 fn parse_xrandr_rotation(line: &str) -> String {
     let rotations = ["normal", "left", "right", "inverted"];
-    for rotation in rotations {
-        if line.split_whitespace().any(|part| part == rotation) {
-            return rotation.to_string();
+    let active_segment = line.split('(').next().unwrap_or(line);
+    let tokens: Vec<&str> = active_segment.split_whitespace().collect();
+
+    if let Some(geometry_idx) = tokens
+        .iter()
+        .position(|part| part.contains('+') && part.contains('x'))
+        && let Some(candidate) = tokens.get(geometry_idx + 1)
+        && rotations.contains(candidate)
+    {
+        return (*candidate).to_string();
+    }
+
+    for token in tokens {
+        if rotations.contains(&token) {
+            return token.to_string();
         }
     }
     "normal".into()
@@ -514,4 +526,31 @@ fn format_monitor_float(value: f64) -> String {
         out.pop();
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_active_xrandr_rotation_before_capability_list() {
+        assert_eq!(
+            parse_xrandr_rotation(
+                "DP-1 connected primary 2560x1440+0+0 right (normal left inverted right x axis y axis)"
+            ),
+            "right"
+        );
+        assert_eq!(
+            parse_xrandr_rotation(
+                "HDMI-1 connected 1080x1920+2560+0 inverted (normal left inverted right x axis y axis)"
+            ),
+            "inverted"
+        );
+        assert_eq!(
+            parse_xrandr_rotation(
+                "eDP-1 connected 1920x1080+0+0 (normal left inverted right x axis y axis)"
+            ),
+            "normal"
+        );
+    }
 }
