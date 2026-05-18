@@ -112,16 +112,15 @@ impl CosmicBackend {
 
         // Check JSON response for {"ok": false} — helper may exit 0
         // even when the operation wasn't actually performed.
-        if let Ok(body) = String::from_utf8(output.stdout) {
-            if let Ok(resp) = serde_json::from_str::<serde_json::Value>(&body) {
-                if resp.get("ok").and_then(|v| v.as_bool()) == Some(false) {
-                    let detail = resp
-                        .get("error")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown error");
-                    anyhow::bail!("cosmic-helper '{}' failed: {}", args.join(" "), detail);
-                }
-            }
+        if let Ok(body) = String::from_utf8(output.stdout)
+            && let Ok(resp) = serde_json::from_str::<serde_json::Value>(&body)
+            && resp.get("ok").and_then(|v| v.as_bool()) == Some(false)
+        {
+            let detail = resp
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
+            anyhow::bail!("cosmic-helper '{}' failed: {}", args.join(" "), detail);
         }
 
         Ok(())
