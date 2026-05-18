@@ -1563,7 +1563,7 @@ impl crate::backend::DesktopBackend for GnomeBackend {
                 "--output".into(),
                 output.into(),
                 "--scale".into(),
-                format_monitor_float(1.0 / scale),
+                format_monitor_float(scale),
             ],
         )
         .await?;
