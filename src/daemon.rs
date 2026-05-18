@@ -1291,6 +1291,16 @@ async fn build_system_capabilities(
         );
     }
 
+    if desktop.contains("cosmic") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_unsupported(
+                &mut actions,
+                action,
+                "cosmic_has_no_monitor_control_protocol",
+            );
+        }
+    }
+
     if desktop.contains("x11") {
         for action in MONITOR_CONTROL_ACTIONS {
             set_requires(&mut actions, action, &["xrandr"]);
