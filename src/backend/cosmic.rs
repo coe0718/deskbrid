@@ -86,13 +86,13 @@ impl CosmicBackend {
         Ok(serde_json::from_str(&stdout)?)
     }
 
-    /// Run cosmic-helper CLI, ignore stdout, check exit code
+    /// Run cosmic-helper CLI, check exit code and JSON response
     async fn helper_run(&self, args: &[&str]) -> anyhow::Result<()> {
         let output = Command::new(&self.helper_path)
             .args(args)
             .stdin(Stdio::null())
             .stderr(Stdio::piped())
-            .stdout(Stdio::null())
+            .stdout(Stdio::piped())
             .env("XDG_RUNTIME_DIR", &self.xdg_runtime)
             .env(
                 "WAYLAND_DISPLAY",
@@ -108,6 +108,20 @@ impl CosmicBackend {
                 args.join(" "),
                 stderr.trim()
             );
+        }
+
+        // Check JSON response for {"ok": false} — helper may exit 0
+        // even when the operation wasn't actually performed.
+        if let Ok(body) = String::from_utf8(output.stdout) {
+            if let Ok(resp) = serde_json::from_str::<serde_json::Value>(&body) {
+                if resp.get("ok").and_then(|v| v.as_bool()) == Some(false) {
+                    let detail = resp
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown error");
+                    anyhow::bail!("cosmic-helper '{}' failed: {}", args.join(" "), detail);
+                }
+            }
         }
 
         Ok(())
@@ -404,9 +418,14 @@ impl DesktopBackend for CosmicBackend {
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
         // Read /sys/class/power_supply/BAT*
         let mut batteries = Vec::new();
-        for entry in std::fs::read_dir("/sys/class/power_supply/")
-            .unwrap_or_else(|_| std::fs::read_dir("/sys/class/power_supply/").ok().unwrap())
-            .flatten()
+        let entries = match std::fs::read_dir("/sys/class/power_supply/") {
+            Ok(rd) => rd.flatten().collect::<Vec<_>>(),
+            Err(_) => {
+                return Ok(batteries); // empty list on inaccessible sysfs
+            }
+        };
+
+        for entry in entries
         {
             let name = entry.file_name().to_string_lossy().to_string();
             if !name.starts_with("BAT") {
