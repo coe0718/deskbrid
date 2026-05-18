@@ -92,11 +92,8 @@ impl Dispatch<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, ()> for Co
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        match event {
-            ext_foreign_toplevel_list_v1::Event::Finished => {
-                state.done = true;
-            }
-            _ => {}
+        if let ext_foreign_toplevel_list_v1::Event::Finished = event {
+            state.done = true;
         }
     }
 }
@@ -110,21 +107,21 @@ impl Dispatch<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, ()> fo
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        let proxy_id = &*proxy as *const _ as u64;
+        let proxy_id = proxy as *const _ as u64;
 
         match event {
             ext_foreign_toplevel_handle_v1::Event::Title { title } => {
-                if let Some(&wid) = state.ext_handle_ids.get(&proxy_id) {
-                    if let Some(w) = state.windows.get_mut(&wid) {
-                        w.title = Some(title);
-                    }
+                if let Some(&wid) = state.ext_handle_ids.get(&proxy_id)
+                    && let Some(w) = state.windows.get_mut(&wid)
+                {
+                    w.title = Some(title);
                 }
             }
             ext_foreign_toplevel_handle_v1::Event::AppId { app_id } => {
-                if let Some(&wid) = state.ext_handle_ids.get(&proxy_id) {
-                    if let Some(w) = state.windows.get_mut(&wid) {
-                        w.app_id = Some(app_id);
-                    }
+                if let Some(&wid) = state.ext_handle_ids.get(&proxy_id)
+                    && let Some(w) = state.windows.get_mut(&wid)
+                {
+                    w.app_id = Some(app_id);
                 }
             }
             // State flags are not available in this protocol version.
@@ -173,10 +170,7 @@ impl Dispatch<ZcosmicToplevelManagerV1, ()> for CosmicState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        match event {
-            zcosmic_toplevel_manager_v1::Event::Capabilities { .. } => {}
-            _ => {}
-        }
+        if let zcosmic_toplevel_manager_v1::Event::Capabilities { .. } = event {}
     }
 }
 

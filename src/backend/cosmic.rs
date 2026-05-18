@@ -424,8 +424,7 @@ impl DesktopBackend for CosmicBackend {
             }
         };
 
-        for entry in entries
-        {
+        for entry in entries {
             let name = entry.file_name().to_string_lossy().to_string();
             if !name.starts_with("BAT") {
                 continue;
