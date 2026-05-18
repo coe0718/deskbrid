@@ -10,16 +10,37 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross_pkg: ""
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross_pkg: gcc-aarch64-linux-gnu
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - run: cargo build --release
+      - name: Install cross-compiler (ARM)
+        if: matrix.cross_pkg != ''
+        run: sudo apt-get update -qq && sudo apt-get install -yqq ${{ matrix.cross_pkg }}
 
-      - name: Upload binary to release
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      - run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package tarball
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf "deskbrid-${{ matrix.target }}.tar.gz" deskbrid
+
+      - name: Upload tarball to release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/deskbrid
+          files: target/${{ matrix.target }}/release/deskbrid-*.tar.gz
           generate_release_notes: true
