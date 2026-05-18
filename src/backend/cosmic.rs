@@ -265,8 +265,7 @@ impl DesktopBackend for CosmicBackend {
 
     // ─── Input ──────────────────────────────────────────
     async fn keyboard_type(&self, text: &str) -> anyhow::Result<()> {
-        let escaped = shell_escape(text);
-        self.sh("ydotool", &["type", &escaped]).await?;
+        self.sh("ydotool", &["type", text]).await?;
         Ok(())
     }
 
@@ -454,7 +453,7 @@ impl DesktopBackend for CosmicBackend {
     async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
         // Reuse nmcli
         let output = self.sh("nmcli", &["-t", "-f", "STATE", "general"]).await?;
-        let connected = output.trim().contains("connected");
+        let connected = output.trim().starts_with("connected");
         Ok(protocol::NetworkStatusInfo {
             online: connected,
             net_type: if connected { "ethernet" } else { "none" }.to_string(),
@@ -603,9 +602,4 @@ impl DesktopBackend for CosmicBackend {
     async fn audio_set_sink_volume(&self, _sink_id: u32, _volume: f64) -> anyhow::Result<()> {
         Ok(())
     }
-}
-
-/// Shell-escape text for ydotool (simple single-quote wrapping)
-fn shell_escape(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
 }
