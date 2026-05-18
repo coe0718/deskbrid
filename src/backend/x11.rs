@@ -471,14 +471,29 @@ fn parse_xrandr_query(raw: &str) -> Vec<protocol::MonitorInfo> {
 }
 
 fn parse_xrandr_geometry(value: &str, monitor: &mut protocol::MonitorInfo) {
-    let mut parts = value.split('+');
-    if let Some(size) = parts.next() {
-        let mut wh = size.split('x');
-        monitor.width = wh.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-        monitor.height = wh.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    // XRandR geometry: WIDTHxHEIGHT[+-]X[+-]Y — offsets can be negative
+    // e.g. "1920x1080-1920+0" for a display left of origin
+    if let Some(x_pos) = value.find('x') {
+        monitor.width = value[..x_pos].parse().unwrap_or(0);
+
+        // Find the start of the X offset (first + or - after 'x')
+        let rest = &value[x_pos + 1..];
+        let offset_start = rest.find(['+', '-']).unwrap_or(rest.len());
+        monitor.height = rest[..offset_start].parse().unwrap_or(0);
+
+        // Parse the offsets with their signs
+        let offset_str = &rest[offset_start..];
+        let mut parts = offset_str.split('+');
+        let x_part = parts.next().unwrap_or("");
+        // x_part starts with a sign, so parse() handles it directly
+        monitor.x = x_part.parse().unwrap_or(0);
+        // Remaining parts are positive offsets
+        for (i, part) in parts.enumerate() {
+            if i == 0 {
+                monitor.y = part.parse().unwrap_or(0);
+            }
+        }
     }
-    monitor.x = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-    monitor.y = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
 }
 
 fn parse_xrandr_rotation(line: &str) -> String {
