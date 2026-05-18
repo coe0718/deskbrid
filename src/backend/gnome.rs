@@ -1543,7 +1543,7 @@ impl crate::backend::DesktopBackend for GnomeBackend {
 
     async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
         if use_xrandr_session() {
-            let scale_arg = format!("{0}x{0}", format_monitor_float(scale));
+            let scale_arg = format!("{0}x{0}", format_monitor_float(1.0 / scale));
             self.sh_owned(
                 "xrandr",
                 vec![
@@ -1563,7 +1563,7 @@ impl crate::backend::DesktopBackend for GnomeBackend {
                 "--output".into(),
                 output.into(),
                 "--scale".into(),
-                format_monitor_float(scale),
+                format_monitor_float(1.0 / scale),
             ],
         )
         .await?;

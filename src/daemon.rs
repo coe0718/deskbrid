@@ -1434,15 +1434,18 @@ fn apply_gnome_capability_overrides(
     set_requires(actions, "workspaces.list", &["gnome-extension"]);
     set_requires(actions, "workspaces.switch", &["gnome-extension"]);
     set_session(actions, "input.mouse", "wayland");
-    for action in MONITOR_CONTROL_ACTIONS {
-        set_requires(actions, action, &["xrandr-or-wlr-randr"]);
-    }
     if session_type != "x11" {
-        set_unsupported(
-            actions,
-            "monitor.set_primary",
-            "gnome_wayland_has_no_primary_monitor_helper",
-        );
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_unsupported(
+                actions,
+                action,
+                "gnome_wayland_requires_wlr_output_management",
+            );
+        }
+    } else {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["xrandr-or-wlr-randr"]);
+        }
     }
 }
 
@@ -1718,7 +1721,7 @@ mod tests {
         assert_eq!(actions["monitor.set_primary"]["supported"], false);
         assert_eq!(
             actions["monitor.set_primary"]["reason"],
-            "gnome_wayland_has_no_primary_monitor_helper"
+            "gnome_wayland_requires_wlr_output_management"
         );
     }
 
