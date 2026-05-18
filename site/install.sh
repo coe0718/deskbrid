@@ -3,8 +3,15 @@
 # Usage: bash <(curl -fsSL https://deskbrid.patchhive.dev/install.sh)
 set -euo pipefail
 
-VER="0.6.0"
 REPO="https://github.com/coe0718/deskbrid"
+
+# ── discover latest version from GitHub API ──
+VER=""
+if [[ -z "${DESKBRID_VERSION:-}" ]]; then
+  VER="$(curl -fsSL "https://api.github.com/repos/coe0718/deskbrid/releases/latest" \
+    | grep -oP '"tag_name":\s*"v\K[^"]+')" || true
+fi
+VER="${DESKBRID_VERSION:-${VER:-0.6.0}}"
 
 # ── colors ──
 RST='\033[0m'; RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[0;33m'; CYN='\033[0;36m'

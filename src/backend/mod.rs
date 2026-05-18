@@ -1,3 +1,4 @@
+pub mod cosmic;
 pub mod gnome;
 pub mod hyprland;
 pub mod kde;
@@ -13,6 +14,9 @@ pub async fn create_backend(
     let desktop = detect_desktop().await;
 
     match desktop {
+        DesktopEnv::Cosmic => cosmic::CosmicBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         DesktopEnv::Hyprland => hyprland::HyprBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
@@ -36,6 +40,9 @@ async fn detect_desktop() -> DesktopEnv {
         let lower = desktop.to_lowercase();
         if lower.contains("hyprland") {
             return DesktopEnv::Hyprland;
+        }
+        if lower.contains("cosmic") {
+            return DesktopEnv::Cosmic;
         }
         if lower.contains("kde") || lower.contains("plasma") {
             return DesktopEnv::Kde;
@@ -71,6 +78,15 @@ async fn detect_desktop() -> DesktopEnv {
         return DesktopEnv::Kde;
     }
 
+    if let Ok(output) = tokio::process::Command::new("pgrep")
+        .args(["-x", "cosmic-comp"])
+        .output()
+        .await
+        && output.status.success()
+    {
+        return DesktopEnv::Cosmic;
+    }
+
     // Default to GNOME
     if std::env::var("DISPLAY").is_ok() && std::env::var("WAYLAND_DISPLAY").is_err() {
         return DesktopEnv::X11;
@@ -79,6 +95,7 @@ async fn detect_desktop() -> DesktopEnv {
 }
 
 enum DesktopEnv {
+    Cosmic,
     Gnome,
     Hyprland,
     Kde,

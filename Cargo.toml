@@ -8,6 +8,7 @@ repository = "https://github.com/coe0718/deskbrid"
 
 [features]
 default = []
+cosmic = ["dep:cosmic-protocols", "dep:wayland-client", "dep:wayland-protocols"]
 pipewire = ["dep:pipewire", "dep:spa", "dep:image"]
 
 [dependencies]
@@ -42,6 +43,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # File watching
 notify = { version = "7", features = ["macos_kqueue"] }
 
+# COSMIC desktop environment (Wayland protocol client)
+cosmic-protocols = { version = "0.2", default-features = false, features = ["client"], optional = true }
+wayland-client = { version = "0.31", optional = true }
+wayland-protocols = { version = "0.32", features = ["client", "staging"], optional = true }
+
 # PipeWire (optional)
 pipewire = { version = "0.8", optional = true }
 spa = { version = "0.8", package = "libspa", optional = true }
@@ -50,3 +56,8 @@ image = { version = "0.25", default-features = false, features = ["png"], option
 [[bin]]
 name = "deskbrid"
 path = "src/main.rs"
+
+[[bin]]
+name = "cosmic-helper"
+path = "src/bin/cosmic_helper.rs"
+required-features = ["cosmic"]

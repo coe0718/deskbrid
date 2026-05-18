@@ -1444,7 +1444,7 @@ fn apply_gnome_capability_overrides(
         }
     } else {
         for action in MONITOR_CONTROL_ACTIONS {
-            set_requires(actions, action, &["xrandr-or-wlr-randr"]);
+            set_requires(actions, action, &["xrandr"]);
         }
     }
 }
@@ -1734,7 +1734,7 @@ mod tests {
         assert_eq!(actions["monitor.set_primary"]["supported"], true);
         assert_eq!(
             actions["monitor.set_primary"]["requires"],
-            serde_json::json!(["xrandr-or-wlr-randr"])
+            serde_json::json!(["xrandr"])
         );
     }
 }
