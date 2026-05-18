@@ -459,11 +459,7 @@ fn parse_xrandr_query(raw: &str) -> Vec<protocol::MonitorInfo> {
                     .unwrap_or(monitor.height);
             }
             if let Some(refresh) = parts.iter().find(|part| part.contains('*')) {
-                monitor.refresh_rate = refresh
-                    .trim_end_matches('*')
-                    .trim_end_matches('+')
-                    .parse()
-                    .ok();
+                monitor.refresh_rate = refresh.trim_end_matches(['*', '+']).parse().ok();
             }
         }
     }
