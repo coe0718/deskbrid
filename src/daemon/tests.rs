@@ -100,4 +100,3 @@ fn gnome_x11_keeps_primary_monitor_capability_supported() {
         serde_json::json!(["xrandr-or-wlr-randr"])
     );
 }
-

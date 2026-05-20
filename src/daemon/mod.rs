@@ -4,22 +4,31 @@ use std::sync::Arc;
 use tokio::net::UnixListener;
 use tracing::{debug, error, info, warn};
 
+mod capabilities;
 mod client;
 mod dispatch;
 mod execute;
-mod layout;
 mod helpers;
-mod capabilities;
+mod layout;
 #[cfg(test)]
 mod tests;
 
 // Re-export the daemon's public API
+pub use capabilities::{
+    apply_gnome_capability_overrides, build_system_capabilities, build_system_health,
+    normalize_coords, run_system_remediation,
+};
 pub use client::handle_client;
 pub use dispatch::dispatch_action;
 pub use execute::execute_action;
-pub use layout::{capture_layout_profile, save_layout_profile, load_layout_profile, list_layout_profiles, restore_layout_profile, match_profile_window_index};
-pub use capabilities::{build_system_capabilities, build_system_health, run_system_remediation, normalize_coords, apply_gnome_capability_overrides};
-pub use helpers::{ok_response, not_supported_response, permission_denied_response, unix_timestamp, find_app_window, spawn_detached_process, expand_path, ensure_safe_pid, parse_signal};
+pub use helpers::{
+    ensure_safe_pid, expand_path, find_app_window, not_supported_response, ok_response,
+    parse_signal, permission_denied_response, spawn_detached_process, unix_timestamp,
+};
+pub use layout::{
+    capture_layout_profile, list_layout_profiles, load_layout_profile, match_profile_window_index,
+    restore_layout_profile, save_layout_profile,
+};
 
 pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
     "monitor.set_primary",

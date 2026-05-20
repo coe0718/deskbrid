@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 // ─── Event Data Types (for subscription events) ─────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -80,4 +79,3 @@ pub enum DeskbridEvent {
         timestamp: u64,
     },
 }
-
