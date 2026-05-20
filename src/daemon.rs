@@ -806,6 +806,20 @@ async fn execute_action(
             serde_json::json!({"path": path.to_string_lossy(), "entries": entries})
         }
 
+        // Browser (Chrome DevTools Protocol)
+        BrowserListTabs => crate::browser::list_tabs().await?,
+        BrowserNavigate { tab_index, ref url } => crate::browser::navigate(tab_index, url).await?,
+        BrowserEvaluate {
+            tab_index,
+            ref expression,
+            await_promise,
+        } => crate::browser::evaluate(tab_index, expression, await_promise).await?,
+        BrowserScreenshotTab { tab_index } => crate::browser::screenshot_tab(tab_index).await?,
+        BrowserClick {
+            tab_index,
+            ref selector,
+        } => crate::browser::click(tab_index, selector).await?,
+
         ProcessList => {
             let output = tokio::process::Command::new("ps")
                 .args(["aux", "--no-headers"])

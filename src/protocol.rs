@@ -325,6 +325,25 @@ pub enum Action {
         path: String,
     },
 
+    // Browser (Chrome DevTools Protocol)
+    BrowserListTabs,
+    BrowserNavigate {
+        tab_index: Option<u32>,
+        url: String,
+    },
+    BrowserEvaluate {
+        tab_index: Option<u32>,
+        expression: String,
+        await_promise: bool,
+    },
+    BrowserScreenshotTab {
+        tab_index: Option<u32>,
+    },
+    BrowserClick {
+        tab_index: Option<u32>,
+        selector: String,
+    },
+
     // Process
     ProcessList,
     ProcessStart {
@@ -469,6 +488,11 @@ impl Action {
             "files.delete",
             "files.mkdir",
             "files.list",
+            "browser.list_tabs",
+            "browser.navigate",
+            "browser.evaluate",
+            "browser.screenshot_tab",
+            "browser.click",
             "process.list",
             "process.start",
             "process.stop",
@@ -739,6 +763,25 @@ impl Action {
             },
             "files.list" => Action::FilesList {
                 path: raw["path"].as_str().unwrap_or(".").into(),
+            },
+
+            // Browser
+            "browser.list_tabs" => Action::BrowserListTabs,
+            "browser.navigate" => Action::BrowserNavigate {
+                tab_index: raw["tab_index"].as_u64().map(|v| v as u32),
+                url: raw["url"].as_str().unwrap_or("").into(),
+            },
+            "browser.evaluate" => Action::BrowserEvaluate {
+                tab_index: raw["tab_index"].as_u64().map(|v| v as u32),
+                expression: raw["expression"].as_str().unwrap_or("").into(),
+                await_promise: raw["await_promise"].as_bool().unwrap_or(true),
+            },
+            "browser.screenshot_tab" => Action::BrowserScreenshotTab {
+                tab_index: raw["tab_index"].as_u64().map(|v| v as u32),
+            },
+            "browser.click" => Action::BrowserClick {
+                tab_index: raw["tab_index"].as_u64().map(|v| v as u32),
+                selector: raw["selector"].as_str().unwrap_or("").into(),
             },
 
             // Process
@@ -1154,6 +1197,42 @@ impl Action {
             Action::FilesList { path } => {
                 json!({"type": "files.list", "id": id, "path": path})
             }
+            Action::BrowserListTabs => json!({"type": "browser.list_tabs", "id": id}),
+            Action::BrowserNavigate { tab_index, url } => {
+                let mut obj = json!({"type": "browser.navigate", "id": id, "url": url});
+                if let Some(idx) = tab_index {
+                    obj["tab_index"] = json!(idx);
+                }
+                obj
+            }
+            Action::BrowserEvaluate {
+                tab_index,
+                expression,
+                await_promise,
+            } => {
+                let mut obj = json!({"type": "browser.evaluate", "id": id, "expression": expression, "await_promise": await_promise});
+                if let Some(idx) = tab_index {
+                    obj["tab_index"] = json!(idx);
+                }
+                obj
+            }
+            Action::BrowserScreenshotTab { tab_index } => {
+                let mut obj = json!({"type": "browser.screenshot_tab", "id": id});
+                if let Some(idx) = tab_index {
+                    obj["tab_index"] = json!(idx);
+                }
+                obj
+            }
+            Action::BrowserClick {
+                tab_index,
+                selector,
+            } => {
+                let mut obj = json!({"type": "browser.click", "id": id, "selector": selector});
+                if let Some(idx) = tab_index {
+                    obj["tab_index"] = json!(idx);
+                }
+                obj
+            }
 
             // Process
             Action::ProcessList => json!({"type": "process.list", "id": id}),
@@ -1317,6 +1396,11 @@ impl Action {
             Action::FilesDelete { .. } => "files.delete",
             Action::FilesMkdir { .. } => "files.mkdir",
             Action::FilesList { .. } => "files.list",
+            Action::BrowserListTabs => "browser.list_tabs",
+            Action::BrowserNavigate { .. } => "browser.navigate",
+            Action::BrowserEvaluate { .. } => "browser.evaluate",
+            Action::BrowserScreenshotTab { .. } => "browser.screenshot_tab",
+            Action::BrowserClick { .. } => "browser.click",
             Action::ProcessList => "process.list",
             Action::ProcessStart { .. } => "process.start",
             Action::ProcessStop { .. } => "process.stop",

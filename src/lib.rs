@@ -1,4 +1,5 @@
 pub mod backend;
+pub mod browser;
 pub mod capture;
 pub mod cli;
 pub mod client;
