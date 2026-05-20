@@ -65,15 +65,15 @@ fn parse_pactl_sinks(raw: &str) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> 
                 current_desc = v.to_string();
             } else if trimmed.starts_with("Mute: ") {
                 current_muted = trimmed.contains("yes");
-            } else if trimmed.starts_with("Volume:") {
-                if let Some(pct) = trimmed.split('/').nth(1) {
-                    current_volume = pct
-                        .trim()
-                        .trim_end_matches('%')
-                        .parse::<f64>()
-                        .unwrap_or(0.0)
-                        / 100.0;
-                }
+            } else if trimmed.starts_with("Volume:")
+                && let Some(pct) = trimmed.split('/').nth(1)
+            {
+                current_volume = pct
+                    .trim()
+                    .trim_end_matches('%')
+                    .parse::<f64>()
+                    .unwrap_or(0.0)
+                    / 100.0;
             }
         }
     }

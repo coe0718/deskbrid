@@ -1,5 +1,5 @@
-/// XKB keysyms for common characters and keys.
-/// Reference: /usr/include/X11/keysymdef.h
+// XKB keysyms for common characters and keys.
+// Reference: /usr/include/X11/keysymdef.h
 
 // Modifier keys
 pub const SHIFT_L: u32 = 0xFFE1;

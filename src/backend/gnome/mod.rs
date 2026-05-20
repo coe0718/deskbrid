@@ -600,12 +600,12 @@ impl GnomeBackend {
     }
 
     pub(super) async fn get_current_workspace(&self) -> anyhow::Result<u32> {
-        if let Ok(raw) = self.ext_call_parsed("ActiveWorkspace", &[]).await {
-            if let Some(start) = raw.find("uint32 ") {
-                let num_str = &raw[start + 7..];
-                if let Some(end) = num_str.find(|c: char| !c.is_ascii_digit()) {
-                    return Ok(num_str[..end].parse().unwrap_or(0));
-                }
+        if let Ok(raw) = self.ext_call_parsed("ActiveWorkspace", &[]).await
+            && let Some(start) = raw.find("uint32 ")
+        {
+            let num_str = &raw[start + 7..];
+            if let Some(end) = num_str.find(|c: char| !c.is_ascii_digit()) {
+                return Ok(num_str[..end].parse().unwrap_or(0));
             }
         }
         Ok(0)
@@ -671,10 +671,10 @@ impl GnomeBackend {
         for entry in arr.iter() {
             if let Ok(inner) = entry.downcast_ref::<zvariant::Structure>() {
                 let fields = inner.fields();
-                if let Some(v) = fields.first() {
-                    if let Ok(s) = v.downcast_ref::<zvariant::Str>() {
-                        return Some(s.to_string());
-                    }
+                if let Some(v) = fields.first()
+                    && let Ok(s) = v.downcast_ref::<zvariant::Str>()
+                {
+                    return Some(s.to_string());
                 }
             }
         }
