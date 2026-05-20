@@ -36,6 +36,7 @@ libc = "0.2"
 
 # Core
 anyhow = "1"
+base64 = "0.22"
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

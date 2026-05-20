@@ -295,6 +295,35 @@ pub enum Action {
         root: Option<String>,
         max_results: u32,
     },
+    FilesRead {
+        path: String,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    },
+    FilesWrite {
+        path: String,
+        content: String,
+        append: bool,
+    },
+    FilesCopy {
+        source: String,
+        destination: String,
+    },
+    FilesMove {
+        source: String,
+        destination: String,
+    },
+    FilesDelete {
+        path: String,
+        recursive: bool,
+    },
+    FilesMkdir {
+        path: String,
+        parents: bool,
+    },
+    FilesList {
+        path: String,
+    },
 
     // Process
     ProcessList,
@@ -433,6 +462,13 @@ impl Action {
             "files.watch",
             "files.unwatch",
             "files.search",
+            "files.read",
+            "files.write",
+            "files.copy",
+            "files.move",
+            "files.delete",
+            "files.mkdir",
+            "files.list",
             "process.list",
             "process.start",
             "process.stop",
@@ -674,6 +710,35 @@ impl Action {
                 pattern: raw["pattern"].as_str().unwrap_or("").into(),
                 root: raw["root"].as_str().map(String::from),
                 max_results: raw["max_results"].as_u64().unwrap_or(50) as u32,
+            },
+            "files.read" => Action::FilesRead {
+                path: raw["path"].as_str().unwrap_or("").into(),
+                offset: raw["offset"].as_u64(),
+                limit: raw["limit"].as_u64(),
+            },
+            "files.write" => Action::FilesWrite {
+                path: raw["path"].as_str().unwrap_or("").into(),
+                content: raw["content"].as_str().unwrap_or("").into(),
+                append: raw["append"].as_bool().unwrap_or(false),
+            },
+            "files.copy" => Action::FilesCopy {
+                source: raw["source"].as_str().unwrap_or("").into(),
+                destination: raw["destination"].as_str().unwrap_or("").into(),
+            },
+            "files.move" => Action::FilesMove {
+                source: raw["source"].as_str().unwrap_or("").into(),
+                destination: raw["destination"].as_str().unwrap_or("").into(),
+            },
+            "files.delete" => Action::FilesDelete {
+                path: raw["path"].as_str().unwrap_or("").into(),
+                recursive: raw["recursive"].as_bool().unwrap_or(false),
+            },
+            "files.mkdir" => Action::FilesMkdir {
+                path: raw["path"].as_str().unwrap_or("").into(),
+                parents: raw["parents"].as_bool().unwrap_or(true),
+            },
+            "files.list" => Action::FilesList {
+                path: raw["path"].as_str().unwrap_or(".").into(),
             },
 
             // Process
@@ -1047,6 +1112,48 @@ impl Action {
                 }
                 obj
             }
+            Action::FilesRead {
+                path,
+                offset,
+                limit,
+            } => {
+                let mut obj = json!({"type": "files.read", "id": id, "path": path});
+                if let Some(o) = offset {
+                    obj["offset"] = json!(o);
+                }
+                if let Some(l) = limit {
+                    obj["limit"] = json!(l);
+                }
+                obj
+            }
+            Action::FilesWrite {
+                path,
+                content,
+                append,
+            } => {
+                json!({"type": "files.write", "id": id, "path": path, "content": content, "append": append})
+            }
+            Action::FilesCopy {
+                source,
+                destination,
+            } => {
+                json!({"type": "files.copy", "id": id, "source": source, "destination": destination})
+            }
+            Action::FilesMove {
+                source,
+                destination,
+            } => {
+                json!({"type": "files.move", "id": id, "source": source, "destination": destination})
+            }
+            Action::FilesDelete { path, recursive } => {
+                json!({"type": "files.delete", "id": id, "path": path, "recursive": recursive})
+            }
+            Action::FilesMkdir { path, parents } => {
+                json!({"type": "files.mkdir", "id": id, "path": path, "parents": parents})
+            }
+            Action::FilesList { path } => {
+                json!({"type": "files.list", "id": id, "path": path})
+            }
 
             // Process
             Action::ProcessList => json!({"type": "process.list", "id": id}),
@@ -1203,6 +1310,13 @@ impl Action {
             Action::FilesWatch { .. } => "files.watch",
             Action::FilesUnwatch { .. } => "files.unwatch",
             Action::FilesSearch { .. } => "files.search",
+            Action::FilesRead { .. } => "files.read",
+            Action::FilesWrite { .. } => "files.write",
+            Action::FilesCopy { .. } => "files.copy",
+            Action::FilesMove { .. } => "files.move",
+            Action::FilesDelete { .. } => "files.delete",
+            Action::FilesMkdir { .. } => "files.mkdir",
+            Action::FilesList { .. } => "files.list",
             Action::ProcessList => "process.list",
             Action::ProcessStart { .. } => "process.start",
             Action::ProcessStop { .. } => "process.stop",
