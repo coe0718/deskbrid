@@ -344,6 +344,26 @@ pub enum Action {
         selector: String,
     },
 
+    // Accessibility (AT-SPI2)
+    A11yTree {
+        depth: Option<u32>,
+    },
+    A11yGetElement {
+        role: Option<String>,
+        name: Option<String>,
+        index: Option<u32>,
+    },
+    A11yClickElement {
+        role: Option<String>,
+        name: Option<String>,
+        index: Option<u32>,
+    },
+    A11yGetText {
+        role: Option<String>,
+        name: Option<String>,
+        index: Option<u32>,
+    },
+
     // Process
     ProcessList,
     ProcessStart {
@@ -493,6 +513,10 @@ impl Action {
             "browser.evaluate",
             "browser.screenshot_tab",
             "browser.click",
+            "a11y.tree",
+            "a11y.get_element",
+            "a11y.click_element",
+            "a11y.get_text",
             "process.list",
             "process.start",
             "process.stop",
@@ -782,6 +806,26 @@ impl Action {
             "browser.click" => Action::BrowserClick {
                 tab_index: raw["tab_index"].as_u64().map(|v| v as u32),
                 selector: raw["selector"].as_str().unwrap_or("").into(),
+            },
+
+            // Accessibility
+            "a11y.tree" => Action::A11yTree {
+                depth: raw["depth"].as_u64().map(|v| v as u32),
+            },
+            "a11y.get_element" => Action::A11yGetElement {
+                role: raw["role"].as_str().map(String::from),
+                name: raw["name"].as_str().map(String::from),
+                index: raw["index"].as_u64().map(|v| v as u32),
+            },
+            "a11y.click_element" => Action::A11yClickElement {
+                role: raw["role"].as_str().map(String::from),
+                name: raw["name"].as_str().map(String::from),
+                index: raw["index"].as_u64().map(|v| v as u32),
+            },
+            "a11y.get_text" => Action::A11yGetText {
+                role: raw["role"].as_str().map(String::from),
+                name: raw["name"].as_str().map(String::from),
+                index: raw["index"].as_u64().map(|v| v as u32),
             },
 
             // Process
@@ -1234,6 +1278,54 @@ impl Action {
                 obj
             }
 
+            // Accessibility
+            Action::A11yTree { depth } => {
+                let mut obj = json!({"type": "a11y.tree", "id": id});
+                if let Some(d) = depth {
+                    obj["depth"] = json!(d);
+                }
+                obj
+            }
+            Action::A11yGetElement { role, name, index } => {
+                let mut obj = json!({"type": "a11y.get_element", "id": id});
+                if let Some(r) = role {
+                    obj["role"] = json!(r);
+                }
+                if let Some(n) = name {
+                    obj["name"] = json!(n);
+                }
+                if let Some(i) = index {
+                    obj["index"] = json!(i);
+                }
+                obj
+            }
+            Action::A11yClickElement { role, name, index } => {
+                let mut obj = json!({"type": "a11y.click_element", "id": id});
+                if let Some(r) = role {
+                    obj["role"] = json!(r);
+                }
+                if let Some(n) = name {
+                    obj["name"] = json!(n);
+                }
+                if let Some(i) = index {
+                    obj["index"] = json!(i);
+                }
+                obj
+            }
+            Action::A11yGetText { role, name, index } => {
+                let mut obj = json!({"type": "a11y.get_text", "id": id});
+                if let Some(r) = role {
+                    obj["role"] = json!(r);
+                }
+                if let Some(n) = name {
+                    obj["name"] = json!(n);
+                }
+                if let Some(i) = index {
+                    obj["index"] = json!(i);
+                }
+                obj
+            }
+
             // Process
             Action::ProcessList => json!({"type": "process.list", "id": id}),
             Action::ProcessStart {
@@ -1401,6 +1493,10 @@ impl Action {
             Action::BrowserEvaluate { .. } => "browser.evaluate",
             Action::BrowserScreenshotTab { .. } => "browser.screenshot_tab",
             Action::BrowserClick { .. } => "browser.click",
+            Action::A11yTree { .. } => "a11y.tree",
+            Action::A11yGetElement { .. } => "a11y.get_element",
+            Action::A11yClickElement { .. } => "a11y.click_element",
+            Action::A11yGetText { .. } => "a11y.get_text",
             Action::ProcessList => "process.list",
             Action::ProcessStart { .. } => "process.start",
             Action::ProcessStop { .. } => "process.stop",
