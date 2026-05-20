@@ -1,13 +1,11 @@
-
-
-pub mod types;
 pub mod events;
 pub mod parse;
 pub mod serialize;
+pub mod types;
 
 // Re-export all types so external imports don't break
-pub use types::*;
 pub use events::*;
+pub use types::*;
 
 // reason: 90+ Action enum variants — cannot reduce without breaking exhaustiveness
 #[derive(Debug, Clone)]
@@ -320,7 +318,6 @@ pub enum Action {
     Disconnect,
 }
 
-
 impl Action {
     pub fn public_action_types() -> &'static [&'static str] {
         &[
@@ -409,8 +406,6 @@ impl Action {
             "capabilities.list",
         ]
     }
-
-
 
     /// Parse an incoming NDJSON line into an Action.
     pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
@@ -554,4 +549,3 @@ mod tests {
         assert!(Action::from_json(r#"{"type":"monitor.disable","id":"x","output":""}"#).is_err());
     }
 }
-
