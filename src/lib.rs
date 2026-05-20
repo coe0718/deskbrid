@@ -1,3 +1,4 @@
+pub mod a11y;
 pub mod backend;
 pub mod browser;
 pub mod capture;

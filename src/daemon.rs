@@ -820,6 +820,24 @@ async fn execute_action(
             ref selector,
         } => crate::browser::click(tab_index, selector).await?,
 
+        // Accessibility (AT-SPI2)
+        A11yTree { depth } => crate::a11y::tree(depth).await?,
+        A11yGetElement {
+            role,
+            ref name,
+            index,
+        } => crate::a11y::get_element(role.as_deref(), name.as_deref(), index).await?,
+        A11yClickElement {
+            role,
+            ref name,
+            index,
+        } => crate::a11y::click_element(role.as_deref(), name.as_deref(), index).await?,
+        A11yGetText {
+            role,
+            ref name,
+            index,
+        } => crate::a11y::get_text(role.as_deref(), name.as_deref(), index).await?,
+
         ProcessList => {
             let output = tokio::process::Command::new("ps")
                 .args(["aux", "--no-headers"])
