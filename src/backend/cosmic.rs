@@ -144,6 +144,12 @@ impl CosmicBackend {
         }
         Ok(String::from_utf8(output.stdout)?)
     }
+
+    /// Run a command with owned String args (delegates to sh).
+    async fn sh_owned(&self, cmd: &str, args: Vec<String>) -> anyhow::Result<String> {
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.sh(cmd, &refs).await
+    }
 }
 
 #[async_trait]
@@ -602,4 +608,115 @@ impl DesktopBackend for CosmicBackend {
     async fn audio_set_sink_volume(&self, _sink_id: u32, _volume: f64) -> anyhow::Result<()> {
         Ok(())
     }
+
+    // ═══════════════════════════════════════════════════════
+    // MONITOR (via cosmic-randr)
+    // ═══════════════════════════════════════════════════════
+
+    async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()> {
+        // cosmic-randr has no "primary" concept — Wayland doesn't use it.
+        // Use xwayland-primary as the closest equivalent.
+        self.sh("cosmic-randr", &["xwayland", output]).await?;
+        Ok(())
+    }
+
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()> {
+        let mut args = vec![
+            "mode".to_string(),
+            output.to_string(),
+            width.to_string(),
+            height.to_string(),
+        ];
+        if let Some(refresh) = refresh_rate {
+            args.push("--refresh".to_string());
+            args.push(format_monitor_float(refresh));
+        }
+        self.sh_owned("cosmic-randr", args).await?;
+        Ok(())
+    }
+
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
+        // cosmic-randr mode --scale <value> — requires width+height too,
+        // so we first list the current mode to preserve it.
+        let list = self
+            .helper_json(&["list-monitors"])
+            .await
+            .unwrap_or_default();
+        let current_w = list.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32;
+        let current_h = list.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32;
+
+        self.sh_owned(
+            "cosmic-randr",
+            vec![
+                "mode".to_string(),
+                output.to_string(),
+                current_w.to_string(),
+                current_h.to_string(),
+                "--scale".to_string(),
+                format_monitor_float(scale),
+            ],
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
+        let transform = cosmic_transform(rotation)?;
+        // cosmic-randr mode --transform <value> — needs width+height
+        let list = self
+            .helper_json(&["list-monitors"])
+            .await
+            .unwrap_or_default();
+        let current_w = list.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32;
+        let current_h = list.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32;
+
+        self.sh_owned(
+            "cosmic-randr",
+            vec![
+                "mode".to_string(),
+                output.to_string(),
+                current_w.to_string(),
+                current_h.to_string(),
+                "--transform".to_string(),
+                transform.to_string(),
+            ],
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
+        let subcmd = if enabled { "enable" } else { "disable" };
+        self.sh("cosmic-randr", &[subcmd, output]).await?;
+        Ok(())
+    }
+}
+
+/// Map rotation name to cosmic-randr transform value.
+fn cosmic_transform(rotation: &str) -> anyhow::Result<&'static str> {
+    match rotation.to_lowercase().as_str() {
+        "normal" | "none" | "0" => Ok("normal"),
+        "90" | "left" => Ok("rotate90"),
+        "180" | "inverted" | "flipped" => Ok("rotate180"),
+        "270" | "right" => Ok("rotate270"),
+        _ => anyhow::bail!("unknown rotation '{rotation}', expected: normal/90/180/270"),
+    }
+}
+
+/// Format float for monitor CLI args (strip trailing zeros).
+fn format_monitor_float(value: f64) -> String {
+    let mut out = format!("{:.3}", value);
+    while out.contains('.') && out.ends_with('0') {
+        out.pop();
+    }
+    if out.ends_with('.') {
+        out.pop();
+    }
+    out
 }
