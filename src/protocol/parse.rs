@@ -385,6 +385,39 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
             })? as u32,
             timeout_ms: raw["timeout_ms"].as_u64(),
         },
+        "terminal.create" => Action::TerminalCreate {
+            shell: optional_non_empty_string(&raw, "shell")?,
+            cwd: optional_non_empty_string(&raw, "cwd")?,
+            env: raw["env"].as_object().map(|o| {
+                o.iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                    .collect()
+            }),
+            rows: optional_positive_u16(&raw, "rows")?,
+            cols: optional_positive_u16(&raw, "cols")?,
+        },
+        "terminal.write" => Action::TerminalWrite {
+            terminal_id: required_non_empty_string(&raw, "terminal_id")?,
+            input: raw["input"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("missing or invalid 'input' field"))?
+                .to_string(),
+        },
+        "terminal.read" => Action::TerminalRead {
+            terminal_id: required_non_empty_string(&raw, "terminal_id")?,
+            max_bytes: raw["max_bytes"].as_u64(),
+            flush: raw["flush"].as_bool().unwrap_or(true),
+        },
+        "terminal.resize" => Action::TerminalResize {
+            terminal_id: required_non_empty_string(&raw, "terminal_id")?,
+            rows: required_positive_u16(&raw, "rows")?,
+            cols: required_positive_u16(&raw, "cols")?,
+        },
+        "terminal.list" => Action::TerminalList,
+        "terminal.kill" => Action::TerminalKill {
+            terminal_id: required_non_empty_string(&raw, "terminal_id")?,
+            signal: raw["signal"].as_str().map(String::from),
+        },
         "capabilities.list" => Action::CapabilitiesList,
 
         // Hotkeys
@@ -537,6 +570,32 @@ fn optional_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u
         anyhow::bail!("'{}' must fit in a 32-bit integer", field);
     }
     Ok(Some(value as u32))
+}
+
+fn required_positive_u16(raw: &serde_json::Value, field: &str) -> anyhow::Result<u16> {
+    let value = raw[field]
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
+    if value == 0 || value > u16::MAX as u64 {
+        anyhow::bail!("'{}' must be a positive 16-bit integer", field);
+    }
+    Ok(value as u16)
+}
+
+fn optional_positive_u16(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u16>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value == 0 || value > u16::MAX as u64 {
+        anyhow::bail!("'{}' must be a positive 16-bit integer", field);
+    }
+    Ok(Some(value as u16))
 }
 
 fn optional_priority(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u8>> {

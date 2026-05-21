@@ -120,6 +120,17 @@ client.listen()  # blocks, streaming events
 | `screenshot(monitor=None) -> ScreenshotResult` | Capture screen |
 | `notify(title, body="", urgency="normal") -> int` | Send desktop notification |
 
+### Terminal / PTY
+
+| Method | Description |
+|---|---|
+| `terminal_create(shell=None, cwd=None, env=None, rows=None, cols=None) -> dict` | Create an interactive PTY session |
+| `terminal_write(terminal_id, input) -> dict` | Write to a PTY session |
+| `terminal_read(terminal_id, max_bytes=None, flush=True) -> dict` | Read buffered PTY output |
+| `terminal_resize(terminal_id, rows, cols) -> dict` | Resize a PTY session |
+| `terminal_list() -> list[dict]` | List active PTY sessions |
+| `terminal_kill(terminal_id, signal=None) -> dict` | Signal and remove a PTY session |
+
 ### System
 
 | Method | Description |

@@ -5,6 +5,7 @@ use tracing::warn;
 use super::execute::execute_action;
 use super::helpers::{not_supported_response, permission_denied_response};
 use super::system::{execute_system_control_action, is_system_control_action};
+use super::terminal::{execute_terminal_action, is_terminal_action};
 
 pub async fn dispatch_action(
     action: Action,
@@ -40,6 +41,10 @@ pub async fn dispatch_action(
 
     if is_system_control_action(&action) {
         let result = execute_system_control_action(action.clone(), state).await;
+        return action_response(state, &action, seq, result);
+    }
+    if is_terminal_action(&action) {
+        let result = execute_terminal_action(action.clone(), state).await;
         return action_response(state, &action, seq, result);
     }
 

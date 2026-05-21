@@ -27,6 +27,7 @@ it to the completed table below.
 |---|---|---|
 | [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
+| [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -61,7 +62,7 @@ These features exist in the codebase already for reference:
 10. [Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
 12. [⏭️ OCR / Text Extraction](#12-ocr--text-extraction)
-13. [⏭️ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
+13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
 16. [Application Menu Catalog](#16-application-menu-catalog)
@@ -956,7 +957,7 @@ ScreenshotOcr {
 
 ## 13. Terminal / PTY Multiplexer
 
-**Status:** ⏭️ Next #1.
+**Status:** ✅ Done on `main`.
 
 ### What's Missing
 
@@ -6022,7 +6023,6 @@ SnapshotClone { id: String, target_path: String },
 
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
-| **Terminal/PTY** | ⏭️ Next #1 | Medium (500-800 lines, new module) | Highest | Biggest unlock for coding agents: interactive shells, REPLs, installers, test watchers |
 | **Wait-for conditions** | ⏭️ Next #2 | Low (~300 lines, polling loop) | High | Stops manual polling and lets the daemon wait for windows, text, files, processes, and visual states |
 | **OCR screenshot fallback** | ⏭️ Next #3 | Low (100 lines + tesseract CLI dep) | High | Lets agents read any window, including apps with poor a11y/CDP coverage |
 | **Screenshot diffing / visual stabilization** | ⏭️ Next #4 | Low (~200 lines, `image` crate) | High | Pairs with OCR and wait-for so agents can detect visual changes and page/app stability |

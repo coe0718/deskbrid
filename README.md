@@ -330,6 +330,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `bluetooth.connect` | Connect to a device |
 | `audio.list_sinks` | List audio output devices |
 | `audio.set_sink_volume` | Set sink volume (0.0-1.0) |
+| `terminal.*` | Create, write, read, resize, list, and kill interactive PTY sessions |
 | `monitor.list` | List display outputs |
 | `monitor.set_primary` | Set the primary output where supported |
 | `monitor.set_resolution` | Set output resolution and optional refresh rate |

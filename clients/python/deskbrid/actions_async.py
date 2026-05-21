@@ -247,3 +247,60 @@ class AsyncActionsMixin:
 
     async def timer_stop(self, name: str) -> dict[str, Any]:
         return await self._request("timer.stop", {"name": name})
+
+    async def terminal_create(
+        self,
+        shell: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        rows: int | None = None,
+        cols: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        for key, value in {
+            "shell": shell,
+            "cwd": cwd,
+            "env": env,
+            "rows": rows,
+            "cols": cols,
+        }.items():
+            if value is not None:
+                params[key] = value
+        return await self._request("terminal.create", params)
+
+    async def terminal_write(self, terminal_id: str, input: str) -> dict[str, Any]:
+        return await self._request(
+            "terminal.write",
+            {"terminal_id": terminal_id, "input": input},
+        )
+
+    async def terminal_read(
+        self,
+        terminal_id: str,
+        max_bytes: int | None = None,
+        flush: bool = True,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"terminal_id": terminal_id, "flush": flush}
+        if max_bytes is not None:
+            params["max_bytes"] = max_bytes
+        return await self._request("terminal.read", params)
+
+    async def terminal_resize(self, terminal_id: str, rows: int, cols: int) -> dict[str, Any]:
+        return await self._request(
+            "terminal.resize",
+            {"terminal_id": terminal_id, "rows": rows, "cols": cols},
+        )
+
+    async def terminal_list(self) -> list[dict[str, Any]]:
+        response = await self._request("terminal.list")
+        return list(response.get("terminals", []))
+
+    async def terminal_kill(
+        self,
+        terminal_id: str,
+        signal: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"terminal_id": terminal_id}
+        if signal is not None:
+            params["signal"] = signal
+        return await self._request("terminal.kill", params)

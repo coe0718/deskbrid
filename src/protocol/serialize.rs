@@ -495,6 +495,63 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             }
             obj
         }
+        Action::TerminalCreate {
+            shell,
+            cwd,
+            env,
+            rows,
+            cols,
+        } => {
+            let mut obj = json!({"type": "terminal.create", "id": id});
+            if let Some(shell) = shell {
+                obj["shell"] = json!(shell);
+            }
+            if let Some(cwd) = cwd {
+                obj["cwd"] = json!(cwd);
+            }
+            if let Some(env) = env {
+                obj["env"] = json!(env);
+            }
+            if let Some(rows) = rows {
+                obj["rows"] = json!(rows);
+            }
+            if let Some(cols) = cols {
+                obj["cols"] = json!(cols);
+            }
+            obj
+        }
+        Action::TerminalWrite { terminal_id, input } => {
+            json!({"type": "terminal.write", "id": id, "terminal_id": terminal_id, "input": input})
+        }
+        Action::TerminalRead {
+            terminal_id,
+            max_bytes,
+            flush,
+        } => {
+            let mut obj = json!({"type": "terminal.read", "id": id, "terminal_id": terminal_id, "flush": flush});
+            if let Some(max_bytes) = max_bytes {
+                obj["max_bytes"] = json!(max_bytes);
+            }
+            obj
+        }
+        Action::TerminalResize {
+            terminal_id,
+            rows,
+            cols,
+        } => {
+            json!({"type": "terminal.resize", "id": id, "terminal_id": terminal_id, "rows": rows, "cols": cols})
+        }
+        Action::TerminalList => json!({"type": "terminal.list", "id": id}),
+        Action::TerminalKill {
+            terminal_id,
+            signal,
+        } => {
+            let mut obj = json!({"type": "terminal.kill", "id": id, "terminal_id": terminal_id});
+            if let Some(signal) = signal {
+                obj["signal"] = json!(signal);
+            }
+            obj
+        }
         Action::CapabilitiesList => json!({"type": "capabilities.list", "id": id}),
 
         // Hotkeys
@@ -654,6 +711,12 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::ProcessSignal { .. } => "process.signal",
         Action::ProcessExists { .. } => "process.exists",
         Action::ProcessWait { .. } => "process.wait",
+        Action::TerminalCreate { .. } => "terminal.create",
+        Action::TerminalWrite { .. } => "terminal.write",
+        Action::TerminalRead { .. } => "terminal.read",
+        Action::TerminalResize { .. } => "terminal.resize",
+        Action::TerminalList => "terminal.list",
+        Action::TerminalKill { .. } => "terminal.kill",
         Action::CapabilitiesList => "capabilities.list",
         Action::HotkeysRegister { .. } => "hotkeys.register",
         Action::HotkeysUnregister { .. } => "hotkeys.unregister",

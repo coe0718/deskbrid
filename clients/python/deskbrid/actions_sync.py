@@ -190,3 +190,53 @@ class SyncActionsMixin:
 
     def timer_stop(self, name: str) -> dict[str, Any]:
         return self._loop.submit(self._client.timer_stop(name)).result()
+
+    def terminal_create(
+        self,
+        shell: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        rows: int | None = None,
+        cols: int | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.terminal_create(
+                shell=shell,
+                cwd=cwd,
+                env=env,
+                rows=rows,
+                cols=cols,
+            )
+        ).result()
+
+    def terminal_write(self, terminal_id: str, input: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.terminal_write(terminal_id, input)).result()
+
+    def terminal_read(
+        self,
+        terminal_id: str,
+        max_bytes: int | None = None,
+        flush: bool = True,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.terminal_read(
+                terminal_id,
+                max_bytes=max_bytes,
+                flush=flush,
+            )
+        ).result()
+
+    def terminal_resize(self, terminal_id: str, rows: int, cols: int) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.terminal_resize(terminal_id, rows, cols)
+        ).result()
+
+    def terminal_list(self) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.terminal_list()).result()
+
+    def terminal_kill(
+        self,
+        terminal_id: str,
+        signal: str | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(self._client.terminal_kill(terminal_id, signal)).result()

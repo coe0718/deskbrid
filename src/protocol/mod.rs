@@ -316,6 +316,35 @@ pub enum Action {
         pid: u32,
         timeout_ms: Option<u64>,
     },
+
+    // Terminal / PTY
+    TerminalCreate {
+        shell: Option<String>,
+        cwd: Option<String>,
+        env: Option<std::collections::HashMap<String, String>>,
+        rows: Option<u16>,
+        cols: Option<u16>,
+    },
+    TerminalWrite {
+        terminal_id: String,
+        input: String,
+    },
+    TerminalRead {
+        terminal_id: String,
+        max_bytes: Option<u64>,
+        flush: bool,
+    },
+    TerminalResize {
+        terminal_id: String,
+        rows: u16,
+        cols: u16,
+    },
+    TerminalList,
+    TerminalKill {
+        terminal_id: String,
+        signal: Option<String>,
+    },
+
     CapabilitiesList,
 
     // Hotkeys
@@ -469,6 +498,12 @@ impl Action {
             "process.signal",
             "process.exists",
             "process.wait",
+            "terminal.create",
+            "terminal.write",
+            "terminal.read",
+            "terminal.resize",
+            "terminal.list",
+            "terminal.kill",
             "hotkeys.register",
             "hotkeys.unregister",
             "audio.list_sinks",
@@ -532,6 +567,8 @@ mod tests {
         assert!(actions.contains(&"service.restart"));
         assert!(actions.contains(&"journal.query"));
         assert!(actions.contains(&"timer.start"));
+        assert!(actions.contains(&"terminal.create"));
+        assert!(actions.contains(&"terminal.read"));
     }
 
     #[test]
@@ -685,5 +722,49 @@ mod tests {
 
         assert!(Action::from_json(r#"{"type":"journal.query","id":"x","priority":8}"#).is_err());
         assert!(Action::from_json(r#"{"type":"timer.start","id":"x","name":""}"#).is_err());
+    }
+
+    #[test]
+    fn parses_terminal_actions() {
+        let (_, create) = Action::from_json(
+            r#"{"type":"terminal.create","id":"x","shell":"/bin/bash","cwd":"/tmp","rows":30,"cols":120}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            create,
+            Action::TerminalCreate {
+                shell: Some(shell),
+                cwd: Some(cwd),
+                rows: Some(30),
+                cols: Some(120),
+                ..
+            } if shell == "/bin/bash" && cwd == "/tmp"
+        ));
+
+        let (_, read) = Action::from_json(
+            r#"{"type":"terminal.read","id":"x","terminal_id":"term-1","max_bytes":4096,"flush":false}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            read,
+            Action::TerminalRead {
+                terminal_id,
+                max_bytes: Some(4096),
+                flush: false,
+            } if terminal_id == "term-1"
+        ));
+
+        assert!(
+            Action::from_json(
+                r#"{"type":"terminal.resize","id":"x","terminal_id":"term-1","rows":0,"cols":80}"#
+            )
+            .is_err()
+        );
+        assert!(
+            Action::from_json(
+                r#"{"type":"terminal.write","id":"x","terminal_id":"","input":"ls\n"}"#
+            )
+            .is_err()
+        );
     }
 }

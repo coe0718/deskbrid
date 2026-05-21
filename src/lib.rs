@@ -26,7 +26,10 @@ pub struct DaemonState {
     pub permissions: Permissions,
     /// Active systemd-inhibit helper processes keyed by Deskbrid handle ID.
     pub inhibitors: Arc<Mutex<HashMap<u32, Child>>>,
+    /// Active pseudo-terminal sessions keyed by Deskbrid terminal ID.
+    pub terminals: Arc<Mutex<HashMap<String, daemon::terminal::TerminalSession>>>,
     next_inhibitor_id: AtomicU32,
+    next_terminal_id: AtomicU32,
 }
 
 impl DaemonState {
@@ -37,12 +40,21 @@ impl DaemonState {
             event_tx,
             permissions: Permissions::load(),
             inhibitors: Arc::new(Mutex::new(HashMap::new())),
+            terminals: Arc::new(Mutex::new(HashMap::new())),
             next_inhibitor_id: AtomicU32::new(1),
+            next_terminal_id: AtomicU32::new(1),
         }
     }
 
     pub fn next_inhibitor_id(&self) -> u32 {
         self.next_inhibitor_id.fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub fn next_terminal_id(&self) -> String {
+        format!(
+            "term-{}",
+            self.next_terminal_id.fetch_add(1, Ordering::Relaxed)
+        )
     }
 }
 

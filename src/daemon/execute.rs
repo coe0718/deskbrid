@@ -566,6 +566,7 @@ pub async fn execute_action(
             }
             serde_json::json!({"pid": pid, "exited": true, "elapsed_ms": started.elapsed().as_millis()})
         }
+
         CapabilitiesList => {
             let actions = crate::protocol::Action::public_action_types();
             let desktop = backend.system_info().await?.desktop;
@@ -686,6 +687,12 @@ pub async fn execute_action(
         | TimerList
         | TimerStart { .. }
         | TimerStop { .. }
+        | TerminalCreate { .. }
+        | TerminalWrite { .. }
+        | TerminalRead { .. }
+        | TerminalResize { .. }
+        | TerminalList
+        | TerminalKill { .. }
         | Subscribe { .. }
         | Unsubscribe { .. }
         | Disconnect => unreachable!(),

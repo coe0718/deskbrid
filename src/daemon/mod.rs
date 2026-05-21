@@ -11,6 +11,7 @@ mod execute;
 mod helpers;
 mod layout;
 mod system;
+pub mod terminal;
 #[cfg(test)]
 mod tests;
 
@@ -31,6 +32,7 @@ pub use layout::{
     restore_layout_profile, save_layout_profile,
 };
 pub use system::{execute_system_control_action, is_system_control_action};
+pub use terminal::{execute_terminal_action, is_terminal_action};
 
 pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
     "monitor.set_primary",

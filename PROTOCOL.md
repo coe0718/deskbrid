@@ -193,6 +193,17 @@ All action names use dot notation: `domain.action`. Every action is sent with `"
 | `process.exists` | `pid` (number) | Check if PID exists |
 | `process.wait` | `pid` (number), `timeout` (number, optional, seconds) | Wait for process exit |
 
+### Terminal / PTY
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `terminal.create` | `shell` (string, optional), `cwd` (string, optional), `env` (object, optional), `rows`/`cols` (number, optional) | Create an interactive pseudo-terminal session |
+| `terminal.write` | `terminal_id` (string), `input` (string) | Write text/control bytes to the PTY |
+| `terminal.read` | `terminal_id` (string), `max_bytes` (number, optional), `flush` (bool, default true) | Read buffered PTY output |
+| `terminal.resize` | `terminal_id` (string), `rows` (number), `cols` (number) | Resize the PTY and signal the shell |
+| `terminal.list` | — | List active PTY sessions |
+| `terminal.kill` | `terminal_id` (string), `signal` (string, optional) | Signal and remove a PTY session |
+
 ### Hotkeys
 
 | Action | Params | Description |
