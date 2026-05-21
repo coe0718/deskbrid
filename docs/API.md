@@ -730,162 +730,362 @@ Check a polkit action, or request authorization with user interaction via `pkche
 
 ### `service.*`, `journal.query`, `timer.*`
 
-Control systemd units, query journald, and manage timers.
+## Systemd Services
 
-**Requests:**
+### `service.status`
+Show one unit's status.
+
+**Request:**
 ```json
 {"type": "service.status", "id": "req-31", "name": "ssh.service"}
-{"type": "service.restart", "id": "req-32", "name": "ssh.service"}
-{"type": "service.enable", "id": "req-33", "name": "ssh.service", "runtime": false}
-{"type": "service.list", "id": "req-34", "unit_type": "service"}
-{"type": "journal.query", "id": "req-35", "unit": "ssh.service", "priority": 4, "tail": 100}
-{"type": "timer.list", "id": "req-36"}
-{"type": "timer.start", "id": "req-37", "name": "apt-daily.timer"}
-```
-
-Permission-gated deployments should grant these narrowly. Service start/stop/restart/enable/disable and user switching can trigger system polkit policy.
-
-### `system.capabilities`
-
-Get a detailed capability matrix for the current backend. Returns every action with support status, degradation notes, dependency requirements, and session requirements.
-
-**Request:**
-```json
-{"type": "system.capabilities", "id": "req-24"}
 ```
 
 **Response:**
 ```json
 {
-  "type": "response", "id": "req-24", "seq": 24, "status": "ok",
-  "data": {
-    "schema_version": 1,
-    "backend": "gnome",
-    "actions": {
-      "windows.list": { "supported": true, "degraded": false, "reason": null,
-                        "requires": ["gnome-extension"], "session": "any", "degraded_modes": [] },
-      "input.mouse": { "supported": true, "degraded": true,
-                       "reason": "absolute_move_may_be_unavailable_without_screencast",
-                       "requires": [], "session": "wayland", "degraded_modes": ["..."] },
-      "windows.close": { "supported": true, "degraded": false,
-                         "reason": null, "requires": ["gnome-extension"],
-                         "session": "any", "degraded_modes": [] }
-    },
-    "backend_notes": {
-      "gnome": "window control via Shell extension + Mutter DBus",
-      "kde": "window control via KWin scripting/DBus",
-      "hyprland": "window control via hyprctl dispatch"
-    }
-  }
-}
-```
-
-Each action entry has:
-
-| Field | Type | Meaning |
-|-------|------|---------|
-| `supported` | bool | Whether the action works |
-| `degraded` | bool | Works but with known limitations |
-| `reason` | string or null | Human-readable explanation |
-| `requires` | string[] | Prerequisite components |
-| `session` | `"wayland"` / `"x11"` / `"any"` | Session-type requirement |
-| `degraded_modes` | string[] | Specific degraded modes |
-
-### `system.health`
-
-Check backend dependency health. Reports each dependency as present or missing, with remediation suggestions.
-
-**Request:**
-```json
-{"type": "system.health", "id": "req-25"}
-```
-
-**Response (GNOME):**
-```json
-{
-  "type": "response", "id": "req-25", "seq": 25, "status": "ok",
-  "data": {
-    "schema_version": 1,
-    "backend": "gnome",
-    "deps": {
-      "gnome-extension": { "ok": true, "details": "reachable" },
-      "grim": { "ok": true, "details": "present" },
-      "wl_clipboard": { "ok": true, "details": "wl-copy and wl-paste present" }
-    },
-    "remediation": {
-      "ydotoold": "Start ydotoold in your user session (e.g. autostart entry).",
-      "uinput": "Configure udev: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\"...",
-      "gnome-extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
-      "grim": "Install grim package for screenshots.",
-      "spectacle": "Install spectacle package for KDE screenshots."
-    }
-  }
-}
-```
-
-### `system.remediate`
-
-Auto-fix missing dependencies. Currently supports `"ydotoold"` and `"kde_ydotoold_autostart"`.
-
-**Request (check only):**
-```json
-{"type": "system.remediate", "id": "req-26", "check": "ydotoold", "apply": false}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-26", "seq": 26, "status": "ok",
-  "data": {
-    "check": "ydotoold", "applied": false,
-    "command": "ydotoold &",
-    "note": "Set apply=true to start ydotoold in current user session"
-  }
-}
-```
-
-**Request (apply):**
-```json
-{"type": "system.remediate", "id": "req-27", "check": "ydotoold", "apply": true}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-27", "seq": 27, "status": "ok",
-  "data": {
-    "check": "ydotoold", "applied": true,
-    "details": "started_or_already_running"
-  }
-}
-```
-
-### `system.normalize_coords`
-
-Convert monitor-relative coordinates (e.g., from an LLM's spatial model) to absolute backend coordinates, factoring in monitor scale.
-
-**Request:**
-```json
-{"type": "system.normalize_coords", "id": "req-28",
- "x": 960, "y": 540, "monitor": 0}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-28", "seq": 28, "status": "ok",
-  "data": {
-    "input": { "x": 960, "y": 540, "monitor": 0 },
-    "monitor": { "id": 0, "name": "eDP-1", "scale": 1.0,
-                 "width": 1920, "height": 1080 },
-    "backend_coords": { "x": 960, "y": 540 }
-  }
+  "type": "response", "id": "req-31", "seq": 31, "status": "ok",
+  "data": { "name": "ssh.service", "active": "active", "sub": "running", "loaded": "loaded" }
 }
 ```
 
 ---
 
+### `service.start`
+Start a unit.
+
+**Request:**
+```json
+{"type": "service.start", "id": "req-32", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-32", "seq": 32, "status": "ok",
+  "data": { "name": "ssh.service", "started": true }
+}
+```
+
+---
+
+### `service.stop`
+Stop a unit.
+
+**Request:**
+```json
+{"type": "service.stop", "id": "req-33", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-33", "seq": 33, "status": "ok",
+  "data": { "name": "ssh.service", "stopped": true }
+}
+```
+
+---
+
+### `service.restart`
+Restart a unit.
+
+**Request:**
+```json
+{"type": "service.restart", "id": "req-34", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-34", "seq": 34, "status": "ok",
+  "data": { "name": "ssh.service", "restarted": true }
+}
+```
+
+---
+
+### `service.enable`
+Enable a unit.
+
+**Request:**
+```json
+{"type": "service.enable", "id": "req-35", "name": "ssh.service", "runtime": false}
+```
+
+**Parameters:**
+- `name` (required)
+- `runtime` (optional, defaults to false - if true, enables only until next reboot)
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-35", "seq": 35, "status": "ok",
+  "data": { "name": "ssh.service", "enabled": true }
+}
+```
+
+---
+
+### `service.disable`
+Disable a unit.
+
+**Request:**
+```json
+{"type": "service.disable", "id": "req-36", "name": "ssh.service", "runtime": false}
+```
+
+**Parameters:**
+- `name` (required)
+- `runtime` (optional, defaults to false - if true, disables only until next reboot)
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-36", "seq": 36, "status": "ok",
+  "data": { "name": "ssh.service", "enabled": false }
+}
+```
+
+---
+
+### `service.list`
+List units by type.
+
+**Request:**
+```json
+{"type": "service.list", "id": "req-37", "unit_type": "service"}
+```
+
+**Parameters:**
+- `unit_type` (optional, defaults to service - can be service, socket, target, etc.)
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-37", "seq": 37, "status": "ok",
+  "data": { "units": [ { "name": "ssh.service", "load": "loaded", "active": "active", "description": "OpenSSH server daemon" } ] }
+}
+```
+
+## Systemd Services
+
+### `service.status`
+Show one unit's status.
+
+**Request:**
+```json
+{"type": "service.status", "id": "req-31", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-31", "seq": 31, "status": "ok",
+  "data": { "name": "ssh.service", "active": "active", "sub": "running", "loaded": "loaded" }
+}
+```
+
+### `service.start`
+Start a unit.
+
+**Request:**
+```json
+{"type": "service.start", "id": "req-32", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-32", "seq": 32, "status": "ok",
+  "data": { "name": "ssh.service", "started": true }
+}
+```
+
+### `service.stop`
+Stop a unit.
+
+**Request:**
+```json
+{"type": "service.stop", "id": "req-33", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-33", "seq": 33, "status": "ok",
+  "data": { "name": "ssh.service", "stopped": true }
+}
+```
+
+### `service.restart`
+Restart a unit.
+
+**Request:**
+```json
+{"type": "service.restart", "id": "req-34", "name": "ssh.service"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-34", "seq": 34, "status": "ok",
+  "data": { "name": "ssh.service", "restarted": true }
+}
+```
+
+### `service.enable`
+Enable a unit.
+
+**Request:**
+```json
+{"type": "service.enable", "id": "req-35", "name": "ssh.service", "runtime": false}
+```
+
+**Parameters:** `name` (required), `runtime` (optional, defaults to false - if true, enables only until next reboot).
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-35", "seq": 35, "status": "ok",
+  "data": { "name": "ssh.service", "enabled": true }
+}
+```
+
+### `service.disable`
+Disable a unit.
+
+**Request:**
+```json
+{"type": "service.disable", "id": "req-36", "name": "ssh.service", "runtime": false}
+```
+
+**Parameters:** `name` (required), `runtime` (optional, defaults to false - if true, disables only until next reboot).
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-36", "seq": 36, "status": "ok",
+  "data": { "name": "ssh.service", "enabled": false }
+}
+```
+
+### `service.list`
+List units by type.
+
+**Request:**
+```json
+{"type": "service.list", "id": "req-37", "unit_type": "service"}
+```
+
+**Parameters:** `unit_type` (optional, defaults to service - can be service, socket, target, etc.).
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-37", "seq": 37, "status": "ok",
+  "data": { "units": [ { "name": "ssh.service", "load": "loaded", "active": "active", "description": "OpenSSH server daemon" } ] }
+}
+```
+
+## Timers
+
+### `timer.list`
+List systemd timers.
+
+**Request:**
+```json
+{"type": "timer.list", "id": "req-38"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-38", "seq": 38, "status": "ok",
+  "data": { "timers": [ { "name": "apt-daily.timer", "next": "Left 6h 12min 30s", "last": "Right 12h 30min ago", "unit": "apt-daily.service" } ] }
+}
+```
+
+### `timer.start`
+Start a timer.
+
+**Request:**
+```json
+{"type": "timer.start", "id": "req-39", "name": "apt-daily.timer"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-39", "seq": 39, "status": "ok",
+  "data": { "name": "apt-daily.timer", "started": true }
+}
+```
+
+### `timer.stop`
+Stop a timer.
+
+**Request:**
+```json
+{"type": "timer.stop", "id": "req-40", "name": "apt-daily.timer"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-40", "seq": 40, "status": "ok",
+  "data": { "name": "apt-daily.timer", "stopped": true }
+}
+```
+
+
 ## Network
+
+
+
+## Journald
+
+### `journal.query`
+Query journald logs.
+
+**Request:**
+```json
+{"type": "journal.query", "id": "req-35", "unit": "ssh.service", "priority": 4, "tail": 100}
+```
+
+**Parameters:**
+- `unit` (optional)
+- `priority` (optional, 0-7)
+- `tail` (optional, lines to show)
+- `since` (optional, microseconds since epoch)
+- `until` (optional, microseconds since epoch)
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-35", "seq": 35, "status": "ok",
+  "data": { "entries": [ { "__REALTIME_TIMESTAMP": "1640995200000000", "MESSAGE": "sshd started", "_SYSTEMD_UNIT": "ssh.service" } ] }
+}
+```
+
+## Journald
+
+### `journal.query`
+Query journald logs.
+
+**Request:**
+```json
+{"type": "journal.query", "id": "req-35", "unit": "ssh.service", "priority": 4, "tail": 100}
+```
+
+**Parameters:** `unit` (optional), `priority` (optional, 0-7), `tail` (optional, lines to show), `since` (optional, microseconds since epoch), `until` (optional, microseconds since epoch).
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-35", "seq": 35, "status": "ok",
+  "data": { "entries": [ { "__REALTIME_TIMESTAMP": "1640995200000000", "MESSAGE": "sshd started", "_SYSTEMD_UNIT": "ssh.service" } ] }
+}
+```
 
 ### `network.status`
 
@@ -1079,6 +1279,339 @@ Remove a paired device. **Not yet supported in the backend trait.**
 
 ## Audio
 
+
+
+## UI Accessibility
+
+### `a11y.tree`
+Get the accessibility tree. **Not yet implemented** — requires AT-SPI integration.
+
+**Request:**
+```json
+{"type": "a11y.tree", "id": "req-1"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
+  "data": { "supported": false, "reason": "AT-SPI not integrated yet", "nodes": [] }
+}
+```
+
+---
+
+### `a11y.get_element`
+Get an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.get_element", "id": "req-2", "role": "button", "name": "Submit", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
+  "data": {
+    "role": "button",
+    "name": "Submit",
+    "index": 0,
+    "screen_rectangle": { "x": 100, "y": 200, "width": 80, "height": 25 },
+    "children": []
+  }
+}
+```
+
+---
+
+### `a11y.click_element`
+Click an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.click_element", "id": "req-3", "role": "button", "name": "Submit", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
+  "data": { "clicked": true }
+}
+```
+
+---
+
+### `a11y.get_text`
+Get text from an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.get_text", "id": "req-4", "role": "label", "name": "Status", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
+  "data": { "text": "Ready" }
+}
+```
+
+---
+
+## Browser (Chrome DevTools Protocol)
+
+### `browser.list_tabs`
+List all browser tabs.
+
+**Request:**
+```json
+{"type": "browser.list_tabs", "id": "req-1"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
+  "data": {
+    "tabs": [
+      { "index": 0, "title": "GitHub", "url": "https://github.com", "favicon": "https://github.com/favicon.ico" },
+      { "index": 1, "title": "Stack Overflow", "url": "https://stackoverflow.com", "favicon": "https://stackoverflow.com/favicon.ico" }
+    ]
+  }
+}
+```
+
+---
+
+### `browser.navigate`
+Navigate a browser tab to a URL.
+
+**Request:**
+```json
+{"type": "browser.navigate", "id": "req-2", "tab_index": 0, "url": "https://example.com"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
+  "data": { "tab_index": 0, "url": "https://example.com", "success": true }
+}
+```
+
+---
+
+### `browser.evaluate`
+Evaluate JavaScript in a browser tab.
+
+**Request:**
+```json
+{"type": "browser.evaluate", "id": "req-3", "tab_index": 0, "expression": "document.title", "await_promise": false}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
+  "data": { "tab_index": 0, "result": "Example Domain", "type": "string" }
+}
+```
+
+---
+
+### `browser.screenshot_tab`
+Take a screenshot of a browser tab.
+
+**Request:**
+```json
+{"type": "browser.screenshot_tab", "id": "req-4", "tab_index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
+  "data": { "tab_index": 0, "screenshot": "/tmp/deskbrid/screenshot_12345.png", "width": 1920, "height": 1080 }
+}
+```
+
+---
+
+### `browser.click`
+Click an element in a browser tab using a CSS selector.
+
+**Request:**
+```json
+{"type": "browser.click", "id": "req-5", "tab_index": 0, "selector": "button.submit"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-5", "seq": 5, "status": "ok",
+  "data": { "tab_index": 0, "selector": "button.submit", "success": true }
+}
+```
+
+## `a11y.tree`
+Get the accessibility tree. **Not yet implemented** — requires AT-SPI integration.
+
+**Request:**
+```json
+{"type": "a11y.tree", "id": "req-1"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
+  "data": { "supported": false, "reason": "AT-SPI not integrated yet", "nodes": [] }
+}
+```
+
+### `a11y.get_element`
+Get an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.get_element", "id": "req-2", "role": "button", "name": "Submit", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
+  "data": {
+    "role": "button",
+    "name": "Submit",
+    "index": 0,
+    "screen_rectangle": { "x": 100, "y": 200, "width": 80, "height": 25 },
+    "children": []
+  }
+}
+```
+
+### `a11y.click_element`
+Click an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.click_element", "id": "req-3", "role": "button", "name": "Submit", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
+  "data": { "clicked": true }
+}
+```
+
+### `a11y.get_text`
+Get text from an accessibility element by role, name, and/or index.
+
+**Request:**
+```json
+{"type": "a11y.get_text", "id": "req-4", "role": "label", "name": "Status", "index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
+  "data": { "text": "Ready" }
+}
+```
+
+## Browser (Chrome DevTools Protocol)
+
+### `browser.list_tabs`
+List all browser tabs.
+
+**Request:**
+```json
+{"type": "browser.list_tabs", "id": "req-1"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
+  "data": {
+    "tabs": [
+      { "index": 0, "title": "GitHub", "url": "https://github.com", "favicon": "https://github.com/favicon.ico" },
+      { "index": 1, "title": "Stack Overflow", "url": "https://stackoverflow.com", "favicon": "https://stackoverflow.com/favicon.ico" }
+    ]
+  }
+}
+
+### `browser.navigate`
+Navigate a browser tab to a URL.
+
+**Request:**
+```json
+{"type": "browser.navigate", "id": "req-2", "tab_index": 0, "url": "https://example.com"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
+  "data": { "tab_index": 0, "url": "https://example.com", "success": true }
+}
+```
+
+### `browser.evaluate`
+Evaluate JavaScript in a browser tab.
+
+**Request:**
+```json
+{"type": "browser.evaluate", "id": "req-3", "tab_index": 0, "expression": "document.title", "await_promise": false}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
+  "data": { "tab_index": 0, "result": "Example Domain", "type": "string" }
+}
+```
+
+### `browser.screenshot_tab`
+Take a screenshot of a browser tab.
+
+**Request:**
+```json
+{"type": "browser.screenshot_tab", "id": "req-4", "tab_index": 0}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
+  "data": { "tab_index": 0, "screenshot": "/tmp/deskbrid/screenshot_12345.png", "width": 1920, "height": 1080 }
+}
+```
+
+### `browser.click`
+Click an element in a browser tab using a CSS selector.
+
+**Request:**
+```json
+{"type": "browser.click", "id": "req-5", "tab_index": 0, "selector": "button.submit"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-5", "seq": 5, "status": "ok",
+  "data": { "tab_index": 0, "selector": "button.submit", "success": true }
+}
+```
+
 ### `audio.list_sinks`
 
 List PulseAudio/PipeWire audio output sinks.
@@ -1120,70 +1653,6 @@ Set a sink's volume (0.0–1.0).
 ---
 
 ## Files
-
-### `files.search`
-
-Search for files by name pattern.
-
-**Request:**
-```json
-{"type": "files.search", "id": "req-41",
- "pattern": "*.rs", "root": "/home/user/projects", "max_results": 20}
-```
-
-Parameters: `pattern` (required glob), `root` (optional, defaults to `/`), `max_results` (optional, defaults to 50).
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-41", "seq": 41, "status": "ok",
-  "data": { "matches": ["/home/user/projects/src/main.rs",
-                          "/home/user/projects/src/daemon.rs"] }
-}
-```
-
-### `files.watch`
-
-Watch a path for file changes.
-
-**Request:**
-```json
-{"type": "files.watch", "id": "req-42",
- "path": "/home/user/projects", "recursive": true,
- "patterns": ["*.rs", "*.toml"]}
-```
-
-`patterns` is optional — if omitted, watches all file changes.
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-42", "seq": 42, "status": "ok",
-  "data": { "watching": "/home/user/projects" }
-}
-```
-
-Events are pushed to subscribed clients as `file.created`, `file.modified`, `file.deleted`, and `file.renamed` events.
-
-### `files.unwatch`
-
-Stop watching a path.
-
-**Request:**
-```json
-{"type": "files.unwatch", "id": "req-43", "path": "/home/user/projects"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-43", "seq": 43, "status": "ok",
-  "data": { "unwatched": "/home/user/projects" }
-}
-```
-
----
-
 ## Process
 
 ### `process.list`
