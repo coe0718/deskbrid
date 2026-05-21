@@ -47,6 +47,30 @@ class SyncActionsMixin:
             )
         ).result()
 
+    def screenshot_diff(
+        self,
+        before_path: str,
+        after_path: str | None = None,
+        tolerance: int | None = None,
+        diff_path: str | None = None,
+        save_diff: bool = False,
+        monitor: int | None = None,
+        region: dict[str, int] | None = None,
+        window_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.screenshot_diff(
+                before_path=before_path,
+                after_path=after_path,
+                tolerance=tolerance,
+                diff_path=diff_path,
+                save_diff=save_diff,
+                monitor=monitor,
+                region=region,
+                window_id=window_id,
+            )
+        ).result()
+
     def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         return self._loop.submit(self._client.notify(title, body, urgency)).result()
 

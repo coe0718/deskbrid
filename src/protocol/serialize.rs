@@ -175,6 +175,37 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             }
             obj
         }
+        Action::ScreenshotDiff {
+            before_path,
+            after_path,
+            tolerance,
+            diff_path,
+            save_diff,
+            monitor,
+            region,
+            window_id,
+        } => {
+            let mut obj = json!({"type": "screenshot.diff", "id": id, "before_path": before_path, "save_diff": save_diff});
+            if let Some(after_path) = after_path {
+                obj["after_path"] = json!(after_path);
+            }
+            if let Some(tolerance) = tolerance {
+                obj["tolerance"] = json!(tolerance);
+            }
+            if let Some(diff_path) = diff_path {
+                obj["diff_path"] = json!(diff_path);
+            }
+            if let Some(monitor) = monitor {
+                obj["monitor"] = json!(monitor);
+            }
+            if let Some(region) = region {
+                obj["region"] = json!(region);
+            }
+            if let Some(window_id) = window_id {
+                obj["window_id"] = json!(window_id);
+            }
+            obj
+        }
 
         // Notifications
         Action::NotificationSend {
@@ -691,6 +722,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::ClipboardWrite { .. } => "clipboard.write",
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
+        Action::ScreenshotDiff { .. } => "screenshot.diff",
         Action::NotificationSend { .. } => "notification.send",
         Action::NotificationClose { .. } => "notification.close",
         Action::SystemInfo => "system.info",

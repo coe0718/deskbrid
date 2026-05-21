@@ -208,6 +208,31 @@ pub async fn execute_action(
             )
             .await?
         }
+        ScreenshotDiff {
+            ref before_path,
+            ref after_path,
+            tolerance,
+            ref diff_path,
+            save_diff,
+            monitor,
+            ref region,
+            ref window_id,
+        } => {
+            crate::visual::screenshot_diff(
+                backend,
+                crate::visual::ScreenshotDiffRequest {
+                    before_path,
+                    after_path: after_path.as_deref(),
+                    tolerance: tolerance.unwrap_or(0),
+                    diff_path: diff_path.as_deref(),
+                    save_diff,
+                    monitor,
+                    region: region.clone(),
+                    window_id: window_id.clone(),
+                },
+            )
+            .await?
+        }
 
         NotificationSend {
             ref app_name,

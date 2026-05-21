@@ -99,6 +99,16 @@ pub enum Action {
         region: Option<Region>,
         window_id: Option<String>,
     },
+    ScreenshotDiff {
+        before_path: String,
+        after_path: Option<String>,
+        tolerance: Option<u8>,
+        diff_path: Option<String>,
+        save_diff: bool,
+        monitor: Option<u32>,
+        region: Option<Region>,
+        window_id: Option<String>,
+    },
 
     // Notifications
     NotificationSend {
@@ -450,6 +460,7 @@ impl Action {
             "clipboard.write",
             "screenshot",
             "screenshot.ocr",
+            "screenshot.diff",
             "notification.send",
             "notification.close",
             "system.info",
@@ -588,6 +599,7 @@ mod tests {
         assert!(actions.contains(&"terminal.read"));
         assert!(actions.contains(&"wait.for"));
         assert!(actions.contains(&"screenshot.ocr"));
+        assert!(actions.contains(&"screenshot.diff"));
     }
 
     #[test]
@@ -822,6 +834,25 @@ mod tests {
             } if path == "/tmp/s.png" && language == "eng"
         ));
         assert!(Action::from_json(r#"{"type":"screenshot.ocr","id":"x","path":""}"#).is_err());
+    }
+
+    #[test]
+    fn parses_screenshot_diff_action() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"screenshot.diff","id":"x","before_path":"/tmp/a.png","after_path":"/tmp/b.png","tolerance":5,"save_diff":true}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::ScreenshotDiff {
+                before_path,
+                after_path: Some(after_path),
+                tolerance: Some(5),
+                save_diff: true,
+                ..
+            } if before_path == "/tmp/a.png" && after_path == "/tmp/b.png"
+        ));
+        assert!(Action::from_json(r#"{"type":"screenshot.diff","id":"x"}"#).is_err());
     }
 
     #[test]

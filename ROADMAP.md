@@ -29,6 +29,7 @@ it to the completed table below.
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
@@ -75,7 +76,7 @@ These features exist in the codebase already for reference:
 21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
 22. [Keyboard Layout Management](#22-keyboard-layout-management)
 23. [Session & User Management](#23-session--user-management)
-24. [⏭️ Screenshot Diffing](#24-screenshot-diffing)
+24. [✅ Screenshot Diffing](#24-screenshot-diffing)
 25. [Action Recording & Replay](#25-action-recording--replay-macros)
 26. [✅ Wait-for Conditions](#26-wait-for-conditions)
 27. [Cron / Scheduled Actions](#27-cron--scheduled-actions)
@@ -1839,7 +1840,7 @@ without logind.
 
 ## 24. Screenshot Diffing
 
-**Status:** ⏭️ Next #4.
+**Status:** ✅ Done on `main`.
 
 ### What's Missing
 
@@ -6025,7 +6026,6 @@ SnapshotClone { id: String, target_path: String },
 
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
-| **Screenshot diffing / visual stabilization** | ⏭️ Next #4 | Low (~200 lines, `image` crate) | High | Pairs with OCR and wait-for so agents can detect visual changes and page/app stability |
 | **Audit log** | 🧭 Planned | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
 | **Action timeouts** | 🧭 Planned | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
 | **Dry-run mode** | 🧭 Planned | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |

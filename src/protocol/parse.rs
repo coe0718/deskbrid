@@ -158,6 +158,23 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
             }),
             window_id: raw["window_id"].as_str().map(String::from),
         },
+        "screenshot.diff" => Action::ScreenshotDiff {
+            before_path: required_non_empty_string_alias(&raw, "before_path", "before")?,
+            after_path: optional_non_empty_string_alias(&raw, "after_path", "after")?,
+            tolerance: optional_u8(&raw, "tolerance")?,
+            diff_path: optional_non_empty_string(&raw, "diff_path")?,
+            save_diff: raw["save_diff"].as_bool().unwrap_or(false),
+            monitor: raw["monitor"].as_u64().map(|v| v as u32),
+            region: raw.get("region").and_then(|r| {
+                Some(Region {
+                    x: r["x"].as_u64()? as u32,
+                    y: r["y"].as_u64()? as u32,
+                    width: r["width"].as_u64()? as u32,
+                    height: r["height"].as_u64()? as u32,
+                })
+            }),
+            window_id: raw["window_id"].as_str().map(String::from),
+        },
 
         // Notifications
         "notification.send" => Action::NotificationSend {
@@ -574,6 +591,28 @@ fn optional_non_empty_string(
     Ok(Some(value.to_string()))
 }
 
+fn required_non_empty_string_alias(
+    raw: &serde_json::Value,
+    primary: &str,
+    alias: &str,
+) -> anyhow::Result<String> {
+    match optional_non_empty_string(raw, primary)? {
+        Some(value) => Ok(value),
+        None => required_non_empty_string(raw, alias),
+    }
+}
+
+fn optional_non_empty_string_alias(
+    raw: &serde_json::Value,
+    primary: &str,
+    alias: &str,
+) -> anyhow::Result<Option<String>> {
+    match optional_non_empty_string(raw, primary)? {
+        Some(value) => Ok(Some(value)),
+        None => optional_non_empty_string(raw, alias),
+    }
+}
+
 fn required_positive_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result<u32> {
     let value = raw[field]
         .as_u64()
@@ -638,6 +677,22 @@ fn optional_priority(raw: &serde_json::Value, field: &str) -> anyhow::Result<Opt
         .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
     if value > 7 {
         anyhow::bail!("'{}' must be 0-7", field);
+    }
+    Ok(Some(value as u8))
+}
+
+fn optional_u8(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u8>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value > u8::MAX as u64 {
+        anyhow::bail!("'{}' must fit in an 8-bit integer", field);
     }
     Ok(Some(value as u8))
 }

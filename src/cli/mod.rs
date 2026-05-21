@@ -120,6 +120,34 @@ pub enum Command {
         window: Option<String>,
     },
 
+    // ─── Screenshot diffing ────────────────────────────
+    #[command(name = "screenshot-diff")]
+    ScreenshotDiff {
+        /// Baseline screenshot path
+        before_path: String,
+        /// Screenshot path to compare. Omit to capture a fresh screenshot.
+        #[arg(long)]
+        after_path: Option<String>,
+        /// Per-channel pixel tolerance
+        #[arg(long)]
+        tolerance: Option<u8>,
+        /// Save a red-highlight diff image to this path
+        #[arg(long)]
+        diff_path: Option<String>,
+        /// Save a diff image to a generated /tmp/deskbrid path
+        #[arg(long)]
+        save_diff: bool,
+        /// Capture specific monitor index when after_path is omitted
+        #[arg(long)]
+        monitor: Option<u32>,
+        /// Capture region when after_path is omitted: x y width height
+        #[arg(long, num_args = 4)]
+        region: Option<Vec<u32>>,
+        /// Capture specific window when after_path is omitted
+        #[arg(long)]
+        window: Option<String>,
+    },
+
     // ─── Notifications ──────────────────────────────────
     #[command(name = "notify")]
     Notify {

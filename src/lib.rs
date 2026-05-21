@@ -9,6 +9,7 @@ pub mod ocr;
 pub mod permissions;
 pub mod protocol;
 pub mod setup;
+pub mod visual;
 
 use permissions::Permissions;
 use protocol::DeskbridEvent;

@@ -68,6 +68,30 @@ class AsyncActionsMixin:
                 params[key] = value
         return await self._request("screenshot.ocr", params)
 
+    async def screenshot_diff(
+        self,
+        before_path: str,
+        after_path: str | None = None,
+        tolerance: int | None = None,
+        diff_path: str | None = None,
+        save_diff: bool = False,
+        monitor: int | None = None,
+        region: dict[str, int] | None = None,
+        window_id: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"before_path": before_path, "save_diff": save_diff}
+        for key, value in {
+            "after_path": after_path,
+            "tolerance": tolerance,
+            "diff_path": diff_path,
+            "monitor": monitor,
+            "region": region,
+            "window_id": window_id,
+        }.items():
+            if value is not None:
+                params[key] = value
+        return await self._request("screenshot.diff", params)
+
     async def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         response = await self._request(
             "notification.send",

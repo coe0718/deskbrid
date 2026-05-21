@@ -136,6 +136,31 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             window_id: window,
         },
 
+        Command::ScreenshotDiff {
+            before_path,
+            after_path,
+            tolerance,
+            diff_path,
+            save_diff,
+            monitor,
+            region,
+            window,
+        } => Action::ScreenshotDiff {
+            before_path,
+            after_path,
+            tolerance,
+            diff_path,
+            save_diff,
+            monitor,
+            region: region.map(|v| protocol::Region {
+                x: v[0],
+                y: v[1],
+                width: v[2],
+                height: v[3],
+            }),
+            window_id: window,
+        },
+
         Command::Notify { cmd } => match cmd {
             NotifyCmd::Send {
                 title,
