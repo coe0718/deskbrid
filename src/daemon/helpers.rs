@@ -119,16 +119,16 @@ pub fn ok_response(id: &str, seq: u64) -> serde_json::Value {
     serde_json::json!({"type": "response", "id": id, "seq": seq, "status": "ok", "data": {}})
 }
 
-pub fn not_supported_response(msg: &str, seq: u64) -> serde_json::Value {
+pub fn not_supported_response(request_id: &str, msg: &str, seq: u64) -> serde_json::Value {
     serde_json::json!({
-        "type": "response", "id": "?", "seq": seq, "status": "error",
+        "type": "response", "id": request_id, "seq": seq, "status": "error",
         "error": { "code": "NOT_SUPPORTED", "message": msg }
     })
 }
 
-pub fn permission_denied_response(seq: u64) -> serde_json::Value {
+pub fn permission_denied_response(request_id: &str, seq: u64) -> serde_json::Value {
     serde_json::json!({
-        "type": "response", "id": "?", "seq": seq, "status": "error",
+        "type": "response", "id": request_id, "seq": seq, "status": "error",
         "error": { "code": "PERMISSION_DENIED", "message": "action not permitted" }
     })
 }

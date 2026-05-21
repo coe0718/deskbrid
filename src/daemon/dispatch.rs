@@ -7,6 +7,7 @@ use super::helpers::{not_supported_response, permission_denied_response};
 use super::system::{execute_system_control_action, is_system_control_action};
 
 pub async fn dispatch_action(
+    request_id: &str,
     action: Action,
     state: &DaemonState,
     peer_uid: u32,
@@ -14,11 +15,11 @@ pub async fn dispatch_action(
 ) -> serde_json::Value {
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
-        return permission_denied_response(seq);
+        return permission_denied_response(request_id, seq);
     }
     for implied_action in implied_permission_actions(&action) {
         if !state.permissions.check(peer_uid, &implied_action) {
-            return permission_denied_response(seq);
+            return permission_denied_response(request_id, seq);
         }
     }
     if let Action::WindowsActivateOrLaunch {
@@ -34,13 +35,13 @@ pub async fn dispatch_action(
             env: env.clone(),
         };
         if !state.permissions.check(peer_uid, &process_start) {
-            return permission_denied_response(seq);
+            return permission_denied_response(request_id, seq);
         }
     }
 
     if is_system_control_action(&action) {
         let result = execute_system_control_action(action.clone(), state).await;
-        return action_response(state, &action, seq, result);
+        return action_response(request_id, state, &action, seq, result);
     }
 
     let backend = state.backend.read().await;
@@ -48,6 +49,7 @@ pub async fn dispatch_action(
         Some(b) => b,
         None => {
             return not_supported_response(
+                request_id,
                 "no desktop backend loaded (start daemon inside a supported Linux session)",
                 seq,
             );
@@ -55,10 +57,11 @@ pub async fn dispatch_action(
     };
 
     let result = execute_action(action.clone(), backend.as_ref()).await;
-    action_response(state, &action, seq, result)
+    action_response(request_id, state, &action, seq, result)
 }
 
 fn action_response(
+    request_id: &str,
     state: &DaemonState,
     action: &Action,
     seq: u64,
@@ -68,13 +71,13 @@ fn action_response(
         Ok(data) => {
             emit_action_event(state, action, &data);
             serde_json::json!({
-                "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
+                "type": "response", "id": request_id, "seq": seq, "status": "ok", "data": data
             })
         }
         Err(e) => {
             warn!("Action failed: {}", e);
             serde_json::json!({
-                "type": "response", "id": "action", "seq": seq, "status": "error",
+                "type": "response", "id": request_id, "seq": seq, "status": "error",
                 "error": { "code": "INTERNAL_ERROR", "message": format!("{}", e) }
             })
         }
