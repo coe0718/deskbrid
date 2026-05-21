@@ -35,8 +35,14 @@ fn finds_kscreen_mode_without_status_markers() {
 fn parses_kscreen_primary_from_priority_metadata() {
     let monitors = parse_kscreen_outputs(KSCREEN_SAMPLE);
 
-    let primary = monitors.iter().find(|monitor| monitor.name == "eDP-1").unwrap();
-    let secondary = monitors.iter().find(|monitor| monitor.name == "DP-1").unwrap();
+    let primary = monitors
+        .iter()
+        .find(|monitor| monitor.name == "eDP-1")
+        .unwrap();
+    let secondary = monitors
+        .iter()
+        .find(|monitor| monitor.name == "DP-1")
+        .unwrap();
 
     assert!(primary.primary);
     assert!(!secondary.primary);

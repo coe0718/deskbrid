@@ -134,7 +134,12 @@ pub(super) fn parse_current_mode(value: &str, monitor: &mut protocol::MonitorInf
     }
 }
 
-pub(super) fn find_kscreen_mode(raw: &str, output: &str, width: u32, height: u32) -> Option<String> {
+pub(super) fn find_kscreen_mode(
+    raw: &str,
+    output: &str,
+    width: u32,
+    height: u32,
+) -> Option<String> {
     let target = format!("{}x{}@", width, height);
     let mut in_output = false;
     for line in raw.lines() {
@@ -208,4 +213,3 @@ pub(super) fn format_monitor_float(value: f64) -> String {
     }
     out
 }
-
