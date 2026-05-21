@@ -11,6 +11,10 @@ use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
+pub(crate) mod helpers;
+
+use helpers::*;
+
 pub struct CosmicBackend {
     #[allow(dead_code)]
     event_tx: tokio::sync::broadcast::Sender<protocol::DeskbridEvent>,
@@ -696,27 +700,4 @@ impl DesktopBackend for CosmicBackend {
         self.sh("cosmic-randr", &[subcmd, output]).await?;
         Ok(())
     }
-}
-
-/// Map rotation name to cosmic-randr transform value.
-fn cosmic_transform(rotation: &str) -> anyhow::Result<&'static str> {
-    match rotation.to_lowercase().as_str() {
-        "normal" | "none" | "0" => Ok("normal"),
-        "90" | "left" => Ok("rotate90"),
-        "180" | "inverted" | "flipped" => Ok("rotate180"),
-        "270" | "right" => Ok("rotate270"),
-        _ => anyhow::bail!("unknown rotation '{rotation}', expected: normal/90/180/270"),
-    }
-}
-
-/// Format float for monitor CLI args (strip trailing zeros).
-fn format_monitor_float(value: f64) -> String {
-    let mut out = format!("{:.3}", value);
-    while out.contains('.') && out.ends_with('0') {
-        out.pop();
-    }
-    if out.ends_with('.') {
-        out.pop();
-    }
-    out
 }
