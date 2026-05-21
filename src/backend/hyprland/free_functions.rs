@@ -22,26 +22,30 @@ pub(super) fn json_truthy(value: Option<&serde_json::Value>) -> bool {
 }
 
 /// Auto-detect the running Hyprland instance and Wayland display.
-pub(super) fn detect_hypr_instance() -> (Option<String>, Option<String>) {
+pub(super) async fn detect_hypr_instance() -> (Option<String>, Option<String>) {
     let xdg_runtime =
         std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
     let hypr_dir = std::path::Path::new(&xdg_runtime).join("hypr");
 
-    let entries = match std::fs::read_dir(&hypr_dir) {
+    let mut entries = match tokio::fs::read_dir(&hypr_dir).await {
         Ok(e) => e,
         Err(_) => return (None, None),
     };
 
-    let mut instances: Vec<(std::path::PathBuf, std::time::SystemTime)> = entries
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|e| {
-            e.metadata()
-                .ok()
-                .and_then(|m| m.modified().ok())
-                .map(|t| (e.path(), t))
-        })
-        .collect();
+    let mut instances = Vec::new();
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let Ok(file_type) = entry.file_type().await else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        if let Ok(metadata) = entry.metadata().await
+            && let Ok(modified) = metadata.modified()
+        {
+            instances.push((entry.path(), modified));
+        }
+    }
 
     instances.sort_by_key(|item| std::cmp::Reverse(item.1));
 
@@ -50,7 +54,8 @@ pub(super) fn detect_hypr_instance() -> (Option<String>, Option<String>) {
             .file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_string());
-        let wl_sock = std::fs::read_link(path.join(".wayland_socket"))
+        let wl_sock = tokio::fs::read_link(path.join(".wayland_socket"))
+            .await
             .ok()
             .and_then(|p| {
                 p.file_name()

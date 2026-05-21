@@ -66,13 +66,18 @@ pub async fn run() -> anyhow::Result<()> {
     let backend_tx = state.event_tx.clone();
     match crate::backend::create_backend(backend_tx).await {
         Ok(backend) => {
+            let backend_name = backend
+                .system_info()
+                .await
+                .map(|info| info.desktop)
+                .unwrap_or_else(|_| "desktop".to_string());
             let mut guard = state.backend.write().await;
             *guard = Some(backend);
-            info!("GNOME backend loaded successfully");
+            info!("{} backend loaded successfully", backend_name);
         }
         Err(e) => {
             warn!(
-                "Failed to load GNOME backend (running without desktop features): {}",
+                "Failed to load desktop backend (running without desktop features): {}",
                 e
             );
         }

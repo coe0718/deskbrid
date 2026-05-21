@@ -1,8 +1,11 @@
-pub fn check_in_path(cmd: &str) -> serde_json::Value {
-    match std::process::Command::new("sh")
+use tokio::process::Command;
+
+pub async fn check_in_path(cmd: &str) -> serde_json::Value {
+    match Command::new("sh")
         .arg("-c")
         .arg(format!("command -v {} >/dev/null 2>&1", cmd))
         .status()
+        .await
     {
         Ok(status) if status.success() => serde_json::json!({"ok": true, "details": "present"}),
         Ok(_) => serde_json::json!({"ok": false, "details": "missing"}),
@@ -11,19 +14,15 @@ pub fn check_in_path(cmd: &str) -> serde_json::Value {
 }
 
 pub async fn check_process(proc_name: &str) -> serde_json::Value {
-    match tokio::process::Command::new("pgrep")
-        .args(["-x", proc_name])
-        .output()
-        .await
-    {
+    match Command::new("pgrep").args(["-x", proc_name]).output().await {
         Ok(out) if out.status.success() => serde_json::json!({"ok": true, "details": "running"}),
         Ok(_) => serde_json::json!({"ok": false, "details": "not running"}),
         Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
     }
 }
 
-pub fn check_cmd(cmd: &str, args: &[&str]) -> serde_json::Value {
-    match std::process::Command::new(cmd).args(args).output() {
+pub async fn check_cmd(cmd: &str, args: &[&str]) -> serde_json::Value {
+    match Command::new(cmd).args(args).output().await {
         Ok(out) if out.status.success() => {
             serde_json::json!({"ok": true, "details": "reachable"})
         }
@@ -34,12 +33,12 @@ pub fn check_cmd(cmd: &str, args: &[&str]) -> serde_json::Value {
     }
 }
 
-pub fn check_uinput() -> serde_json::Value {
+pub async fn check_uinput() -> serde_json::Value {
     let path = std::path::Path::new("/dev/uinput");
-    if !path.exists() {
+    if tokio::fs::metadata(path).await.is_err() {
         return serde_json::json!({"ok": false, "details": "missing /dev/uinput"});
     }
-    match std::fs::OpenOptions::new().write(true).open(path) {
+    match tokio::fs::OpenOptions::new().write(true).open(path).await {
         Ok(_) => serde_json::json!({"ok": true, "details": "write access"}),
         Err(e) => {
             serde_json::json!({"ok": false, "details": format!("no write access: {}", e)})
@@ -47,18 +46,11 @@ pub fn check_uinput() -> serde_json::Value {
     }
 }
 
-pub fn check_clipboard_tools() -> serde_json::Value {
-    let copy = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("command -v wl-copy >/dev/null 2>&1")
-        .status();
-    let paste = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("command -v wl-paste >/dev/null 2>&1")
-        .status();
-
-    let copy_ok = copy.map(|s| s.success()).unwrap_or(false);
-    let paste_ok = paste.map(|s| s.success()).unwrap_or(false);
+pub async fn check_clipboard_tools() -> serde_json::Value {
+    let copy = check_in_path("wl-copy").await;
+    let paste = check_in_path("wl-paste").await;
+    let copy_ok = copy.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let paste_ok = paste.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
 
     if copy_ok && paste_ok {
         serde_json::json!({"ok": true, "details": "wl-copy and wl-paste present"})

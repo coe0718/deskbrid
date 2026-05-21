@@ -48,7 +48,7 @@ pub async fn dispatch_action(
         Some(b) => b,
         None => {
             return not_supported_response(
-                "no backend loaded (start daemon in a GNOME 46+ session)",
+                "no desktop backend loaded (start daemon inside a supported Linux session)",
                 seq,
             );
         }

@@ -1,4 +1,5 @@
 mod checks;
+mod coords;
 mod overrides;
 mod remediation;
 
@@ -9,6 +10,7 @@ use overrides::{
 };
 use remediation::health_remediation;
 
+pub use coords::normalize_coords;
 pub use overrides::apply_gnome_capability_overrides;
 pub use remediation::run_system_remediation;
 
@@ -58,16 +60,16 @@ pub async fn build_system_health(
 ) -> anyhow::Result<serde_json::Value> {
     let desktop = backend.system_info().await?.desktop.to_lowercase();
     let mut deps = serde_json::Map::new();
-    insert_system_deps(&mut deps);
+    insert_system_deps(&mut deps).await;
 
     if desktop.contains("gnome") {
-        insert_gnome_deps(&mut deps);
+        insert_gnome_deps(&mut deps).await;
     } else if desktop.contains("kde") {
         insert_kde_deps(&mut deps).await;
     } else if desktop.contains("hyprland") {
         insert_hyprland_deps(&mut deps).await;
     } else if desktop.contains("x11") {
-        deps.insert("xrandr".to_string(), check_in_path("xrandr"));
+        deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
     }
 
     Ok(serde_json::json!({
@@ -76,33 +78,6 @@ pub async fn build_system_health(
         "deps": deps,
         "remediation": health_remediation()
     }))
-}
-
-pub fn normalize_coords(
-    info: &crate::protocol::SystemInfo,
-    x: f64,
-    y: f64,
-    monitor: Option<u32>,
-) -> serde_json::Value {
-    let target = monitor
-        .and_then(|m| info.monitors.iter().find(|mon| mon.id == m))
-        .or_else(|| info.monitors.iter().find(|m| m.primary))
-        .or_else(|| info.monitors.first());
-    if let Some(mon) = target {
-        let px = (x * mon.scale).round();
-        let py = (y * mon.scale).round();
-        serde_json::json!({
-            "input": {"x": x, "y": y, "monitor": monitor},
-            "monitor": {"id": mon.id, "name": mon.name, "scale": mon.scale, "width": mon.width, "height": mon.height},
-            "backend_coords": {"x": px, "y": py}
-        })
-    } else {
-        serde_json::json!({
-            "input": {"x": x, "y": y, "monitor": monitor},
-            "backend_coords": {"x": x, "y": y},
-            "note": "no monitor metadata available"
-        })
-    }
 }
 
 fn apply_input_capabilities(
@@ -195,19 +170,19 @@ fn apply_stub_capabilities(
     }
 }
 
-fn insert_system_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("systemctl".to_string(), check_in_path("systemctl"));
-    deps.insert("loginctl".to_string(), check_in_path("loginctl"));
-    deps.insert("journalctl".to_string(), check_in_path("journalctl"));
+async fn insert_system_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
+    deps.insert("systemctl".to_string(), check_in_path("systemctl").await);
+    deps.insert("loginctl".to_string(), check_in_path("loginctl").await);
+    deps.insert("journalctl".to_string(), check_in_path("journalctl").await);
     deps.insert(
         "systemd-inhibit".to_string(),
-        check_in_path("systemd-inhibit"),
+        check_in_path("systemd-inhibit").await,
     );
-    deps.insert("pkcheck".to_string(), check_in_path("pkcheck"));
-    deps.insert("dm-tool".to_string(), check_in_path("dm-tool"));
+    deps.insert("pkcheck".to_string(), check_in_path("pkcheck").await);
+    deps.insert("dm-tool".to_string(), check_in_path("dm-tool").await);
 }
 
-fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
+async fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
     deps.insert(
         "gnome-extension".to_string(),
         check_cmd(
@@ -220,31 +195,35 @@ fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
                 "--object-path",
                 "/org/deskbrid/WindowManager",
             ],
-        ),
+        )
+        .await,
     );
-    deps.insert("grim".to_string(), check_in_path("grim"));
-    deps.insert("wl_clipboard".to_string(), check_clipboard_tools());
-    deps.insert("xrandr".to_string(), check_in_path("xrandr"));
-    deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr"));
+    deps.insert("grim".to_string(), check_in_path("grim").await);
+    deps.insert("wl_clipboard".to_string(), check_clipboard_tools().await);
+    deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
+    deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr").await);
 }
 
 async fn insert_kde_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("qdbus6".to_string(), check_in_path("qdbus6"));
+    deps.insert("qdbus6".to_string(), check_in_path("qdbus6").await);
     deps.insert(
         "kscreen-doctor".to_string(),
-        check_in_path("kscreen-doctor"),
+        check_in_path("kscreen-doctor").await,
     );
-    deps.insert("spectacle".to_string(), check_in_path("spectacle"));
-    deps.insert("imagemagick_convert".to_string(), check_in_path("convert"));
+    deps.insert("spectacle".to_string(), check_in_path("spectacle").await);
+    deps.insert(
+        "imagemagick_convert".to_string(),
+        check_in_path("convert").await,
+    );
     deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
-    deps.insert("ydotool".to_string(), check_in_path("ydotool"));
-    deps.insert("uinput".to_string(), check_uinput());
+    deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
+    deps.insert("uinput".to_string(), check_uinput().await);
 }
 
 async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("hyprctl".to_string(), check_in_path("hyprctl"));
+    deps.insert("hyprctl".to_string(), check_in_path("hyprctl").await);
     deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
-    deps.insert("ydotool".to_string(), check_in_path("ydotool"));
-    deps.insert("uinput".to_string(), check_uinput());
-    deps.insert("grim".to_string(), check_in_path("grim"));
+    deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
+    deps.insert("uinput".to_string(), check_uinput().await);
+    deps.insert("grim".to_string(), check_in_path("grim").await);
 }

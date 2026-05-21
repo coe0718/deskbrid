@@ -8,7 +8,8 @@ mod util;
 
 use bus::{DEST, ROOT, child_path, connect_a11y, element_json, get_i32};
 use serde_json::Value;
-use zbus::zvariant::ObjectPath;
+use std::collections::VecDeque;
+use zbus::{Connection, zvariant::ObjectPath};
 
 /// Build a tree of accessible elements up to given depth (BFS).
 pub async fn tree(depth: Option<u32>) -> anyhow::Result<Value> {
@@ -17,9 +18,10 @@ pub async fn tree(depth: Option<u32>) -> anyhow::Result<Value> {
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
 
     let mut elements = vec![element_json(&conn, &root).await];
-    let mut queue: Vec<(ObjectPath<'static>, usize)> = vec![(root.into_owned(), 0)];
+    let mut queue: VecDeque<(ObjectPath<'static>, usize)> = VecDeque::new();
+    queue.push_back((root.into_owned(), 0));
 
-    while let Some((path, d)) = queue.pop() {
+    while let Some((path, d)) = queue.pop_front() {
         if d >= max_depth {
             continue;
         }
@@ -29,27 +31,29 @@ pub async fn tree(depth: Option<u32>) -> anyhow::Result<Value> {
                 let mut info = element_json(&conn, &cp).await;
                 info["depth"] = serde_json::json!(d + 1);
                 elements.push(info);
-                queue.push((cp, d + 1));
+                queue.push_back((cp, d + 1));
             }
         }
     }
 
-    Ok(serde_json::json!({"elements": elements, "count": elements.len()}))
+    let count = elements.len();
+    Ok(serde_json::json!({"elements": elements, "count": count}))
 }
 
 /// Find all elements matching role/name filters (BFS).
 async fn find_all(
+    conn: &Connection,
     role_filter: Option<&str>,
     name_filter: Option<&str>,
     max_depth: usize,
 ) -> anyhow::Result<Vec<(String, serde_json::Value)>> {
-    let conn = connect_a11y().await?;
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
     let mut results = Vec::new();
-    let mut queue: Vec<(ObjectPath<'static>, usize)> = vec![(root.into_owned(), 0)];
+    let mut queue: VecDeque<(ObjectPath<'static>, usize)> = VecDeque::new();
+    queue.push_back((root.into_owned(), 0));
 
-    while let Some((path, d)) = queue.pop() {
-        let info = element_json(&conn, &path).await;
+    while let Some((path, d)) = queue.pop_front() {
+        let info = element_json(conn, &path).await;
 
         let role_ok = role_filter.is_none_or(|r| {
             info["role"]
@@ -67,10 +71,10 @@ async fn find_all(
         }
 
         if d < max_depth {
-            let cc = get_i32(&conn, &path, "ChildCount").await.min(50);
+            let cc = get_i32(conn, &path, "ChildCount").await.min(50);
             for i in 0..cc {
-                if let Some(cp) = child_path(&conn, &path, i).await {
-                    queue.push((cp, d + 1));
+                if let Some(cp) = child_path(conn, &path, i).await {
+                    queue.push_back((cp, d + 1));
                 }
             }
         }
@@ -86,7 +90,8 @@ pub async fn get_element(
     index: Option<u32>,
 ) -> anyhow::Result<Value> {
     let idx = index.unwrap_or(0);
-    let results = find_all(role, name, 10).await?;
+    let conn = connect_a11y().await?;
+    let results = find_all(&conn, role, name, 10).await?;
 
     if results.is_empty() {
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
@@ -108,7 +113,8 @@ pub async fn click_element(
     index: Option<u32>,
 ) -> anyhow::Result<Value> {
     let idx = index.unwrap_or(0);
-    let results = find_all(role, name, 10).await?;
+    let conn = connect_a11y().await?;
+    let results = find_all(&conn, role, name, 10).await?;
 
     if results.is_empty() {
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
@@ -118,7 +124,6 @@ pub async fn click_element(
         .get(idx as usize)
         .ok_or_else(|| anyhow::anyhow!("index {idx} out of range ({} matches)", results.len()))?;
 
-    let conn = connect_a11y().await?;
     let obj_path: ObjectPath = ObjectPath::try_from(path.as_str())?;
 
     // Get action count
@@ -184,7 +189,8 @@ pub async fn get_text(
     index: Option<u32>,
 ) -> anyhow::Result<Value> {
     let idx = index.unwrap_or(0);
-    let results = find_all(role, name, 10).await?;
+    let conn = connect_a11y().await?;
+    let results = find_all(&conn, role, name, 10).await?;
 
     if results.is_empty() {
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
@@ -194,7 +200,6 @@ pub async fn get_text(
         .get(idx as usize)
         .ok_or_else(|| anyhow::anyhow!("index {idx} out of range ({} matches)", results.len()))?;
 
-    let conn = connect_a11y().await?;
     let obj_path: ObjectPath = ObjectPath::try_from(path.as_str())?;
 
     let char_count: i32 = conn

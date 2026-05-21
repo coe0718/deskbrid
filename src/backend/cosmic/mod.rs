@@ -424,16 +424,13 @@ impl DesktopBackend for CosmicBackend {
     }
 
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
-        // Read /sys/class/power_supply/BAT*
         let mut batteries = Vec::new();
-        let entries = match std::fs::read_dir("/sys/class/power_supply/") {
-            Ok(rd) => rd.flatten().collect::<Vec<_>>(),
-            Err(_) => {
-                return Ok(batteries); // empty list on inaccessible sysfs
-            }
+        let mut entries = match tokio::fs::read_dir("/sys/class/power_supply/").await {
+            Ok(entries) => entries,
+            Err(_) => return Ok(batteries),
         };
 
-        for entry in entries {
+        while let Some(entry) = entries.next_entry().await? {
             let name = entry.file_name().to_string_lossy().to_string();
             if !name.starts_with("BAT") {
                 continue;

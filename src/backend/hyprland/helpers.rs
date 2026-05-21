@@ -212,12 +212,12 @@ impl HyprBackend {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        if let Ok(entries) = std::fs::read_dir("/dev/input") {
-            for entry in entries.flatten() {
+        if let Ok(mut entries) = tokio::fs::read_dir("/dev/input").await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name();
                 let name_str = name.to_string_lossy();
                 if name_str.starts_with("event")
-                    && let Ok(meta) = entry.metadata()
+                    && let Ok(meta) = entry.metadata().await
                     && let Ok(modified) = meta.modified()
                     && let Ok(ts) = modified.duration_since(std::time::UNIX_EPOCH)
                 {
