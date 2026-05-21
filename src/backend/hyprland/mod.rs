@@ -36,7 +36,7 @@ pub struct HyprBackend {
 
 impl HyprBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
-        let (instance_sig, wl_socket) = detect_hypr_instance();
+        let (instance_sig, wl_socket) = detect_hypr_instance().await;
         let xdg_runtime =
             std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
         if let Some(ref sig) = instance_sig {
@@ -90,7 +90,7 @@ impl HyprBackend {
 
     /// Run `hyprctl dispatch` (no JSON output, just success/fail).
     pub(super) async fn hyprctl_dispatch(&self, dispatch: &str) -> anyhow::Result<()> {
-        let mut cmd = std::process::Command::new("hyprctl");
+        let mut cmd = Command::new("hyprctl");
         cmd.arg("dispatch")
             .arg(dispatch)
             .stdin(Stdio::null())
@@ -98,7 +98,7 @@ impl HyprBackend {
         if let Some(sig) = &self.instance_sig {
             cmd.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
         }
-        let output = tokio::process::Command::from(cmd).output().await?;
+        let output = cmd.output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("hyprctl dispatch '{}' failed: {}", dispatch, stderr.trim());
@@ -108,7 +108,7 @@ impl HyprBackend {
 
     /// Run `hyprctl keyword` for live compositor settings.
     pub(super) async fn hyprctl_keyword(&self, keyword: &str, value: &str) -> anyhow::Result<()> {
-        let mut cmd = std::process::Command::new("hyprctl");
+        let mut cmd = Command::new("hyprctl");
         cmd.arg("keyword")
             .arg(keyword)
             .arg(value)
@@ -117,7 +117,7 @@ impl HyprBackend {
         if let Some(sig) = &self.instance_sig {
             cmd.env("HYPRLAND_INSTANCE_SIGNATURE", sig);
         }
-        let output = tokio::process::Command::from(cmd).output().await?;
+        let output = cmd.output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("hyprctl keyword {} failed: {}", keyword, stderr.trim());
@@ -539,29 +539,35 @@ impl DesktopBackend for HyprBackend {
 
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
         let mut batteries = Vec::new();
-        let dirs = if let Ok(entries) = std::fs::read_dir("/sys/class/power_supply") {
+        let mut dirs = if let Ok(entries) = tokio::fs::read_dir("/sys/class/power_supply").await {
             entries
         } else {
             return Ok(batteries);
         };
-        for entry in dirs.flatten() {
+        while let Some(entry) = dirs.next_entry().await? {
             let path = entry.path();
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             if !name.starts_with("BAT") {
                 continue;
             }
-            let read_sys =
-                |file: &str| -> Option<String> { std::fs::read_to_string(path.join(file)).ok() };
-            let capacity = read_sys("capacity")
+            let capacity = tokio::fs::read_to_string(path.join("capacity"))
+                .await
+                .ok()
                 .and_then(|s| s.trim().parse::<f64>().ok())
                 .unwrap_or(0.0);
-            let status = read_sys("status")
+            let status = tokio::fs::read_to_string(path.join("status"))
+                .await
+                .ok()
                 .map(|s| s.trim().to_lowercase())
                 .unwrap_or_else(|| "unknown".into());
-            let energy_now = read_sys("energy_now")
+            let energy_now = tokio::fs::read_to_string(path.join("energy_now"))
+                .await
+                .ok()
                 .and_then(|s| s.trim().parse::<f64>().ok())
                 .unwrap_or(0.0);
-            let power_now = read_sys("power_now")
+            let power_now = tokio::fs::read_to_string(path.join("power_now"))
+                .await
+                .ok()
                 .and_then(|s| s.trim().parse::<f64>().ok())
                 .unwrap_or(0.0);
             let time_remaining = if power_now > 0.0 {

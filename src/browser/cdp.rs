@@ -1,6 +1,9 @@
 use anyhow::Context;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
+
+static CDP_COMMAND_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CdpTarget {
@@ -61,7 +64,7 @@ pub async fn send_cdp_command(ws_url: &str, method: &str, params: Value) -> anyh
         .await
         .with_context(|| format!("failed to connect to CDP websocket: {ws_url}"))?;
 
-    let id: u32 = 1;
+    let id = CDP_COMMAND_ID.fetch_add(1, Ordering::Relaxed);
     let msg = serde_json::json!({ "id": id, "method": method, "params": params });
     ws.send(tokio_tungstenite::tungstenite::Message::Text(
         msg.to_string().into(),
@@ -90,7 +93,7 @@ pub async fn send_cdp_command(ws_url: &str, method: &str, params: Value) -> anyh
 
 fn cdp_response_result(
     msg: tokio_tungstenite::tungstenite::Message,
-    id: u32,
+    id: u64,
 ) -> anyhow::Result<Option<Value>> {
     let text = match msg {
         tokio_tungstenite::tungstenite::Message::Text(t) => t.to_string(),
@@ -102,7 +105,7 @@ fn cdp_response_result(
 
     let resp: Value = serde_json::from_str(&text)
         .with_context(|| format!("failed to parse CDP response: {text}"))?;
-    if resp.get("id").and_then(|v| v.as_u64()) != Some(id as u64) {
+    if resp.get("id").and_then(|v| v.as_u64()) != Some(id) {
         return Ok(None);
     }
     if let Some(error) = resp.get("error") {
