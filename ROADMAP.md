@@ -7,6 +7,27 @@ systems — beyond what the current DE backends already provide.
 backends). This doc focuses on what's **not yet in the code** — the remaining 80% of the
 operating system that agents need to control.
 
+### Roadmap Status
+
+Use this document as the source of truth while features land. When a roadmap item
+ships, keep the section in place, add a `**Status:**` line under its heading, and add
+it to the completed table below.
+
+| Status | Meaning |
+|---|---|
+| ✅ Done | Landed on `main` and exposed through protocol/client surfaces |
+| 🚧 In Progress | Actively being implemented |
+| ⏭️ Next | Selected as an upcoming implementation target |
+| 🧭 Planned | Not started yet |
+| ⚠️ Blocked | Waiting on design, dependency, permissions, or platform work |
+
+### Completed From This Roadmap
+
+| Section | Landed Scope | Code |
+|---|---|---|
+| [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
+
 ### Already Built (not covered here)
 
 These features exist in the codebase already for reference:
@@ -18,8 +39,9 @@ These features exist in the codebase already for reference:
 | **Browser CDP** | `src/browser.rs` | `browser.list_tabs/navigate/evaluate/screenshot_tab/click` |
 | **Screen recording (half-built)** | `src/backend/gnome.rs` | `screencast.start/stop` in protocol, Mutter ScreenCast session exists but recording output not wired |
 | **Event filtering (Subscribe/Unsubscribe)** | `src/daemon/client.rs` | `subscribe`, `unsubscribe` — glob patterns (`window.*`, `file.*`) |
-| **Systemd unit control** | (covered in section 1) | `systemd start/stop/restart/enable/disable` |
-| **System health checks** | `src/daemon/capabilities.rs` | `system.health` — dependency reporting with per-backend remediation tips |
+| **Systemd/logind control** | `src/daemon/system/{logind,systemd}.rs` | `system.inhibit/release_inhibit`, `system.sessions`, `system.lock_session`, `system.switch_user`, `service.*`, `journal.query`, `timer.*` |
+| **Polkit auth checks** | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` | `system.check_auth`, `system.elevate` |
+| **System health checks** | `src/daemon/capabilities/` | `system.health` — dependency reporting with per-backend remediation tips |
 | **Idle detection** | `src/daemon/execute.rs` | `SystemIdle` — current idle seconds |
 | **Active window context** | (implied by `windows.list` + `SystemInfo`) | Agents can query current state — no auto-attach |
 
@@ -27,8 +49,8 @@ These features exist in the codebase already for reference:
 
 ## Table of Contents
 
-1. [systemd (logind + manager)](#1-systemd-logind--manager)
-2. [polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation)
+1. [✅ systemd (logind + manager)](#1-systemd-logind--manager)
+2. [✅ polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation)
 3. [Linux Capabilities](#3-linux-capabilities)
 4. [cgroups v2 (Process Resource Control)](#4-cgroups-v2-process-resource-control)
 5. [udev (Device Event Monitoring)](#5-udev-device-event-monitoring)
@@ -158,7 +180,12 @@ These features exist in the codebase already for reference:
 
 ## 1. systemd (logind + manager)
 
-### What's Missing
+**Status:** ✅ Done on `main` as a CLI-backed implementation. Deskbrid now exposes
+inhibitors, logind session operations, systemd service/timer control, and journal
+queries through the protocol, CLI, and Python client. A native `zbus_systemd`
+implementation remains an optional future refinement.
+
+### Original Gap
 
 Deskbrid can already do `system.power` (power off/reboot/suspend) via backend-specific
 commands, but has no control over:
@@ -169,7 +196,13 @@ commands, but has no control over:
 - **Managing timers** (agent-scheduled recurring jobs)
 - **Getting systemd status** (boot time, unit states, failed services)
 
-### Implementation
+### Implementation Notes
+
+The shipped implementation uses async CLI wrappers in `src/daemon/system/`:
+`systemd-inhibit` for inhibitors, `loginctl`/`dm-tool` for sessions, `systemctl`
+for units and timers, and `journalctl` for journal queries.
+
+The original native D-Bus plan remains useful as a future hardening path:
 
 **Crate:** `zbus_systemd` (v0.26.0) — official zbus companion, auto-generated DBus
 bindings for all systemd services. Feature-gated modules per service.
@@ -186,7 +219,7 @@ Already has `zbus` as a dependency — adding `zbus_systemd` is zero friction.
 | `org.freedesktop.systemd1.Unit` | `systemd1` | `Start()`, `Stop()`, `Reload()`, active state queries |
 | `org.freedesktop.journal1` | (separate) | `GetCursor()`, `SeekTail()`, `Next()` for log iteration |
 
-### Protocol Actions to Add
+### Protocol Actions
 
 ```rust
 // Login/Session management
@@ -216,13 +249,14 @@ JournalQuery {
     priority: Option<u8>, // 0=emerg .. 7=debug
     tail: Option<u32>,    // last N lines
 },
-JournalFollow,              // streaming tail
 
 // Timer
 TimerList,
 TimerStart { name: String },
 TimerStop { name: String },
 ```
+
+**Future refinement:** Add `JournalFollow` for streaming log tails.
 
 ### Permission Implications
 
@@ -234,7 +268,12 @@ ones (service control, user switch). **Per-action permissions via the existing
 
 ## 2. polkit (PolicyKit Privilege Escalation)
 
-### What's Missing
+**Status:** ✅ Done on `main` as a `pkcheck`-backed implementation. Deskbrid now exposes
+`system.check_auth` and `system.elevate`, and ships `deploy/org.deskbrid.policy`.
+Transparent per-action dispatch checks and native `zbus_polkit` integration remain
+optional future refinements.
+
+### Original Gap
 
 Deskbrid currently runs at the user's privilege level. Some actions need more authority:
 - Installing/removing system packages (agent-driven dev environment setup)
@@ -245,7 +284,12 @@ Deskbrid currently runs at the user's privilege level. Some actions need more au
 Currently, the answer is "run deskbrid as root" — which is terrible. polkit gives
 a proper elevation path.
 
-### Implementation
+### Implementation Notes
+
+The shipped implementation calls `pkcheck` from `src/daemon/system/polkit.rs` and
+ships `deploy/org.deskbrid.policy` for Deskbrid action definitions.
+
+The original native D-Bus plan remains useful as a future hardening path:
 
 **Crate:** `zbus_polkit` (v5.0.0) — same zbus ecosystem, provides `AuthorityProxy`
 for checking authorizations. Already has `zbus` as a dep.
@@ -266,12 +310,13 @@ let result = proxy.check_authorization(
 ).await?;
 ```
 
-**What needs to ship with Deskbrid:**
+**Shipped pieces and remaining refinements:**
 
 1. A `.policy` file installed to `$PREFIX/share/polkit-1/actions/org.deskbrid.policy`
-   defining available actions and their auth levels (`auth_admin`, `auth_self`, `yes`)
-2. Zbus-based polkit checks before executing elevated actions
-3. A `PolkitAction` field on the backend or daemon to track which actions need auth
+   defining available actions and their auth levels (`auth_admin`, `auth_self`, `yes`) ✅
+2. `pkcheck`-backed auth checks for explicit `system.check_auth` and `system.elevate` ✅
+3. Zbus-based polkit checks before executing elevated actions ⏭️ optional refinement
+4. A `PolkitAction` field on the backend or daemon to track which actions need auth ⏭️ optional refinement
 
 **Example `.policy` actions:**
 
@@ -6027,8 +6072,8 @@ SnapshotClone { id: String, target_path: String },
 | Crate | Status | Version | Notes |
 |---|---|---|---|
 | `zbus` | ✅ Already in | 5.x | Already depends on this |
-| `zbus_systemd` | ❌ Needs add | 0.26.0 | Feature-gated: login1, systemd1 |
-| `zbus_polkit` | ❌ Needs add | 5.0.0 | Stable, same ecosystem |
+| `zbus_systemd` | ⏭️ Optional follow-up | 0.26.0 | Current implementation uses `systemd-inhibit`, `loginctl`, `systemctl`, and `journalctl`; native DBus can replace CLI wrappers later |
+| `zbus_polkit` | ⏭️ Optional follow-up | 5.0.0 | Current implementation uses `pkcheck` and `deploy/org.deskbrid.policy`; native `AuthorityProxy` can replace CLI checks later |
 | `caps` | ❌ Needs add | 0.5.6 | Pure Rust, no system deps |
 | `cgroups-rs` | ❌ Needs add | latest | Native Rust v1/v2 |
 | `udev` | ❌ Needs add | 0.9+ | Bindings to libudev |
