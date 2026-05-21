@@ -118,6 +118,7 @@ client.listen()  # blocks, streaming events
 | `clipboard_read() -> ClipboardContent` | Read clipboard |
 | `clipboard_write(text: str)` | Write to clipboard |
 | `screenshot(monitor=None) -> ScreenshotResult` | Capture screen |
+| `screenshot_ocr(path=None, language=None, psm=None, bounding_boxes=False, monitor=None, region=None, window_id=None) -> dict` | Extract text from a screenshot path or fresh capture |
 | `notify(title, body="", urgency="normal") -> int` | Send desktop notification |
 
 ### Terminal / PTY

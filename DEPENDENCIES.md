@@ -125,3 +125,4 @@ X11 does **not** need ydotoold, udev rules, or any compositor-specific extension
 | `nmcli` | `network-manager` | WiFi scanning and connection |
 | `bluetoothctl` | `bluez` | Bluetooth device management |
 | `notify-send` | `libnotify` | Desktop notifications |
+| `tesseract` | `tesseract-ocr` plus language packs such as `tesseract-ocr-eng` | Screenshot OCR |

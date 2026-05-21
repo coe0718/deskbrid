@@ -5,6 +5,7 @@ pub mod capture;
 pub mod cli;
 pub mod client;
 pub mod daemon;
+pub mod ocr;
 pub mod permissions;
 pub mod protocol;
 pub mod setup;

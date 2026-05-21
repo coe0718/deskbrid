@@ -45,6 +45,29 @@ class AsyncActionsMixin:
             params["monitor"] = monitor
         return decode_screenshot(await self._request("screenshot", params))
 
+    async def screenshot_ocr(
+        self,
+        path: str | None = None,
+        language: str | None = None,
+        psm: int | None = None,
+        bounding_boxes: bool = False,
+        monitor: int | None = None,
+        region: dict[str, int] | None = None,
+        window_id: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"bounding_boxes": bounding_boxes}
+        for key, value in {
+            "path": path,
+            "language": language,
+            "psm": psm,
+            "monitor": monitor,
+            "region": region,
+            "window_id": window_id,
+        }.items():
+            if value is not None:
+                params[key] = value
+        return await self._request("screenshot.ocr", params)
+
     async def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         response = await self._request(
             "notification.send",

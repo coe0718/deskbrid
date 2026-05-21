@@ -94,6 +94,32 @@ pub enum Command {
         window: Option<String>,
     },
 
+    // ─── OCR ───────────────────────────────────────────
+    #[command(name = "ocr")]
+    Ocr {
+        /// OCR an existing screenshot path. Omit to capture a fresh screenshot.
+        #[arg(long)]
+        path: Option<String>,
+        /// Tesseract language, e.g. eng or eng+spa
+        #[arg(long)]
+        language: Option<String>,
+        /// Tesseract page segmentation mode
+        #[arg(long)]
+        psm: Option<u32>,
+        /// Include word-level bounding boxes
+        #[arg(long)]
+        boxes: bool,
+        /// Capture specific monitor index when path is omitted
+        #[arg(long)]
+        monitor: Option<u32>,
+        /// Capture region when path is omitted: x y width height
+        #[arg(long, num_args = 4)]
+        region: Option<Vec<u32>>,
+        /// Capture specific window when path is omitted
+        #[arg(long)]
+        window: Option<String>,
+    },
+
     // ─── Notifications ──────────────────────────────────
     #[command(name = "notify")]
     Notify {

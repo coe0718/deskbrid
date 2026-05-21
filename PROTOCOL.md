@@ -114,6 +114,7 @@ All action names use dot notation: `domain.action`. Every action is sent with `"
 | Action | Params | Description |
 |--------|--------|-------------|
 | `screenshot` | `monitor` (number, optional), `region` (object, optional), `window_id` (string, optional) | Capture screen |
+| `screenshot.ocr` | `path` (string, optional), `language` (string, optional), `psm` (number, optional), `bounding_boxes` (bool, optional) | OCR an existing screenshot or capture a fresh one |
 
 ```json
 → {"type": "screenshot", "id": "9", "monitor": 0}

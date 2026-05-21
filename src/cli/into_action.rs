@@ -113,6 +113,29 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             window_id: window,
         },
 
+        Command::Ocr {
+            path,
+            language,
+            psm,
+            boxes,
+            monitor,
+            region,
+            window,
+        } => Action::ScreenshotOcr {
+            path,
+            language,
+            psm,
+            bounding_boxes: boxes,
+            monitor,
+            region: region.map(|v| protocol::Region {
+                x: v[0],
+                y: v[1],
+                width: v[2],
+                height: v[3],
+            }),
+            window_id: window,
+        },
+
         Command::Notify { cmd } => match cmd {
             NotifyCmd::Send {
                 title,

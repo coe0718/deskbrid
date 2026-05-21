@@ -27,6 +27,7 @@ it to the completed table below.
 |---|---|---|
 | [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
+| [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
@@ -62,7 +63,7 @@ These features exist in the codebase already for reference:
 9. [Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
 10. [Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
-12. [⏭️ OCR / Text Extraction](#12-ocr--text-extraction)
+12. [✅ OCR / Text Extraction](#12-ocr--text-extraction)
 13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
@@ -885,7 +886,7 @@ Only available on systemd systems. When absent, these actions should return
 
 ## 12. OCR / Text Extraction
 
-**Status:** ⏭️ Next #3.
+**Status:** ✅ Done on `main`.
 
 ### What's Missing
 
@@ -6024,7 +6025,6 @@ SnapshotClone { id: String, target_path: String },
 
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
-| **OCR screenshot fallback** | ⏭️ Next #3 | Low (100 lines + tesseract CLI dep) | High | Lets agents read any window, including apps with poor a11y/CDP coverage |
 | **Screenshot diffing / visual stabilization** | ⏭️ Next #4 | Low (~200 lines, `image` crate) | High | Pairs with OCR and wait-for so agents can detect visual changes and page/app stability |
 | **Audit log** | 🧭 Planned | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
 | **Action timeouts** | 🧭 Planned | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |

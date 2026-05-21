@@ -144,6 +144,37 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             }
             obj
         }
+        Action::ScreenshotOcr {
+            path,
+            language,
+            psm,
+            bounding_boxes,
+            monitor,
+            region,
+            window_id,
+        } => {
+            let mut obj =
+                json!({"type": "screenshot.ocr", "id": id, "bounding_boxes": bounding_boxes});
+            if let Some(path) = path {
+                obj["path"] = json!(path);
+            }
+            if let Some(language) = language {
+                obj["language"] = json!(language);
+            }
+            if let Some(psm) = psm {
+                obj["psm"] = json!(psm);
+            }
+            if let Some(monitor) = monitor {
+                obj["monitor"] = json!(monitor);
+            }
+            if let Some(region) = region {
+                obj["region"] = json!(region);
+            }
+            if let Some(window_id) = window_id {
+                obj["window_id"] = json!(window_id);
+            }
+            obj
+        }
 
         // Notifications
         Action::NotificationSend {
@@ -659,6 +690,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::ClipboardRead => "clipboard.read",
         Action::ClipboardWrite { .. } => "clipboard.write",
         Action::Screenshot { .. } => "screenshot",
+        Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::NotificationSend { .. } => "notification.send",
         Action::NotificationClose { .. } => "notification.close",
         Action::SystemInfo => "system.info",

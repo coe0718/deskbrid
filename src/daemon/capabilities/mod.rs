@@ -180,6 +180,7 @@ async fn insert_system_deps(deps: &mut serde_json::Map<String, serde_json::Value
     );
     deps.insert("pkcheck".to_string(), check_in_path("pkcheck").await);
     deps.insert("dm-tool".to_string(), check_in_path("dm-tool").await);
+    deps.insert("tesseract".to_string(), check_in_path("tesseract").await);
 }
 
 async fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {

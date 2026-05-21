@@ -185,6 +185,29 @@ pub async fn execute_action(
                     .await?
             )
         }
+        ScreenshotOcr {
+            ref path,
+            ref language,
+            psm,
+            bounding_boxes,
+            monitor,
+            ref region,
+            ref window_id,
+        } => {
+            crate::ocr::screenshot_ocr(
+                backend,
+                crate::ocr::OcrRequest {
+                    path: path.as_deref(),
+                    language: language.as_deref(),
+                    psm,
+                    bounding_boxes,
+                    monitor,
+                    region: region.clone(),
+                    window_id: window_id.clone(),
+                },
+            )
+            .await?
+        }
 
         NotificationSend {
             ref app_name,

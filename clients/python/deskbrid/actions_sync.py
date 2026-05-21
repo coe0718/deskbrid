@@ -25,6 +25,28 @@ class SyncActionsMixin:
         result = self._loop.submit(self._client.screenshot(monitor=monitor)).result()
         return result.path
 
+    def screenshot_ocr(
+        self,
+        path: str | None = None,
+        language: str | None = None,
+        psm: int | None = None,
+        bounding_boxes: bool = False,
+        monitor: int | None = None,
+        region: dict[str, int] | None = None,
+        window_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.screenshot_ocr(
+                path=path,
+                language=language,
+                psm=psm,
+                bounding_boxes=bounding_boxes,
+                monitor=monitor,
+                region=region,
+                window_id=window_id,
+            )
+        ).result()
+
     def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         return self._loop.submit(self._client.notify(title, body, urgency)).result()
 

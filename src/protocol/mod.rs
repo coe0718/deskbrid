@@ -90,6 +90,15 @@ pub enum Action {
         region: Option<Region>,
         window_id: Option<String>,
     },
+    ScreenshotOcr {
+        path: Option<String>,
+        language: Option<String>,
+        psm: Option<u32>,
+        bounding_boxes: bool,
+        monitor: Option<u32>,
+        region: Option<Region>,
+        window_id: Option<String>,
+    },
 
     // Notifications
     NotificationSend {
@@ -440,6 +449,7 @@ impl Action {
             "clipboard.read",
             "clipboard.write",
             "screenshot",
+            "screenshot.ocr",
             "notification.send",
             "notification.close",
             "system.info",
@@ -577,6 +587,7 @@ mod tests {
         assert!(actions.contains(&"terminal.create"));
         assert!(actions.contains(&"terminal.read"));
         assert!(actions.contains(&"wait.for"));
+        assert!(actions.contains(&"screenshot.ocr"));
     }
 
     #[test]
@@ -792,6 +803,25 @@ mod tests {
             } if condition == "file_exists"
         ));
         assert!(Action::from_json(r#"{"type":"wait.for","id":"x","condition":""}"#).is_err());
+    }
+
+    #[test]
+    fn parses_screenshot_ocr_action() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"screenshot.ocr","id":"x","path":"/tmp/s.png","language":"eng","psm":6,"bounding_boxes":true}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::ScreenshotOcr {
+                path: Some(path),
+                language: Some(language),
+                psm: Some(6),
+                bounding_boxes: true,
+                ..
+            } if path == "/tmp/s.png" && language == "eng"
+        ));
+        assert!(Action::from_json(r#"{"type":"screenshot.ocr","id":"x","path":""}"#).is_err());
     }
 
     #[test]

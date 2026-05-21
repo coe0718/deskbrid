@@ -305,6 +305,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `clipboard.read` | Read Wayland clipboard |
 | `clipboard.write` | Write to Wayland clipboard |
 | `screenshot` | Capture screen (full, monitor, region, or window) |
+| `screenshot.ocr` | Extract text from a screenshot path or fresh capture via Tesseract |
 | `notification.send` | Send a desktop notification |
 | `notification.close` | Close a notification by ID |
 
