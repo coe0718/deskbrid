@@ -177,6 +177,98 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             json!({"type": "system.power", "id": id, "action": action})
         }
         Action::SystemBattery => json!({"type": "system.battery", "id": id}),
+        Action::SystemInhibit {
+            what,
+            who,
+            why,
+            mode,
+        } => {
+            let mut obj = json!({"type": "system.inhibit", "id": id, "what": what, "who": who});
+            if let Some(why) = why {
+                obj["why"] = json!(why);
+            }
+            if let Some(mode) = mode {
+                obj["mode"] = json!(mode);
+            }
+            obj
+        }
+        Action::SystemReleaseInhibit { inhibitor_id } => {
+            json!({"type": "system.release_inhibit", "id": id, "inhibitor_id": inhibitor_id})
+        }
+        Action::SystemListSessions => json!({"type": "system.sessions", "id": id}),
+        Action::SystemLockSession { session_id } => {
+            let mut obj = json!({"type": "system.lock_session", "id": id});
+            if let Some(session_id) = session_id {
+                obj["session_id"] = json!(session_id);
+            }
+            obj
+        }
+        Action::SystemSwitchUser { username } => {
+            json!({"type": "system.switch_user", "id": id, "username": username})
+        }
+        Action::SystemCheckAuth { action_id } => {
+            json!({"type": "system.check_auth", "id": id, "action_id": action_id})
+        }
+        Action::SystemElevate { action_id, reason } => {
+            let mut obj = json!({"type": "system.elevate", "id": id, "action_id": action_id});
+            if let Some(reason) = reason {
+                obj["reason"] = json!(reason);
+            }
+            obj
+        }
+        Action::ServiceStatus { name } => {
+            json!({"type": "service.status", "id": id, "name": name})
+        }
+        Action::ServiceStart { name } => {
+            json!({"type": "service.start", "id": id, "name": name})
+        }
+        Action::ServiceStop { name } => {
+            json!({"type": "service.stop", "id": id, "name": name})
+        }
+        Action::ServiceRestart { name } => {
+            json!({"type": "service.restart", "id": id, "name": name})
+        }
+        Action::ServiceEnable { name, runtime } => {
+            json!({"type": "service.enable", "id": id, "name": name, "runtime": runtime})
+        }
+        Action::ServiceDisable { name, runtime } => {
+            json!({"type": "service.disable", "id": id, "name": name, "runtime": runtime})
+        }
+        Action::ServiceList { unit_type } => {
+            let mut obj = json!({"type": "service.list", "id": id});
+            if let Some(unit_type) = unit_type {
+                obj["unit_type"] = json!(unit_type);
+            }
+            obj
+        }
+        Action::JournalQuery {
+            since,
+            until,
+            unit,
+            priority,
+            tail,
+        } => {
+            let mut obj = json!({"type": "journal.query", "id": id});
+            if let Some(since) = since {
+                obj["since"] = json!(since);
+            }
+            if let Some(until) = until {
+                obj["until"] = json!(until);
+            }
+            if let Some(unit) = unit {
+                obj["unit"] = json!(unit);
+            }
+            if let Some(priority) = priority {
+                obj["priority"] = json!(priority);
+            }
+            if let Some(tail) = tail {
+                obj["tail"] = json!(tail);
+            }
+            obj
+        }
+        Action::TimerList => json!({"type": "timer.list", "id": id}),
+        Action::TimerStart { name } => json!({"type": "timer.start", "id": id, "name": name}),
+        Action::TimerStop { name } => json!({"type": "timer.stop", "id": id, "name": name}),
 
         // Network
         Action::NetworkStatus => json!({"type": "network.status", "id": id}),
@@ -508,6 +600,24 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemIdle => "system.idle",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
+        Action::SystemInhibit { .. } => "system.inhibit",
+        Action::SystemReleaseInhibit { .. } => "system.release_inhibit",
+        Action::SystemListSessions => "system.sessions",
+        Action::SystemLockSession { .. } => "system.lock_session",
+        Action::SystemSwitchUser { .. } => "system.switch_user",
+        Action::SystemCheckAuth { .. } => "system.check_auth",
+        Action::SystemElevate { .. } => "system.elevate",
+        Action::ServiceStatus { .. } => "service.status",
+        Action::ServiceStart { .. } => "service.start",
+        Action::ServiceStop { .. } => "service.stop",
+        Action::ServiceRestart { .. } => "service.restart",
+        Action::ServiceEnable { .. } => "service.enable",
+        Action::ServiceDisable { .. } => "service.disable",
+        Action::ServiceList { .. } => "service.list",
+        Action::JournalQuery { .. } => "journal.query",
+        Action::TimerList => "timer.list",
+        Action::TimerStart { .. } => "timer.start",
+        Action::TimerStop { .. } => "timer.stop",
         Action::NetworkStatus => "network.status",
         Action::NetworkInterfaces => "network.interfaces",
         Action::NetworkWifiScan => "network.wifi.scan",

@@ -109,6 +109,27 @@ pub enum Command {
         cmd: SystemCmd,
     },
 
+    // ─── systemd services ──────────────────────────────
+    #[command(name = "service")]
+    Service {
+        #[command(subcommand)]
+        cmd: ServiceCmd,
+    },
+
+    // ─── journald ──────────────────────────────────────
+    #[command(name = "journal")]
+    Journal {
+        #[command(subcommand)]
+        cmd: JournalCmd,
+    },
+
+    // ─── systemd timers ────────────────────────────────
+    #[command(name = "timer")]
+    Timer {
+        #[command(subcommand)]
+        cmd: TimerCmd,
+    },
+
     // ─── Network ────────────────────────────────────────
     #[command(name = "network")]
     Network {
@@ -277,6 +298,85 @@ pub enum SystemCmd {
     Power { action: String },
     /// Battery status
     Battery,
+    /// Inhibit sleep/shutdown/idle while work is active
+    Inhibit {
+        what: String,
+        #[arg(long, default_value = "deskbrid")]
+        who: String,
+        #[arg(long)]
+        why: Option<String>,
+        #[arg(long)]
+        mode: Option<String>,
+    },
+    /// Release a Deskbrid-created inhibitor
+    ReleaseInhibit { inhibitor_id: u32 },
+    /// List logind sessions
+    Sessions,
+    /// Lock the current or specified logind session
+    LockSession { session_id: Option<String> },
+    /// Switch to another display-manager user
+    SwitchUser { username: String },
+    /// Check a polkit action without prompting
+    CheckAuth { action_id: String },
+    /// Request polkit authorization with user interaction
+    Elevate {
+        action_id: String,
+        #[arg(long)]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ServiceCmd {
+    /// Show one unit's status
+    Status { name: String },
+    /// Start a unit
+    Start { name: String },
+    /// Stop a unit
+    Stop { name: String },
+    /// Restart a unit
+    Restart { name: String },
+    /// Enable a unit
+    Enable {
+        name: String,
+        #[arg(long)]
+        runtime: bool,
+    },
+    /// Disable a unit
+    Disable {
+        name: String,
+        #[arg(long)]
+        runtime: bool,
+    },
+    /// List units by type
+    List { unit_type: Option<String> },
+}
+
+#[derive(Subcommand)]
+pub enum JournalCmd {
+    /// Query journald lines
+    Query {
+        #[arg(long)]
+        since: Option<u64>,
+        #[arg(long)]
+        until: Option<u64>,
+        #[arg(long)]
+        unit: Option<String>,
+        #[arg(long)]
+        priority: Option<u8>,
+        #[arg(long)]
+        tail: Option<u32>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TimerCmd {
+    /// List systemd timers
+    List,
+    /// Start a timer
+    Start { name: String },
+    /// Stop a timer
+    Stop { name: String },
 }
 
 #[derive(Subcommand)]
@@ -491,6 +591,57 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             SystemCmd::Idle => Action::SystemIdle,
             SystemCmd::Power { action } => Action::SystemPower { action },
             SystemCmd::Battery => Action::SystemBattery,
+            SystemCmd::Inhibit {
+                what,
+                who,
+                why,
+                mode,
+            } => Action::SystemInhibit {
+                what,
+                who,
+                why,
+                mode,
+            },
+            SystemCmd::ReleaseInhibit { inhibitor_id } => {
+                Action::SystemReleaseInhibit { inhibitor_id }
+            }
+            SystemCmd::Sessions => Action::SystemListSessions,
+            SystemCmd::LockSession { session_id } => Action::SystemLockSession { session_id },
+            SystemCmd::SwitchUser { username } => Action::SystemSwitchUser { username },
+            SystemCmd::CheckAuth { action_id } => Action::SystemCheckAuth { action_id },
+            SystemCmd::Elevate { action_id, reason } => Action::SystemElevate { action_id, reason },
+        },
+
+        Command::Service { cmd } => match cmd {
+            ServiceCmd::Status { name } => Action::ServiceStatus { name },
+            ServiceCmd::Start { name } => Action::ServiceStart { name },
+            ServiceCmd::Stop { name } => Action::ServiceStop { name },
+            ServiceCmd::Restart { name } => Action::ServiceRestart { name },
+            ServiceCmd::Enable { name, runtime } => Action::ServiceEnable { name, runtime },
+            ServiceCmd::Disable { name, runtime } => Action::ServiceDisable { name, runtime },
+            ServiceCmd::List { unit_type } => Action::ServiceList { unit_type },
+        },
+
+        Command::Journal { cmd } => match cmd {
+            JournalCmd::Query {
+                since,
+                until,
+                unit,
+                priority,
+                tail,
+            } => Action::JournalQuery {
+                since,
+                until,
+                unit,
+                priority,
+                tail,
+            },
+        },
+
+        Command::Timer { cmd } => match cmd {
+            TimerCmd::List => Action::TimerList,
+            TimerCmd::Start { name } => Action::TimerStart { name },
+            TimerCmd::Stop { name } => Action::TimerStop { name },
         },
 
         Command::Network { cmd } => match cmd {

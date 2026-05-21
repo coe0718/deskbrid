@@ -697,6 +697,54 @@ Perform a power action.
 }
 ```
 
+### `system.inhibit` / `system.release_inhibit`
+
+Hold a systemd inhibitor while an agent task is running, then release it by ID.
+
+**Requests:**
+```json
+{"type": "system.inhibit", "id": "req-24", "what": "sleep", "who": "deskbrid", "why": "deploy running", "mode": "block"}
+{"type": "system.release_inhibit", "id": "req-25", "inhibitor_id": 1}
+```
+
+### `system.sessions`, `system.lock_session`, `system.switch_user`
+
+List logind sessions, lock the current or specified session, or ask the display manager to switch users.
+
+**Requests:**
+```json
+{"type": "system.sessions", "id": "req-26"}
+{"type": "system.lock_session", "id": "req-27", "session_id": "2"}
+{"type": "system.switch_user", "id": "req-28", "username": "alice"}
+```
+
+### `system.check_auth` / `system.elevate`
+
+Check a polkit action, or request authorization with user interaction via `pkcheck`.
+
+**Requests:**
+```json
+{"type": "system.check_auth", "id": "req-29", "action_id": "org.deskbrid.system.service-control"}
+{"type": "system.elevate", "id": "req-30", "action_id": "org.deskbrid.system.service-control", "reason": "restart a failed unit"}
+```
+
+### `service.*`, `journal.query`, `timer.*`
+
+Control systemd units, query journald, and manage timers.
+
+**Requests:**
+```json
+{"type": "service.status", "id": "req-31", "name": "ssh.service"}
+{"type": "service.restart", "id": "req-32", "name": "ssh.service"}
+{"type": "service.enable", "id": "req-33", "name": "ssh.service", "runtime": false}
+{"type": "service.list", "id": "req-34", "unit_type": "service"}
+{"type": "journal.query", "id": "req-35", "unit": "ssh.service", "priority": 4, "tail": 100}
+{"type": "timer.list", "id": "req-36"}
+{"type": "timer.start", "id": "req-37", "name": "apt-daily.timer"}
+```
+
+Permission-gated deployments should grant these narrowly. Service start/stop/restart/enable/disable and user switching can trigger system polkit policy.
+
 ### `system.capabilities`
 
 Get a detailed capability matrix for the current backend. Returns every action with support status, degradation notes, dependency requirements, and session requirements.

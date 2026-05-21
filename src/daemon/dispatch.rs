@@ -4,6 +4,7 @@ use tracing::warn;
 
 use super::execute::execute_action;
 use super::helpers::{not_supported_response, permission_denied_response};
+use super::system::{execute_system_control_action, is_system_control_action};
 
 pub async fn dispatch_action(
     action: Action,
@@ -37,6 +38,11 @@ pub async fn dispatch_action(
         }
     }
 
+    if is_system_control_action(&action) {
+        let result = execute_system_control_action(action.clone(), state).await;
+        return action_response(state, &action, seq, result);
+    }
+
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
         Some(b) => b,
@@ -49,10 +55,18 @@ pub async fn dispatch_action(
     };
 
     let result = execute_action(action.clone(), backend.as_ref()).await;
+    action_response(state, &action, seq, result)
+}
 
+fn action_response(
+    state: &DaemonState,
+    action: &Action,
+    seq: u64,
+    result: anyhow::Result<serde_json::Value>,
+) -> serde_json::Value {
     match result {
         Ok(data) => {
-            emit_action_event(state, &action, &data);
+            emit_action_event(state, action, &data);
             serde_json::json!({
                 "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
             })

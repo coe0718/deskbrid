@@ -10,6 +10,7 @@ mod dispatch;
 mod execute;
 mod helpers;
 mod layout;
+mod system;
 #[cfg(test)]
 mod tests;
 
@@ -29,6 +30,7 @@ pub use layout::{
     capture_layout_profile, list_layout_profiles, load_layout_profile, match_profile_window_index,
     restore_layout_profile, save_layout_profile,
 };
+pub use system::{execute_system_control_action, is_system_control_action};
 
 pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
     "monitor.set_primary",
