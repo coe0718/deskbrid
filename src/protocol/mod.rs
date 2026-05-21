@@ -119,6 +119,68 @@ pub enum Action {
         action: String,
     },
     SystemBattery,
+    SystemInhibit {
+        what: String,
+        who: String,
+        why: Option<String>,
+        mode: Option<String>,
+    },
+    SystemReleaseInhibit {
+        inhibitor_id: u32,
+    },
+    SystemListSessions,
+    SystemLockSession {
+        session_id: Option<String>,
+    },
+    SystemSwitchUser {
+        username: String,
+    },
+    SystemCheckAuth {
+        action_id: String,
+    },
+    SystemElevate {
+        action_id: String,
+        reason: Option<String>,
+    },
+
+    // systemd units, journal, and timers
+    ServiceStatus {
+        name: String,
+    },
+    ServiceStart {
+        name: String,
+    },
+    ServiceStop {
+        name: String,
+    },
+    ServiceRestart {
+        name: String,
+    },
+    ServiceEnable {
+        name: String,
+        runtime: bool,
+    },
+    ServiceDisable {
+        name: String,
+        runtime: bool,
+    },
+    ServiceList {
+        unit_type: Option<String>,
+    },
+    JournalQuery {
+        since: Option<u64>,
+        until: Option<u64>,
+        unit: Option<String>,
+        priority: Option<u8>,
+        tail: Option<u32>,
+    },
+    TimerList,
+    TimerStart {
+        name: String,
+    },
+    TimerStop {
+        name: String,
+    },
 
     // Network
     NetworkStatus,
@@ -352,6 +414,24 @@ impl Action {
             "system.idle",
             "system.power",
             "system.battery",
+            "system.inhibit",
+            "system.release_inhibit",
+            "system.sessions",
+            "system.lock_session",
+            "system.switch_user",
+            "system.check_auth",
+            "system.elevate",
+            "service.status",
+            "service.start",
+            "service.stop",
+            "service.restart",
+            "service.enable",
+            "service.disable",
+            "service.list",
+            "journal.query",
+            "timer.list",
+            "timer.start",
+            "timer.stop",
             "network.status",
             "network.interfaces",
             "network.wifi.scan",
@@ -446,6 +526,11 @@ mod tests {
         assert!(actions.contains(&"monitor.set_primary"));
         assert!(actions.contains(&"monitor.set_resolution"));
         assert!(actions.contains(&"monitor.disable"));
+        assert!(actions.contains(&"system.inhibit"));
+        assert!(actions.contains(&"system.check_auth"));
+        assert!(actions.contains(&"service.restart"));
+        assert!(actions.contains(&"journal.query"));
+        assert!(actions.contains(&"timer.start"));
     }
 
     #[test]
@@ -547,5 +632,57 @@ mod tests {
             .is_err()
         );
         assert!(Action::from_json(r#"{"type":"monitor.disable","id":"x","output":""}"#).is_err());
+    }
+
+    #[test]
+    fn parses_systemd_and_polkit_actions() {
+        let (_, inhibit) = Action::from_json(
+            r#"{"type":"system.inhibit","id":"x","what":"sleep","who":"deskbrid","why":"test","mode":"block"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            inhibit,
+            Action::SystemInhibit {
+                what,
+                who,
+                why: Some(why),
+                mode: Some(mode),
+            } if what == "sleep" && who == "deskbrid" && why == "test" && mode == "block"
+        ));
+
+        let (_, service) =
+            Action::from_json(r#"{"type":"service.restart","id":"x","name":"ssh.service"}"#)
+                .unwrap();
+        assert!(matches!(
+            service,
+            Action::ServiceRestart { name } if name == "ssh.service"
+        ));
+
+        let (_, journal) = Action::from_json(
+            r#"{"type":"journal.query","id":"x","unit":"ssh.service","priority":3,"tail":25}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            journal,
+            Action::JournalQuery {
+                unit: Some(unit),
+                priority: Some(3),
+                tail: Some(25),
+                ..
+            } if unit == "ssh.service"
+        ));
+
+        let (_, elevate) = Action::from_json(
+            r#"{"type":"system.elevate","id":"x","action_id":"org.deskbrid.system.service-control"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            elevate,
+            Action::SystemElevate { action_id, .. }
+                if action_id == "org.deskbrid.system.service-control"
+        ));
+
+        assert!(Action::from_json(r#"{"type":"journal.query","id":"x","priority":8}"#).is_err());
+        assert!(Action::from_json(r#"{"type":"timer.start","id":"x","name":""}"#).is_err());
     }
 }

@@ -666,7 +666,28 @@ pub async fn execute_action(
             serde_json::json!({"supported": false, "reason":"AT-SPI not integrated yet", "selector": selector, "text": text})
         }
 
-        // Handled before dispatch
-        Ping | Subscribe { .. } | Unsubscribe { .. } | Disconnect => unreachable!(),
+        // Handled before desktop-backend dispatch
+        Ping
+        | SystemInhibit { .. }
+        | SystemReleaseInhibit { .. }
+        | SystemListSessions
+        | SystemLockSession { .. }
+        | SystemSwitchUser { .. }
+        | SystemCheckAuth { .. }
+        | SystemElevate { .. }
+        | ServiceStatus { .. }
+        | ServiceStart { .. }
+        | ServiceStop { .. }
+        | ServiceRestart { .. }
+        | ServiceEnable { .. }
+        | ServiceDisable { .. }
+        | ServiceList { .. }
+        | JournalQuery { .. }
+        | TimerList
+        | TimerStart { .. }
+        | TimerStop { .. }
+        | Subscribe { .. }
+        | Unsubscribe { .. }
+        | Disconnect => unreachable!(),
     })
 }

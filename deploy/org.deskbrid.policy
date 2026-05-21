@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Deskbrid</vendor>
+  <vendor_url>https://github.com/coe0718/deskbrid</vendor_url>
+
+  <action id="org.deskbrid.system.service-control">
+    <description>Control systemd services through Deskbrid</description>
+    <message>Authentication is required to control system services.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.deskbrid.system.service-install">
+    <description>Enable or disable systemd services through Deskbrid</description>
+    <message>Authentication is required to change enabled system services.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.deskbrid.system.suspend-inhibit">
+    <description>Inhibit sleep, shutdown, or idle through Deskbrid</description>
+    <message>Authentication is required to inhibit system power transitions.</message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

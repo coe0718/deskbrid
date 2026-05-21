@@ -172,6 +172,66 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
             action: raw["action"].as_str().unwrap_or("").into(),
         },
         "system.battery" => Action::SystemBattery,
+        "system.inhibit" => Action::SystemInhibit {
+            what: required_non_empty_string(&raw, "what")?,
+            who: required_non_empty_string(&raw, "who")?,
+            why: raw["why"].as_str().map(String::from),
+            mode: raw["mode"].as_str().map(String::from),
+        },
+        "system.release_inhibit" => Action::SystemReleaseInhibit {
+            inhibitor_id: required_positive_u32(&raw, "inhibitor_id")?,
+        },
+        "system.sessions" => Action::SystemListSessions,
+        "system.lock_session" => Action::SystemLockSession {
+            session_id: optional_non_empty_string(&raw, "session_id")?,
+        },
+        "system.switch_user" => Action::SystemSwitchUser {
+            username: required_non_empty_string(&raw, "username")?,
+        },
+        "system.check_auth" => Action::SystemCheckAuth {
+            action_id: required_non_empty_string(&raw, "action_id")?,
+        },
+        "system.elevate" => Action::SystemElevate {
+            action_id: required_non_empty_string(&raw, "action_id")?,
+            reason: raw["reason"].as_str().map(String::from),
+        },
+        "service.status" => Action::ServiceStatus {
+            name: required_non_empty_string(&raw, "name")?,
+        },
+        "service.start" => Action::ServiceStart {
+            name: required_non_empty_string(&raw, "name")?,
+        },
+        "service.stop" => Action::ServiceStop {
+            name: required_non_empty_string(&raw, "name")?,
+        },
+        "service.restart" => Action::ServiceRestart {
+            name: required_non_empty_string(&raw, "name")?,
+        },
+        "service.enable" => Action::ServiceEnable {
+            name: required_non_empty_string(&raw, "name")?,
+            runtime: raw["runtime"].as_bool().unwrap_or(false),
+        },
+        "service.disable" => Action::ServiceDisable {
+            name: required_non_empty_string(&raw, "name")?,
+            runtime: raw["runtime"].as_bool().unwrap_or(false),
+        },
+        "service.list" => Action::ServiceList {
+            unit_type: raw["unit_type"].as_str().map(String::from),
+        },
+        "journal.query" => Action::JournalQuery {
+            since: raw["since"].as_u64(),
+            until: raw["until"].as_u64(),
+            unit: optional_non_empty_string(&raw, "unit")?,
+            priority: optional_priority(&raw, "priority")?,
+            tail: optional_u32(&raw, "tail")?,
+        },
+        "timer.list" => Action::TimerList,
+        "timer.start" => Action::TimerStart {
+            name: required_non_empty_string(&raw, "name")?,
+        },
+        "timer.stop" => Action::TimerStop {
+            name: required_non_empty_string(&raw, "name")?,
+        },
 
         // Network
         "network.status" => Action::NetworkStatus,
@@ -434,6 +494,25 @@ fn required_non_empty_string(raw: &serde_json::Value, field: &str) -> anyhow::Re
     Ok(value.to_string())
 }
 
+fn optional_non_empty_string(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Option<String>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value.trim().is_empty() {
+        anyhow::bail!("'{}' must not be empty", field);
+    }
+    Ok(Some(value.to_string()))
+}
+
 fn required_positive_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result<u32> {
     let value = raw[field]
         .as_u64()
@@ -442,6 +521,38 @@ fn required_positive_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result
         anyhow::bail!("'{}' must be a positive 32-bit integer", field);
     }
     Ok(value as u32)
+}
+
+fn optional_u32(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u32>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value > u32::MAX as u64 {
+        anyhow::bail!("'{}' must fit in a 32-bit integer", field);
+    }
+    Ok(Some(value as u32))
+}
+
+fn optional_priority(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<u8>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value > 7 {
+        anyhow::bail!("'{}' must be 0-7", field);
+    }
+    Ok(Some(value as u8))
 }
 
 fn required_positive_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<f64> {

@@ -11,9 +11,11 @@ pub mod setup;
 
 use permissions::Permissions;
 use protocol::DeskbridEvent;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use std::sync::atomic::{AtomicU32, Ordering};
+use tokio::process::Child;
+use tokio::sync::{Mutex, RwLock, broadcast};
 
 /// Global daemon state shared across all client connections
 pub struct DaemonState {
@@ -22,6 +24,9 @@ pub struct DaemonState {
     pub event_tx: broadcast::Sender<DeskbridEvent>,
     /// Scoped permissions per UID
     pub permissions: Permissions,
+    /// Active systemd-inhibit helper processes keyed by Deskbrid handle ID.
+    pub inhibitors: Arc<Mutex<HashMap<u32, Child>>>,
+    next_inhibitor_id: AtomicU32,
 }
 
 impl DaemonState {
@@ -31,7 +36,13 @@ impl DaemonState {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
             permissions: Permissions::load(),
+            inhibitors: Arc::new(Mutex::new(HashMap::new())),
+            next_inhibitor_id: AtomicU32::new(1),
         }
+    }
+
+    pub fn next_inhibitor_id(&self) -> u32 {
+        self.next_inhibitor_id.fetch_add(1, Ordering::Relaxed)
     }
 }
 
