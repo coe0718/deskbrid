@@ -687,6 +687,7 @@ pub async fn execute_action(
         | TimerList
         | TimerStart { .. }
         | TimerStop { .. }
+        | WaitFor { .. }
         | TerminalCreate { .. }
         | TerminalWrite { .. }
         | TerminalRead { .. }

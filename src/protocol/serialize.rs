@@ -172,6 +172,18 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             }
             obj
         }
+        Action::WaitFor {
+            condition,
+            params,
+            timeout_ms,
+            interval_ms,
+        } => {
+            let mut obj = json!({"type": "wait.for", "id": id, "condition": condition, "params": params, "timeout_ms": timeout_ms});
+            if let Some(interval_ms) = interval_ms {
+                obj["interval_ms"] = json!(interval_ms);
+            }
+            obj
+        }
         Action::SystemIdle => json!({"type": "system.idle", "id": id}),
         Action::SystemPower { action } => {
             json!({"type": "system.power", "id": id, "action": action})
@@ -654,6 +666,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemHealth => "system.health",
         Action::SystemRemediate { .. } => "system.remediate",
         Action::SystemNormalizeCoords { .. } => "system.normalize_coords",
+        Action::WaitFor { .. } => "wait.for",
         Action::SystemIdle => "system.idle",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",

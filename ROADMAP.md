@@ -28,6 +28,7 @@ it to the completed table below.
 | [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -75,7 +76,7 @@ These features exist in the codebase already for reference:
 23. [Session & User Management](#23-session--user-management)
 24. [⏭️ Screenshot Diffing](#24-screenshot-diffing)
 25. [Action Recording & Replay](#25-action-recording--replay-macros)
-26. [⏭️ Wait-for Conditions](#26-wait-for-conditions)
+26. [✅ Wait-for Conditions](#26-wait-for-conditions)
 27. [Cron / Scheduled Actions](#27-cron--scheduled-actions)
 28. [D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch)
 29. [Secret / Keyring Access](#29-secret--keyring-access)
@@ -1927,7 +1928,7 @@ MacroExport { name: String }, MacroImport { name: String, data: String },
 
 ## 26. Wait-for Conditions
 
-**Status:** ⏭️ Next #2.
+**Status:** ✅ Done on `main`.
 
 ### What's Missing
 
@@ -6023,7 +6024,6 @@ SnapshotClone { id: String, target_path: String },
 
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
-| **Wait-for conditions** | ⏭️ Next #2 | Low (~300 lines, polling loop) | High | Stops manual polling and lets the daemon wait for windows, text, files, processes, and visual states |
 | **OCR screenshot fallback** | ⏭️ Next #3 | Low (100 lines + tesseract CLI dep) | High | Lets agents read any window, including apps with poor a11y/CDP coverage |
 | **Screenshot diffing / visual stabilization** | ⏭️ Next #4 | Low (~200 lines, `image` crate) | High | Pairs with OCR and wait-for so agents can detect visual changes and page/app stability |
 | **Audit log** | 🧭 Planned | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |

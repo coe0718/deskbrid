@@ -143,6 +143,7 @@ client.listen()  # blocks, streaming events
 | `set_monitor_rotation(output, rotation) -> dict` | Set output rotation: `normal`, `left`, `right`, `inverted` |
 | `enable_monitor(output) -> dict` | Enable an output |
 | `disable_monitor(output) -> dict` | Disable an output |
+| `wait_for(condition, params=None, timeout_ms=30000, interval_ms=None) -> dict` | Wait for a daemon-polled condition |
 
 ## Data Models
 

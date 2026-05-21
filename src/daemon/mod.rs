@@ -14,6 +14,7 @@ mod system;
 pub mod terminal;
 #[cfg(test)]
 mod tests;
+mod wait;
 
 // Re-export the daemon's public API
 pub use capabilities::{
@@ -33,6 +34,7 @@ pub use layout::{
 };
 pub use system::{execute_system_control_action, is_system_control_action};
 pub use terminal::{execute_terminal_action, is_terminal_action};
+pub use wait::wait_for_condition;
 
 pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
     "monitor.set_primary",

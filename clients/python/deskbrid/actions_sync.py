@@ -111,6 +111,22 @@ class SyncActionsMixin:
     def disable_monitor(self, output: str) -> dict[str, Any]:
         return self._loop.submit(self._client.disable_monitor(output)).result()
 
+    def wait_for(
+        self,
+        condition: str,
+        params: dict[str, Any] | None = None,
+        timeout_ms: int = 30_000,
+        interval_ms: int | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.wait_for(
+                condition,
+                params=params,
+                timeout_ms=timeout_ms,
+                interval_ms=interval_ms,
+            )
+        ).result()
+
     def info(self) -> DaemonInfo:
         return self._loop.submit(self._client.info()).result()
 

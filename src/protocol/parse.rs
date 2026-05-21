@@ -167,6 +167,18 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
             y: raw["y"].as_f64().unwrap_or(0.0),
             monitor: raw["monitor"].as_u64().map(|m| m as u32),
         },
+        "wait.for" => Action::WaitFor {
+            condition: required_non_empty_string(&raw, "condition")?,
+            params: raw
+                .get("params")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
+            timeout_ms: raw["timeout_ms"]
+                .as_u64()
+                .or_else(|| raw["timeout"].as_u64())
+                .unwrap_or(30_000),
+            interval_ms: raw["interval_ms"].as_u64(),
+        },
         "system.idle" => Action::SystemIdle,
         "system.power" => Action::SystemPower {
             action: raw["action"].as_str().unwrap_or("").into(),

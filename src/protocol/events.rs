@@ -54,7 +54,7 @@ pub struct AudioSinkInfo {
 // ─── Event Types (Server → Client push) ────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-
+#[serde(tag = "event")]
 pub enum DeskbridEvent {
     #[serde(rename = "file.created")]
     FileCreated { path: String, timestamp: u64 },
@@ -76,6 +76,14 @@ pub enum DeskbridEvent {
     WorkspaceWindowMoved {
         window_id: String,
         workspace_id: u32,
+        timestamp: u64,
+    },
+    #[serde(rename = "wait.matched")]
+    WaitMatched {
+        wait_id: String,
+        condition: String,
+        value: serde_json::Value,
+        elapsed_ms: u128,
         timestamp: u64,
     },
 }

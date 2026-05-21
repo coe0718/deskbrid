@@ -180,8 +180,17 @@ pub enum Command {
     // ─── Wait ───────────────────────────────────────────
     #[command(name = "wait")]
     Wait {
-        /// Event to wait for (e.g. window.focus_changed)
-        event: String,
+        /// Condition to wait for: window_exists, window_title, clipboard_contains, process_exits, file_exists, file_content, idle_seconds, screenshot_stable
+        condition: String,
+        /// Condition parameter as key=value. Repeat for multiple params.
+        #[arg(long = "param")]
+        params: Vec<String>,
+        /// Timeout in milliseconds
+        #[arg(long, default_value = "30000")]
+        timeout_ms: u64,
+        /// Poll interval in milliseconds
+        #[arg(long)]
+        interval_ms: Option<u64>,
     },
 
     // ─── Clients ────────────────────────────────────────

@@ -115,6 +115,12 @@ pub enum Action {
         y: f64,
         monitor: Option<u32>,
     },
+    WaitFor {
+        condition: String,
+        params: serde_json::Value,
+        timeout_ms: u64,
+        interval_ms: Option<u64>,
+    },
     SystemIdle,
     SystemPower {
         action: String,
@@ -441,6 +447,7 @@ impl Action {
             "system.health",
             "system.remediate",
             "system.normalize_coords",
+            "wait.for",
             "system.idle",
             "system.power",
             "system.battery",
@@ -569,6 +576,7 @@ mod tests {
         assert!(actions.contains(&"timer.start"));
         assert!(actions.contains(&"terminal.create"));
         assert!(actions.contains(&"terminal.read"));
+        assert!(actions.contains(&"wait.for"));
     }
 
     #[test]
@@ -766,5 +774,37 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn parses_wait_for_action() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"wait.for","id":"x","condition":"file_exists","params":{"path":"/tmp/ready"},"timeout_ms":5000,"interval_ms":100}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::WaitFor {
+                condition,
+                timeout_ms: 5000,
+                interval_ms: Some(100),
+                ..
+            } if condition == "file_exists"
+        ));
+        assert!(Action::from_json(r#"{"type":"wait.for","id":"x","condition":""}"#).is_err());
+    }
+
+    #[test]
+    fn serializes_events_with_event_field() {
+        let event = crate::protocol::DeskbridEvent::WaitMatched {
+            wait_id: "wait-1".into(),
+            condition: "file_exists".into(),
+            value: serde_json::json!({"path": "/tmp/ready"}),
+            elapsed_ms: 25,
+            timestamp: 123,
+        };
+        let value = serde_json::to_value(event).unwrap();
+        assert_eq!(value["event"], "wait.matched");
+        assert_eq!(value["wait_id"], "wait-1");
     }
 }

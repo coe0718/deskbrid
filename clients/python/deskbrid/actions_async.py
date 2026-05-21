@@ -150,6 +150,22 @@ class AsyncActionsMixin:
     async def disable_monitor(self, output: str) -> dict[str, Any]:
         return await self._request("monitor.disable", {"output": output})
 
+    async def wait_for(
+        self,
+        condition: str,
+        params: dict[str, Any] | None = None,
+        timeout_ms: int = 30_000,
+        interval_ms: int | None = None,
+    ) -> dict[str, Any]:
+        request: dict[str, Any] = {
+            "condition": condition,
+            "params": params or {},
+            "timeout_ms": timeout_ms,
+        }
+        if interval_ms is not None:
+            request["interval_ms"] = interval_ms
+        return await self._request("wait.for", request)
+
     async def info(self) -> DaemonInfo:
         return decode_info(await self._request("system.info"))
 

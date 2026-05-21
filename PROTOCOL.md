@@ -145,6 +145,7 @@ All action names use dot notation: `domain.action`. Every action is sent with `"
 | `system.health` | — | Dependency health check with remediation suggestions |
 | `system.remediate` | — | Auto-fix missing dependencies |
 | `system.normalize_coords` | `x` (number), `y` (number), `from` (object) | Convert monitor-relative coords to absolute |
+| `wait.for` | `condition` (string), `params` (object), `timeout_ms` (number), `interval_ms` (number, optional) | Wait for windows, clipboard, process, file, idle, or screenshot-stable conditions |
 
 ### Network
 

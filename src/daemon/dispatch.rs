@@ -6,6 +6,7 @@ use super::execute::execute_action;
 use super::helpers::{not_supported_response, permission_denied_response};
 use super::system::{execute_system_control_action, is_system_control_action};
 use super::terminal::{execute_terminal_action, is_terminal_action};
+use super::wait_for_condition;
 
 pub async fn dispatch_action(
     action: Action,
@@ -59,7 +60,25 @@ pub async fn dispatch_action(
         }
     };
 
-    let result = execute_action(action.clone(), backend.as_ref()).await;
+    let result = if let Action::WaitFor {
+        condition,
+        params,
+        timeout_ms,
+        interval_ms,
+    } = &action
+    {
+        wait_for_condition(
+            state,
+            backend.as_ref(),
+            condition,
+            params.clone(),
+            *timeout_ms,
+            *interval_ms,
+        )
+        .await
+    } else {
+        execute_action(action.clone(), backend.as_ref()).await
+    };
     action_response(state, &action, seq, result)
 }
 
