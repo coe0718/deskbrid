@@ -205,12 +205,11 @@ impl GnomeBackend {
     }
 
     pub(super) async fn get_current_workspace(&self) -> anyhow::Result<u32> {
-        if let Ok(raw) = self.ext_call_parsed("ActiveWorkspace", &[]).await {
-            if let Some(start) = raw.find("uint32 ") {
+        if let Ok(raw) = self.ext_call_parsed("ActiveWorkspace", &[]).await
+            && let Some(start) = raw.find("uint32 ") {
                 let num_str = &raw[start + 7..];
                 if let Some(end) = num_str.find(|c: char| !c.is_ascii_digit()) { return Ok(num_str[..end].parse().unwrap_or(0)); }
             }
-        }
         Ok(0)
     }
 
@@ -240,11 +239,9 @@ impl GnomeBackend {
         let addresses = props.get("AddressData")?;
         let arr = addresses.downcast_ref::<zvariant::Array>().ok()?;
         for entry in arr.iter() {
-            if let Ok(inner) = entry.downcast_ref::<zvariant::Structure>() {
-                if let Some(v) = inner.fields().first() {
-                    if let Ok(s) = v.downcast_ref::<zvariant::Str>() { return Some(s.to_string()); }
-                }
-            }
+            if let Ok(inner) = entry.downcast_ref::<zvariant::Structure>()
+                && let Some(v) = inner.fields().first()
+                    && let Ok(s) = v.downcast_ref::<zvariant::Str>() { return Some(s.to_string()); }
         }
         None
     }
@@ -350,7 +347,7 @@ fn parse_gnome_randr(out: &str, monitors: &mut Vec<protocol::MonitorInfo>) {
     let mut name = String::new(); let mut w = 1920u32; let mut h = 1080u32; let mut scale = 1.0f64; let mut idx = 0u32;
     for line in out.lines() {
         if line.starts_with("  ") || line.trim().is_empty() {
-            if line.contains("x") && line.contains('@') { if let Some(res) = line.split_whitespace().next() { let d: Vec<&str> = res.split('x').collect(); if d.len()==2 { w=d[0].parse().unwrap_or(1920); h=d[1].split('@').next().unwrap_or("1080").parse().unwrap_or(1080); } } }
+            if line.contains("x") && line.contains('@') && let Some(res) = line.split_whitespace().next() { let d: Vec<&str> = res.split('x').collect(); if d.len()==2 { w=d[0].parse().unwrap_or(1920); h=d[1].split('@').next().unwrap_or("1080").parse().unwrap_or(1080); } }
             if line.to_lowercase().contains("scale") { scale=line.split(':').nth(1).unwrap_or("1.0").trim().parse().unwrap_or(1.0); }
             continue;
         }
@@ -367,7 +364,7 @@ fn parse_wlr_randr(out: &str, monitors: &mut Vec<protocol::MonitorInfo>) {
             if !name.is_empty() { monitors.push(protocol::MonitorInfo { id:idx, name:name.clone(), width:w, height:h, scale, primary:idx==0, enabled:true, x:0, y:0, refresh_rate:None, rotation:"normal".into() }); idx+=1; }
             name = line.split(' ').next().unwrap_or("").to_string();
         }
-        if line.contains("current") { if let Some(res) = line.split_whitespace().next() { let d: Vec<&str> = res.split('x').collect(); if d.len()==2 { w=d[0].parse().unwrap_or(1920); h=d[1].split('@').next().unwrap_or("1080").parse().unwrap_or(1080); } } }
+        if line.contains("current") && let Some(res) = line.split_whitespace().next() { let d: Vec<&str> = res.split('x').collect(); if d.len()==2 { w=d[0].parse().unwrap_or(1920); h=d[1].split('@').next().unwrap_or("1080").parse().unwrap_or(1080); } }
         if line.contains("Scale:") { scale=line.split("Scale:").nth(1).unwrap_or("1.0").trim().parse().unwrap_or(1.0); }
     }
     if !name.is_empty() { monitors.push(protocol::MonitorInfo { id:idx, name, width:w, height:h, scale, primary:idx==0, enabled:true, x:0, y:0, refresh_rate:None, rotation:"normal".into() }); }

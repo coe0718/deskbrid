@@ -1,4 +1,3 @@
-use crate::protocol;
 use anyhow::bail;
 use clap::{Parser, Subcommand};
 
@@ -460,7 +459,6 @@ pub fn parse() -> Args {
 }
 
 /// Translate CLI commands into protocol actions
-
 pub(crate) mod into_action;
 
 pub use into_action::into_action;

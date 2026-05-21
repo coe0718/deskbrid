@@ -1,5 +1,4 @@
 /// Free functions and helper types for the Hyprland backend.
-
 pub(super) struct HyprMonitorConfig {
     pub(super) name: String,
     pub(super) width: u32,
