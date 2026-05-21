@@ -60,8 +60,8 @@ These features exist in the codebase already for reference:
 9. [Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
 10. [Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
-12. [OCR / Text Extraction](#12-ocr--text-extraction)
-13. [Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
+12. [⏭️ OCR / Text Extraction](#12-ocr--text-extraction)
+13. [⏭️ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
 16. [Application Menu Catalog](#16-application-menu-catalog)
@@ -72,9 +72,9 @@ These features exist in the codebase already for reference:
 21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
 22. [Keyboard Layout Management](#22-keyboard-layout-management)
 23. [Session & User Management](#23-session--user-management)
-24. [Screenshot Diffing](#24-screenshot-diffing)
+24. [⏭️ Screenshot Diffing](#24-screenshot-diffing)
 25. [Action Recording & Replay](#25-action-recording--replay-macros)
-26. [Wait-for Conditions](#26-wait-for-conditions)
+26. [⏭️ Wait-for Conditions](#26-wait-for-conditions)
 27. [Cron / Scheduled Actions](#27-cron--scheduled-actions)
 28. [D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch)
 29. [Secret / Keyring Access](#29-secret--keyring-access)
@@ -883,6 +883,8 @@ Only available on systemd systems. When absent, these actions should return
 
 ## 12. OCR / Text Extraction
 
+**Status:** ⏭️ Next #3.
+
 ### What's Missing
 
 The screenshot pipeline works and returns PNG paths, but nothing extracts text from
@@ -953,6 +955,8 @@ ScreenshotOcr {
 ---
 
 ## 13. Terminal / PTY Multiplexer
+
+**Status:** ⏭️ Next #1.
 
 ### What's Missing
 
@@ -1832,6 +1836,8 @@ without logind.
 
 ## 24. Screenshot Diffing
 
+**Status:** ⏭️ Next #4.
+
 ### What's Missing
 
 Agents can take screenshots but can't compare two to detect what changed. Common
@@ -1919,6 +1925,8 @@ MacroExport { name: String }, MacroImport { name: String, data: String },
 ---
 
 ## 26. Wait-for Conditions
+
+**Status:** ⏭️ Next #2.
 
 ### What's Missing
 
@@ -6010,26 +6018,28 @@ SnapshotClone { id: String, target_path: String },
 
 ## 129. Priority Roadmap
 
-### Tier 1 — High Value, Low Effort (do next)
+### Tier 1 — Highest Agent Leverage (build next)
 
-| Feature | Effort | Impact | Reason |
-|---|---|---|---|
-| **OCR screenshot fallback** | Low (100 lines + tesseract CLI dep) | High | Let agents read any window, not just a11y-accessible ones |
-| **Color picker** | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
-| **Drag & drop** | Very low (~100 lines, 4 backends) | Medium | File managers, design tools, browser upload zones |
-| **Clipboard history** | Low (~200 lines, ring buffer) | Medium | Retrieve old clipboard entries, search history |
-| **Window tiling presets** | Low (~150 lines, helper over existing) | Medium | Tile without computing pixel coordinates |
-| **Screenshot diffing** | Low (~200 lines, `image` crate) | Medium | Detect visual changes, page load stabilization |
-| **Wait-for conditions** | Low (~300 lines, polling loop) | High | Stop polling manually — let daemon watch conditions |
-| **Dry-run mode** | Trivial (~80 lines, dispatch flag) | Medium | Validate sequences before executing |
-| **Rate limiting** | Low (~200 lines, token bucket) | Medium | Prevent runaway agents from saturating daemon |
-| **Audit log** | Low (~200 lines, ring buffer) | High | Trail for debugging and security |
-| **Terminal/PTY** | Medium (500-800 lines, new module) | 🟢 **Highest** — coding agents need interactive terminals |
-| **systemd inhibit** | Low (1 crate, 2 methods) | High | Agents need to prevent sleep during long tasks |
-| **sysfs brightness/backlight** | Very low (std::fs only) | Medium | Works across all DEs, no new deps |
-| **sysfs thermal/CPU** | Very low (std::fs only) | Medium | Useful for monitoring, simple read ops |
-| **Capabilities reporting** | Low (caps crate) | Medium | Tell agents what they can/can't do |
-| **Confinement detection** | Low (env checks only) | High | Prevent confusing failures in sandboxed envs |
+| Feature | Status | Effort | Impact | Reason |
+|---|---|---|---|---|
+| **Terminal/PTY** | ⏭️ Next #1 | Medium (500-800 lines, new module) | Highest | Biggest unlock for coding agents: interactive shells, REPLs, installers, test watchers |
+| **Wait-for conditions** | ⏭️ Next #2 | Low (~300 lines, polling loop) | High | Stops manual polling and lets the daemon wait for windows, text, files, processes, and visual states |
+| **OCR screenshot fallback** | ⏭️ Next #3 | Low (100 lines + tesseract CLI dep) | High | Lets agents read any window, including apps with poor a11y/CDP coverage |
+| **Screenshot diffing / visual stabilization** | ⏭️ Next #4 | Low (~200 lines, `image` crate) | High | Pairs with OCR and wait-for so agents can detect visual changes and page/app stability |
+| **Audit log** | 🧭 Planned | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
+| **Action timeouts** | 🧭 Planned | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
+| **Dry-run mode** | 🧭 Planned | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
+| **Rate limiting** | 🧭 Planned | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
+| **Capabilities reporting** | 🧭 Planned | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
+| **Confinement detection** | 🧭 Planned | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
+| **Clipboard history** | 🧭 Planned | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
+| **App catalog (.desktop)** | 🧭 Planned | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
+| **MPRIS media control** | 🧭 Planned | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
+| **Color picker** | 🧭 Planned | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
+| **Window tiling presets** | 🧭 Planned | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
+| **Drag & drop** | 🧭 Planned | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
+| **sysfs brightness/backlight** | 🧭 Planned | Very low (std::fs only) | Medium | Works across all DEs, no new deps |
+| **sysfs thermal/CPU** | 🧭 Planned | Very low (std::fs only) | Medium | Useful for monitoring and simple read-only hardware insight |
 
 ### Tier 2 — Moderate Value, Moderate Effort
 
@@ -6038,16 +6048,11 @@ SnapshotClone { id: String, target_path: String },
 | **Keyboard layout mgmt** | Low (~250 lines, per-DE commands) | Medium | Know/switch keyboard layouts for correct typing |
 | **Desktop settings** | Medium (~300 lines, gsettings/kconfig) | Medium | Toggle dark mode, change font, accessibility |
 | **Session/user mgmt** | Medium (~250 lines via login1 + per-DE) | Medium | Lock screen, list users, session info |
-| **MPRIS media control** | Low (~300 lines, zbus calls) | Medium | Pause music before recording, metadata for context |
-| **App catalog (.desktop)** | Low (~200 lines, ini parser) | Medium | Agent discovery of installed applications |
 | **Named sessions** | Low (~250 lines, session map) | Medium | Multi-agent isolation on the same daemon |
 | **Action recording/replay** | Medium (~400 lines, capture + file store) | Medium | Record macros, replay sequences, automation |
 | **Cron scheduler** | Medium (~350 lines, `cron` crate) | Medium | Scheduled actions without external cron |
 | **D-Bus raw access** | Low (~200 lines, zbus + JSON conversion) | Medium | Escape hatch for unwrapped interfaces |
 | **Secret/keyring** | Medium (~300 lines, `secret-service` crate) | Medium | Secure credential storage for agents |
-| **systemd service control** | Medium (zbus_systemd module) | High | Agents can set up dev environments |
-| **systemd journal query** | Medium (separate Journal DBus) | High | Agents read logs automatically |
-| **polkit elevation** | Medium (zbus_polkit + .policy file) | High | Enable privileged ops without root |
 | **cgroups sandbox** | Medium (cgroups-rs) | Medium | Protect daemon from runaway processes |
 | **udev events** | Medium (udev crate + event thread) | Medium | React to hardware changes |
 
