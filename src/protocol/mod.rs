@@ -1,3 +1,4 @@
+// reason: re-export module; logic in parse.rs/serialize.rs/exhaustive match in mod.rs
 pub mod events;
 pub mod parse;
 pub mod serialize;

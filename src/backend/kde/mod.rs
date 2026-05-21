@@ -1,3 +1,5 @@
+// reason: single #[async_trait] impl block for DesktopBackend — cannot split across
+// files in the same crate. See AGENTS.md §1.
 use crate::protocol;
 use crate::protocol::DeskbridEvent;
 use async_trait::async_trait;
