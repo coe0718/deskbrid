@@ -8,6 +8,7 @@ pub(crate) mod bluetooth;
 pub(crate) mod clipboard;
 pub(crate) mod core;
 pub(crate) mod files;
+pub(crate) mod init;
 pub(crate) mod inner;
 pub(crate) mod input;
 pub(crate) mod keysym;

@@ -136,4 +136,3 @@ impl HyprBackend {
         command.status().await.map(|s| s.success()).unwrap_or(false)
     }
 }
-

@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 use tokio::process::Command;
 use tokio::sync::broadcast;
 
-pub(crate) mod helpers;
 mod audio;
 mod bluetooth;
 mod files;
+pub(crate) mod helpers;
 mod monitor;
 mod networking;
 mod notifications;
