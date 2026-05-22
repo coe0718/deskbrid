@@ -5,27 +5,34 @@ use tokio::net::UnixListener;
 use tracing::{debug, error, info, warn};
 
 mod apps;
+pub(crate) mod apps_parse;
 mod audit;
 mod capabilities;
 mod client;
 mod clipboard;
 mod dispatch;
+mod dispatch_helpers;
 pub(crate) mod execute;
-mod helpers;
+pub(crate) mod helpers;
 mod layout;
 mod mpris;
+pub(crate) mod mpris_convert;
 mod rate_limit;
 mod system;
 pub mod terminal;
+pub(crate) mod terminal_create;
+pub(crate) mod terminal_helpers;
 #[cfg(test)]
 mod tests;
 mod wait;
+pub(crate) mod wait_checks;
+pub(crate) mod wait_params;
 
 // Re-export the daemon's public API
 pub(crate) use apps::{execute_app_catalog_action, is_app_catalog_action};
 pub(crate) use audit::{
     AuditRecord, action_timeout_from_env, audit_capacity_from_env, execute_audit_action,
-    is_audit_action, record_audit_entry,
+    is_audit_action,
 };
 pub use capabilities::{
     apply_gnome_capability_overrides, build_confinement_report, build_system_capabilities,
