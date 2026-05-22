@@ -137,6 +137,11 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         "clipboard.write" => Action::ClipboardWrite {
             text: raw["text"].as_str().unwrap_or("").into(),
         },
+        "clipboard.history" => Action::ClipboardHistoryList {
+            limit: raw["limit"].as_u64().map(|value| value as usize),
+            query: optional_non_empty_string(&raw, "query")?,
+        },
+        "clipboard.history.clear" => Action::ClipboardHistoryClear,
 
         // Screenshot
         "screenshot" => Action::Screenshot {

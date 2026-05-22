@@ -225,7 +225,7 @@ windows.list, windows.focus, windows.get, windows.close, windows.minimize, windo
 workspaces.list, workspaces.switch, workspaces.move_window
 layout_profiles.list, layout_profiles.get, layout_profiles.save, layout_profiles.delete, layout_profiles.restore
 input.keyboard, input.mouse
-clipboard.read, clipboard.write
+clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close
@@ -316,6 +316,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 |---|---|
 | `clipboard.read` | Read Wayland clipboard |
 | `clipboard.write` | Write to Wayland clipboard |
+| `clipboard.history` / `clipboard.history.clear` | List or clear clipboard text observed by Deskbrid |
 | `screenshot` | Capture screen (full, monitor, region, or window) |
 | `screenshot.ocr` | Extract text from a screenshot path or fresh capture via Tesseract |
 | `screenshot.diff` | Compare two screenshots or compare a baseline with a fresh capture |

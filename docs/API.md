@@ -535,6 +535,39 @@ Write text to the clipboard.
 }
 ```
 
+### `clipboard.history`
+
+List clipboard text entries observed through Deskbrid `clipboard.read` and
+`clipboard.write` calls. Deskbrid does not yet run a background clipboard watcher.
+
+**Request:**
+```json
+{"type": "clipboard.history", "id": "req-17", "limit": 25, "query": "token"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-17", "seq": 17, "status": "ok",
+  "data": {
+    "entries": [
+      {"id": 1, "timestamp": 1715000000, "text": "hello", "size": 5, "source": "write"}
+    ],
+    "count": 1,
+    "capacity": 200
+  }
+}
+```
+
+### `clipboard.history.clear`
+
+Clear Deskbrid clipboard history.
+
+**Request:**
+```json
+{"type": "clipboard.history.clear", "id": "req-18"}
+```
+
 ---
 
 ## Screenshot

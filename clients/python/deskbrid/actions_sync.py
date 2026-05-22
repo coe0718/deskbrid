@@ -21,6 +21,18 @@ class SyncActionsMixin:
     def clipboard_write(self, text: str) -> None:
         self._loop.submit(self._client.clipboard_write(text)).result()
 
+    def clipboard_history(
+        self,
+        limit: int | None = None,
+        query: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._loop.submit(
+            self._client.clipboard_history(limit=limit, query=query)
+        ).result()
+
+    def clipboard_history_clear(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.clipboard_history_clear()).result()
+
     def screenshot(self, monitor: int | None = None) -> str:
         result = self._loop.submit(self._client.screenshot(monitor=monitor)).result()
         return result.path

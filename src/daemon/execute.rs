@@ -12,6 +12,7 @@ use super::layout::*;
 pub async fn execute_action(
     action: Action,
     backend: &dyn crate::backend::DesktopBackend,
+    state: &crate::DaemonState,
 ) -> anyhow::Result<serde_json::Value> {
     use Action::*;
 
@@ -168,10 +169,18 @@ pub async fn execute_action(
             serde_json::json!({"mouse": action})
         }
 
-        ClipboardRead => serde_json::json!({"text": backend.clipboard_read().await?}),
+        ClipboardRead => {
+            let text = backend.clipboard_read().await?;
+            super::record_clipboard_text(state, &text, "read").await;
+            serde_json::json!({"text": text})
+        }
         ClipboardWrite { ref text } => {
             backend.clipboard_write(text).await?;
+            super::record_clipboard_text(state, text, "write").await;
             serde_json::json!({"written": true})
+        }
+        ClipboardHistoryList { .. } | ClipboardHistoryClear => {
+            anyhow::bail!("clipboard history actions are handled by the daemon dispatcher")
         }
 
         Screenshot {

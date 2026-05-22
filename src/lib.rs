@@ -36,9 +36,12 @@ pub struct DaemonState {
     pub action_timeout_ms: Option<u64>,
     pub(crate) rate_limits: Arc<Mutex<HashMap<u32, daemon::RateBucket>>>,
     pub(crate) rate_limit: Option<daemon::RateLimitConfig>,
+    pub clipboard_history: Arc<Mutex<VecDeque<protocol::ClipboardHistoryEntry>>>,
+    pub clipboard_history_capacity: usize,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
+    next_clipboard_history_id: AtomicU64,
 }
 
 impl DaemonState {
@@ -55,9 +58,12 @@ impl DaemonState {
             action_timeout_ms: daemon::action_timeout_from_env(),
             rate_limits: Arc::new(Mutex::new(HashMap::new())),
             rate_limit: daemon::rate_limit_from_env(),
+            clipboard_history: Arc::new(Mutex::new(VecDeque::new())),
+            clipboard_history_capacity: daemon::clipboard_history_capacity_from_env(),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),
+            next_clipboard_history_id: AtomicU64::new(1),
         }
     }
 
@@ -74,6 +80,11 @@ impl DaemonState {
 
     pub fn next_audit_id(&self) -> u64 {
         self.next_audit_id.fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub fn next_clipboard_history_id(&self) -> u64 {
+        self.next_clipboard_history_id
+            .fetch_add(1, Ordering::Relaxed)
     }
 }
 

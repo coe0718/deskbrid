@@ -120,6 +120,8 @@ The daemon also applies a per-UID token bucket. Configure it with
 |--------|--------|-------------|
 | `clipboard.read` | — | Read clipboard |
 | `clipboard.write` | `text` (string) | Write to clipboard |
+| `clipboard.history` | `limit` (number, optional), `query` (string, optional) | List clipboard text observed by Deskbrid reads/writes |
+| `clipboard.history.clear` | — | Clear Deskbrid clipboard history |
 
 ```json
 → {"type": "clipboard.read", "id": "8"}
@@ -320,7 +322,7 @@ allow = ["windows.*", "workspaces.list", "system.*"]
 windows.list, windows.focus, windows.get
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
-clipboard.read, clipboard.write
+clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close

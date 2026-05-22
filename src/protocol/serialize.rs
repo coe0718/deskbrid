@@ -125,6 +125,17 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         Action::ClipboardWrite { text } => {
             json!({"type": "clipboard.write", "id": id, "text": text})
         }
+        Action::ClipboardHistoryList { limit, query } => {
+            let mut obj = json!({"type": "clipboard.history", "id": id});
+            if let Some(limit) = limit {
+                obj["limit"] = json!(limit);
+            }
+            if let Some(query) = query {
+                obj["query"] = json!(query);
+            }
+            obj
+        }
+        Action::ClipboardHistoryClear => json!({"type": "clipboard.history.clear", "id": id}),
 
         // Screenshot
         Action::Screenshot {
@@ -741,6 +752,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::InputMouse { .. } => "input.mouse",
         Action::ClipboardRead => "clipboard.read",
         Action::ClipboardWrite { .. } => "clipboard.write",
+        Action::ClipboardHistoryList { .. } => "clipboard.history",
+        Action::ClipboardHistoryClear => "clipboard.history.clear",
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",

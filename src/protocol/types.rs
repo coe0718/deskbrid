@@ -130,6 +130,16 @@ pub struct AuditEntry {
     pub dry_run: Option<bool>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct ClipboardHistoryEntry {
+    pub id: u64,
+    pub timestamp: u64,
+    pub text: String,
+    pub size: usize,
+    pub source: String,
+}
+
 // ─── Envelope ───────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

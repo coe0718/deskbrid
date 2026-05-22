@@ -83,6 +83,11 @@ pub enum Action {
     ClipboardWrite {
         text: String,
     },
+    ClipboardHistoryList {
+        limit: Option<usize>,
+        query: Option<String>,
+    },
+    ClipboardHistoryClear,
 
     // Screenshot
     Screenshot {
@@ -467,6 +472,8 @@ impl Action {
             "input.mouse",
             "clipboard.read",
             "clipboard.write",
+            "clipboard.history",
+            "clipboard.history.clear",
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
@@ -621,6 +628,7 @@ mod tests {
         assert!(actions.contains(&"screenshot.ocr"));
         assert!(actions.contains(&"screenshot.diff"));
         assert!(actions.contains(&"audit.log"));
+        assert!(actions.contains(&"clipboard.history"));
     }
 
     #[test]

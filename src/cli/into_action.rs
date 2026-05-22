@@ -95,6 +95,8 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         Command::Clipboard { cmd } => match cmd {
             ClipboardCmd::Read => Action::ClipboardRead,
             ClipboardCmd::Write { text } => Action::ClipboardWrite { text },
+            ClipboardCmd::History { limit, query } => Action::ClipboardHistoryList { limit, query },
+            ClipboardCmd::ClearHistory => Action::ClipboardHistoryClear,
         },
 
         Command::Screenshot {

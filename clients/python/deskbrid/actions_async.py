@@ -39,6 +39,22 @@ class AsyncActionsMixin:
     async def clipboard_write(self, text: str) -> None:
         await self._request("clipboard.write", {"text": text})
 
+    async def clipboard_history(
+        self,
+        limit: int | None = None,
+        query: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        if query is not None:
+            params["query"] = query
+        response = await self._request("clipboard.history", params)
+        return list(response.get("entries", []))
+
+    async def clipboard_history_clear(self) -> dict[str, Any]:
+        return await self._request("clipboard.history.clear")
+
     async def screenshot(self, monitor: int | None = None) -> ScreenshotResult:
         params: dict[str, Any] = {}
         if monitor is not None:

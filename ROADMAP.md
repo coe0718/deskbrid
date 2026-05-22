@@ -30,6 +30,7 @@ it to the completed table below.
 | [9. Confinement Detection](#9-confinement-detection-flatpak--snap--selinux--apparmor) | Detect Flatpak, Snap, AppImage, containers, WSL, AppArmor, and SELinux via `system.confinement` and capability/health reports | `src/daemon/capabilities/confinement.rs`, `src/protocol/`, `clients/python/` |
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
@@ -75,7 +76,7 @@ These features exist in the codebase already for reference:
 15. [Drag & Drop](#15-drag--drop)
 16. [Application Menu Catalog](#16-application-menu-catalog)
 17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
-18. [Clipboard History](#18-clipboard-history)
+18. [✅ Clipboard History](#18-clipboard-history)
 19. [Window Tiling Presets](#19-window-tiling-presets)
 20. [Color Picker](#20-color-picker)
 21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
@@ -1325,13 +1326,15 @@ DeskbridEvent::ScreencastStopped {
 
 ## 18. Clipboard History
 
+**Status:** ✅ Done. Deskbrid stores a bounded in-memory history of clipboard text
+observed through `clipboard.read` and `clipboard.write`, dedupes consecutive
+duplicates, and exposes `clipboard.history` / `clipboard.history.clear` through
+the protocol, CLI, and Python client.
+
 ### What's Missing
 
-Deskbrid has `ClipboardRead` and `ClipboardWrite` — access to the current clipboard
-selection. But agents can't:
-- Retrieve what was copied 5 minutes ago
-- Restore a previous clipboard entry after it was overwritten
-- Search through clipboard history programmatically
+Background clipboard watching, restore-by-entry, and persistence across daemon
+restarts are still future work.
 
 ### Implementation
 
@@ -6061,7 +6064,7 @@ SnapshotClone { id: String, target_path: String },
 | **Rate limiting** | ✅ Done | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
 | **Capabilities reporting** | ✅ Done | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
 | **Confinement detection** | ✅ Done | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
-| **Clipboard history** | 🧭 Planned | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
+| **Clipboard history** | ✅ Done | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
 | **App catalog (.desktop)** | 🧭 Planned | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
 | **MPRIS media control** | 🧭 Planned | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
 | **Color picker** | 🧭 Planned | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |

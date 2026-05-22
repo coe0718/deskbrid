@@ -7,6 +7,7 @@ use tracing::{debug, error, info, warn};
 mod audit;
 mod capabilities;
 mod client;
+mod clipboard;
 mod dispatch;
 mod execute;
 mod helpers;
@@ -28,6 +29,10 @@ pub use capabilities::{
     build_system_health, normalize_coords, run_system_remediation,
 };
 pub use client::handle_client;
+pub(crate) use clipboard::{
+    clipboard_history_capacity_from_env, execute_clipboard_history_action,
+    is_clipboard_history_action, record_clipboard_text,
+};
 pub use dispatch::dispatch_action;
 pub use execute::execute_action;
 pub use helpers::{
