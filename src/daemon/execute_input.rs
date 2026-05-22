@@ -1,0 +1,56 @@
+use crate::DaemonState;
+use crate::backend::DesktopBackend;
+use crate::protocol::Action;
+use serde_json::Value;
+
+pub(crate) async fn execute_input(
+    action: Action,
+    backend: &dyn DesktopBackend,
+    _state: &DaemonState,
+) -> anyhow::Result<Value> {
+    use Action::*;
+    Ok(match action {
+        InputKeyboardType { ref text } => {
+            backend.keyboard_type(text).await?;
+            serde_json::json!({"typed": text.len()})
+        }
+        InputKeyboardKey { ref key } => {
+            backend.keyboard_key(key).await?;
+            serde_json::json!({"key": key})
+        }
+        InputKeyboardCombo { ref keys } => {
+            backend.keyboard_combo(keys).await?;
+            serde_json::json!({"combo": keys})
+        }
+        InputMouse {
+            ref action,
+            x,
+            y,
+            ref button,
+            dx,
+            dy,
+        } => {
+            match action.as_str() {
+                "move" => {
+                    backend
+                        .mouse_move(x.unwrap_or(0.0), y.unwrap_or(0.0))
+                        .await?
+                }
+                "click" => {
+                    backend
+                        .mouse_click(button.as_deref().unwrap_or("left"))
+                        .await?
+                }
+                "scroll" => {
+                    backend
+                        .mouse_scroll(dx.unwrap_or(0.0), dy.unwrap_or(0.0))
+                        .await?
+                }
+                _ => anyhow::bail!("unknown mouse action: {}", action),
+            }
+            serde_json::json!({"mouse": action})
+        }
+
+        _ => unreachable!("not a input action"),
+    })
+}

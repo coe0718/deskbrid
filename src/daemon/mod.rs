@@ -13,6 +13,27 @@ mod clipboard;
 mod dispatch;
 mod dispatch_helpers;
 pub(crate) mod execute;
+mod execute_a11y;
+mod execute_audio;
+mod execute_audit;
+mod execute_bluetooth;
+mod execute_browser;
+mod execute_capabilities;
+mod execute_clipboard;
+mod execute_color;
+mod execute_delegated;
+mod execute_files;
+mod execute_hotkeys;
+mod execute_input;
+mod execute_monitor;
+mod execute_network;
+mod execute_notification;
+mod execute_process;
+mod execute_screenshot;
+mod execute_stubs;
+mod execute_system;
+mod execute_windows;
+mod execute_workspace;
 pub(crate) mod helpers;
 mod layout;
 mod mpris;
@@ -50,8 +71,8 @@ pub use helpers::{
     parse_signal, permission_denied_response, spawn_detached_process, unix_timestamp,
 };
 pub use layout::{
-    capture_layout_profile, list_layout_profiles, load_layout_profile, match_profile_window_index,
-    restore_layout_profile, save_layout_profile,
+    capture_layout_profile, layout_profile_path, list_layout_profiles, load_layout_profile,
+    match_profile_window_index, restore_layout_profile, save_layout_profile,
 };
 pub(crate) use mpris::{execute_mpris_action, is_mpris_action};
 pub(crate) use rate_limit::{
