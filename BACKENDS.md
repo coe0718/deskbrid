@@ -69,7 +69,7 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 | **P1** | Niri | CLI (niri msg) + Rust crate | Growing fast (Rust ecosystem) | 1-2 days | `niri-ipc` crate, JSON IPC. Low effort. |
 | **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | DONE v0.7.0 | `wf-ipc` CLI — full DesktopBackend, 645 lines |
 | **P1** | **Cinnamon** (Full) | **Cinnamon JS extension + D-Bus** | **Very high** | **3-4 days** | **Muffin = Mutter fork. Same pattern as GNOME extension.** |
-| **P2** | Labwc | Helper binary (wlr-ftm) | Moderate (stacking WM) | 3-5 days | No IPC — needs helper binary |
+| **P2** | Labwc | Helper binary (wlr-ftm) | Moderate (stacking WM) | DONE v0.7.0 | Helper binary + DesktopBackend, 915 lines, stub commands |
 | **P3** | Budgie 10.10 | D-Bus / GNOME extension adj. | Significant | 3-5 days | Uses Mutter — might share GNOME code |
 | **P3** | Deepin DDE | D-Bus (dde-daemon) | Significant (China market) | 4-6 days | Two compositors (KWin fork → Treeland) |
 | **P3** | **MATE** | **X11 backend + wmctrl (shared)** | **Significant (Linux Mint)** | **—** | **Already covered by X11 backend. Needs wmctrl windows_list.** |
