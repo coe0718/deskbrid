@@ -64,7 +64,7 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 
 | Priority | DE | Pattern | Users | Effort | Key Reason |
 |----------|----|---------|-------|--------|------------|
-| **P0** | Sway | CLI (swaymsg) | Very high (wlroots flagship) | 2-3 days | Largest gap. `swayipc` crate exists. |
+| **P0** | Sway | CLI (swaymsg) | Very high (wlroots flagship) | DONE v0.7.0 | `swaymsg` CLI — full DesktopBackend, 790 lines, 3 tests |
 | **P0** | **Cinnamon** (X11 Fix) | **X11 backend + wmctrl** | **Very high (Linux Mint #1 distro)** | **1-2 days** | **Just need `windows_list` via wmctrl. Fixes ALL X11 DEs.** |
 | **P1** | Niri | CLI (niri msg) + Rust crate | Growing fast (Rust ecosystem) | 1-2 days | `niri-ipc` crate, JSON IPC. Low effort. |
 | **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | 2-3 days | `wayfire-rs` crate, Python bindings exist. |

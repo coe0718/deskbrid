@@ -1,5 +1,5 @@
 ---
-name: deskbrid
+name: deskbrid-desktop-control
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, workspaces, MCP server, AT-SPI2, browser CDP, file ops, MPRIS, systemd, and more. Backends for GNOME, KDE, Hyprland, COSMIC, and X11.
 ---
 
@@ -70,7 +70,7 @@ Deskbrid v0.3.0 auto-detects the running desktop environment and loads the appro
 | **Cinnamon** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing via xdotool + sharing X11 backend helpers |
 | **MATE** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing |
 | **Generic X11** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing + xrandr geometry |
-| **Sway** | Wayland | ❌ Not planned | wlroots-based, no RemoteDesktop equivalent |
+| **Sway** | Wayland | ✅ Supported (v0.7.0) | `swaymsg` JSON IPC for windows/workspaces/outputs; `ydotool` for input; `grim` for screenshots; `wl-clipboard`; shares wlroots infra with Hyprland |
 
 ### Hyprland Backend (v0.3.0)
 
@@ -730,10 +730,48 @@ CI must include `cargo fmt --check` — edition 2024 formatting differs from 202
 
 **🚨 CRITICAL: Check the existing tag/release scheme before tagging.** Cargo.toml may have been bumped to a version that doesn't match the release train (e.g., Cargo.toml says 2.0.0 but existing releases are v0.4.x). Always check `git tag --list 'v*' | sort -V` and `gh release list -L 5` before deciding the next version. The user expects semantic versioning — patch for bugfixes, minor for features, major only for real breaking changes. A version jump from v0.4.0 to v2.0.0 will be rejected.
 
-**Merge to `main` before any release action.**** Feature branches do NOT ship. The sequence is: feature branch → merge to main → delete branch → tag/release. If you skip the merge and push tags from the branch, `main` stays behind and the "release" points to orphaned commits.
+**Merge to `main` before any release action.** Feature branches do NOT ship. The sequence is: feature branch → merge to main → delete branch → tag/release. If you skip the merge and push tags from the branch, `main` stays behind and the "release" points to orphaned commits.
 
-See `references/permissions-system.md` for the scoped per-UID permissions system (v0.5.0).
-See `references/release-workflow.md` for the complete release checklist: pre-flight checks, CI gates, version bumping, docs audit, binary build, GitHub release creation, and verification. Covers the `git branch`/`tag` name collision pitfall (commits on `v0.2.0` branch don't reach `main`) and fixing stale GitHub releases.
+### Hermes Skill Sync (MUST DO before tagging)
+
+**The Hermes skill file lives in TWO places and BOTH must be updated:**
+1. `~/.hermes/skills/devops/deskbrid-desktop-control/SKILL.md` — loaded by Hermes agents at runtime
+2. `~/projects/deskbrid/hermes/deskbrid.md` — bundled in the repo, ships with the release
+
+**Before cutting a release tag:**
+- Update both files with all new features, backend changes, compositor table updates, and pitfall additions
+- Sync the repo copy FROM the skill copy: `cp ~/.hermes/skills/devops/deskbrid-desktop-control/SKILL.md ~/projects/deskbrid/hermes/deskbrid.md`
+- Fix the frontmatter: the repo file uses `name: deskbrid` with a concise description; the skill uses `name: deskbrid-desktop-control`
+- Commit the repo hermes file WITH the version bump — the tag must include it
+
+**If Jeremy says "you need to update the /hermes stuff too" — you forgot step 2. Fix it and force-push the tag.**
+
+### Tag Force-Push (normal after release fixes)
+
+Post-tag commits (docs fixes, CI pipeline fixes, hermes sync) are NORMAL. The tag must include them:
+```bash
+git add -A && git commit -m "..." && git push
+git tag -f v0.X.0 && git push origin v0.X.0 --force
+```
+
+This triggers a fresh Release workflow with the updated code. The old tag commits aren't lost — they're still in the repo history, just not under the tag.
+
+### CI Release Pipeline
+
+The `.github/workflows/release.yml` triggers on `v*` tags and builds `cargo build --release` for the matrix targets, packages `.tar.gz`, and uploads to the GitHub release via `softprops/action-gh-release@v2`.
+
+**Current matrix:** x86_64-unknown-linux-gnu only. ARM (aarch64) was dropped because `libssl-dev:arm64` fails on noble runners — `security.ubuntu.com` doesn't serve arm64 packages for noble; they're on `ports.ubuntu.com` but the dpkg architecture add doesn't configure the ports archive.
+
+**Required workflow settings:**
+- `timeout-minutes: 30` — release builds take 4-6 min from warm cache, but cold runs can push 10+
+- `fail-fast: false` — one arch failure shouldn't cancel the other
+- `libssl-dev` must be explicitly installed (OpenSSL is a transitive dep via tokio-tungstenite)
+
+**If the release fails:**
+1. Check which matrix target failed — `gh run view <id> --log | grep error`
+2. If x86_64: check for timeout (cold cache) or missing system deps
+3. If aarch64: it's broken, don't waste time — the noble arm64 apt repos are misconfigured on GitHub runners
+4. Fix the workflow/commit, force-push the tag to re-trigger
 
 ### Release Assets
 
