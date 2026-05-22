@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   release:
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -25,9 +27,16 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Install cross-compiler (ARM)
+      - name: Install cross-compiler + OpenSSL (ARM)
         if: matrix.cross_pkg != ''
-        run: sudo apt-get update -qq && sudo apt-get install -yqq ${{ matrix.cross_pkg }}
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update -qq
+          sudo apt-get install -yqq ${{ matrix.cross_pkg }} libssl-dev:arm64
+
+      - name: Install OpenSSL (x86_64)
+        if: matrix.cross_pkg == ''
+        run: sudo apt-get update -qq && sudo apt-get install -yqq libssl-dev
 
       - name: Add target
         run: rustup target add ${{ matrix.target }}
