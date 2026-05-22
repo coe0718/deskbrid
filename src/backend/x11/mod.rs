@@ -1,5 +1,5 @@
 use crate::protocol;
-use crate::protocol::{DeskbridEvent};
+use crate::protocol::DeskbridEvent;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -8,10 +8,10 @@ use tokio::sync::broadcast;
 
 pub(crate) mod helpers;
 mod system;
-mod trait_impl;
-mod windows;
 #[cfg(test)]
 mod tests;
+mod trait_impl;
+mod windows;
 
 use helpers::*;
 

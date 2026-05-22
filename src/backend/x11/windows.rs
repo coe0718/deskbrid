@@ -49,7 +49,10 @@ pub(super) async fn window_get(
 
 pub(super) async fn window_close(backend: &X11Backend, id: &str) -> anyhow::Result<()> {
     X11Backend::ensure_window_id(id)?;
-    backend.sh("xdotool", &["windowclose", id]).await.map(|_| ())
+    backend
+        .sh("xdotool", &["windowclose", id])
+        .await
+        .map(|_| ())
 }
 
 pub(super) async fn window_minimize(backend: &X11Backend, id: &str) -> anyhow::Result<()> {
@@ -129,10 +132,7 @@ pub(super) async fn keyboard_key(backend: &X11Backend, key: &str) -> anyhow::Res
     backend.sh("xdotool", &["key", key]).await.map(|_| ())
 }
 
-pub(super) async fn keyboard_combo(
-    backend: &X11Backend,
-    keys: &[String],
-) -> anyhow::Result<()> {
+pub(super) async fn keyboard_combo(backend: &X11Backend, keys: &[String]) -> anyhow::Result<()> {
     backend
         .sh("xdotool", &["key", &keys.join("+")])
         .await
@@ -163,11 +163,7 @@ pub(super) async fn mouse_click(backend: &X11Backend, button: &str) -> anyhow::R
     backend.sh("xdotool", &["click", b]).await.map(|_| ())
 }
 
-pub(super) async fn mouse_scroll(
-    _backend: &X11Backend,
-    _dx: f64,
-    dy: f64,
-) -> anyhow::Result<()> {
+pub(super) async fn mouse_scroll(_backend: &X11Backend, _dx: f64, dy: f64) -> anyhow::Result<()> {
     let b = if dy >= 0.0 { "4" } else { "5" };
     _backend.sh("xdotool", &["click", b]).await.map(|_| ())
 }

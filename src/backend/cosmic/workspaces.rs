@@ -1,0 +1,99 @@
+use super::*;
+use crate::protocol;
+
+pub(super) async fn workspaces_list(
+    backend: &CosmicBackend,
+) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
+    let json = backend.helper_json(&["workspace-list"]).await?;
+    let workspaces: Vec<protocol::WorkspaceInfo> = serde_json::from_value(json)?;
+    Ok(workspaces)
+}
+
+pub(super) async fn workspace_switch(backend: &CosmicBackend, id: u32) -> anyhow::Result<()> {
+    backend
+        .helper_run(&["workspace-activate", "--id", &id.to_string()])
+        .await
+}
+
+pub(super) async fn workspace_move_window(
+    backend: &CosmicBackend,
+    window_id: &str,
+    workspace_id: u32,
+    _follow: bool,
+) -> anyhow::Result<()> {
+    let nid: u64 = window_id.parse().unwrap_or(0);
+    backend
+        .helper_run(&[
+            "move-to-workspace",
+            "--window-id",
+            &nid.to_string(),
+            "--workspace-id",
+            &workspace_id.to_string(),
+        ])
+        .await
+}
+
+// ─── Input ──────────────────────────────────────────
+
+pub(super) async fn keyboard_type(backend: &CosmicBackend, text: &str) -> anyhow::Result<()> {
+    backend.sh("ydotool", &["type", text]).await?;
+    Ok(())
+}
+
+pub(super) async fn keyboard_key(backend: &CosmicBackend, key: &str) -> anyhow::Result<()> {
+    backend.sh("ydotool", &["key", key]).await?;
+    Ok(())
+}
+
+pub(super) async fn keyboard_combo(backend: &CosmicBackend, keys: &[String]) -> anyhow::Result<()> {
+    // ydotool uses + for combos like "ctrl+alt+t"
+    let combo = keys.join("+");
+    backend.sh("ydotool", &["key", &combo]).await?;
+    Ok(())
+}
+
+pub(super) async fn mouse_move(backend: &CosmicBackend, x: f64, y: f64) -> anyhow::Result<()> {
+    backend
+        .sh(
+            "ydotool",
+            &["mousemove", "--absolute", &x.to_string(), &y.to_string()],
+        )
+        .await?;
+    *backend.last_mouse.lock().unwrap() = (x, y);
+    Ok(())
+}
+
+pub(super) async fn mouse_click(backend: &CosmicBackend, button: &str) -> anyhow::Result<()> {
+    let b = match button {
+        "left" => "1",
+        "middle" => "2",
+        "right" => "3",
+        _ => anyhow::bail!("unknown button: {}", button),
+    };
+    backend.sh("ydotool", &["click", b]).await?;
+    Ok(())
+}
+
+pub(super) async fn mouse_scroll(backend: &CosmicBackend, _dx: f64, dy: f64) -> anyhow::Result<()> {
+    if dy >= 0.0 {
+        backend.sh("ydotool", &["click", "4"]).await.map(|_| ())
+    } else {
+        backend.sh("ydotool", &["click", "5"]).await.map(|_| ())
+    }
+}
+
+// ─── Clipboard ──────────────────────────────────────
+
+pub(super) async fn clipboard_read(backend: &CosmicBackend) -> anyhow::Result<String> {
+    backend
+        .sh("wl-paste", &[])
+        .await
+        .map(|s| s.trim().to_string())
+}
+
+pub(super) async fn clipboard_write(backend: &CosmicBackend, text: &str) -> anyhow::Result<()> {
+    backend.sh("wl-copy", &[text]).await?;
+    Ok(())
+}
+
+// ─── Screenshot ─────────────────────────────────────

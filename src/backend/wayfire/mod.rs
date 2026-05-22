@@ -1,7 +1,5 @@
 use crate::backend::DesktopBackend;
-use crate::protocol;
 use crate::protocol::DeskbridEvent;
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -66,5 +64,7 @@ impl WayfireBackend {
     }
 }
 
-
+mod system;
 mod trait_impl;
+mod windows;
+mod workspaces;

@@ -60,9 +60,7 @@ pub(super) async fn notification_close(_backend: &X11Backend, _id: u32) -> anyho
     Ok(())
 }
 
-pub(super) async fn system_info(
-    backend: &X11Backend,
-) -> anyhow::Result<protocol::SystemInfo> {
+pub(super) async fn system_info(backend: &X11Backend) -> anyhow::Result<protocol::SystemInfo> {
     Ok(protocol::SystemInfo {
         desktop: backend.detected_de.clone(),
         desktop_version: "unknown".into(),
@@ -149,10 +147,7 @@ pub(super) async fn bluetooth_stop_scan(_backend: &X11Backend) -> anyhow::Result
     anyhow::bail!("not implemented on x11 backend")
 }
 
-pub(super) async fn bluetooth_connect(
-    _backend: &X11Backend,
-    _address: &str,
-) -> anyhow::Result<()> {
+pub(super) async fn bluetooth_connect(_backend: &X11Backend, _address: &str) -> anyhow::Result<()> {
     anyhow::bail!("not implemented on x11 backend")
 }
 
@@ -199,10 +194,7 @@ pub(super) async fn audio_set_sink_volume(
     anyhow::bail!("not implemented on x11 backend")
 }
 
-pub(super) async fn monitor_set_primary(
-    backend: &X11Backend,
-    output: &str,
-) -> anyhow::Result<()> {
+pub(super) async fn monitor_set_primary(backend: &X11Backend, output: &str) -> anyhow::Result<()> {
     backend
         .sh("xrandr", &["--output", output, "--primary"])
         .await
@@ -271,11 +263,7 @@ pub(super) async fn monitor_set_enabled(
     backend
         .sh(
             "xrandr",
-            &[
-                "--output",
-                output,
-                if enabled { "--auto" } else { "--off" },
-            ],
+            &["--output", output, if enabled { "--auto" } else { "--off" }],
         )
         .await
         .map(|_| ())
