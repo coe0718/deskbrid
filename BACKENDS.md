@@ -65,16 +65,16 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 | Priority | DE | Pattern | Users | Effort | Key Reason |
 |----------|----|---------|-------|--------|------------|
 | **P0** | Sway | CLI (swaymsg) | Very high (wlroots flagship) | DONE v0.7.0 | `swaymsg` CLI — full DesktopBackend, 790 lines, 3 tests |
-| **P0** | **Cinnamon** (X11 Fix) | **X11 backend + wmctrl** | **Very high (Linux Mint #1 distro)** | **1-2 days** | **Just need `windows_list` via wmctrl. Fixes ALL X11 DEs.** |
+| **P0** | **Cinnamon** (X11 Fix) | **X11 backend + wmctrl** | **Very high (Linux Mint #1 distro)** | **DONE v0.7.0** | **wmctrl -lGpx already wired in src/backend/x11/. Fixes ALL X11 DEs.** |
 | **P1** | Niri | CLI (niri msg) + Rust crate | Growing fast (Rust ecosystem) | 1-2 days | `niri-ipc` crate, JSON IPC. Low effort. |
 | **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | DONE v0.7.0 | `wf-ipc` CLI — full DesktopBackend, 645 lines |
 | **P1** | **Cinnamon** (Full) | **Cinnamon JS extension + D-Bus** | **Very high** | **3-4 days** | **Muffin = Mutter fork. Same pattern as GNOME extension.** |
 | **P2** | Labwc | Helper binary (wlr-ftm) | Moderate (stacking WM) | DONE v0.7.0 | Helper binary + DesktopBackend, 915 lines, stub commands |
 | **P3** | Budgie 10.10 | D-Bus / GNOME extension adj. | Significant | 3-5 days | Uses Mutter — might share GNOME code |
 | **P3** | Deepin DDE | D-Bus (dde-daemon) | Significant (China market) | 4-6 days | Two compositors (KWin fork → Treeland) |
-| **P3** | **MATE** | **X11 backend + wmctrl (shared)** | **Significant (Linux Mint)** | **—** | **Already covered by X11 backend. Needs wmctrl windows_list.** |
+| **P3** | **MATE** | **X11 backend + wmctrl (shared)** | **Significant (Linux Mint)** | **DONE v0.7.0** | **Already covered by X11 backend + wmctrl windows_list.** |
 | **P4** | River | Helper binary (river-wm-v1) | Niche (Zig compositor) | 3-5 days | No IPC, Wayland protocols only |
-| **P4** | LXQt 2.x | X11 backend / Labwc helper | Moderate | — | X11 version covered by X11 backend |
+| **P4** | LXQt 2.x | X11 backend / Labwc helper | Moderate | DONE v0.7.0 | Covered by X11 backend (X11 version) + Labwc backend (Wayland) |
 | **P4** | Enlightenment | Helper binary (EFL IPC) | Niche | 5-7 days | Unique EFL architecture |
 
 ---

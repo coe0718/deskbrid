@@ -41,6 +41,7 @@ echo '{"type":"system.info","id":"1"}' | nc -U    \
 Deskbrid ships an MCP (Model Context Protocol) stdio server and expanded AT-SPI2 accessibility tools. AI coding tools (Claude Code, Cursor, Codex) can control the desktop through Deskbrid's MCP interface.
 
 See `references/mcp-atspi-protocol.md` for the full tool mapping, protocol actions, module structure, and migration path from computer-use-linux.
+See `references/adding-cli-backend.md` for the proven workflow for adding new CLI-based compositor backends (Sway, Niri, Wayfire pattern).
 
 ### AT-SPI Connection Caching
 
@@ -61,16 +62,21 @@ pub async fn connect_a11y() -> anyhow::Result<Connection> {
 
 Deskbrid v0.3.0 auto-detects the running desktop environment and loads the appropriate backend. Detection order: `$XDG_CURRENT_DESKTOP` → process scan (`pgrep Hyprland`, `pgrep kwin_wayland`) → GNOME fallback.
 
+**Adding new backends:** See `references/adding-cli-backend.md` for the proven CLI-subprocess pattern (shipped Sway + Niri + Wayfire in one session). Covers protocol types, swaymsg argument format, fixture shapes, clippy traps, and the full wiring checklist. See `references/adding-a-backend.md` for the general architecture overview.
+
 | Compositor | Protocol | Status | Backend |
 |------------|----------|--------|---------|
 | **GNOME (Mutter)** | Wayland | ✅ Fully supported | Mutter RemoteDesktop DBus + GNOME Shell extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | `hyprctl` JSON CLI for windows/workspaces/dispatch; `ydotool` for input; `grim` for screenshots |
 | **KDE (KWin)** | Wayland | ✅ Supported (v0.4.1) | KWin D-Bus + Scripting API + `ydotool` (runs as user!) + `spectacle` + ImageMagick `convert -crop` for screenshots; see `references/kde-backend-implementation.md` |
 | **COSMIC (cosmic-comp)** | Wayland | ✅ Supported (v0.7.0) | Wayland protocols via `cosmic-helper` binary — `zcosmic_toplevel_manager_v1` + `ext_foreign_toplevel_list_v1` + `zcosmic_workspace_handle_v1`. Helper is a short-lived CLI inside the session. Non-windowing ops (grim, ydotool, wl-copy/paste) work standard. |
-| **Cinnamon** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing via xdotool + sharing X11 backend helpers |
-| **MATE** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing |
-| **Generic X11** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing + xrandr geometry |
 | **Sway** | Wayland | ✅ Supported (v0.7.0) | `swaymsg` JSON IPC for windows/workspaces/outputs; `ydotool` for input; `grim` for screenshots; `wl-clipboard`; shares wlroots infra with Hyprland |
+| **Niri** | Wayland | ✅ Supported (v0.7.0) | `niri msg --json` CLI for windows/workspaces/outputs; scrollable-tiling compositor; shares wlroots infra |
+| **Wayfire** | Wayland | ✅ Supported (v0.7.0) | `wf-ipc -j` CLI for views/workspaces/outputs; 3D wlroots compositor; shares wlroots infra |
+| **Labwc** | Wayland | ✅ Supported (v0.7.0) | Helper binary (`labwc-helper`) using wlr-foreign-toplevel-management-v1; stub commands; shares wlroots infra |
+| **Cinnamon** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing via wmctrl + xdotool; full JS extension track remains |
+| **MATE** | X11 | ✅ Covered (v0.7.0) | X11 backend + wmctrl covers all MATE operations |
+| **Generic X11** | X11 | 🔲 Partial (v0.7.0) | Shared X11 window listing + xrandr geometry |
 
 ### Hyprland Backend (v0.3.0)
 
@@ -730,7 +736,29 @@ CI must include `cargo fmt --check` — edition 2024 formatting differs from 202
 
 **🚨 CRITICAL: Check the existing tag/release scheme before tagging.** Cargo.toml may have been bumped to a version that doesn't match the release train (e.g., Cargo.toml says 2.0.0 but existing releases are v0.4.x). Always check `git tag --list 'v*' | sort -V` and `gh release list -L 5` before deciding the next version. The user expects semantic versioning — patch for bugfixes, minor for features, major only for real breaking changes. A version jump from v0.4.0 to v2.0.0 will be rejected.
 
-**Merge to `main` before any release action.** Feature branches do NOT ship. The sequence is: feature branch → merge to main → delete branch → tag/release. If you skip the merge and push tags from the branch, `main` stays behind and the "release" points to orphaned commits.
+### Hermes Skill Sync (MUST DO before tagging)
+
+**The Hermes skill file lives in TWO places and BOTH must be updated:**
+1. `~/.hermes/skills/devops/deskbrid-desktop-control/SKILL.md` — loaded by Hermes agents at runtime
+2. `~/projects/deskbrid/hermes/deskbrid.md` — bundled in the repo, ships with the release
+
+**Before cutting a release tag:**
+- Update both files with all new features, backend changes, compositor table updates, and pitfall additions
+- Sync the repo copy FROM the skill copy: `cp ~/.hermes/skills/devops/deskbrid-desktop-control/SKILL.md ~/projects/deskbrid/hermes/deskbrid.md`
+- Fix the frontmatter: the repo file uses `name: deskbrid` with a concise description; the skill uses `name: deskbrid-desktop-control`
+- Commit the repo hermes file WITH the version bump — the tag must include it
+
+**If Jeremy says "you need to update the /hermes stuff too" — you forgot step 2. Fix it and force-push the tag.**
+
+### Tag Force-Push (normal after release fixes)
+
+Post-tag commits (docs fixes, CI pipeline fixes, hermes sync) are NORMAL. The tag must include them:
+```bash
+git add -A && git commit -m "..." && git push
+git tag -f v0.X.0 && git push origin v0.X.0 --force
+```
+
+This triggers a fresh Release workflow with the updated code. The old tag commits aren't lost — they're still in the repo history, just not under the tag.
 
 ### Hermes Skill Sync (MUST DO before tagging)
 
