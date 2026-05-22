@@ -4,6 +4,7 @@ pub mod hyprland;
 pub mod kde;
 pub mod niri;
 pub mod sway;
+pub mod wayfire;
 pub mod x11;
 
 use crate::protocol;
@@ -34,6 +35,9 @@ pub async fn create_backend(
         DesktopEnv::Niri => niri::NiriBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Wayfire => wayfire::WayfireBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
         _ => gnome::GnomeBackend::new(event_tx)
             .await
@@ -53,6 +57,9 @@ async fn detect_desktop() -> DesktopEnv {
             return DesktopEnv::Sway;
         }
         if lower.contains("niri") {
+            if lower.contains("wayfire") {
+                return DesktopEnv::Wayfire;
+            }
             return DesktopEnv::Niri;
         }
         if lower.contains("cosmic") {
@@ -115,6 +122,7 @@ enum DesktopEnv {
     Kde,
     Niri,
     Sway,
+    Wayfire,
     X11,
 }
 
