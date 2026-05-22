@@ -31,7 +31,8 @@ async fn main() -> anyhow::Result<()> {
                 {
                     // Start daemon + MCP TCP listener in parallel
                     let daemon_handle = tokio::spawn(async { daemon::run().await });
-                    let mcp_handle = tokio::spawn(async { deskbrid::mcp::run_mcp_tcp(port).await });
+                    let mcp_handle =
+                        tokio::spawn(async move { deskbrid::mcp::run_mcp_tcp(port).await });
                     let (daemon_result, mcp_result) = tokio::join!(daemon_handle, mcp_handle);
                     daemon_result??;
                     mcp_result??;

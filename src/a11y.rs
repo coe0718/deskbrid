@@ -5,7 +5,7 @@
 //! snapshot building with bounds, actions, value, and text data.
 
 pub mod actions;
-mod bus;
+pub(crate) mod bus;
 pub mod setup;
 pub mod tree;
 mod util;

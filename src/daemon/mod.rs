@@ -10,7 +10,7 @@ mod capabilities;
 mod client;
 mod clipboard;
 mod dispatch;
-mod execute;
+pub(crate) mod execute;
 mod helpers;
 mod layout;
 mod mpris;

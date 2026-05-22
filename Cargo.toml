@@ -10,7 +10,7 @@ repository = "https://github.com/coe0718/deskbrid"
 default = []
 cosmic = ["dep:cosmic-protocols", "dep:wayland-client", "dep:wayland-protocols"]
 pipewire = ["dep:pipewire", "dep:spa"]
-mcp = ["dep:rmcp", "dep:schemars"]
+mcp = []
 
 [dependencies]
 # Async runtime
@@ -58,8 +58,6 @@ wayland-protocols = { version = "0.32", features = ["client", "staging"], option
 pipewire = { version = "0.8", optional = true }
 spa = { version = "0.8", package = "libspa", optional = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
-rmcp = { version = "1.5", optional = true }
-schemars = { version = "1", optional = true }
 
 [[bin]]
 name = "deskbrid"
