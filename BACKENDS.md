@@ -67,7 +67,7 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 | **P0** | Sway | CLI (swaymsg) | Very high (wlroots flagship) | DONE v0.7.0 | `swaymsg` CLI — full DesktopBackend, 790 lines, 3 tests |
 | **P0** | **Cinnamon** (X11 Fix) | **X11 backend + wmctrl** | **Very high (Linux Mint #1 distro)** | **1-2 days** | **Just need `windows_list` via wmctrl. Fixes ALL X11 DEs.** |
 | **P1** | Niri | CLI (niri msg) + Rust crate | Growing fast (Rust ecosystem) | 1-2 days | `niri-ipc` crate, JSON IPC. Low effort. |
-| **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | 2-3 days | `wayfire-rs` crate, Python bindings exist. |
+| **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | DONE v0.7.0 | `wf-ipc` CLI — full DesktopBackend, 645 lines |
 | **P1** | **Cinnamon** (Full) | **Cinnamon JS extension + D-Bus** | **Very high** | **3-4 days** | **Muffin = Mutter fork. Same pattern as GNOME extension.** |
 | **P2** | Labwc | Helper binary (wlr-ftm) | Moderate (stacking WM) | 3-5 days | No IPC — needs helper binary |
 | **P3** | Budgie 10.10 | D-Bus / GNOME extension adj. | Significant | 3-5 days | Uses Mutter — might share GNOME code |
