@@ -1,0 +1,548 @@
+use super::*;
+use crate::protocol;
+use crate::backend::DesktopBackend;
+use async_trait::async_trait;
+
+#[async_trait]
+impl DesktopBackend for CosmicBackend {
+impl DesktopBackend for CosmicBackend {
+    // ─── Windows ────────────────────────────────────────
+    async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
+        let json = self.helper_json(&["list-windows"]).await?;
+        // Parse the JSON array, converting cosmic helper format to protocol format
+        #[derive(serde::Deserialize)]
+        struct HelperWindow {
+            window_id: u64,
+            title: Option<String>,
+            app_id: Option<String>,
+            pid: Option<u32>,
+            x: Option<i32>,
+            y: Option<i32>,
+            width: Option<u32>,
+            height: Option<u32>,
+            focused: bool,
+            minimized: bool,
+            workspace_id: Option<u32>,
+        }
+        let helper_windows: Vec<HelperWindow> = serde_json::from_value(json)?;
+        let windows = helper_windows
+            .into_iter()
+            .map(|w| protocol::WindowInfo {
+                id: w.window_id.to_string(),
+                title: w.title.unwrap_or_default(),
+                app_id: w.app_id.unwrap_or_default(),
+                workspace_id: w.workspace_id.unwrap_or(0),
+                is_focused: w.focused,
+                is_minimized: w.minimized,
+                geometry: match (w.x, w.y, w.width, w.height) {
+                    (Some(x), Some(y), Some(width), Some(height)) => Some(protocol::Geometry {
+                        x,
+                        y,
+                        width,
+                        height,
+                    }),
+                    _ => None,
+                },
+                pid: w.pid,
+            })
+            .collect();
+        Ok(windows)
+    }
+
+    async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        let nid: u64 = id.parse().unwrap_or(0);
+        self.helper_run(&["activate", "--window-id", &nid.to_string()])
+            .await
+    }
+
+    async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        let windows = self.windows_list().await?;
+        windows
+            .into_iter()
+            .find(|w| w.id == id)
+            .ok_or_else(|| anyhow::anyhow!("window {} not found", id))
+    }
+
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        let nid: u64 = id.parse().unwrap_or(0);
+        self.helper_run(&["close", "--window-id", &nid.to_string()])
+            .await
+    }
+
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        let nid: u64 = id.parse().unwrap_or(0);
+        self.helper_run(&["minimize", "--window-id", &nid.to_string()])
+            .await
+    }
+
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        let nid: u64 = id.parse().unwrap_or(0);
+        self.helper_run(&["maximize", "--window-id", &nid.to_string()])
+            .await
+    }
+
+    async fn window_move_resize(
+        &self,
+        _id: &str,
+        _x: i32,
+        _y: i32,
+        _width: u32,
+        _height: u32,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("window move/resize not yet supported on COSMIC")
+    }
+
+    // ─── Workspaces ─────────────────────────────────────
+    async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
+        let json = self.helper_json(&["workspace-list"]).await?;
+        let workspaces: Vec<protocol::WorkspaceInfo> = serde_json::from_value(json)?;
+        Ok(workspaces)
+    }
+
+    async fn workspace_switch(&self, id: u32) -> anyhow::Result<()> {
+        self.helper_run(&["workspace-activate", "--id", &id.to_string()])
+            .await
+    }
+
+    async fn workspace_move_window(
+        &self,
+        window_id: &str,
+        workspace_id: u32,
+        _follow: bool,
+    ) -> anyhow::Result<()> {
+        let nid: u64 = window_id.parse().unwrap_or(0);
+        self.helper_run(&[
+            "move-to-workspace",
+            "--window-id",
+            &nid.to_string(),
+            "--workspace-id",
+            &workspace_id.to_string(),
+        ])
+        .await
+    }
+
+    // ─── Input ──────────────────────────────────────────
+    async fn keyboard_type(&self, text: &str) -> anyhow::Result<()> {
+        self.sh("ydotool", &["type", text]).await?;
+        Ok(())
+    }
+
+    async fn keyboard_key(&self, key: &str) -> anyhow::Result<()> {
+        self.sh("ydotool", &["key", key]).await?;
+        Ok(())
+    }
+
+    async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
+        // ydotool uses + for combos like "ctrl+alt+t"
+        let combo = keys.join("+");
+        self.sh("ydotool", &["key", &combo]).await?;
+        Ok(())
+    }
+
+    async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
+        self.sh(
+            "ydotool",
+            &["mousemove", "--absolute", &x.to_string(), &y.to_string()],
+        )
+        .await?;
+        *self.last_mouse.lock().unwrap() = (x, y);
+        Ok(())
+    }
+
+    async fn mouse_click(&self, button: &str) -> anyhow::Result<()> {
+        let b = match button {
+            "left" => "1",
+            "middle" => "2",
+            "right" => "3",
+            _ => anyhow::bail!("unknown button: {}", button),
+        };
+        self.sh("ydotool", &["click", b]).await?;
+        Ok(())
+    }
+
+    async fn mouse_scroll(&self, _dx: f64, dy: f64) -> anyhow::Result<()> {
+        if dy >= 0.0 {
+            self.sh("ydotool", &["click", "4"]).await.map(|_| ())
+        } else {
+            self.sh("ydotool", &["click", "5"]).await.map(|_| ())
+        }
+    }
+
+    // ─── Clipboard ──────────────────────────────────────
+    async fn clipboard_read(&self) -> anyhow::Result<String> {
+        self.sh("wl-paste", &[]).await.map(|s| s.trim().to_string())
+    }
+
+    async fn clipboard_write(&self, text: &str) -> anyhow::Result<()> {
+        self.sh("wl-copy", &[text]).await?;
+        Ok(())
+    }
+
+    // ─── Screenshot ─────────────────────────────────────
+    async fn screenshot(
+        &self,
+        _monitor: Option<u32>,
+        region: Option<protocol::Region>,
+        _window_id: Option<String>,
+    ) -> anyhow::Result<protocol::ScreenshotResult> {
+        let path = format!(
+            "/tmp/deskbrid/screenshot_{}.png",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
+
+        // Ensure tmp dir exists
+        let _ = tokio::fs::create_dir_all("/tmp/deskbrid").await;
+
+        if let Some(r) = region {
+            let geo = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
+            self.sh("grim", &["-g", &geo, &path]).await?;
+        } else {
+            self.sh("grim", &[&path]).await?;
+        }
+
+        // Get dimensions from the file
+        let dims_output = self.sh("identify", &["-format", "%w %h", &path]).await?;
+        let dims: Vec<&str> = dims_output.split_whitespace().collect();
+        let width = dims.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let height = dims.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+        Ok(protocol::ScreenshotResult {
+            path,
+            width,
+            height,
+            format: "png".to_string(),
+        })
+    }
+
+    // ─── Notifications ──────────────────────────────────
+    async fn notification_send(
+        &self,
+        _app_name: &str,
+        title: &str,
+        body: &str,
+        urgency: &str,
+    ) -> anyhow::Result<u32> {
+        let u = match urgency {
+            "low" => "low",
+            "critical" => "critical",
+            _ => "normal",
+        };
+        self.sh("notify-send", &["-u", u, title, body]).await?;
+        // notify-send doesn't return an ID; return 0
+        Ok(0)
+    }
+
+    async fn notification_close(&self, _id: u32) -> anyhow::Result<()> {
+        // notify-send doesn't support close by ID
+        Ok(())
+    }
+
+    // ─── System ─────────────────────────────────────────
+    async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
+        Ok(protocol::SystemInfo {
+            desktop: "COSMIC".to_string(),
+            desktop_version: "1.0".to_string(),
+            compositor: "cosmic-comp".to_string(),
+            session_type: "wayland".to_string(),
+            monitors: vec![],
+            workspace_count: 1,
+            current_workspace: 1,
+            idle_seconds: 0,
+        })
+    }
+
+    async fn idle_seconds(&self) -> anyhow::Result<u64> {
+        // Simple: check /dev/input/event* modification time
+        // Fallback to 0
+        Ok(0)
+    }
+
+    async fn power_action(&self, action: &str) -> anyhow::Result<()> {
+        match action {
+            "suspend" | "sleep" => self.sh("systemctl", &["suspend"]).await.map(|_| ()),
+            "hibernate" => self.sh("systemctl", &["hibernate"]).await.map(|_| ()),
+            "poweroff" | "shutdown" => self.sh("systemctl", &["poweroff"]).await.map(|_| ()),
+            "reboot" => self.sh("systemctl", &["reboot"]).await.map(|_| ()),
+            "lock" => self.sh("loginctl", &["lock-session"]).await.map(|_| ()),
+            _ => anyhow::bail!("unknown power action: {}", action),
+        }
+    }
+
+    async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
+        let mut batteries = Vec::new();
+        let mut entries = match tokio::fs::read_dir("/sys/class/power_supply/").await {
+            Ok(entries) => entries,
+            Err(_) => return Ok(batteries),
+        };
+
+        while let Some(entry) = entries.next_entry().await? {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with("BAT") {
+                continue;
+            }
+            let base = entry.path();
+            let capacity = tokio::fs::read_to_string(base.join("capacity"))
+                .await
+                .ok()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
+            let status = tokio::fs::read_to_string(base.join("status"))
+                .await
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            batteries.push(protocol::BatteryInfo {
+                source: name,
+                percentage: capacity as f64 / 100.0,
+                state: status,
+                time_remaining_minutes: None,
+            });
+        }
+        Ok(batteries)
+    }
+
+    // ─── Network ────────────────────────────────────────
+    async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
+        // Reuse nmcli
+        let output = self.sh("nmcli", &["-t", "-f", "STATE", "general"]).await?;
+        let connected = output.trim().starts_with("connected");
+        Ok(protocol::NetworkStatusInfo {
+            online: connected,
+            net_type: if connected { "ethernet" } else { "none" }.to_string(),
+        })
+    }
+
+    async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>> {
+        let output = self
+            .sh(
+                "nmcli",
+                &[
+                    "-t",
+                    "-f",
+                    "NAME,TYPE,DEVICE,STATE",
+                    "connection",
+                    "show",
+                    "--active",
+                ],
+            )
+            .await?;
+        let interfaces = output
+            .lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() < 4 {
+                    return None;
+                }
+                Some(protocol::NetworkInterfaceInfo {
+                    name: parts[0].to_string(),
+                    state: parts[3].to_string(),
+                    ipv4: None,
+                    ipv6: None,
+                })
+            })
+            .collect();
+        Ok(interfaces)
+    }
+
+    async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>> {
+        let output = self
+            .sh(
+                "nmcli",
+                &[
+                    "-t",
+                    "-f",
+                    "SSID,BSSID,SIGNAL,SECURITY",
+                    "device",
+                    "wifi",
+                    "list",
+                ],
+            )
+            .await?;
+        let networks = output
+            .lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() < 4 {
+                    return None;
+                }
+                Some(protocol::WifiNetworkInfo {
+                    ssid: parts[0].to_string(),
+                    strength: parts[2].parse().unwrap_or(0),
+                    secured: !parts[3].is_empty(),
+                    frequency: None,
+                })
+            })
+            .collect();
+        Ok(networks)
+    }
+
+    async fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> anyhow::Result<()> {
+        if let Some(pwd) = password {
+            self.sh(
+                "nmcli",
+                &["device", "wifi", "connect", ssid, "password", pwd],
+            )
+            .await?;
+        } else {
+            self.sh("nmcli", &["device", "wifi", "connect", ssid])
+                .await?;
+        }
+        Ok(())
+    }
+
+    // ─── Bluetooth ─────────────────────────────────────
+    async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
+        Ok(vec![])
+    }
+
+    async fn bluetooth_scan(&self, _duration: Option<u32>) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn bluetooth_connect(&self, _address: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn bluetooth_disconnect(&self, _address: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    // ─── Files ──────────────────────────────────────────
+    async fn files_watch(
+        &self,
+        _path: &str,
+        _recursive: bool,
+        _patterns: Option<&[String]>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn files_unwatch(&self, _path: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn files_search(
+        &self,
+        pattern: &str,
+        _root: Option<&str>,
+        max_results: u32,
+    ) -> anyhow::Result<Vec<String>> {
+        // Reuse `find` like the other backends
+        let output = self
+            .sh(
+                "find",
+                &[".", "-iname", &format!("*{}*", pattern), "-type", "f"],
+            )
+            .await?;
+        let results: Vec<String> = output
+            .lines()
+            .take(max_results as usize)
+            .map(String::from)
+            .collect();
+        Ok(results)
+    }
+
+    // ─── Audio ──────────────────────────────────────────
+    async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
+        Ok(vec![])
+    }
+
+    async fn audio_set_sink_volume(&self, _sink_id: u32, _volume: f64) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // MONITOR (via cosmic-randr)
+    // ═══════════════════════════════════════════════════════
+
+    async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()> {
+        // cosmic-randr has no "primary" concept — Wayland doesn't use it.
+        // Use xwayland-primary as the closest equivalent.
+        self.sh("cosmic-randr", &["xwayland", output]).await?;
+        Ok(())
+    }
+
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()> {
+        let mut args = vec![
+            "mode".to_string(),
+            output.to_string(),
+            width.to_string(),
+            height.to_string(),
+        ];
+        if let Some(refresh) = refresh_rate {
+            args.push("--refresh".to_string());
+            args.push(format_monitor_float(refresh));
+        }
+        self.sh_owned("cosmic-randr", args).await?;
+        Ok(())
+    }
+
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
+        // cosmic-randr mode --scale <value> — requires width+height too,
+        // so we first list the current mode to preserve it.
+        let list = self
+            .helper_json(&["list-monitors"])
+            .await
+            .unwrap_or_default();
+        let current_w = list.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32;
+        let current_h = list.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32;
+
+        self.sh_owned(
+            "cosmic-randr",
+            vec![
+                "mode".to_string(),
+                output.to_string(),
+                current_w.to_string(),
+                current_h.to_string(),
+                "--scale".to_string(),
+                format_monitor_float(scale),
+            ],
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
+        let transform = cosmic_transform(rotation)?;
+        // cosmic-randr mode --transform <value> — needs width+height
+        let list = self
+            .helper_json(&["list-monitors"])
+            .await
+            .unwrap_or_default();
+        let current_w = list.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32;
+        let current_h = list.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32;
+
+        self.sh_owned(
+            "cosmic-randr",
+            vec![
+                "mode".to_string(),
+                output.to_string(),
+                current_w.to_string(),
+                current_h.to_string(),
+                "--transform".to_string(),
+                transform.to_string(),
+            ],
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
+        let subcmd = if enabled { "enable" } else { "disable" };
+        self.sh("cosmic-randr", &[subcmd, output]).await?;
+        Ok(())
+    }
+}
