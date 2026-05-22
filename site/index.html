@@ -280,19 +280,19 @@ footer a:hover{color:var(--accent-light)}
 </nav>
 
 <section class="hero">
-  <div class="hero-badge">🖥️ AI-powered desktop control</div>
+  <div class="hero-badge">🖥️ v0.7.0 — MCP server, COSMIC, AT-SPI2, uinput</div>
   <h1>
-    Control your<br>
-    <span class="gradient-text">Linux Desktop</span><br>
-    from an AI Agent
+    The <span class="gradient-text">Linux Desktop HAL</span><br>
+    for AI Agents
   </h1>
   <p>
-    Deskbrid is a lightweight daemon that bridges AI assistants to your Linux desktop.
-    Control windows, inject keystrokes, take screenshots, and manage clipboards —
-    all over a simple Unix socket protocol.
+    Deskbrid is the hardware abstraction layer your AI agents are missing.
+    Unix socket daemon, MCP server, 20+ AI tools, four desktop backends.
+    Control windows, inject keystrokes, browse accessibility trees,
+    talk to browsers, manipulate files — all from your agent.
   </p>
   <div class="hero-actions">
-    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.6.0</a>
+    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.7.0</a>
     <a href="https://github.com/coe0718/deskbrid" class="btn-secondary">View on GitHub →</a>
   </div>
 
@@ -305,19 +305,19 @@ footer a:hover{color:var(--accent-light)}
       <span class="mockup-title">deskbrid — interactive demo</span>
     </div>
     <div class="mockup-body">
-      <span class="cm"># Connect to the daemon and control your desktop</span><br>
+      <span class="cm"># Unix socket daemon + MCP server — talk to it from any AI tool</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.list","id":"req-1"}</span>' | socat - ~/.deskbrid/socket<br>
-      <span class="ok">  ← 4 windows · active: 0x3a0000b (Firefox)</span><br>
+      <span class="prompt">$</span> deskbrid daemon --mcp-port 9001 <span class="cm"># socket + TCP</span><br>
+      <span class="ok">  ← daemon ready · GNOME backend loaded</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.focus","id":"req-2","window_id":"0x3a0000b"}</span>' | socat - ~/.deskbrid/socket<br>
-      <span class="ok">  ← ok · focused: 0x3a0000b</span><br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"a11y.tree","id":"r1"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
+      <span class="ok">  ← 142 accessible elements · tree depth 5</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"input.type","id":"req-3","text":"git push origin main"}</span>' | socat - ~/.deskbrid/socket<br>
-      <span class="ok">  ← typed 20 characters</span><br>
+      <span class="prompt">$</span> deskbrid mcp <span class="cm"># 20-tool MCP server for Claude Code, Cursor, Codex</span><br>
+      <span class="ok">  ← MCP server ready on stdin/stdout</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"screenshot","id":"req-4"}</span>' | socat - ~/.deskbrid/socket<br>
-      <span class="ok">  ← captured 1920×1080 screenshot</span>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"files.read","id":"r4","path":"/etc/hostname"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
+      <span class="ok">  ← read 42 bytes from /etc/hostname</span>
     </div>
   </div>
 </section>
@@ -329,32 +329,62 @@ footer a:hover{color:var(--accent-light)}
       <div class="feature-card reveal">
         <span class="icon">🪟</span>
         <h3>Window Control</h3>
-        <p>List, focus, close, minimize, maximize, move, resize — full programmatic window management across any desktop environment.</p>
+        <p>List, focus, close, minimize, maximize, move, resize, activate-or-launch. Layout profiles. Full programmatic window management across any desktop environment.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">⌨️</span>
-        <h3>Input Injection</h3>
-        <p>Type text, press keys, click coordinates, drag, scroll. Full keyboard and mouse automation through ydotoold or XTest.</p>
+        <h3>Input Injection + uinput</h3>
+        <p>Type text, press keys, combo shortcuts. Absolute pointer via uinput for pixel-perfect clicks and drags. ydotoold, XTest, and Mutter RemoteDesktop pipelines.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🔌</span>
+        <h3>MCP Server</h3>
+        <p>20-tool Model Context Protocol server on stdin/stdout or TCP. Claude Code, Cursor, Codex — any MCP client can control the desktop. Zero external MCP crate dependency.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🌳</span>
+        <h3>AT-SPI2 Accessibility Tree</h3>
+        <p>Browse the accessibility tree, find elements by role/name, click them, read text. Full BFS snapshot builder with filtering. Perfect for UI automation.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">📷</span>
-        <h3>Screenshots</h3>
-        <p>Capture full-screen or region screenshots with real pixel-dimension reporting. GNOME screencast, grim, spectacle, import — whichever fits your DE.</p>
+        <h3>Screenshots + OCR + Diff</h3>
+        <p>Full-screen, window, and region captures. Optical character recognition. Pixel diffing to detect visual changes. Works on GNOME, KDE, Hyprland, COSMIC.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">📋</span>
-        <h3>Clipboard</h3>
-        <p>Read and write clipboard contents with explicit format negotiation. Primary and clipboard selections supported on Wayland.</p>
+        <h3>Clipboard + History</h3>
+        <p>Read/write clipboard with format negotiation. Clipboard history with timestamps. Primary and clipboard selections on Wayland.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🌐</span>
+        <h3>Browser CDP Control</h3>
+        <p>List tabs, navigate, evaluate JavaScript, take screenshots, click elements — all via Chrome DevTools Protocol. Control Chromium/Chrome/Firefox from your agent.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">📁</span>
+        <h3>File Operations</h3>
+        <p>Read, write, copy, move, delete, mkdir, list — full filesystem access through the socket. No separate tool needed.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🎵</span>
+        <h3>MPRIS Media + Audio</h3>
+        <p>Play, pause, next, previous, volume control. Per-app audio management via pactl. Bluetooth device pairing through bluetoothctl.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">🔔</span>
-        <h3>Notifications</h3>
-        <p>Send desktop notifications with custom urgency, summary, and body. Works via notify-send or native DBus on KDE/GNOME.</p>
+        <h3>System Controls</h3>
+        <p>Notifications, systemd unit management, polkit actions, network config via nmcli, terminal PTY sessions, daemon rate limiting with audit log.</p>
       </div>
       <div class="feature-card reveal">
         <span class="icon">📺</span>
-        <h3>Workspaces</h3>
-        <p>List and switch workspaces, move windows between them. Full multi-monitor awareness with per-monitor workspace isolation.</p>
+        <h3>Workspaces + Monitors</h3>
+        <p>List and switch workspaces, move windows. Monitor control with xrandr/cosmic-randr. Multi-monitor awareness with per-monitor workspace isolation.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="icon">🎨</span>
+        <h3>Color Picker + App Catalog</h3>
+        <p>Sample pixel colors anywhere on screen. App catalog with process detection, confinement checks, and idle detection via input device timestamps.</p>
       </div>
     </div>
   </div>
@@ -381,9 +411,14 @@ footer a:hover{color:var(--accent-light)}
         <div class="status ok">✅ Supported</div>
       </div>
       <div class="backend-card reveal">
-        <div class="icon">🖥️</div>
-        <h4>X11 (generic)</h4>
+        <div class="icon">🚀</div>
+        <h4>COSMIC</h4>
         <div class="status ok">✅ Supported</div>
+      </div>
+      <div class="backend-card reveal">
+        <div class="icon">🖥️</div>
+        <h4>X11 (Cinnamon, MATE)</h4>
+        <div class="status planned">🔲 Partial</div>
       </div>
     </div>
   </div>
@@ -399,7 +434,7 @@ footer a:hover{color:var(--accent-light)}
       </div>
       <div class="install-cmd reveal">
         <div class="comment"># Download binary directly</div>
-        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.6.0/deskbrid && chmod +x deskbrid
+        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.7.0/deskbrid-x86_64-unknown-linux-gnu.tar.gz && tar xzf deskbrid-x86_64-unknown-linux-gnu.tar.gz && chmod +x deskbrid
       </div>
       <div class="install-cmd reveal">
         <div class="comment"># Or build from source</div>
