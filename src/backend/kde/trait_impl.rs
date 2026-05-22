@@ -1,0 +1,178 @@
+use super::*;
+use crate::backend::DesktopBackend;
+use async_trait::async_trait;
+
+#[async_trait]
+impl DesktopBackend for KdeBackend {
+    async fn windows_list(&self) -> anyhow::Result<Vec<protocol::WindowInfo>> {
+        windows_core::windows_list(self).await
+    }
+    async fn window_focus(&self, id: &str) -> anyhow::Result<()> {
+        windows_core::window_focus(self, id).await
+    }
+    async fn window_get(&self, id: &str) -> anyhow::Result<protocol::WindowInfo> {
+        windows_core::window_get(self, id).await
+    }
+    async fn window_close(&self, id: &str) -> anyhow::Result<()> {
+        windows_core::window_close(self, id).await
+    }
+    async fn window_minimize(&self, id: &str) -> anyhow::Result<()> {
+        windows_layout::window_minimize(self, id).await
+    }
+    async fn window_maximize(&self, id: &str) -> anyhow::Result<()> {
+        windows_layout::window_maximize(self, id).await
+    }
+    async fn window_move_resize(
+        &self,
+        id: &str,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        windows_layout::window_move_resize(self, id, x, y, width, height).await
+    }
+    async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
+        workspaces::workspaces_list(self).await
+    }
+    async fn workspace_switch(&self, id: u32) -> anyhow::Result<()> {
+        workspaces::workspace_switch(self, id).await
+    }
+    async fn workspace_move_window(
+        &self,
+        window_id: &str,
+        workspace_id: u32,
+        follow: bool,
+    ) -> anyhow::Result<()> {
+        workspaces::workspace_move_window(self, window_id, workspace_id, follow).await
+    }
+    async fn keyboard_type(&self, text: &str) -> anyhow::Result<()> {
+        workspaces::keyboard_type(self, text).await
+    }
+    async fn keyboard_key(&self, key: &str) -> anyhow::Result<()> {
+        workspaces::keyboard_key(self, key).await
+    }
+    async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
+        workspaces::keyboard_combo(self, keys).await
+    }
+    async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
+        workspaces::mouse_move(self, x, y).await
+    }
+    async fn mouse_click(&self, button: &str) -> anyhow::Result<()> {
+        workspaces::mouse_click(self, button).await
+    }
+    async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
+        workspaces::mouse_scroll(self, dx, dy).await
+    }
+    async fn clipboard_read(&self) -> anyhow::Result<String> {
+        workspaces::clipboard_read(self).await
+    }
+    async fn clipboard_write(&self, text: &str) -> anyhow::Result<()> {
+        workspaces::clipboard_write(self, text).await
+    }
+    async fn screenshot(
+        &self,
+        monitor: Option<u32>,
+        region: Option<protocol::Region>,
+        window_id: Option<String>,
+    ) -> anyhow::Result<protocol::ScreenshotResult> {
+        screenshot::screenshot(self, monitor, region, window_id).await
+    }
+    async fn notification_send(
+        &self,
+        app_name: &str,
+        title: &str,
+        body: &str,
+        urgency: &str,
+    ) -> anyhow::Result<u32> {
+        screenshot::notification_send(self, app_name, title, body, urgency).await
+    }
+    async fn notification_close(&self, id: u32) -> anyhow::Result<()> {
+        screenshot::notification_close(self, id).await
+    }
+    async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
+        system::system_info(self).await
+    }
+    async fn idle_seconds(&self) -> anyhow::Result<u64> {
+        system::idle_seconds(self).await
+    }
+    async fn power_action(&self, action: &str) -> anyhow::Result<()> {
+        system::power_action(self, action).await
+    }
+    async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
+        system::battery_status(self).await
+    }
+    async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
+        networking::network_status(self).await
+    }
+    async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>> {
+        networking::network_interfaces(self).await
+    }
+    async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>> {
+        networking::wifi_scan(self).await
+    }
+    async fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> anyhow::Result<()> {
+        networking::wifi_connect(self, ssid, password).await
+    }
+    async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
+        networking::bluetooth_list(self).await
+    }
+    async fn bluetooth_scan(&self, duration: Option<u32>) -> anyhow::Result<()> {
+        networking::bluetooth_scan(self, duration).await
+    }
+    async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
+        networking::bluetooth_stop_scan(self).await
+    }
+    async fn bluetooth_connect(&self, address: &str) -> anyhow::Result<()> {
+        networking::bluetooth_connect(self, address).await
+    }
+    async fn bluetooth_disconnect(&self, address: &str) -> anyhow::Result<()> {
+        networking::bluetooth_disconnect(self, address).await
+    }
+    async fn files_watch(
+        &self,
+        path: &str,
+        recursive: bool,
+        patterns: Option<&[String]>,
+    ) -> anyhow::Result<()> {
+        io::files_watch(self, path, recursive, patterns).await
+    }
+    async fn files_unwatch(&self, path: &str) -> anyhow::Result<()> {
+        io::files_unwatch(self, path).await
+    }
+    async fn files_search(
+        &self,
+        pattern: &str,
+        root: Option<&str>,
+        max_results: u32,
+    ) -> anyhow::Result<Vec<String>> {
+        io::files_search(self, pattern, root, max_results).await
+    }
+    async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
+        io::audio_list_sinks(self).await
+    }
+    async fn audio_set_sink_volume(&self, sink_id: u32, volume: f64) -> anyhow::Result<()> {
+        io::audio_set_sink_volume(self, sink_id, volume).await
+    }
+    async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()> {
+        io::monitor_set_primary(self, output).await
+    }
+    async fn monitor_set_resolution(
+        &self,
+        output: &str,
+        width: u32,
+        height: u32,
+        refresh_rate: Option<f64>,
+    ) -> anyhow::Result<()> {
+        io::monitor_set_resolution(self, output, width, height, refresh_rate).await
+    }
+    async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
+        io::monitor_set_scale(self, output, scale).await
+    }
+    async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
+        io::monitor_set_rotation(self, output, rotation).await
+    }
+    async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
+        io::monitor_set_enabled(self, output, enabled).await
+    }
+}
