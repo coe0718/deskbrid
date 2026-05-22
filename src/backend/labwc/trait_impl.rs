@@ -72,52 +72,52 @@ impl DesktopBackend for LabwcBackend {
         region: Option<protocol::Region>,
         _w: Option<String>,
     ) -> anyhow::Result<protocol::ScreenshotResult> {
-        system::screenshot(self, _m, region, _w).await
+        screenshot::screenshot(self, _m, region, _w).await
     }
     async fn notification_send(&self, a: &str, t: &str, b: &str, u: &str) -> anyhow::Result<u32> {
-        system::notification_send(self, a, t, b, u).await
+        notifications::notification_send(self, a, t, b, u).await
     }
     async fn notification_close(&self, id: u32) -> anyhow::Result<()> {
-        system::notification_close(self, id).await
+        notifications::notification_close(self, id).await
     }
     async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
-        system::system_info(self).await
+        system_info::system_info(self).await
     }
     async fn idle_seconds(&self) -> anyhow::Result<u64> {
-        system::idle_seconds(self).await
+        system_info::idle_seconds(self).await
     }
     async fn power_action(&self, a: &str) -> anyhow::Result<()> {
-        system::power_action(self, a).await
+        system_info::power_action(self, a).await
     }
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
-        system::battery_status(self).await
+        system_info::battery_status(self).await
     }
     async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
-        system::network_status(self).await
+        networking::network_status(self).await
     }
     async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>> {
-        system::network_interfaces(self).await
+        networking::network_interfaces(self).await
     }
     async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>> {
-        system::wifi_scan(self).await
+        networking::wifi_scan(self).await
     }
     async fn wifi_connect(&self, ssid: &str, pw: Option<&str>) -> anyhow::Result<()> {
-        system::wifi_connect(self, ssid, pw).await
+        networking::wifi_connect(self, ssid, pw).await
     }
     async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
-        system::bluetooth_list(self).await
+        bluetooth::bluetooth_list(self).await
     }
     async fn bluetooth_scan(&self, _unused: Option<u32>) -> anyhow::Result<()> {
-        system::bluetooth_scan(self, _unused).await
+        bluetooth::bluetooth_scan(self, _unused).await
     }
     async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
-        system::bluetooth_stop_scan(self).await
+        bluetooth::bluetooth_stop_scan(self).await
     }
     async fn bluetooth_connect(&self, a: &str) -> anyhow::Result<()> {
-        system::bluetooth_connect(self, a).await
+        bluetooth::bluetooth_connect(self, a).await
     }
     async fn bluetooth_disconnect(&self, a: &str) -> anyhow::Result<()> {
-        system::bluetooth_disconnect(self, a).await
+        bluetooth::bluetooth_disconnect(self, a).await
     }
     async fn files_watch(
         &self,
@@ -125,10 +125,10 @@ impl DesktopBackend for LabwcBackend {
         recursive: bool,
         _unused: Option<&[String]>,
     ) -> anyhow::Result<()> {
-        system::files_watch(self, path, recursive, _unused).await
+        files::files_watch(self, path, recursive, _unused).await
     }
     async fn files_unwatch(&self, path: &str) -> anyhow::Result<()> {
-        system::files_unwatch(self, path).await
+        files::files_unwatch(self, path).await
     }
     async fn files_search(
         &self,
@@ -136,16 +136,16 @@ impl DesktopBackend for LabwcBackend {
         r: Option<&str>,
         max: u32,
     ) -> anyhow::Result<Vec<String>> {
-        system::files_search(self, p, r, max).await
+        files::files_search(self, p, r, max).await
     }
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
-        system::audio_list_sinks(self).await
+        audio::audio_list_sinks(self).await
     }
     async fn audio_set_sink_volume(&self, sink_id: u32, volume: f64) -> anyhow::Result<()> {
-        system::audio_set_sink_volume(self, sink_id, volume).await
+        audio::audio_set_sink_volume(self, sink_id, volume).await
     }
     async fn monitor_set_primary(&self, _output: &str) -> anyhow::Result<()> {
-        system::monitor_set_primary(self, _output).await
+        monitor::monitor_set_primary(self, _output).await
     }
     async fn monitor_set_resolution(
         &self,
@@ -154,15 +154,15 @@ impl DesktopBackend for LabwcBackend {
         _height: u32,
         _refresh_rate: Option<f64>,
     ) -> anyhow::Result<()> {
-        system::monitor_set_resolution(self, _output, _width, _height, _refresh_rate).await
+        monitor::monitor_set_resolution(self, _output, _width, _height, _refresh_rate).await
     }
     async fn monitor_set_scale(&self, _output: &str, _scale: f64) -> anyhow::Result<()> {
-        system::monitor_set_scale(self, _output, _scale).await
+        monitor::monitor_set_scale(self, _output, _scale).await
     }
     async fn monitor_set_rotation(&self, _output: &str, _rotation: &str) -> anyhow::Result<()> {
-        system::monitor_set_rotation(self, _output, _rotation).await
+        monitor::monitor_set_rotation(self, _output, _rotation).await
     }
     async fn monitor_set_enabled(&self, _output: &str, _enabled: bool) -> anyhow::Result<()> {
-        system::monitor_set_enabled(self, _output, _enabled).await
+        monitor::monitor_set_enabled(self, _output, _enabled).await
     }
 }

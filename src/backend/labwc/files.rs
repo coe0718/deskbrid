@@ -1,0 +1,89 @@
+use super::*;
+use crate::protocol::DeskbridEvent;
+
+pub(super) async fn files_watch(
+    backend: &LabwcBackend,
+    path: &str,
+    recursive: bool,
+    _unused: Option<&[String]>,
+) -> anyhow::Result<()> {
+    use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+    let wp = path.to_string();
+    let tx = backend.event_tx.clone();
+    let mut w = RecommendedWatcher::new(
+        move |r: Result<notify::Event, notify::Error>| {
+            if let Ok(e) = r {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let ps = e
+                    .paths
+                    .first()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                match e.kind {
+                    EventKind::Create(_) => {
+                        let _ = tx.send(DeskbridEvent::FileCreated {
+                            path: ps,
+                            timestamp: ts,
+                        });
+                    }
+                    EventKind::Modify(_) => {
+                        let _ = tx.send(DeskbridEvent::FileModified {
+                            path: ps,
+                            timestamp: ts,
+                        });
+                    }
+                    EventKind::Remove(_) => {
+                        let _ = tx.send(DeskbridEvent::FileDeleted {
+                            path: ps,
+                            timestamp: ts,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        },
+        Config::default(),
+    )?;
+    let m = if recursive {
+        RecursiveMode::Recursive
+    } else {
+        RecursiveMode::NonRecursive
+    };
+    w.watch(std::path::Path::new(&wp), m)?;
+    backend
+        .watchers
+        .lock()
+        .map_err(|e| anyhow::anyhow!("mutex poisoned: {}", e))?
+        .insert(wp, w);
+    Ok(())
+}
+
+pub(super) async fn files_unwatch(backend: &LabwcBackend, path: &str) -> anyhow::Result<()> {
+    backend
+        .watchers
+        .lock()
+        .map_err(|e| anyhow::anyhow!("mutex poisoned: {}", e))?
+        .remove(path);
+    Ok(())
+}
+
+pub(super) async fn files_search(
+    _backend: &LabwcBackend,
+    p: &str,
+    r: Option<&str>,
+    max: u32,
+) -> anyhow::Result<Vec<String>> {
+    let root = r.unwrap_or(".");
+    let o = Command::new("find")
+        .args([root, "-maxdepth", "5", "-iname", p, "-not", "-path", "*/.*"])
+        .output()
+        .await?;
+    Ok(String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .take(max as usize)
+        .map(|s| s.to_string())
+        .collect())
+}

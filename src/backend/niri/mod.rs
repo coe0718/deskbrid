@@ -85,7 +85,14 @@ impl NiriBackend {
     }
 }
 
-mod system;
+mod audio;
+mod bluetooth;
+mod files;
+mod monitor;
+mod networking;
+mod notifications;
+mod screenshot;
+mod system_info;
 mod trait_impl;
 mod windows;
 mod workspaces;

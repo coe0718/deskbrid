@@ -77,7 +77,7 @@ impl DesktopBackend for CosmicBackend {
         region: Option<protocol::Region>,
         _window_id: Option<String>,
     ) -> anyhow::Result<protocol::ScreenshotResult> {
-        system::screenshot(self, _monitor, region, _window_id).await
+        screenshot::screenshot(self, _monitor, region, _window_id).await
     }
     async fn notification_send(
         &self,
@@ -86,49 +86,49 @@ impl DesktopBackend for CosmicBackend {
         body: &str,
         urgency: &str,
     ) -> anyhow::Result<u32> {
-        system::notification_send(self, _app_name, title, body, urgency).await
+        notifications::notification_send(self, _app_name, title, body, urgency).await
     }
     async fn notification_close(&self, _id: u32) -> anyhow::Result<()> {
-        system::notification_close(self, _id).await
+        notifications::notification_close(self, _id).await
     }
     async fn system_info(&self) -> anyhow::Result<protocol::SystemInfo> {
-        system::system_info(self).await
+        system_info::system_info(self).await
     }
     async fn idle_seconds(&self) -> anyhow::Result<u64> {
-        system::idle_seconds(self).await
+        system_info::idle_seconds(self).await
     }
     async fn power_action(&self, action: &str) -> anyhow::Result<()> {
-        system::power_action(self, action).await
+        system_info::power_action(self, action).await
     }
     async fn battery_status(&self) -> anyhow::Result<Vec<protocol::BatteryInfo>> {
-        system::battery_status(self).await
+        system_info::battery_status(self).await
     }
     async fn network_status(&self) -> anyhow::Result<protocol::NetworkStatusInfo> {
-        system::network_status(self).await
+        networking::network_status(self).await
     }
     async fn network_interfaces(&self) -> anyhow::Result<Vec<protocol::NetworkInterfaceInfo>> {
-        system::network_interfaces(self).await
+        networking::network_interfaces(self).await
     }
     async fn wifi_scan(&self) -> anyhow::Result<Vec<protocol::WifiNetworkInfo>> {
-        system::wifi_scan(self).await
+        networking::wifi_scan(self).await
     }
     async fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> anyhow::Result<()> {
-        system::wifi_connect(self, ssid, password).await
+        networking::wifi_connect(self, ssid, password).await
     }
     async fn bluetooth_list(&self) -> anyhow::Result<Vec<protocol::BluetoothDeviceInfo>> {
-        system::bluetooth_list(self).await
+        bluetooth::bluetooth_list(self).await
     }
     async fn bluetooth_scan(&self, _duration: Option<u32>) -> anyhow::Result<()> {
-        system::bluetooth_scan(self, _duration).await
+        bluetooth::bluetooth_scan(self, _duration).await
     }
     async fn bluetooth_stop_scan(&self) -> anyhow::Result<()> {
-        system::bluetooth_stop_scan(self).await
+        bluetooth::bluetooth_stop_scan(self).await
     }
     async fn bluetooth_connect(&self, _address: &str) -> anyhow::Result<()> {
-        system::bluetooth_connect(self, _address).await
+        bluetooth::bluetooth_connect(self, _address).await
     }
     async fn bluetooth_disconnect(&self, _address: &str) -> anyhow::Result<()> {
-        system::bluetooth_disconnect(self, _address).await
+        bluetooth::bluetooth_disconnect(self, _address).await
     }
     async fn files_watch(
         &self,
@@ -136,10 +136,10 @@ impl DesktopBackend for CosmicBackend {
         _recursive: bool,
         _patterns: Option<&[String]>,
     ) -> anyhow::Result<()> {
-        system::files_watch(self, _path, _recursive, _patterns).await
+        files::files_watch(self, _path, _recursive, _patterns).await
     }
     async fn files_unwatch(&self, _path: &str) -> anyhow::Result<()> {
-        system::files_unwatch(self, _path).await
+        files::files_unwatch(self, _path).await
     }
     async fn files_search(
         &self,
@@ -147,16 +147,16 @@ impl DesktopBackend for CosmicBackend {
         _root: Option<&str>,
         max_results: u32,
     ) -> anyhow::Result<Vec<String>> {
-        system::files_search(self, pattern, _root, max_results).await
+        files::files_search(self, pattern, _root, max_results).await
     }
     async fn audio_list_sinks(&self) -> anyhow::Result<Vec<protocol::AudioSinkInfo>> {
-        system::audio_list_sinks(self).await
+        audio::audio_list_sinks(self).await
     }
     async fn audio_set_sink_volume(&self, _sink_id: u32, _volume: f64) -> anyhow::Result<()> {
-        system::audio_set_sink_volume(self, _sink_id, _volume).await
+        audio::audio_set_sink_volume(self, _sink_id, _volume).await
     }
     async fn monitor_set_primary(&self, output: &str) -> anyhow::Result<()> {
-        system::monitor_set_primary(self, output).await
+        monitor::monitor_set_primary(self, output).await
     }
     async fn monitor_set_resolution(
         &self,
@@ -165,15 +165,15 @@ impl DesktopBackend for CosmicBackend {
         height: u32,
         refresh_rate: Option<f64>,
     ) -> anyhow::Result<()> {
-        system::monitor_set_resolution(self, output, width, height, refresh_rate).await
+        monitor::monitor_set_resolution(self, output, width, height, refresh_rate).await
     }
     async fn monitor_set_scale(&self, output: &str, scale: f64) -> anyhow::Result<()> {
-        system::monitor_set_scale(self, output, scale).await
+        monitor::monitor_set_scale(self, output, scale).await
     }
     async fn monitor_set_rotation(&self, output: &str, rotation: &str) -> anyhow::Result<()> {
-        system::monitor_set_rotation(self, output, rotation).await
+        monitor::monitor_set_rotation(self, output, rotation).await
     }
     async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
-        system::monitor_set_enabled(self, output, enabled).await
+        monitor::monitor_set_enabled(self, output, enabled).await
     }
 }
