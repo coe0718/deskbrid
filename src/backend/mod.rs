@@ -2,6 +2,7 @@ pub mod cosmic;
 pub mod gnome;
 pub mod hyprland;
 pub mod kde;
+pub mod sway;
 pub mod x11;
 
 use crate::protocol;
@@ -26,6 +27,9 @@ pub async fn create_backend(
         DesktopEnv::X11 => x11::X11Backend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Sway => sway::SwayBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
         _ => gnome::GnomeBackend::new(event_tx)
             .await
@@ -40,6 +44,9 @@ async fn detect_desktop() -> DesktopEnv {
         let lower = desktop.to_lowercase();
         if lower.contains("hyprland") {
             return DesktopEnv::Hyprland;
+        }
+        if lower.contains("sway") {
+            return DesktopEnv::Sway;
         }
         if lower.contains("cosmic") {
             return DesktopEnv::Cosmic;
@@ -99,6 +106,7 @@ enum DesktopEnv {
     Gnome,
     Hyprland,
     Kde,
+    Sway,
     X11,
 }
 
