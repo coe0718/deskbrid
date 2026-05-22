@@ -1,6 +1,10 @@
 //! AT-SPI2 accessibility tree snapshot builder.
 //! BFS traversal with full node data: bounds, actions, value, text.
 
+mod tree_queries;
+pub(crate) use tree_queries::get_bounds;
+use tree_queries::*;
+
 use serde::Serialize;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -96,9 +100,9 @@ pub async fn snapshot_tree(
 
         let bounds = get_bounds(&conn, &path).await;
         let actions = get_actions(&conn, &path).await;
-        let value = get_value_proxy(&conn, &path).await;
-        let text = get_text_data(&conn, &path, 500).await;
-        let has_editable = check_editable_text(&conn, &path).await;
+        let value = get_value(&conn, &path).await;
+        let text = get_text(&conn, &path, 500).await;
+        let has_editable = check_editable(&conn, &path).await;
 
         let child_count = info["child_count"].as_i64().unwrap_or(0) as i32;
         let states = info["states"]
@@ -139,198 +143,4 @@ pub async fn snapshot_tree(
     }
 
     Ok(json!({"nodes": nodes, "count": nodes.len()}))
-}
-
-pub(crate) async fn get_bounds(conn: &zbus::Connection, path: &ObjectPath<'_>) -> Option<Bounds> {
-    // Component/GetExtents returns (x, y, width, height) as a struct
-    let reply = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Component"),
-            "GetExtents",
-            &(0u32),
-        )
-        .await
-        .ok()?;
-
-    let body = reply.body();
-    let (x, y, width, height): (i32, i32, i32, i32) = body.deserialize().ok()?;
-
-    Some(Bounds {
-        x,
-        y,
-        width,
-        height,
-    })
-}
-
-async fn get_actions(conn: &zbus::Connection, path: &ObjectPath<'_>) -> Vec<AccessibilityAction> {
-    let action_count: i32 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Action"),
-            "GetActionCount",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())
-        .unwrap_or(0);
-
-    let mut actions = Vec::with_capacity(action_count as usize);
-    for i in 0..action_count {
-        let name: String = conn
-            .call_method(
-                Some(bus::DEST),
-                path,
-                Some("org.a11y.atspi.Action"),
-                "GetName",
-                &(i,),
-            )
-            .await
-            .ok()
-            .and_then(|r| r.body().deserialize().ok())
-            .unwrap_or_default();
-        let description: String = conn
-            .call_method(
-                Some(bus::DEST),
-                path,
-                Some("org.a11y.atspi.Action"),
-                "GetDescription",
-                &(i,),
-            )
-            .await
-            .ok()
-            .and_then(|r| r.body().deserialize().ok())
-            .unwrap_or_default();
-        actions.push(AccessibilityAction {
-            index: i,
-            name,
-            description,
-        });
-    }
-    actions
-}
-
-async fn get_value_proxy(
-    conn: &zbus::Connection,
-    path: &ObjectPath<'_>,
-) -> Option<AccessibilityValue> {
-    let current: f64 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Value"),
-            "GetCurrentValue",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())?;
-
-    let minimum: f64 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Value"),
-            "GetMinimumValue",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())
-        .unwrap_or(0.0);
-
-    let maximum: f64 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Value"),
-            "GetMaximumValue",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())
-        .unwrap_or(0.0);
-
-    Some(AccessibilityValue {
-        current,
-        minimum,
-        maximum,
-    })
-}
-
-async fn get_text_data(
-    conn: &zbus::Connection,
-    path: &ObjectPath<'_>,
-    max_chars: i32,
-) -> Option<AccessibilityText> {
-    let char_count: i32 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Text"),
-            "GetCharacterCount",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())?;
-
-    if char_count == 0 {
-        return Some(AccessibilityText {
-            character_count: 0,
-            caret_offset: 0,
-            content: String::new(),
-            selections: Vec::new(),
-        });
-    }
-
-    let content: String = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Text"),
-            "GetText",
-            &(0i32, char_count.min(max_chars)),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())
-        .unwrap_or_default();
-
-    let caret: i32 = conn
-        .call_method(
-            Some(bus::DEST),
-            path,
-            Some("org.a11y.atspi.Text"),
-            "GetCaretOffset",
-            &(),
-        )
-        .await
-        .ok()
-        .and_then(|r| r.body().deserialize().ok())
-        .unwrap_or(0);
-
-    Some(AccessibilityText {
-        character_count: char_count,
-        caret_offset: caret,
-        content,
-        selections: Vec::new(),
-    })
-}
-
-async fn check_editable_text(conn: &zbus::Connection, path: &ObjectPath<'_>) -> bool {
-    conn.call_method(
-        Some(bus::DEST),
-        path,
-        Some("org.a11y.atspi.EditableText"),
-        "SetTextContents",
-        &("test"),
-    )
-    .await
-    .is_ok()
 }
