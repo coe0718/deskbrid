@@ -61,6 +61,18 @@ Events are pushed asynchronously to subscribed clients:
 
 All action names use dot notation: `domain.action`. Every action is sent with `"type"` set to the action name and `"id"` set to a client-chosen correlation token.
 
+Every action may also include request-level execution controls:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dry_run` | boolean, optional | Validate permissions and return would-execute metadata without running the backend action |
+| `timeout_ms` | number, optional | Override the action timeout for this request; daemon default is `DESKBRID_ACTION_TIMEOUT_MS` or 60000 ms |
+
+```json
+{"type": "windows.close", "id": "dry-1", "window_id": "0x3a0000b", "dry_run": true}
+{"type": "screenshot", "id": "shot-1", "timeout_ms": 15000}
+```
+
 ### Windows & Workspaces
 
 | Action | Params | Description |
@@ -303,16 +315,23 @@ windows.list, windows.focus, windows.get
 workspaces.list, workspaces.switch, workspaces.move_window
 input.keyboard, input.mouse
 clipboard.read, clipboard.write
-screenshot
-notifications.send, notifications.close
-system.info, system.idle, system.power, system.battery, system.capabilities, system.health
+screenshot, screenshot.ocr, screenshot.diff
+audit.log, audit.clear
+notification.send, notification.close
+system.info, system.idle, system.power, system.battery, system.capabilities, system.health, system.remediate, system.normalize_coords, wait.for
+system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
+service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect
 bluetooth.list, bluetooth.scan, bluetooth.scan_stop, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
-files.watch, files.unwatch, files.search
+files.watch, files.unwatch, files.search, files.read, files.write, files.copy, files.move, files.delete, files.mkdir, files.list
+browser.list_tabs, browser.navigate, browser.evaluate, browser.screenshot_tab, browser.click
+a11y.tree, a11y.get_element, a11y.click_element, a11y.get_text
 process.list, process.start, process.stop, process.signal, process.exists, process.wait
+terminal.create, terminal.write, terminal.read, terminal.resize, terminal.list, terminal.kill
 hotkeys.register, hotkeys.unregister
 audio.list_sinks, audio.set_sink_volume
-monitor.list, location.get
+monitor.list, monitor.set_primary, monitor.set_resolution, monitor.set_scale, monitor.set_rotation, monitor.enable, monitor.disable, location.get
+ui.tree.get, ui.element.click, ui.element.set_text
 capabilities.list
 ```
 

@@ -226,17 +226,25 @@ workspaces.list, workspaces.switch, workspaces.move_window
 layout_profiles.list, layout_profiles.get, layout_profiles.save, layout_profiles.delete, layout_profiles.restore
 input.keyboard, input.mouse
 clipboard.read, clipboard.write
-screenshot
-notifications.send, notifications.close
-system.info, system.idle, system.power, system.battery
+screenshot, screenshot.ocr, screenshot.diff
+audit.log, audit.clear
+notification.send, notification.close
+system.info, system.capabilities, system.health, system.remediate, system.normalize_coords, wait.for, system.idle, system.power, system.battery
+system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
+service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect
 bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
-files.watch, files.unwatch, files.search
-process.list, process.start
+files.watch, files.unwatch, files.search, files.read, files.write, files.copy, files.move, files.delete, files.mkdir, files.list
+browser.list_tabs, browser.navigate, browser.evaluate, browser.screenshot_tab, browser.click
+a11y.tree, a11y.get_element, a11y.click_element, a11y.get_text
+process.list, process.start, process.stop, process.signal, process.exists, process.wait
+terminal.create, terminal.write, terminal.read, terminal.resize, terminal.list, terminal.kill
 hotkeys.register, hotkeys.unregister
 audio.list_sinks, audio.set_sink_volume
 monitor.list, monitor.set_primary, monitor.set_resolution, monitor.set_scale, monitor.set_rotation, monitor.enable, monitor.disable
 location.get
+ui.tree.get, ui.element.click, ui.element.set_text
+capabilities.list
 ```
 
 ### Error response
@@ -258,6 +266,8 @@ When an action is denied, the daemon returns:
 | X11 (generic) | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
+
+All protocol actions accept `dry_run: true` to validate permissions without execution and `timeout_ms` to override the daemon action timeout. The CLI exposes these as global `--dry-run` and `--timeout-ms` flags.
 
 ## What it can do
 

@@ -147,6 +147,12 @@ pub struct Envelope {
     pub error: Option<ErrorBody>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct RequestOptions {
+    pub dry_run: bool,
+    pub timeout_ms: Option<u64>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorBody {
     pub code: String,

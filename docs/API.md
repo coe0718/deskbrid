@@ -10,6 +10,8 @@ All requests carry:
 |-------|------|-------------|
 | `type` | string | Action name (dot notation, e.g. `windows.list`) |
 | `id` | string | Client-chosen correlation token, echoed in response |
+| `dry_run` | boolean, optional | Validate permissions and skip execution |
+| `timeout_ms` | integer, optional | Override the daemon action timeout for this request |
 
 All responses carry:
 

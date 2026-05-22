@@ -1,4 +1,4 @@
-use crate::protocol::Action;
+use crate::protocol::{Action, RequestOptions};
 use anyhow::Context;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
@@ -11,6 +11,14 @@ fn socket_path() -> String {
 
 /// Connect to the daemon, send a one-shot action, and print the response.
 pub async fn send_one_shot(action: Action) -> anyhow::Result<()> {
+    send_one_shot_with_options(action, RequestOptions::default()).await
+}
+
+/// Connect to the daemon, send a one-shot action with request options, and print the response.
+pub async fn send_one_shot_with_options(
+    action: Action,
+    options: RequestOptions,
+) -> anyhow::Result<()> {
     let sock = socket_path();
     let stream = UnixStream::connect(&sock).await.context(format!(
         "cannot connect to daemon at {}. Is deskbrid running?",
@@ -25,8 +33,16 @@ pub async fn send_one_shot(action: Action) -> anyhow::Result<()> {
     reader.read_line(&mut handshake).await?;
 
     // Send the action
-    let json = action.to_json()? + "\n";
-    writer.write_all(json.as_bytes()).await?;
+    let mut message: serde_json::Value = serde_json::from_str(&action.to_json()?)?;
+    if options.dry_run {
+        message["dry_run"] = serde_json::json!(true);
+    }
+    if let Some(timeout_ms) = options.timeout_ms {
+        message["timeout_ms"] = serde_json::json!(timeout_ms);
+    }
+    writer
+        .write_all(format!("{}\n", serde_json::to_string(&message)?).as_bytes())
+        .await?;
 
     // Read response
     let mut response = String::new();

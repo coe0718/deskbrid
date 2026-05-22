@@ -1,15 +1,24 @@
 // reason: exhaustive match on 90+ Action enum variants — cannot split without breaking exhaustiveness
 
 use super::Action;
-use super::types::Region;
+use super::types::{Region, RequestOptions};
 
 pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
+    let (id, action, _) = from_json_with_options(line)?;
+    Ok((id, action))
+}
+
+pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, RequestOptions)> {
     let raw: serde_json::Value = serde_json::from_str(line)?;
     let msg_type = raw["type"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing 'type' field"))?
         .to_string();
     let id = raw["id"].as_str().unwrap_or("?").to_string();
+    let options = RequestOptions {
+        dry_run: raw["dry_run"].as_bool().unwrap_or(false),
+        timeout_ms: raw["timeout_ms"].as_u64(),
+    };
 
     let action = match msg_type.as_str() {
         "ping" => Action::Ping,
@@ -565,7 +574,7 @@ pub fn from_json(line: &str) -> anyhow::Result<(String, Action)> {
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };
 
-    Ok((id, action))
+    Ok((id, action, options))
 }
 
 // Helper functions for JSON validation

@@ -1,5 +1,7 @@
 use crate::DaemonState;
-use crate::protocol::Action;
+use crate::protocol::{Action, RequestOptions};
+use std::future::Future;
+use std::time::Duration;
 use tracing::warn;
 
 use super::execute::execute_action;
@@ -15,7 +17,18 @@ pub async fn dispatch_action(
     peer_uid: u32,
     seq: u64,
 ) -> serde_json::Value {
+    dispatch_action_with_options(action, state, peer_uid, seq, RequestOptions::default()).await
+}
+
+pub async fn dispatch_action_with_options(
+    action: Action,
+    state: &DaemonState,
+    peer_uid: u32,
+    seq: u64,
+    options: RequestOptions,
+) -> serde_json::Value {
     let started = std::time::Instant::now();
+    let action_timeout_ms = effective_timeout_ms(&action, state, &options);
 
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
@@ -49,16 +62,42 @@ pub async fn dispatch_action(
         }
     }
 
+    if options.dry_run {
+        let data = serde_json::json!({
+            "dry_run": true,
+            "would_execute": true,
+            "action_type": action.action_type(),
+            "timeout_ms": action_timeout_ms,
+            "permissions": {"allowed": true}
+        });
+        return action_response(state, &action, peer_uid, seq, Ok(data), started, Some(true)).await;
+    }
+
     if is_audit_action(&action) {
-        let result = execute_audit_action(action.clone(), state).await;
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_audit_action(action.clone(), state),
+        )
+        .await;
         return action_response(state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_system_control_action(&action) {
-        let result = execute_system_control_action(action.clone(), state).await;
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_system_control_action(action.clone(), state),
+        )
+        .await;
         return action_response(state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_terminal_action(&action) {
-        let result = execute_terminal_action(action.clone(), state).await;
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_terminal_action(action.clone(), state),
+        )
+        .await;
         return action_response(state, &action, peer_uid, seq, result, started, None).await;
     }
 
@@ -82,19 +121,63 @@ pub async fn dispatch_action(
         interval_ms,
     } = &action
     {
-        wait_for_condition(
-            state,
-            backend.as_ref(),
-            condition,
-            params.clone(),
-            *timeout_ms,
-            *interval_ms,
+        with_action_timeout(
+            &action,
+            action_timeout_ms,
+            wait_for_condition(
+                state,
+                backend.as_ref(),
+                condition,
+                params.clone(),
+                *timeout_ms,
+                *interval_ms,
+            ),
         )
         .await
     } else {
-        execute_action(action.clone(), backend.as_ref()).await
+        with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_action(action.clone(), backend.as_ref()),
+        )
+        .await
     };
     action_response(state, &action, peer_uid, seq, result, started, None).await
+}
+
+fn effective_timeout_ms(
+    action: &Action,
+    state: &DaemonState,
+    options: &RequestOptions,
+) -> Option<u64> {
+    if let Some(timeout_ms) = options.timeout_ms {
+        return Some(timeout_ms);
+    }
+    if let Action::WaitFor { timeout_ms, .. } = action {
+        return Some(timeout_ms.saturating_add(1000));
+    }
+    state.action_timeout_ms
+}
+
+async fn with_action_timeout<F>(
+    action: &Action,
+    timeout_ms: Option<u64>,
+    future: F,
+) -> anyhow::Result<serde_json::Value>
+where
+    F: Future<Output = anyhow::Result<serde_json::Value>>,
+{
+    let Some(timeout_ms) = timeout_ms else {
+        return future.await;
+    };
+    match tokio::time::timeout(Duration::from_millis(timeout_ms), future).await {
+        Ok(result) => result,
+        Err(_) => anyhow::bail!(
+            "action timed out after {} ms: {}",
+            timeout_ms,
+            action.action_type()
+        ),
+    }
 }
 
 async fn action_response(

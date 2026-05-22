@@ -566,6 +566,11 @@ impl Action {
         parse::from_json(line)
     }
 
+    /// Parse an incoming NDJSON line into an Action plus request-level options.
+    pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, RequestOptions)> {
+        parse::from_json_with_options(line)
+    }
+
     /// Convert action to a JSON envelope string.
     pub fn to_json(&self) -> anyhow::Result<String> {
         serialize::to_json(self)
@@ -630,6 +635,17 @@ mod tests {
 
         let (_, clear) = Action::from_json(r#"{"type":"audit.clear","id":"x"}"#).unwrap();
         assert!(matches!(clear, Action::AuditClear));
+    }
+
+    #[test]
+    fn parses_request_options() {
+        let (_, action, options) = Action::from_json_with_options(
+            r#"{"type":"windows.list","id":"x","dry_run":true,"timeout_ms":250}"#,
+        )
+        .unwrap();
+        assert!(matches!(action, Action::WindowsList));
+        assert!(options.dry_run);
+        assert_eq!(options.timeout_ms, Some(250));
     }
 
     #[test]

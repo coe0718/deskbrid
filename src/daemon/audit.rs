@@ -6,6 +6,7 @@ use crate::protocol::{Action, AuditEntry};
 const DEFAULT_AUDIT_CAPACITY: usize = 2048;
 const DEFAULT_AUDIT_LIMIT: usize = 100;
 const MAX_AUDIT_LIMIT: usize = 1000;
+const DEFAULT_ACTION_TIMEOUT_MS: u64 = 60_000;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AuditRecord {
@@ -24,6 +25,14 @@ pub(crate) fn audit_capacity_from_env() -> usize {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(DEFAULT_AUDIT_CAPACITY)
+}
+
+pub(crate) fn action_timeout_from_env() -> Option<u64> {
+    std::env::var("DESKBRID_ACTION_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(|value| if value == 0 { None } else { Some(value) })
+        .unwrap_or(Some(DEFAULT_ACTION_TIMEOUT_MS))
 }
 
 pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord) {

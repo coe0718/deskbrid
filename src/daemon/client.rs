@@ -5,7 +5,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tracing::{info, warn};
 
-use super::dispatch::dispatch_action;
+use super::dispatch::dispatch_action_with_options;
 use super::helpers::ok_response;
 
 pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Result<()> {
@@ -79,8 +79,8 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                     continue;
                 }
 
-                let action = match Action::from_json(&line) {
-                    Ok((_, action)) => action,
+                let (action, options) = match Action::from_json_with_options(&line) {
+                    Ok((_, action, options)) => (action, options),
                     Err(e) => {
                         warn!("Failed to parse message: {}", e);
                         let err = serde_json::json!({
@@ -135,21 +135,21 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                     // Files — track watched paths locally
                     Action::FilesWatch { ref path, .. } => {
                         conn.watched_paths.insert(path.clone());
-                        let resp = dispatch_action(action, state, peer_uid, seq).await;
+                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
                     Action::FilesUnwatch { ref path } => {
                         conn.watched_paths.remove(path);
-                        let resp = dispatch_action(action, state, peer_uid, seq).await;
+                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
 
                     _ => {
-                        let resp = dispatch_action(action, state, peer_uid, seq).await;
+                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;

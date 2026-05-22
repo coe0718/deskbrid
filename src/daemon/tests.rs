@@ -134,3 +134,38 @@ async fn audit_actions_work_without_desktop_backend() {
     assert_eq!(second["data"]["entries"][0]["action_type"], "audit.log");
     assert_eq!(second["data"]["entries"][0]["peer_uid"], 1000);
 }
+
+#[tokio::test]
+async fn dry_run_validates_permissions_without_backend() {
+    let state = crate::DaemonState::new();
+
+    let response = dispatch::dispatch_action_with_options(
+        crate::protocol::Action::WindowsClose("0x1".to_string()),
+        &state,
+        1000,
+        1,
+        crate::protocol::RequestOptions {
+            dry_run: true,
+            timeout_ms: Some(250),
+        },
+    )
+    .await;
+
+    assert_eq!(response["status"], "ok");
+    assert_eq!(response["data"]["dry_run"], true);
+    assert_eq!(response["data"]["action_type"], "windows.close");
+    assert_eq!(response["data"]["timeout_ms"], 250);
+
+    let audit = dispatch_action(
+        crate::protocol::Action::AuditLog {
+            limit: None,
+            action_type: Some("windows.close".to_string()),
+            status: None,
+        },
+        &state,
+        1000,
+        2,
+    )
+    .await;
+    assert_eq!(audit["data"]["entries"][0]["dry_run"], true);
+}

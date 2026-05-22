@@ -33,6 +33,7 @@ pub struct DaemonState {
     /// Recent action audit entries, kept in memory as a bounded ring.
     pub audit_log: Arc<Mutex<VecDeque<protocol::AuditEntry>>>,
     pub audit_capacity: usize,
+    pub action_timeout_ms: Option<u64>,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -49,6 +50,7 @@ impl DaemonState {
             terminals: Arc::new(Mutex::new(HashMap::new())),
             audit_log: Arc::new(Mutex::new(VecDeque::new())),
             audit_capacity: daemon::audit_capacity_from_env(),
+            action_timeout_ms: daemon::action_timeout_from_env(),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),

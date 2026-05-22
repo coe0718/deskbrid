@@ -179,5 +179,6 @@ finally:
 
 - Requires a running Deskbrid daemon on `$XDG_RUNTIME_DIR/deskbrid.sock`
 - Desktop is auto-detected: GNOME (Mutter RemoteDesktop), Hyprland (hyprctl + ydotool + grim), or KDE (KWin D-Bus + ydotool + spectacle) — same client, same API
+- Raw protocol requests may include `dry_run` and `timeout_ms` fields for permission-only validation and per-request action timeouts
 - On Hyprland and KDE: `ydotoold` must be running and `/dev/uinput` must be writable by the `input` group
 - On KDE: screenshots use `spectacle` + ImageMagick `convert` (not grim)

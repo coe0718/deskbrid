@@ -12,6 +12,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = cli::parse();
+    let request_options = deskbrid::protocol::RequestOptions {
+        dry_run: args.dry_run,
+        timeout_ms: args.timeout_ms,
+    };
 
     match args.command {
         cli::Command::Daemon { verbose } => {
@@ -27,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
         cli::Command::Setup => deskbrid::setup::run().await,
         _ => {
             let action = cli::into_action(args.command)?;
-            client::send_one_shot(action).await
+            client::send_one_shot_with_options(action, request_options).await
         }
     }
 }

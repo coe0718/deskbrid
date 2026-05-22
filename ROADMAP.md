@@ -31,7 +31,9 @@ it to the completed table below.
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
 | [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
 
 ### Already Built (not covered here)
 
@@ -86,7 +88,7 @@ These features exist in the codebase already for reference:
 30. [TCP Mode (Network)](#30-tcp-mode-network-control)
 31. [Named Sessions](#31-named-sessions-multi-agent-isolation)
 32. [Remote Screenshot Streaming](#32-remote-screenshot-streaming)
-33. [Dry-Run Mode](#33-dry-run-mode)
+33. [✅ Dry-Run Mode](#33-dry-run-mode)
 34. [✅ Audit Log](#34-audit-log)
 35. [Rate Limiting](#35-rate-limiting-per-client)
 36. [Sandboxed Profiles](#36-sandboxed-agent-profiles)
@@ -123,7 +125,7 @@ These features exist in the codebase already for reference:
 68. [mTLS for TCP](#68-mtls-for-tcp-mode)
 69. [Landlock + Seccomp](#69-landlock--seccomp-for-spawned-processes)
 70. [Immutable Permissions](#70-immutable-permissions)
-71. [Action Timeouts](#71-action-timeouts-with-kill-guarantees)
+71. [✅ Action Timeouts](#71-action-timeouts-with-kill-guarantees)
 72. [Audit Signing](#72-audit-trail-signing)
 73. [Test Suite](#73-protocol-test-suite)
 74. [Benchmarking](#74-action-benchmarking)
@@ -2201,10 +2203,14 @@ DeskbridEvent::ScreencapFrame { data_base64, width, height, timestamp, frame_num
 
 ## 33. Dry-Run Mode
 
+**Status:** ✅ Done. Request envelopes can include `dry_run: true`. The daemon
+performs permission checks, returns would-execute metadata, skips backend loading
+and execution, and records the result in the audit log.
+
 ### What's Missing
 
-No way to say "tell me what would happen" without actually executing. Agents need
-to validate action sequences before running them.
+Per-action detailed change previews are future work. The shipped version is a
+safe dispatcher-level validation pass.
 
 ### Implementation
 
@@ -3861,6 +3867,11 @@ deskbrid permissions reload       # explicit reload (requires admin token)
 ---
 
 ## 71. Action Timeouts with Kill Guarantees
+
+**Status:** ✅ Done. Request envelopes can include `timeout_ms`, and the daemon
+also applies `DESKBRID_ACTION_TIMEOUT_MS` as a default action timeout (60s by
+default, `0` disables). `wait.for` uses its requested wait timeout plus a small
+grace period when no request-level timeout override is provided.
 
 **What's Missing:** Some actions can hang indefinitely (screenshot on a locked
 session, process.wait on a stuck process, terminal.read on a frozen PTY). No
@@ -6034,8 +6045,8 @@ SnapshotClone { id: String, target_path: String },
 | Feature | Status | Effort | Impact | Reason |
 |---|---|---|---|---|
 | **Audit log** | ✅ Done | Low (~200 lines, ring buffer) | High | Trail for debugging and security as agent actions get more powerful |
-| **Action timeouts** | 🧭 Planned | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
-| **Dry-run mode** | 🧭 Planned | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
+| **Action timeouts** | ✅ Done | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
+| **Dry-run mode** | ✅ Done | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
 | **Rate limiting** | 🧭 Planned | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
 | **Capabilities reporting** | 🧭 Planned | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
 | **Confinement detection** | 🧭 Planned | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |

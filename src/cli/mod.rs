@@ -8,6 +8,14 @@ use clap::{Parser, Subcommand};
     version = "0.4.1"
 )]
 pub struct Args {
+    /// Validate permissions and show what would happen without executing the action.
+    #[arg(long, global = true)]
+    pub dry_run: bool,
+
+    /// Override the action timeout in milliseconds for this request.
+    #[arg(long, global = true)]
+    pub timeout_ms: Option<u64>,
+
     #[command(subcommand)]
     pub command: Command,
 }
