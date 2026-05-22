@@ -148,6 +148,7 @@ The daemon also applies a per-UID token bucket. Configure it with
 
 | Action | Params | Description |
 |--------|--------|-------------|
+| `color.pick` | `x` (number), `y` (number), `path` (string, optional) | Sample a pixel color from the screen or image path |
 | `screenshot` | `monitor` (number, optional), `region` (object, optional), `window_id` (string, optional) | Capture screen |
 | `screenshot.ocr` | `path` (string, optional), `language` (string, optional), `psm` (number, optional), `bounding_boxes` (bool, optional) | OCR an existing screenshot or capture a fresh one |
 | `screenshot.diff` | `before_path` (string), `after_path` (string, optional), `tolerance` (number, optional), `save_diff`/`diff_path` (optional) | Compare screenshots and optionally save a visual diff |
@@ -341,6 +342,7 @@ input.keyboard, input.mouse
 clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 apps.list, apps.search, apps.get
 mpris.list, mpris.get, mpris.control
+color.pick
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close

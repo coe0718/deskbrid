@@ -129,6 +129,7 @@ client.listen()  # blocks, streaming events
 | `mpris_list() -> list[dict]` | List MPRIS media players |
 | `mpris_get(player=None) -> dict` | Get one player status and metadata |
 | `mpris_control(action, player=None) -> dict` | Send a playback command |
+| `color_pick(x, y, path=None) -> dict` | Sample a pixel color from screen or image path |
 
 ### Terminal / PTY
 

@@ -189,6 +189,10 @@ pub async fn execute_action(
             anyhow::bail!("MPRIS actions are handled by the daemon dispatcher")
         }
 
+        ColorPick { x, y, ref path } => {
+            crate::color::pick_color(backend, x, y, path.as_deref()).await?
+        }
+
         Screenshot {
             monitor,
             ref region,

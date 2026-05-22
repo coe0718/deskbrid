@@ -121,6 +121,10 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
             MprisCmd::Control { action, player } => Action::MprisControl { player, action },
         },
 
+        Command::Color { cmd } => match cmd {
+            ColorCmd::Pick { x, y, path } => Action::ColorPick { x, y, path },
+        },
+
         Command::Screenshot {
             output: _,
             monitor,

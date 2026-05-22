@@ -114,6 +114,13 @@ pub enum Action {
         action: String,
     },
 
+    // Color picker
+    ColorPick {
+        x: u32,
+        y: u32,
+        path: Option<String>,
+    },
+
     // Screenshot
     Screenshot {
         monitor: Option<u32>,
@@ -505,6 +512,7 @@ impl Action {
             "mpris.list",
             "mpris.get",
             "mpris.control",
+            "color.pick",
             "screenshot",
             "screenshot.ocr",
             "screenshot.diff",
@@ -662,6 +670,7 @@ mod tests {
         assert!(actions.contains(&"clipboard.history"));
         assert!(actions.contains(&"apps.list"));
         assert!(actions.contains(&"mpris.list"));
+        assert!(actions.contains(&"color.pick"));
     }
 
     #[test]

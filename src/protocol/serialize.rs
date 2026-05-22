@@ -176,6 +176,15 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             obj
         }
 
+        // Color picker
+        Action::ColorPick { x, y, path } => {
+            let mut obj = json!({"type": "color.pick", "id": id, "x": x, "y": y});
+            if let Some(path) = path {
+                obj["path"] = json!(path);
+            }
+            obj
+        }
+
         // Screenshot
         Action::Screenshot {
             monitor,
@@ -799,6 +808,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::MprisList => "mpris.list",
         Action::MprisGet { .. } => "mpris.get",
         Action::MprisControl { .. } => "mpris.control",
+        Action::ColorPick { .. } => "color.pick",
         Action::Screenshot { .. } => "screenshot",
         Action::ScreenshotOcr { .. } => "screenshot.ocr",
         Action::ScreenshotDiff { .. } => "screenshot.diff",

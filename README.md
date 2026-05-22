@@ -228,6 +228,7 @@ input.keyboard, input.mouse
 clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 apps.list, apps.search, apps.get
 mpris.list, mpris.get, mpris.control
+color.pick
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close
@@ -321,6 +322,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `clipboard.history` / `clipboard.history.clear` | List or clear clipboard text observed by Deskbrid |
 | `apps.list` / `apps.search` / `apps.get` | Discover installed `.desktop` applications |
 | `mpris.list` / `mpris.get` / `mpris.control` | Inspect and control standard Linux media players |
+| `color.pick` | Sample a pixel color from the screen or screenshot path |
 | `screenshot` | Capture screen (full, monitor, region, or window) |
 | `screenshot.ocr` | Extract text from a screenshot path or fresh capture via Tesseract |
 | `screenshot.diff` | Compare two screenshots or compare a baseline with a fresh capture |

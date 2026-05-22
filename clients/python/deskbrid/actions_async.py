@@ -98,6 +98,12 @@ class AsyncActionsMixin:
             params["player"] = player
         return await self._request("mpris.control", params)
 
+    async def color_pick(self, x: int, y: int, path: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {"x": x, "y": y}
+        if path is not None:
+            params["path"] = path
+        return await self._request("color.pick", params)
+
     async def screenshot(self, monitor: int | None = None) -> ScreenshotResult:
         params: dict[str, Any] = {}
         if monitor is not None:

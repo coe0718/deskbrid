@@ -33,6 +33,7 @@ it to the completed table below.
 | [14. MPRIS Media Control](#14-mpris-media-control) | List MPRIS players, inspect playback status/metadata, and send common playback commands | `src/daemon/mpris.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [16. Application Menu Catalog](#16-application-menu-catalog) | List, search, and inspect installed `.desktop` applications from XDG application directories | `src/daemon/apps.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [20. Color Picker](#20-color-picker) | Sample pixel colors from a screenshot path or live 1x1 capture and return RGBA/hex | `src/color.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
@@ -80,7 +81,7 @@ These features exist in the codebase already for reference:
 17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
 18. [✅ Clipboard History](#18-clipboard-history)
 19. [Window Tiling Presets](#19-window-tiling-presets)
-20. [Color Picker](#20-color-picker)
+20. [✅ Color Picker](#20-color-picker)
 21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
 22. [Keyboard Layout Management](#22-keyboard-layout-management)
 23. [Session & User Management](#23-session--user-management)
@@ -1486,13 +1487,13 @@ WindowsTile {
 
 ## 20. Color Picker
 
+**Status:** ✅ Done. Deskbrid exposes `color.pick` for sampling a pixel from an
+existing image path or a fresh 1x1 screen capture, returning RGBA channels and a
+hex string.
+
 ### What's Missing
 
-Deskbrid can take screenshots, but can't sample a specific pixel's color. Agents
-can't:
-- Verify UI element color (theme compliance testing)
-- Pick colors from a design tool for downstream use
-- Detect visual state (is this button greyed out?)
+HSL formatting and monitor-relative coordinate helpers are future refinements.
 
 ### Implementation
 
@@ -6068,7 +6069,7 @@ SnapshotClone { id: String, target_path: String },
 | **Clipboard history** | ✅ Done | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
 | **App catalog (.desktop)** | ✅ Done | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
 | **MPRIS media control** | ✅ Done | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
-| **Color picker** | 🧭 Planned | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
+| **Color picker** | ✅ Done | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
 | **Window tiling presets** | 🧭 Planned | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
 | **Drag & drop** | 🧭 Planned | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
 | **sysfs brightness/backlight** | 🧭 Planned | Very low (std::fs only) | Medium | Works across all DEs, no new deps |

@@ -66,6 +66,9 @@ class SyncActionsMixin:
             self._client.mpris_control(action=action, player=player)
         ).result()
 
+    def color_pick(self, x: int, y: int, path: str | None = None) -> dict[str, Any]:
+        return self._loop.submit(self._client.color_pick(x=x, y=y, path=path)).result()
+
     def screenshot(self, monitor: int | None = None) -> str:
         result = self._loop.submit(self._client.screenshot(monitor=monitor)).result()
         return result.path

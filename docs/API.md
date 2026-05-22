@@ -634,6 +634,23 @@ Send a playback command. Supported actions: `play_pause`, `play`, `pause`, `stop
 
 ## Screenshot
 
+### `color.pick`
+
+Sample a pixel from an image path, or capture a 1x1 screen region at `x`,`y`.
+
+**Request:**
+```json
+{"type": "color.pick", "id": "req-25", "x": 100, "y": 200}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-25", "seq": 25, "status": "ok",
+  "data": {"red": 255, "green": 128, "blue": 0, "alpha": 255, "hex": "#ff8000"}
+}
+```
+
 ### `screenshot`
 
 Capture a screenshot. All parameters are optional.

@@ -168,6 +168,19 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             action: required_non_empty_string(&raw, "action")?,
         },
 
+        // Color picker
+        "color.pick" => Action::ColorPick {
+            x: raw["x"]
+                .as_u64()
+                .ok_or_else(|| anyhow::anyhow!("missing or invalid 'x' field"))?
+                as u32,
+            y: raw["y"]
+                .as_u64()
+                .ok_or_else(|| anyhow::anyhow!("missing or invalid 'y' field"))?
+                as u32,
+            path: optional_non_empty_string(&raw, "path")?,
+        },
+
         // Screenshot
         "screenshot" => Action::Screenshot {
             monitor: raw["monitor"].as_u64().map(|v| v as u32),

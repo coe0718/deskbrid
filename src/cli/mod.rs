@@ -96,6 +96,13 @@ pub enum Command {
         cmd: MprisCmd,
     },
 
+    // ─── Color ──────────────────────────────────────────
+    #[command(name = "color")]
+    Color {
+        #[command(subcommand)]
+        cmd: ColorCmd,
+    },
+
     // ─── Screenshot ─────────────────────────────────────
     #[command(name = "screenshot")]
     Screenshot {
@@ -414,6 +421,17 @@ pub enum MprisCmd {
         action: String,
         #[arg(long)]
         player: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ColorCmd {
+    /// Pick a pixel color from the screen or an image path
+    Pick {
+        x: u32,
+        y: u32,
+        #[arg(long)]
+        path: Option<String>,
     },
 }
 
