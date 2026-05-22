@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::DaemonState;
 use crate::protocol::{Action, AppCatalogEntry};
@@ -138,6 +138,7 @@ fn app_dirs() -> Vec<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn parses_desktop_entry() {
