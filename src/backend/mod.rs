@@ -2,6 +2,7 @@ pub mod cosmic;
 pub mod gnome;
 pub mod hyprland;
 pub mod kde;
+pub mod niri;
 pub mod sway;
 pub mod x11;
 
@@ -30,6 +31,9 @@ pub async fn create_backend(
         DesktopEnv::Sway => sway::SwayBackend::new(event_tx)
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Niri => niri::NiriBackend::new(event_tx)
+            .await
+            .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // GNOME is the fallback/default
         _ => gnome::GnomeBackend::new(event_tx)
             .await
@@ -47,6 +51,9 @@ async fn detect_desktop() -> DesktopEnv {
         }
         if lower.contains("sway") {
             return DesktopEnv::Sway;
+        }
+        if lower.contains("niri") {
+            return DesktopEnv::Niri;
         }
         if lower.contains("cosmic") {
             return DesktopEnv::Cosmic;
@@ -106,6 +113,7 @@ enum DesktopEnv {
     Gnome,
     Hyprland,
     Kde,
+    Niri,
     Sway,
     X11,
 }
