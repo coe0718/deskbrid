@@ -106,7 +106,7 @@ async fn load_apps() -> anyhow::Result<Vec<AppCatalogEntry>> {
     for dir in app_dirs() {
         collect_desktop_entries(&dir, &mut entries).await?;
     }
-    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    entries.sort_by_key(|a| a.name.to_lowercase());
     let mut seen = std::collections::HashSet::new();
     Ok(entries
         .into_iter()
