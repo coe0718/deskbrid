@@ -222,6 +222,9 @@ class SyncActionsMixin:
     def elevate(self, action_id: str, reason: str | None = None) -> dict[str, Any]:
         return self._loop.submit(self._client.elevate(action_id, reason)).result()
 
+    def confinement(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.confinement()).result()
+
     def service_status(self, name: str) -> dict[str, Any]:
         return self._loop.submit(self._client.service_status(name)).result()
 

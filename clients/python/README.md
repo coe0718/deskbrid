@@ -148,6 +148,7 @@ client.listen()  # blocks, streaming events
 | `wait_for(condition, params=None, timeout_ms=30000, interval_ms=None) -> dict` | Wait for a daemon-polled condition |
 | `audit_log(limit=None, action_type=None, status=None) -> list[dict]` | Read recent action audit entries |
 | `audit_clear() -> dict` | Clear the in-memory audit log |
+| `confinement() -> dict` | Detect sandbox/container/security confinement context |
 
 ## Data Models
 

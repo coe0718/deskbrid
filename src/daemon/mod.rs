@@ -24,8 +24,8 @@ pub(crate) use audit::{
     is_audit_action, record_audit_entry,
 };
 pub use capabilities::{
-    apply_gnome_capability_overrides, build_system_capabilities, build_system_health,
-    normalize_coords, run_system_remediation,
+    apply_gnome_capability_overrides, build_confinement_report, build_system_capabilities,
+    build_system_health, normalize_coords, run_system_remediation,
 };
 pub use client::handle_client;
 pub use dispatch::dispatch_action;

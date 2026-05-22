@@ -244,6 +244,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         Action::SystemInfo => json!({"type": "system.info", "id": id}),
         Action::SystemCapabilities => json!({"type": "system.capabilities", "id": id}),
         Action::SystemHealth => json!({"type": "system.health", "id": id}),
+        Action::SystemConfinement => json!({"type": "system.confinement", "id": id}),
         Action::SystemRemediate { check, apply } => {
             json!({"type": "system.remediate", "id": id, "check": check, "apply": apply})
         }
@@ -750,6 +751,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemInfo => "system.info",
         Action::SystemCapabilities => "system.capabilities",
         Action::SystemHealth => "system.health",
+        Action::SystemConfinement => "system.confinement",
         Action::SystemRemediate { .. } => "system.remediate",
         Action::SystemNormalizeCoords { .. } => "system.normalize_coords",
         Action::WaitFor { .. } => "wait.for",

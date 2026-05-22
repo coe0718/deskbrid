@@ -20,6 +20,7 @@ pub fn is_system_control_action(action: &Action) -> bool {
             | Action::SystemSwitchUser { .. }
             | Action::SystemCheckAuth { .. }
             | Action::SystemElevate { .. }
+            | Action::SystemConfinement
             | Action::ServiceStatus { .. }
             | Action::ServiceStart { .. }
             | Action::ServiceStop { .. }
@@ -53,6 +54,7 @@ pub async fn execute_system_control_action(
         Action::SystemElevate { action_id, reason } => {
             check_auth(&action_id, true, reason.as_deref()).await
         }
+        Action::SystemConfinement => crate::daemon::build_confinement_report().await,
         Action::ServiceStatus { name } => service_status(&name).await,
         Action::ServiceStart { name } => systemctl_unit("start", &name).await,
         Action::ServiceStop { name } => systemctl_unit("stop", &name).await,

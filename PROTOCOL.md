@@ -162,6 +162,7 @@ The daemon also applies a per-UID token bucket. Configure it with
 | `system.power` | `action`: `"suspend"` / `"hibernate"` / `"shutdown"` / `"reboot"` / `"lock"` / `"logout"` | Power actions |
 | `system.capabilities` | — | Detailed capability matrix per backend |
 | `system.health` | — | Dependency health check with remediation suggestions |
+| `system.confinement` | — | Detect sandbox/container/security confinement context |
 | `system.remediate` | — | Auto-fix missing dependencies |
 | `system.normalize_coords` | `x` (number), `y` (number), `from` (object) | Convert monitor-relative coords to absolute |
 | `wait.for` | `condition` (string), `params` (object), `timeout_ms` (number), `interval_ms` (number, optional) | Wait for windows, clipboard, process, file, idle, or screenshot-stable conditions |
@@ -323,7 +324,7 @@ clipboard.read, clipboard.write
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close
-system.info, system.idle, system.power, system.battery, system.capabilities, system.health, system.remediate, system.normalize_coords, wait.for
+system.info, system.idle, system.power, system.battery, system.capabilities, system.health, system.confinement, system.remediate, system.normalize_coords, wait.for
 system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
 service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect

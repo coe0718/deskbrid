@@ -1,4 +1,5 @@
 mod checks;
+mod confinement;
 mod coords;
 mod overrides;
 mod remediation;
@@ -10,6 +11,7 @@ use overrides::{
 };
 use remediation::health_remediation;
 
+pub use confinement::build_confinement_report;
 pub use coords::normalize_coords;
 pub use overrides::apply_gnome_capability_overrides;
 pub use remediation::run_system_remediation;
@@ -42,10 +44,13 @@ pub async fn build_system_capabilities(
     apply_input_capabilities(&mut actions, &desktop);
     apply_monitor_capabilities(&mut actions, &desktop);
     apply_stub_capabilities(&mut actions, &desktop);
+    let confinement = build_confinement_report().await?;
 
     Ok(serde_json::json!({
         "schema_version": 1,
         "backend": desktop,
+        "session_type": session_type,
+        "confinement": confinement,
         "actions": actions,
         "backend_notes": {
             "gnome": "window control via Shell extension + Mutter DBus",
@@ -61,6 +66,7 @@ pub async fn build_system_health(
     let desktop = backend.system_info().await?.desktop.to_lowercase();
     let mut deps = serde_json::Map::new();
     insert_system_deps(&mut deps).await;
+    let confinement = build_confinement_report().await?;
 
     if desktop.contains("gnome") {
         insert_gnome_deps(&mut deps).await;
@@ -75,6 +81,7 @@ pub async fn build_system_health(
     Ok(serde_json::json!({
         "schema_version": 1,
         "backend": desktop,
+        "confinement": confinement,
         "deps": deps,
         "remediation": health_remediation()
     }))

@@ -208,6 +208,7 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         "system.info" => Action::SystemInfo,
         "system.capabilities" => Action::SystemCapabilities,
         "system.health" => Action::SystemHealth,
+        "system.confinement" => Action::SystemConfinement,
         "system.remediate" => Action::SystemRemediate {
             check: raw["check"].as_str().unwrap_or("").into(),
             apply: raw["apply"].as_bool().unwrap_or(false),

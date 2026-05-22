@@ -133,6 +133,7 @@ pub enum Action {
     SystemInfo,
     SystemCapabilities,
     SystemHealth,
+    SystemConfinement,
     SystemRemediate {
         check: String,
         apply: bool,
@@ -476,6 +477,7 @@ impl Action {
             "system.info",
             "system.capabilities",
             "system.health",
+            "system.confinement",
             "system.remediate",
             "system.normalize_coords",
             "wait.for",
@@ -590,8 +592,10 @@ mod tests {
     fn parses_system_capabilities_and_health() {
         let (_, a1) = Action::from_json(r#"{"type":"system.capabilities","id":"x"}"#).unwrap();
         let (_, a2) = Action::from_json(r#"{"type":"system.health","id":"y"}"#).unwrap();
+        let (_, a3) = Action::from_json(r#"{"type":"system.confinement","id":"z"}"#).unwrap();
         assert!(matches!(a1, Action::SystemCapabilities));
         assert!(matches!(a2, Action::SystemHealth));
+        assert!(matches!(a3, Action::SystemConfinement));
     }
 
     #[test]
@@ -599,6 +603,7 @@ mod tests {
         let actions = Action::public_action_types();
         assert!(actions.contains(&"system.capabilities"));
         assert!(actions.contains(&"system.health"));
+        assert!(actions.contains(&"system.confinement"));
         assert!(actions.contains(&"windows.activate_or_launch"));
         assert!(actions.contains(&"layout_profiles.save"));
         assert!(actions.contains(&"layout_profiles.restore"));

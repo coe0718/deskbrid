@@ -257,6 +257,7 @@ pub async fn execute_action(
         SystemInfo => serde_json::json!(backend.system_info().await?),
         SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
         SystemHealth => serde_json::json!(build_system_health(backend).await?),
+        SystemConfinement => serde_json::json!(crate::daemon::build_confinement_report().await?),
 
         SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
         SystemRemediate { ref check, apply } => {

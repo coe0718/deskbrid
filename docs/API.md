@@ -731,6 +731,31 @@ Check a polkit action, or request authorization with user interaction via `pkche
 {"type": "system.elevate", "id": "req-30", "action_id": "org.deskbrid.system.service-control", "reason": "restart a failed unit"}
 ```
 
+### `system.confinement`
+
+Detect whether Deskbrid is running inside a sandbox, container, or security confinement context.
+
+**Request:**
+```json
+{"type": "system.confinement", "id": "req-31"}
+```
+
+**Response:**
+```json
+{
+  "type": "response", "id": "req-31", "seq": 31, "status": "ok",
+  "data": {
+    "schema_version": 1,
+    "confined": false,
+    "warnings": [],
+    "systems": [
+      {"name": "flatpak", "detected": false, "confines_process": false, "details": {}},
+      {"name": "apparmor", "detected": true, "confines_process": false, "details": {"profile": "unconfined"}}
+    ]
+  }
+}
+```
+
 ### `service.*`, `journal.query`, `timer.*`
 
 ### `audit.log`

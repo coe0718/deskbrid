@@ -27,6 +27,7 @@ it to the completed table below.
 |---|---|---|
 | [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
+| [9. Confinement Detection](#9-confinement-detection-flatpak--snap--selinux--apparmor) | Detect Flatpak, Snap, AppImage, containers, WSL, AppArmor, and SELinux via `system.confinement` and capability/health reports | `src/daemon/capabilities/confinement.rs`, `src/protocol/`, `clients/python/` |
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
@@ -65,7 +66,7 @@ These features exist in the codebase already for reference:
 6. [sysfs / procfs / devfs (Direct Hardware Access)](#6-sysfs--procfs--devfs-direct-hardware-access)
 7. [fanotify (System-Wide File Monitoring)](#7-fanotify-system-wide-file-monitoring)
 8. [eBPF / LSM BPF](#8-ebpf--lsm-bpf)
-9. [Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
+9. [✅ Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
 10. [Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
 12. [✅ OCR / Text Extraction](#12-ocr--text-extraction)
@@ -734,11 +735,14 @@ monitoring agent.
 
 ## 9. Confinement Detection (Flatpak / Snap / SELinux / AppArmor)
 
+**Status:** ✅ Done. Deskbrid exposes `system.confinement` and includes the same
+report in `system.capabilities` and `system.health`. It detects Flatpak, Snap,
+AppImage packaging, containers, WSL, AppArmor profiles, and SELinux mode.
+
 ### What's Missing
 
-Deskbrid has no awareness of whether it's running inside a sandbox. If a user
-runs it under Flatpak or Snap, many features silently fail. It should detect
-confinement and:
+Portal-specific permission repair is future work. Deskbrid can now tell agents
+when sandbox/container/security context is likely to affect behavior:
 1. Tell the agent "you're sandboxed, here's what you can't do"
 2. Request portal permissions when available
 3. Give meaningful error messages instead of cryptic failures
@@ -6055,8 +6059,8 @@ SnapshotClone { id: String, target_path: String },
 | **Action timeouts** | ✅ Done | Low (~150 lines, timeout wrapper) | High | Prevents hung commands and long-running backend calls from wedging workflows |
 | **Dry-run mode** | ✅ Done | Trivial (~80 lines, dispatch flag) | Medium | Validates sequences before executing them |
 | **Rate limiting** | ✅ Done | Low (~200 lines, token bucket) | Medium | Prevents runaway agents from saturating the daemon |
-| **Capabilities reporting** | 🧭 Planned | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
-| **Confinement detection** | 🧭 Planned | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
+| **Capabilities reporting** | ✅ Done | Low (caps crate) | Medium | Tells agents what they can and cannot do on this machine |
+| **Confinement detection** | ✅ Done | Low (env checks only) | High | Prevents confusing failures in Flatpak/Snap/sandboxed environments |
 | **Clipboard history** | 🧭 Planned | Low (~200 lines, ring buffer) | Medium | Retrieves and searches old clipboard entries |
 | **App catalog (.desktop)** | 🧭 Planned | Low (~200 lines, ini parser) | Medium | Helps agents discover installed launchable applications |
 | **MPRIS media control** | 🧭 Planned | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |

@@ -275,6 +275,9 @@ class AsyncActionsMixin:
             params["reason"] = reason
         return await self._request("system.elevate", params)
 
+    async def confinement(self) -> dict[str, Any]:
+        return await self._request("system.confinement")
+
     async def service_status(self, name: str) -> dict[str, Any]:
         return await self._request("service.status", {"name": name})
 

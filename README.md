@@ -229,7 +229,7 @@ clipboard.read, clipboard.write
 screenshot, screenshot.ocr, screenshot.diff
 audit.log, audit.clear
 notification.send, notification.close
-system.info, system.capabilities, system.health, system.remediate, system.normalize_coords, wait.for, system.idle, system.power, system.battery
+system.info, system.capabilities, system.health, system.confinement, system.remediate, system.normalize_coords, wait.for, system.idle, system.power, system.battery
 system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
 service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect
@@ -332,6 +332,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `system.inhibit` / `system.release_inhibit` | Hold and release systemd sleep/shutdown/idle inhibitors |
 | `system.sessions` / `system.lock_session` / `system.switch_user` | List, lock, and switch logind sessions |
 | `system.check_auth` / `system.elevate` | Check or request polkit authorization |
+| `system.confinement` | Detect Flatpak, Snap, container, WSL, AppArmor, and SELinux context |
 | `wait.for` | Wait for windows, clipboard, process, file, idle, and screenshot stability conditions |
 | `audit.log` / `audit.clear` | Inspect or clear the in-memory action audit log |
 | `service.*` | List/status/start/stop/restart/enable/disable systemd units |
