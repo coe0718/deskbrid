@@ -1,7 +1,8 @@
 # Adding Desktop Environment Support to Deskbrid
 
 **Scope:** Technical reference for implementing new `DesktopBackend` variants.
-**Current backends:** GNOME, KDE Plasma, Hyprland, COSMIC, X11 (generic — covers Xfce/MATE/Cinnamon/i3/bspwm/etc.)
+**Current backends:** GNOME, KDE Plasma, Hyprland, COSMIC, Sway, Niri,
+Wayfire, Labwc, X11 (generic — covers Xfce/MATE/Cinnamon/i3/bspwm/etc.)
 **Patterns used:** CLI subprocess, D-Bus (zbus), Wayland protocol helper binary, X11 XTest
 
 ---
@@ -66,10 +67,10 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 |----------|----|---------|-------|--------|------------|
 | **P0** | Sway | CLI (swaymsg) | Very high (wlroots flagship) | DONE v0.7.0 | `swaymsg` CLI — full DesktopBackend, 790 lines, 3 tests |
 | **P0** | **Cinnamon** (X11 Fix) | **X11 backend + wmctrl** | **Very high (Linux Mint #1 distro)** | **DONE v0.7.0** | **wmctrl -lGpx already wired in src/backend/x11/. Fixes ALL X11 DEs.** |
-| **P1** | Niri | CLI (niri msg) + Rust crate | Growing fast (Rust ecosystem) | 1-2 days | `niri-ipc` crate, JSON IPC. Low effort. |
+| **P1** | Niri | CLI (`niri msg`) | Growing fast (Rust ecosystem) | DONE v0.7.0 | JSON IPC via `niri msg`; monitor control through `wlr-randr` where supported |
 | **P1** | Wayfire | CLI (wf-ipc) + Rust crate | Moderate (wlroots 3D) | DONE v0.7.0 | `wf-ipc` CLI — full DesktopBackend, 645 lines |
 | **P1** | **Cinnamon** (Full) | **Cinnamon JS extension + D-Bus** | **Very high** | **3-4 days** | **Muffin = Mutter fork. Same pattern as GNOME extension.** |
-| **P2** | Labwc | Helper binary (wlr-ftm) | Moderate (stacking WM) | DONE v0.7.0 | Helper binary + DesktopBackend, 915 lines, stub commands |
+| **P2** | Labwc | CLI (`wlrctl`) + `wlr-randr` | Moderate (stacking WM) | DONE v0.7.0 | DesktopBackend over `wlrctl`; move/resize and minimize are capability-marked limitations |
 | **P3** | Budgie 10.10 | D-Bus / GNOME extension adj. | Significant | 3-5 days | Uses Mutter — might share GNOME code |
 | **P3** | Deepin DDE | D-Bus (dde-daemon) | Significant (China market) | 4-6 days | Two compositors (KWin fork → Treeland) |
 | **P3** | **MATE** | **X11 backend + wmctrl (shared)** | **Significant (Linux Mint)** | **DONE v0.7.0** | **Already covered by X11 backend + wmctrl windows_list.** |
@@ -81,8 +82,10 @@ Pattern in code: `src/bin/cosmic_helper.rs`, `src/backend/cosmic/mod.rs` calling
 
 ## Cinnamon Backend (P0/P1)
 
-**Status:** Currently routes to X11 backend. `windows_list` returns empty. Muffin = Mutter fork with JS extension system.
-**Effort:** 1-2 days for X11 fix (P0), 3-4 days for full extension (P1).
+**Status:** X11 Cinnamon is supported by the shared X11 backend. `windows_list`
+uses `wmctrl -lGpx`; window actions use `xdotool`/`wmctrl`. Muffin = Mutter
+fork with JS extension system.
+**Effort:** X11 support done. Full Cinnamon extension remains a future P1.
 
 ### Detection
 
@@ -106,7 +109,7 @@ that embeds libmuffin — same architecture as GNOME Shell embedding libmutter.
 
 Two implementation tracks:
 
-#### Track A: X11 Backend Improvement (P0 — 1-2 days)
+#### Track A: X11 Backend Improvement (P0 — Done)
 
 Cinnamon's X11 session is a standard EWMH/NetWM-compliant X11 window manager.
 The X11 backend already handles input (`xdotool`), clipboard (`xclip`),
@@ -128,7 +131,7 @@ screenshots (`import`), and notifications (`notify-send`). The missing piece is
 └── Window ID (hex)
 ```
 
-Add to `src/backend/x11/helpers.rs`:
+Implemented in `src/backend/x11/helpers.rs`:
 ```rust
 pub(super) async fn list_windows_wmctrl() -> anyhow::Result<Vec<protocol::WindowInfo>> {
     let out = Command::new("wmctrl")
@@ -249,8 +252,8 @@ async fn setup_cinnamon() -> anyhow::Result<()> {
 
 ## MATE Backend (P3)
 
-**Status:** Currently routes to X11 backend. No separate backend needed.
-**Effort:** 0 days (already covered) + 1-2 days for shared `wmctrl` windows_list.
+**Status:** Supported by the shared X11 backend. No separate backend needed.
+**Effort:** Done.
 
 ### Detection
 
@@ -265,9 +268,8 @@ MATE uses **Marco**, a fork of Metacity (GNOME 2's window manager). Marco is a
 pure X11 window manager with no JS extension system, no D-Bus window management
 API, and no Wayland support.
 
-**There is nothing to implement.** MATE is already fully served by the X11
-backend. The only missing piece is `windows_list`, which is the same `wmctrl`
-fix needed for Cinnamon and every other X11 DE.
+**There is nothing MATE-specific to implement.** MATE is served by the X11
+backend, including `wmctrl`-based `windows_list`.
 
 ### What already works
 
@@ -287,8 +289,8 @@ fix needed for Cinnamon and every other X11 DE.
 
 ### The wmctrl Fix (Shared X11 Improvement)
 
-Add `wmctrl`-based window listing to `src/backend/x11/helpers.rs`. This
-single change makes `windows_list` work for:
+`wmctrl`-based window listing in `src/backend/x11/helpers.rs` makes
+`windows_list` work for:
 
 - **Cinnamon** (Linux Mint flagship)
 - **MATE** (Linux Mint alternative)
@@ -323,12 +325,13 @@ Since MATE doesn't need its own backend, the current detection logic is correct.
 If MATE ever adds Wayland support (no plans announced), revisit with a dedicated
 backend then.
 
-**Status:** Implemented in the shared X11 backend. **Effort:** Done.
+## Sway Backend (P0)
+
+**Status:** Implemented in `src/backend/sway/`. **Effort:** Done.
 
 ### Detection
 
 ```rust
-// Add to detect_desktop() in src/backend/mod.rs
 if lower.contains("sway") {
     return DesktopEnv::Sway;
 }
@@ -358,7 +361,7 @@ swaymsg move container to workspace <n>  # move window
 swaymsg output <name> resolution <w>x<h> # monitor
 ```
 
-**B) `swayipc` crate** (Rust, no subprocess overhead):
+**B) `swayipc` crate** (future option, no subprocess overhead):
 ```toml
 [dependencies]
 swayipc = "3"
@@ -372,11 +375,12 @@ let tree = conn.get_tree()?;       // returns serde_json::Value
 let workspaces = conn.get_workspaces()?;
 ```
 
-### Implementation plan
+### Implementation
 
-Create `src/backend/sway/` with:
-- `mod.rs` — `SwayBackend` struct + impl
-- `helpers.rs` — swaymsg JSON parsing, swayipc wrapper
+Implemented in `src/backend/sway/` with:
+- `mod.rs` — `SwayBackend` struct + `swaymsg` helpers
+- `helpers.rs` — `swaymsg` JSON parsing
+- `windows.rs`, `workspaces.rs`, `monitor.rs` — compositor actions
 
 Share with Hyprland backend for: input (`ydotool`), clipboard (`wl-copy`/`wl-paste`),
 screenshot (`grim`), notifications (`notify-send`), audio (`pactl`), network (`nmcli`),
@@ -420,7 +424,7 @@ The `get_tree` JSON has this structure:
 
 ## Niri Backend (P1)
 
-**Status:** Not implemented. **Effort:** 1-2 days.
+**Status:** Implemented in `src/backend/niri/`. **Effort:** Done.
 
 ### Detection
 
@@ -431,7 +435,7 @@ if pgrep("niri") { return DesktopEnv::Niri; }
 
 ### API surface
 
-Niri has a JSON IPC socket at `$NIRI_SOCKET`. Two access methods:
+Niri has a JSON IPC socket at `$NIRI_SOCKET`. Deskbrid uses the CLI wrapper:
 
 **A) `niri msg --json` CLI**:
 ```
@@ -448,7 +452,7 @@ niri msg move-window-to-workspace <id>
 niri msg event-stream                       # continuous events
 ```
 
-**B) `niri-ipc` crate** (Rust, native):
+**B) `niri-ipc` crate** (future native option):
 ```toml
 niri-ipc = "=26"  # pin exact — not semver-stable
 ```
@@ -471,16 +475,18 @@ Key types:
 
 ### Notes
 
-- Niri is scrollable-tiling. No minimize concept (windows are columns). Maximize
-  means full-width column.
+- Niri is scrollable-tiling. No minimize concept (windows are columns); Deskbrid
+  treats minimize as a successful no-op and marks geometry operations degraded in
+  `system.capabilities` because move/resize maps to column width.
 - `niri-ipc` follows niri version (not semver) — pin exact version or use `swaymsg`-style CLI wrapper.
-- Input/shared deps same as Sway/Hyprland.
+- Input/shared deps same as Sway/Hyprland. Monitor control uses `wlr-randr`
+  where the compositor exposes output-management.
 
 ---
 
 ## Wayfire Backend (P1)
 
-**Status:** Not implemented. **Effort:** 2-3 days.
+**Status:** Implemented in `src/backend/wayfire/`. **Effort:** Done.
 
 ### Detection
 
@@ -492,6 +498,7 @@ if pgrep("wayfire") { return DesktopEnv::Wayfire; }
 ### API surface
 
 Wayfire 0.9+ has an IPC socket at `$WAYFIRE_SOCKET` or `~/.wayfire/ipc-socket-<id>`.
+Deskbrid uses `wf-ipc`.
 
 **A) `wf-ipc` CLI (ships with Wayfire)**:
 ```
@@ -505,7 +512,7 @@ wf-ipc set-workspace <n>                  # switch workspace
 wf-ipc list-outputs -j                    # monitors
 ```
 
-**B) `wayfire-rs` crate** (Rust):
+**B) `wayfire-rs` crate** (future native option):
 ```toml
 wayfire-rs = "0.2"
 ```
@@ -522,21 +529,24 @@ wf.close_view(&view_id)?;
 ### Notes
 
 - Wayfire is wlroots-based. Shares all shared deps with Sway (grim, ydotool, wl-clipboard).
-- Wayfire has no native maximize/minimize — it's a stacking compositor with plugins.
-  Use the `window-rules` plugin or `wf-ipc set-view-options`.
-- Monitor control via `wlr-randr` or Wayfire IPC output commands.
+- Wayfire window focus/close/minimize/maximize use `wf-ipc`; move/resize is not
+  exposed and is marked unsupported in `system.capabilities`.
+- Monitor control uses `wlr-randr` where output-management is available.
 
 ---
 
 ## Labwc Backend (P2)
 
-**Status:** Not implemented. **Effort:** 3-5 days.
+**Status:** Implemented in `src/backend/labwc/` using `wlrctl` and
+`wlr-randr`. **Effort:** Done for the practical CLI-backed path.
 
 **Key constraint:** Labwc has NO external IPC protocol. Zero. No swaymsg, no D-Bus,
 no custom socket. The sole control path is Wayland protocols — specifically
 `wlr-foreign-toplevel-management-v1`.
 
-This means Labwc **requires** a helper binary approach, exactly like COSMIC.
+Deskbrid originally scaffolded a helper binary, but the practical backend uses
+`wlrctl` for toplevel control because the helper does not yet maintain live
+toplevel state.
 
 ### Detection
 
@@ -545,14 +555,12 @@ if lower.contains("labwc") { return DesktopEnv::Labwc; }
 if pgrep("labwc") { return DesktopEnv::Labwc; }
 ```
 
-### Implementation plan
+### Implementation
 
-Create `src/bin/labwc_helper.rs` (similar to `cosmic_helper.rs`):
-
-```rust
-// Bind wlr-foreign-toplevel-management-v1 protocols
-// Expose CLI: labwc-helper list-windows, labwc-helper focus <id>, etc.
-```
+Implemented in `src/backend/labwc/`:
+- `wlrctl toplevel list/get-focus/focus/close/maximize` for windows.
+- `wlr-randr` for monitor listing and output mode/scale/rotation/enablement.
+- `ydotool`, `grim`, and `wl-clipboard` for shared input/screenshot/clipboard paths.
 
 Protocols needed:
 - `zwlr_foreign_toplevel_manager_v1` — list/monitor windows
@@ -566,9 +574,11 @@ Screenshots via `grim` (wlroots). Input via `ydotool`. Clipboard via `wl-clipboa
 ### Notes
 
 - Labwc has virtual desktop (workspace) support via the `ws` config, but no
-  protocol-level workspace IPC. Workspace detection would need the helper binary
+  protocol-level workspace IPC. Workspace detection would need a real helper binary
   to track `zwlr_foreign_toplevel_handle_v1.output_enter/leave` events.
 - Labwc 0.8+ has a `labwc-reconfigure` command that accepts SIGHUP — no IPC though.
+- `wlrctl` does not expose move/resize or minimize, so Deskbrid marks
+  `windows.move_resize`, `windows.tile`, and `windows.minimize` unsupported on Labwc.
 
 ---
 
@@ -730,20 +740,34 @@ binaries per wlroots compositor. See `src/bin/cosmic_helper.rs` for the pattern.
 ### 1. Detection (`src/backend/mod.rs`)
 ```rust
 enum DesktopEnv {
-    // Add variant
     Sway,
+    Niri,
+    Wayfire,
+    Labwc,
 }
 
 async fn detect_desktop() -> DesktopEnv {
     // Add to XDG_CURRENT_DESKTOP check
     if lower.contains("sway") { return DesktopEnv::Sway; }
+    if lower.contains("niri") { return DesktopEnv::Niri; }
+    if lower.contains("wayfire") { return DesktopEnv::Wayfire; }
+    if lower.contains("labwc") { return DesktopEnv::Labwc; }
     // Add to pgrep fallback
     if pgrep("sway") { return DesktopEnv::Sway; }
+    if pgrep("niri") { return DesktopEnv::Niri; }
+    if pgrep("wayfire") { return DesktopEnv::Wayfire; }
+    if pgrep("labwc") { return DesktopEnv::Labwc; }
 }
 
 async fn create_backend(...) -> ... {
     match desktop {
         DesktopEnv::Sway => sway::SwayBackend::new(event_tx)
+            .await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Niri => niri::NiriBackend::new(event_tx)
+            .await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Wayfire => wayfire::WayfireBackend::new(event_tx)
+            .await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
+        DesktopEnv::Labwc => labwc::LabwcBackend::new(event_tx)
             .await.map(|b| Box::new(b) as Box<dyn DesktopBackend>),
         // ...
     }

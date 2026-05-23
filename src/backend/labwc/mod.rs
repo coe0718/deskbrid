@@ -21,15 +21,9 @@ impl LabwcBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let xdg_runtime =
             std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
-        let has_labwc_helper = Command::new("which")
-            .args(["labwc-helper"])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .output()
-            .await
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        // The helper binary is scaffolded but does not yet maintain live toplevel
+        // state. Prefer wlrctl until the helper grows real protocol dispatch.
+        let has_labwc_helper = false;
         Ok(Self {
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),

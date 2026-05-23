@@ -92,6 +92,54 @@ sudo usermod -aG input $USER
 # Log out and back in for group to take effect
 ```
 
+## Sway / Niri / Wayfire / Labwc
+
+These wlroots-style backends use compositor CLIs for windows/workspaces and
+shared Wayland tools for input, clipboard, screenshots, and monitor control.
+
+| Backend | Extra dependency | Purpose |
+|---|---|---|
+| Sway | `swaymsg` | Windows, workspaces, monitors |
+| Niri | `niri` | Windows and workspaces via `niri msg` |
+| Wayfire | `wf-ipc` | Windows and workspaces |
+| Labwc | `wlrctl` | Window listing/focus/close/maximize |
+| Niri / Wayfire / Labwc | `wlr-randr` | Monitor mode, scale, rotation, enable/disable |
+
+| Shared dependency | Package | Purpose |
+|---|---|---|
+| `grim` | `grim` | Wayland screenshots |
+| `identify` | `imagemagick` | Screenshot dimensions |
+| `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
+| `ydotool` + `ydotoold` | `ydotool` | Keyboard and mouse input injection |
+
+```bash
+# Debian/Ubuntu
+sudo apt install -y grim imagemagick wl-clipboard ydotool wlr-randr
+
+# Arch
+sudo pacman -S grim imagemagick wl-clipboard ydotool wlr-randr
+```
+
+Install the compositor-specific CLI from your distro package for that compositor
+(`sway`, `niri`, `wayfire`, or `wlrctl`). The same `/dev/uinput` permissions and
+`ydotoold` setup from Hyprland/KDE apply.
+
+## COSMIC
+
+COSMIC support uses the in-repo `cosmic-helper` plus standard Wayland tooling.
+Monitor control uses `cosmic-randr`; monitor discovery also tries `wlr-randr`
+when available. Window move/resize is currently marked unsupported in
+`system.capabilities`.
+
+| Dependency | Package | Purpose |
+|---|---|---|
+| `cosmic-helper` | built from this repo | COSMIC window/workspace bridge where supported |
+| `cosmic-randr` | COSMIC package | Monitor control |
+| `wlr-randr` | `wlr-randr` | Monitor discovery fallback |
+| `grim` | `grim` | Wayland screenshots |
+| `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
+| `ydotool` + `ydotoold` | `ydotool` | Keyboard and mouse input injection |
+
 ## X11
 
 The X11 backend uses xdotool for input and most window operations, wmctrl for window listing and maximize, xclip for clipboard, and ImageMagick for screenshots — no ydotoold required since X11 grants direct XTest extension access.

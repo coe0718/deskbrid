@@ -16,7 +16,7 @@
 
 **The HAL your Linux desktop agents are missing.**
 
-Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE, Cinnamon, MATE — one daemon, one protocol, one binary.
+Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE, COSMIC, Sway, Niri, Wayfire, Labwc, Cinnamon, MATE — one daemon, one protocol, one binary.
 
 ```bash
 # Human
@@ -31,7 +31,7 @@ deskbrid clipboard read
 
 Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
-Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), or KDE (KWin D-Bus + ydotool + spectacle). Same binary, same protocol, same socket.
+Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), KDE (KWin D-Bus + ydotool + spectacle), wlroots-style compositors, or shared X11. Same binary, same protocol, same socket.
 
 ![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
 
@@ -301,6 +301,11 @@ When an action is denied, the daemon returns:
 | **GNOME 46–50** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
 | **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
+| **COSMIC** | Wayland | ⚠️ Partial | cosmic-helper + cosmic-randr + ydotool + grim |
+| **Sway** | Wayland | ✅ Supported (v0.7.0) | swaymsg + ydotool + grim |
+| **Niri** | Wayland | ✅ Supported (v0.7.0, geometry degraded) | niri msg + ydotool + grim + wlr-randr |
+| **Wayfire** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wf-ipc + ydotool + grim + wlr-randr |
+| **Labwc** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wlrctl + ydotool + grim + wlr-randr |
 | Cinnamon | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 | MATE | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
 | X11 (generic) | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
@@ -404,7 +409,7 @@ Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare m
 | `files.watch` | Watch a path for changes (creates, modifies, deletes) |
 | `files.unwatch` | Stop watching a path |
 
-Monitor control uses compositor-native tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, X11 uses `xrandr`, and GNOME uses `xrandr` on X11 or `wlr-randr` where available. Hyprland does not expose a native primary-monitor setting.
+Monitor control uses compositor-native tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, Sway uses `swaymsg`, X11 uses `xrandr`, GNOME uses `xrandr` on X11 or `wlr-randr` where available, and Niri/Wayfire/Labwc use `wlr-randr` where output-management is exposed. Hyprland and several wlroots compositors do not expose a native primary-monitor setting.
 
 ### 📡 Events (subscribe)
 ```json
@@ -431,7 +436,7 @@ Monitor control uses compositor-native tooling: KDE uses `kscreen-doctor`, Hyprl
 → {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
 ```
 
-The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works identically on GNOME, Hyprland, and KDE.
+The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works across the supported GNOME, Hyprland, KDE, wlroots-style, and shared X11 backends, subject to compositor-specific capability notes.
 
 ## Client libraries
 
@@ -471,6 +476,8 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 - **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
 - **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
 - **KDE** — uses KWin D-Bus + scripting API for windows/workspaces, `ydotool` for input (run ydotoold as user, not root), `spectacle` + ImageMagick `convert` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
+- **Sway / Niri / Wayfire / Labwc** — use each compositor's CLI (`swaymsg`, `niri msg`, `wf-ipc`, or `wlrctl`) plus shared Wayland tools (`ydotool`, `grim`, `wl-clipboard`, `wlr-randr`)
+- **COSMIC** — uses the in-repo `cosmic-helper` and `cosmic-randr` where supported; window move/resize is currently capability-marked unsupported
 - **Cinnamon / MATE / X11** — uses `wmctrl` for window listing/maximize, `xdotool` for input and window actions, `xclip` for clipboard, and ImageMagick for screenshots
 
 ## Compared to alternatives
@@ -485,7 +492,7 @@ At startup, deskbrid auto-detects your desktop environment and loads the matchin
 | wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, KDE, and shared X11 desktops.
+Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, KDE, wlroots-style compositors, COSMIC, and shared X11 desktops.
 
 ## Full protocol
 

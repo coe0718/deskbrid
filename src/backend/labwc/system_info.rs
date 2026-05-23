@@ -9,7 +9,7 @@ pub(super) async fn system_info(backend: &LabwcBackend) -> anyhow::Result<protoc
     let monitors = backend
         .sh("wlr-randr", &[])
         .await
-        .map(|_| vec![])
+        .map(|raw| crate::backend::wlr_randr::parse_monitors(&raw))
         .unwrap_or_default();
     let idle = backend.idle_seconds().await.unwrap_or(0);
     Ok(protocol::SystemInfo {

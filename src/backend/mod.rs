@@ -6,6 +6,7 @@ pub mod labwc;
 pub mod niri;
 pub mod sway;
 pub mod wayfire;
+pub(crate) mod wlr_randr;
 pub mod x11;
 
 use crate::protocol;
@@ -91,31 +92,18 @@ async fn detect_desktop() -> DesktopEnv {
     }
 
     // 2. Check running compositor processes
-    if let Ok(output) = tokio::process::Command::new("pgrep")
-        .args(["-x", "Hyprland"])
-        .output()
-        .await
-        && output.status.success()
-    {
-        return DesktopEnv::Hyprland;
-    }
-
-    if let Ok(output) = tokio::process::Command::new("pgrep")
-        .args(["-x", "kwin_wayland"])
-        .output()
-        .await
-        && output.status.success()
-    {
-        return DesktopEnv::Kde;
-    }
-
-    if let Ok(output) = tokio::process::Command::new("pgrep")
-        .args(["-x", "cosmic-comp"])
-        .output()
-        .await
-        && output.status.success()
-    {
-        return DesktopEnv::Cosmic;
+    for (process, desktop_env) in [
+        ("Hyprland", DesktopEnv::Hyprland),
+        ("sway", DesktopEnv::Sway),
+        ("niri", DesktopEnv::Niri),
+        ("wayfire", DesktopEnv::Wayfire),
+        ("labwc", DesktopEnv::Labwc),
+        ("kwin_wayland", DesktopEnv::Kde),
+        ("cosmic-comp", DesktopEnv::Cosmic),
+    ] {
+        if process_running(process).await {
+            return desktop_env;
+        }
     }
 
     // Default to GNOME
@@ -125,6 +113,16 @@ async fn detect_desktop() -> DesktopEnv {
     DesktopEnv::Gnome
 }
 
+async fn process_running(name: &str) -> bool {
+    tokio::process::Command::new("pgrep")
+        .args(["-x", name])
+        .output()
+        .await
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+#[derive(Clone, Copy)]
 enum DesktopEnv {
     Cosmic,
     Gnome,

@@ -1,11 +1,11 @@
 mod checks;
 mod confinement;
 mod coords;
+mod health;
 mod overrides;
 mod remediation;
 
 use super::MONITOR_CONTROL_ACTIONS;
-use checks::{check_clipboard_tools, check_cmd, check_in_path, check_process, check_uinput};
 use overrides::{
     apply_systemd_capability_overrides, set_degraded, set_requires, set_session, set_unsupported,
 };
@@ -55,7 +55,12 @@ pub async fn build_system_capabilities(
         "backend_notes": {
             "gnome": "window control via Shell extension + Mutter DBus",
             "kde": "window control via KWin scripting/DBus",
-            "hyprland": "window control via hyprctl dispatch"
+            "hyprland": "window control via hyprctl dispatch",
+            "cosmic": "window control via cosmic-helper where supported; monitor control via cosmic-randr/wlr-randr",
+            "sway": "window and monitor control via swaymsg",
+            "niri": "window control via niri msg; monitor control via wlr-randr where supported",
+            "wayfire": "window control via wf-ipc; monitor control via wlr-randr where supported",
+            "labwc": "window control via wlrctl; monitor control via wlr-randr where supported"
         }
     }))
 }
@@ -65,18 +70,8 @@ pub async fn build_system_health(
 ) -> anyhow::Result<serde_json::Value> {
     let desktop = backend.system_info().await?.desktop.to_lowercase();
     let mut deps = serde_json::Map::new();
-    insert_system_deps(&mut deps).await;
+    health::insert_deps(&desktop, &mut deps).await;
     let confinement = build_confinement_report().await?;
-
-    if desktop.contains("gnome") {
-        insert_gnome_deps(&mut deps).await;
-    } else if desktop.contains("kde") {
-        insert_kde_deps(&mut deps).await;
-    } else if desktop.contains("hyprland") {
-        insert_hyprland_deps(&mut deps).await;
-    } else if desktop.contains("x11") {
-        insert_x11_deps(&mut deps).await;
-    }
 
     Ok(serde_json::json!({
         "schema_version": 1,
@@ -91,7 +86,12 @@ fn apply_input_capabilities(
     actions: &mut serde_json::Map<String, serde_json::Value>,
     desktop: &str,
 ) {
-    if desktop.contains("kde") || desktop.contains("hyprland") {
+    if [
+        "kde", "hyprland", "cosmic", "sway", "niri", "wayfire", "labwc",
+    ]
+    .iter()
+    .any(|name| desktop.contains(name))
+    {
         set_degraded(
             actions,
             "input.keyboard",
@@ -128,6 +128,62 @@ fn apply_monitor_capabilities(
             "hyprland_has_no_primary_monitor_setting",
         );
     }
+    if desktop.contains("cosmic") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["cosmic-randr"]);
+        }
+        for action in ["windows.move_resize", "windows.tile"] {
+            set_unsupported(actions, action, "cosmic_move_resize_not_available");
+        }
+    }
+    if desktop.contains("sway") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["swaymsg"]);
+        }
+    }
+    if desktop.contains("niri") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["wlr-randr"]);
+        }
+        set_unsupported(
+            actions,
+            "monitor.set_primary",
+            "niri_has_no_primary_monitor_setting",
+        );
+        set_degraded(
+            actions,
+            "windows.move_resize",
+            "niri_only_sets_column_width",
+        );
+        set_degraded(actions, "windows.tile", "niri_only_sets_column_width");
+    }
+    if desktop.contains("wayfire") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["wlr-randr"]);
+        }
+        set_unsupported(
+            actions,
+            "monitor.set_primary",
+            "wayfire_has_no_primary_monitor_setting",
+        );
+        for action in ["windows.move_resize", "windows.tile"] {
+            set_unsupported(actions, action, "wf_ipc_move_resize_not_available");
+        }
+    }
+    if desktop.contains("labwc") {
+        for action in MONITOR_CONTROL_ACTIONS {
+            set_requires(actions, action, &["wlr-randr"]);
+        }
+        set_unsupported(
+            actions,
+            "monitor.set_primary",
+            "labwc_has_no_primary_monitor_setting",
+        );
+        set_unsupported(actions, "windows.minimize", "wlrctl_minimize_not_available");
+        for action in ["windows.move_resize", "windows.tile"] {
+            set_unsupported(actions, action, "wlrctl_move_resize_not_available");
+        }
+    }
     if desktop.contains("x11") {
         for action in MONITOR_CONTROL_ACTIONS {
             set_requires(actions, action, &["xrandr"]);
@@ -147,7 +203,7 @@ fn apply_monitor_capabilities(
         set_requires(actions, "windows.maximize", &["wmctrl"]);
         set_requires(actions, "layout_profiles.save", &["wmctrl"]);
         set_requires(actions, "layout_profiles.restore", &["wmctrl", "xdotool"]);
-        set_unsupported(actions, "notification.send", "x11_unsupported");
+        set_requires(actions, "notification.send", &["notify-send"]);
         set_unsupported(actions, "notification.close", "x11_unsupported");
         set_unsupported(actions, "screencast.start", "x11_unsupported");
         set_unsupported(actions, "screencast.stop", "x11_unsupported");
@@ -174,76 +230,4 @@ fn apply_stub_capabilities(
             "hyprland_has_no_native_minimize_dispatcher",
         );
     }
-}
-
-async fn insert_system_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("systemctl".to_string(), check_in_path("systemctl").await);
-    deps.insert("loginctl".to_string(), check_in_path("loginctl").await);
-    deps.insert("journalctl".to_string(), check_in_path("journalctl").await);
-    deps.insert(
-        "systemd-inhibit".to_string(),
-        check_in_path("systemd-inhibit").await,
-    );
-    deps.insert("pkcheck".to_string(), check_in_path("pkcheck").await);
-    deps.insert("dm-tool".to_string(), check_in_path("dm-tool").await);
-    deps.insert("tesseract".to_string(), check_in_path("tesseract").await);
-}
-
-async fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert(
-        "gnome-extension".to_string(),
-        check_cmd(
-            "gdbus",
-            &[
-                "introspect",
-                "--session",
-                "--dest",
-                "org.deskbrid.WindowManager",
-                "--object-path",
-                "/org/deskbrid/WindowManager",
-            ],
-        )
-        .await,
-    );
-    deps.insert("grim".to_string(), check_in_path("grim").await);
-    deps.insert("wl_clipboard".to_string(), check_clipboard_tools().await);
-    deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
-    deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr").await);
-}
-
-async fn insert_kde_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("qdbus6".to_string(), check_in_path("qdbus6").await);
-    deps.insert(
-        "kscreen-doctor".to_string(),
-        check_in_path("kscreen-doctor").await,
-    );
-    deps.insert("spectacle".to_string(), check_in_path("spectacle").await);
-    deps.insert(
-        "imagemagick_convert".to_string(),
-        check_in_path("convert").await,
-    );
-    deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
-    deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
-    deps.insert("uinput".to_string(), check_uinput().await);
-}
-
-async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("hyprctl".to_string(), check_in_path("hyprctl").await);
-    deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
-    deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
-    deps.insert("uinput".to_string(), check_uinput().await);
-    deps.insert("grim".to_string(), check_in_path("grim").await);
-}
-
-async fn insert_x11_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
-    deps.insert("xdotool".to_string(), check_in_path("xdotool").await);
-    deps.insert("wmctrl".to_string(), check_in_path("wmctrl").await);
-    deps.insert("xclip".to_string(), check_in_path("xclip").await);
-    deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
-    deps.insert("import".to_string(), check_in_path("import").await);
-    deps.insert("identify".to_string(), check_in_path("identify").await);
-    deps.insert(
-        "notify-send".to_string(),
-        check_in_path("notify-send").await,
-    );
 }

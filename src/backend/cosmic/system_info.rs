@@ -1,13 +1,19 @@
 use super::*;
 use crate::protocol;
 
-pub(super) async fn system_info(_backend: &CosmicBackend) -> anyhow::Result<protocol::SystemInfo> {
+pub(super) async fn system_info(backend: &CosmicBackend) -> anyhow::Result<protocol::SystemInfo> {
+    let monitors = backend
+        .sh("wlr-randr", &[])
+        .await
+        .map(|raw| crate::backend::wlr_randr::parse_monitors(&raw))
+        .unwrap_or_default();
+
     Ok(protocol::SystemInfo {
         desktop: "COSMIC".to_string(),
         desktop_version: "1.0".to_string(),
         compositor: "cosmic-comp".to_string(),
         session_type: "wayland".to_string(),
-        monitors: vec![],
+        monitors,
         workspace_count: 1,
         current_workspace: 1,
         idle_seconds: 0,

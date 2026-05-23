@@ -50,6 +50,5 @@ pub(super) async fn window_move_resize(
     _w: u32,
     _h: u32,
 ) -> anyhow::Result<()> {
-    // wf-ipc doesn't support move/resize natively
-    Ok(())
+    anyhow::bail!("window move/resize is not supported by wf-ipc")
 }

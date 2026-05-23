@@ -2103,7 +2103,7 @@ Enable or disable an output.
 {"type": "monitor.disable", "id": "req-57", "output": "HDMI-A-1"}
 ```
 
-Monitor control uses compositor tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, X11 uses `xrandr`, and GNOME uses `xrandr` on X11 or `wlr-randr` where available. Permission-gated deployments should grant only the specific `monitor.*` write actions they intend to allow.
+Monitor control uses compositor tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, Sway uses `swaymsg`, X11 uses `xrandr`, GNOME uses `xrandr` on X11 or `wlr-randr` where available, and Niri/Wayfire/Labwc use `wlr-randr` where output-management is exposed. Permission-gated deployments should grant only the specific `monitor.*` write actions they intend to allow.
 
 ### `location.get`
 

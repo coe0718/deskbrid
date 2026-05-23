@@ -91,5 +91,5 @@ pub(super) async fn window_move_resize(
     _w: u32,
     _h: u32,
 ) -> anyhow::Result<()> {
-    Ok(())
+    anyhow::bail!("window move/resize is not supported by wlrctl")
 }
