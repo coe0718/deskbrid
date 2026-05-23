@@ -47,15 +47,15 @@ These features exist in the codebase already for reference:
 
 | Feature | File(s) | Protocol Actions |
 |---|---|---|
-| **AT-SPI2 Accessibility** | `src/a11y.rs` | `a11y.tree`, `a11y.get_element`, `a11y.click_element`, `a11y.get_text` |
-| **File CRUD** | `src/daemon/execute.rs` | `files.read/write/copy/move/delete/mkdir/list` |
+| **AT-SPI2 Accessibility** | `src/a11y/` (tree, bus, actions, value, setup, util) | `a11y.tree`, `a11y.get_element`, `a11y.click_element`, `a11y.get_text` |
+| **File CRUD** | `src/daemon/execute.rs` (dispatcher) + `execute_files.rs` | `files.read/write/copy/move/delete/mkdir/list` |
 | **Browser CDP** | `src/browser.rs` | `browser.list_tabs/navigate/evaluate/screenshot_tab/click` |
-| **Screen recording (half-built)** | `src/backend/gnome.rs` | `screencast.start/stop` in protocol, Mutter ScreenCast session exists but recording output not wired |
+| **Screen recording (half-built)** | `src/backend/gnome/` (core, screenshot, screencast) | `screencast.start/stop` in protocol, Mutter ScreenCast session exists but recording output not wired |
 | **Event filtering (Subscribe/Unsubscribe)** | `src/daemon/client.rs` | `subscribe`, `unsubscribe` — glob patterns (`window.*`, `file.*`) |
 | **Systemd/logind control** | `src/daemon/system/{logind,systemd}.rs` | `system.inhibit/release_inhibit`, `system.sessions`, `system.lock_session`, `system.switch_user`, `service.*`, `journal.query`, `timer.*` |
 | **Polkit auth checks** | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` | `system.check_auth`, `system.elevate` |
 | **System health checks** | `src/daemon/capabilities/` | `system.health` — dependency reporting with per-backend remediation tips |
-| **Idle detection** | `src/daemon/execute.rs` | `SystemIdle` — current idle seconds |
+| **Idle detection** | `src/daemon/execute.rs` (dispatcher) → `execute_system.rs` | `SystemIdle` — current idle seconds |
 | **Active window context** | (implied by `windows.list` + `SystemInfo`) | Agents can query current state — no auto-attach |
 
 ---

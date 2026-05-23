@@ -165,10 +165,10 @@ is needed for remote client access. Ship Option A first, add Option B later.
 ```
 src/
 ├── mcp/
-│   ├── mod.rs          # MCP server struct, #[tool_router], protocol mode
-│   ├── tools.rs        # Tool implementations (proxy to backend + atspi)
-│   ├── types.rs        # Shared MCP input/output types (JsonSchema)
-│   ├── convert.rs      # Mapping between protocol types and MCP types
+│   ├── mod.rs          # MCP server struct, protocol mode
+│   ├── tools.rs        # Tool dispatcher (routes to helpers + tool_list)
+│   ├── tool_list.rs    # Tool definitions (list_tools)
+│   ├── helpers.rs      # Shared helpers (do_execute, do_focus_window, etc.)
 │   └── atspi.rs        # AT-SPI tools (delegates to a11y module)
 ├── main.rs             # Add "mcp" subcommand
 ```
@@ -255,7 +255,7 @@ The `atspi` crate handles:
 - All property caching and deserialization
 - Proper error handling for stale objects
 
-**B) New `src/a11y/tree.rs` — Snapshot builder (matching computer-use-linux):**
+**B) New `src/a11y/tree.rs` + `tree/tree_queries.rs` — Snapshot builder (matching computer-use-linux):**
 
 ```rust
 pub struct AccessibilityNode {
@@ -400,7 +400,7 @@ RemoteDesktop when running under confinement (Flatpak/Snap).
 
 1. Add `atspi = "0.29"` dependency to `Cargo.toml`
 2. Refactor `src/a11y/bus.rs` to use `atspi::AccessibilityConnection`
-3. Add `src/a11y/tree.rs` — full snapshot builder with bounds, actions, value, text
+3. Add `src/a11y/tree.rs` + `tree/tree_queries.rs` — full snapshot builder with bounds, actions, value, text
 4. Add `src/a11y/actions.rs` — perform_action with action selection
 5. Add `src/a11y/value.rs` — Value + EditableText get/set
 6. Add `src/a11y/text.rs` — full Text interface (character_count, caret, selections)
@@ -522,13 +522,15 @@ clicking doesn't work on elements that don't expose AT-SPI Action.
 
 ### New files
 ```
-src/a11y/tree.rs       ~200 lines  AT-SPI tree snapshot builder
+src/a11y/tree.rs       ~145 lines  AT-SPI tree types + BFS snapshot builder
+src/a11y/tree/tree_queries.rs ~203 lines  AT-SPI D-Bus query functions
 src/a11y/actions.rs    ~150 lines  AT-SPI action invocation
 src/a11y/value.rs      ~100 lines  AT-SPI value + editable text
 src/a11y/setup.rs      ~80 lines   Accessibility enable/doctor
-src/mcp/mod.rs         ~50 lines   MCP server struct + serve()
-src/mcp/tools.rs       ~500 lines  MCP tool implementations
-src/mcp/types.rs       ~300 lines  MCP input/output types
+src/mcp/mod.rs         ~155 lines  MCP server struct + serve()
+src/mcp/tools.rs       ~96 lines   MCP tool dispatcher
+src/mcp/tool_list.rs   ~211 lines  MCP tool definitions
+src/mcp/helpers.rs     ~138 lines  Shared async helpers
 ```
 
 ### Modified files
