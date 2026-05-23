@@ -14,7 +14,7 @@ Auto-detects distro + DE, installs deps, sets up uinput, downloads binary.
 
 ```bash
 deskbrid daemon                               # start daemon
-echo '{"type":"system.info","id":"1"}' | nc -U /run/user/1000/deskbrid.sock -w 2
+echo '{"type":"system.info","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 deskbrid health                               # check deps
 ```
 

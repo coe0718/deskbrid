@@ -14,6 +14,7 @@ pub(crate) mod files;
 pub(crate) mod free_functions;
 pub(crate) mod helpers;
 pub(crate) mod input;
+pub(crate) mod keyboard_layout;
 pub(crate) mod monitor;
 pub(crate) mod networking;
 pub(crate) mod notifications;

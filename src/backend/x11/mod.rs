@@ -10,6 +10,7 @@ mod audio;
 mod bluetooth;
 mod files;
 pub(crate) mod helpers;
+mod keyboard_layout;
 mod monitor;
 mod networking;
 mod notifications;

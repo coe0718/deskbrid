@@ -57,6 +57,26 @@ impl DesktopBackend for X11Backend {
     async fn keyboard_combo(&self, keys: &[String]) -> anyhow::Result<()> {
         windows::keyboard_combo(self, keys).await
     }
+    async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<protocol::KeyboardLayout>> {
+        self.keyboard_layout_list_inner().await
+    }
+    async fn keyboard_layout_get(&self) -> anyhow::Result<protocol::KeyboardLayout> {
+        self.keyboard_layout_get_inner().await
+    }
+    async fn keyboard_layout_set(
+        &self,
+        index: Option<u32>,
+        name: Option<&str>,
+        variant: Option<&str>,
+    ) -> anyhow::Result<()> {
+        self.keyboard_layout_set_inner(index, name, variant).await
+    }
+    async fn keyboard_layout_add(&self, name: &str, variant: Option<&str>) -> anyhow::Result<()> {
+        self.keyboard_layout_add_inner(name, variant).await
+    }
+    async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
+        self.keyboard_layout_remove_inner(index).await
+    }
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()> {
         windows::mouse_move(self, x, y).await
     }

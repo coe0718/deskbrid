@@ -206,3 +206,11 @@ pub struct ErrorBody {
     pub code: String,
     pub message: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct KeyboardLayout {
+    pub index: u32,
+    pub name: String,
+    pub variant: Option<String>,
+    pub display_name: Option<String>,
+}

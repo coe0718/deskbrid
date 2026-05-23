@@ -3,7 +3,7 @@
 **Purpose:** Catalog every mechanism Deskbrid can use to gain deeper control over Linux
 systems — beyond what the current DE backends already provide.
 
-**Current state:** v0.6.1. Deskbrid already has an impressive surface (90+ actions, 5 DE
+**Current state:** v0.7.0. Deskbrid already has an impressive surface (90+ actions, 5 DE
 backends). This doc focuses on what's **not yet in the code** — the remaining 80% of the
 operating system that agents need to control.
 

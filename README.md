@@ -14,7 +14,11 @@
   <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
 </p>
 
-**The HAL your Linux desktop agents are missing.**
+**[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md)**
+
+---
+
+The HAL your Linux desktop agents are missing.
 
 Deskbrid is a single Rust binary that auto-detects your desktop environment and wraps it into a JSON-over-Unix-socket protocol. GNOME, Hyprland, KDE, COSMIC, Sway, Niri, Wayfire, Labwc, Cinnamon, MATE — one daemon, one protocol, one binary.
 
@@ -27,7 +31,18 @@ deskbrid clipboard read
 {"action": "windows.list"}  →  [{"title": "VS Code", "app_id": "code", ...}]
 ```
 
-## Why
+## Table of Contents
+
+- [Why Deskbrid](#why-deskbrid)
+- [Supported Desktops](#supported-desktops)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Protocol](#protocol)
+- [Python Client](#python-client)
+- [MCP Integration](#mcp-integration)
+
+## Why Deskbrid
 
 Every major AI lab is racing to ship desktop agents. AppleScript gives macOS agents native control. Windows has UI Automation. Linux has `xdotool` — which breaks on Wayland, the default display protocol for every major distro.
 
@@ -35,267 +50,8 @@ Deskbrid fills that gap. It auto-detects your compositor and loads the right bac
 
 ![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
 
-## Quick start
+## Supported Desktops
 
-### Pre-built binary
-
-Download the latest release binary from the [releases page](https://github.com/coe0718/deskbrid/releases):
-
-```bash
-# Pick your version — replace v0.6.0 with the latest tag
-curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.6.0/deskbrid
-chmod +x deskbrid
-sudo mv deskbrid /usr/local/bin/
-```
-
-Or build from source if you prefer.
-
-### GNOME
-```bash
-git clone https://github.com/coe0718/deskbrid
-cd deskbrid
-
-# System deps
-sudo apt install -y grim wl-clipboard
-
-# Install GNOME Shell extension
-cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/
-gnome-extensions enable deskbrid@deskbrid
-
-# If enable fails (Ubuntu 26.04 / GNOME 50+):
-# The extension needs its shell-version updated to match. Check yours:
-#   gnome-shell --version
-#   cat ~/.local/share/gnome-shell/extensions/deskbrid@deskbrid/metadata.json
-# If your version isn't listed, bump shell-version in metadata.json.
-# Quick workaround (disables version checking entirely):
-#   gsettings set org.gnome.shell disable-extension-version-validation "true"
-# Then: Alt+F2 → r (restart shell) or log out and back in
-
-# Build and run
-cargo build --release
-./target/release/deskbrid daemon &
-
-# Test it
-./target/release/deskbrid windows list
-./target/release/deskbrid system info
-
-### MCP Server (AI coding tools)
-
-Deskbrid exposes a full MCP (Model Context Protocol) server so AI coding tools like Claude Code and Cursor can control your desktop:
-
-```bash
-# Build with MCP support
-cargo build --features mcp --release
-
-# Start the MCP server on stdio
-./target/release/deskbrid mcp
-```
-
-Add to your AI coding tool's MCP config:
-
-```json
-{
-  "mcpServers": {
-    "deskbrid": {
-      "command": "deskbrid",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-**Dual-protocol mode** (daemon + MCP on same socket):
-
-```bash
-deskbrid daemon --mcp-port 18796
-# Unix socket at /run/user/1000/deskbrid.sock
-# MCP TCP at 127.0.0.1:18796
-```
-
-**MCP tools:** `list_windows`, `focus_window`, `type_text`, `press_keys`, `mouse_move`, `mouse_click`, `screenshot`, `clipboard_read`, `clipboard_write`, `list_apps`, `get_accessibility_tree`, `perform_action`, `set_element_value`, `get_element_text`, `click_element`, `doctor`, `setup_accessibility`, `capabilities`
-
-**AT-SPI accessibility tools** provide full tree snapshots with bounds, actions, value, and text data — matching `computer-use-linux` output format for drop-in migration.
-```
-
-### Hyprland
-```bash
-git clone https://github.com/coe0718/deskbrid
-cd deskbrid
-
-# System deps
-sudo pacman -S grim wl-clipboard ydotool   # Arch
-# or
-sudo apt install grim wl-clipboard          # Debian — install ydotool from source
-
-# Fix /dev/uinput permissions (ydotool needs write access)
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
-sudo udevadm control --reload-rules
-sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
-sudo usermod -aG input $USER  # log out and back in
-
-# Add ydotoold to your Hyprland config
-echo 'exec-once = ydotoold' >> ~/.config/hypr/hyprland.conf
-
-# Build and run
-cargo build --release
-./target/release/deskbrid daemon &
-
-# Test it
-./target/release/deskbrid windows list
-./target/release/deskbrid screenshot
-```
-
-### KDE Plasma
-```bash
-git clone https://github.com/coe0718/deskbrid
-cd deskbrid
-
-# System deps
-sudo apt install spectacle imagemagick wl-clipboard ydotool   # Debian
-# or
-sudo pacman -S spectacle imagemagick wl-clipboard ydotool     # Arch
-
-# ydotoold must run as user (not root). Add to KDE autostart:
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/ydotoold.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=ydotoold
-Exec=ydotoold
-Terminal=false
-X-KDE-autostart-phase=2
-EOF
-
-# Fix /dev/uinput permissions (ydotool needs write access)
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
-sudo udevadm control --reload-rules
-sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
-sudo usermod -aG input $USER  # log out and back in
-
-# Build and run
-cargo build --release
-./target/release/deskbrid daemon &
-
-# Test it
-./target/release/deskbrid windows list
-./target/release/deskbrid screenshot
-```
-
-## Auto-setup
-
-Deskbrid provides a `setup` subcommand that auto-detects your desktop and configures dependencies:
-
-```bash
-deskbrid setup
-```
-
-What it does per desktop:
-
-| Desktop | Action |
-|---------|--------|
-| **GNOME** | Installs the Shell extension to `~/.local/share/gnome-shell/extensions/` and enables it |
-| **Hyprland** | Prints ydotool setup tips (udev rules, `exec-once` config) |
-| **KDE** | Prints ydotoold autostart tips (XDG autostart file, udev rules) |
-|   |
-```bash
-# Example output on KDE
-$ deskbrid setup
-Detected desktop: KDE
-ℹ  Install dependencies: sudo apt install spectacle imagemagick wl-clipboard ydotool
-ℹ  Add ydotoold autostart: see DEPENDENCIES.md
-ℹ  Fix /dev/uinput permissions: sudo usermod -aG input $USER
-```
-```
-
-## Permissions (v0.5.0)
-
-Deskbrid v0.5.0 adds scoped, per-UID permission gating. By default (no config file) all actions are allowed for backward compatibility. When a permissions file exists, the daemon checks every action against the caller's UID via `SO_PEERCRED`.
-
-### Config location
-
-```
-~/.config/deskbrid/permissions.toml
-```
-
-### Example config
-
-```toml
-# Allow everything to UID 1000 (default user)
-[permissions.1000]
-allow = ["*"]
-
-# Restrict a secondary user to read-only operations
-[permissions.1001]
-allow = ["windows.*", "workspaces.list", "system.*"]
-
-# Grant input and clipboard to a specific agent UID
-[permissions.1002]
-allow = [
-    "windows.*",
-    "workspaces.*",
-    "input.*",
-    "clipboard.*",
-    "screenshot",
-    "system.info",
-    "system.idle",
-    "notifications.*",
-]
-```
-
-### How it works
-
-| Concept | Behavior |
-|---------|----------|
-| **No file** | All actions allowed (backward compatible) |
-| **Empty file** | All actions denied for all UIDs |
-| **Missing UID** | All actions denied for that UID |
-| **Glob patterns** | `*`, `windows.*`, `input.keyboard`, etc. |
-| **Multiple patterns** | Any match = allow; no match = deny |
-| **Deny override** | Deny always takes precedence over allow |
-
-### Permission names
-
-Full list of available permission names:
-
-```
-windows.list, windows.focus, windows.get, windows.close, windows.minimize, windows.maximize, windows.move_resize, windows.tile, windows.activate_or_launch
-workspaces.list, workspaces.switch, workspaces.move_window
-layout_profiles.list, layout_profiles.get, layout_profiles.save, layout_profiles.delete, layout_profiles.restore
-input.keyboard, input.mouse
-clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
-apps.list, apps.search, apps.get
-mpris.list, mpris.get, mpris.control
-color.pick
-screenshot, screenshot.ocr, screenshot.diff
-audit.log, audit.clear
-notification.send, notification.close
-system.info, system.capabilities, system.health, system.confinement, system.remediate, system.normalize_coords, wait.for, system.idle, system.power, system.battery
-system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
-service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
-network.status, network.interfaces, network.wifi_scan, network.wifi_connect
-bluetooth.list, bluetooth.scan, bluetooth.stop_scan, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
-files.watch, files.unwatch, files.search, files.read, files.write, files.copy, files.move, files.delete, files.mkdir, files.list
-browser.list_tabs, browser.navigate, browser.evaluate, browser.screenshot_tab, browser.click
-a11y.tree, a11y.get_element, a11y.click_element, a11y.get_text
-process.list, process.start, process.stop, process.signal, process.exists, process.wait
-terminal.create, terminal.write, terminal.read, terminal.resize, terminal.list, terminal.kill
-hotkeys.register, hotkeys.unregister
-audio.list_sinks, audio.set_sink_volume
-monitor.list, monitor.set_primary, monitor.set_resolution, monitor.set_scale, monitor.set_rotation, monitor.enable, monitor.disable
-location.get
-ui.tree.get, ui.element.click, ui.element.set_text
-capabilities.list
-```
-
-### Error response
-
-When an action is denied, the daemon returns:
-
-```json
-{"type": "response", "status": "error", "error": {"code": "PERMISSION_DENIED", "message": "Caller UID 1001 not allowed: input.keyboard"}}
-```
-
-## Supported desktops
 | Desktop | Session | Status | Backend |
 |---------|---------|--------|---------|
 | **GNOME 46–50** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
@@ -303,7 +59,7 @@ When an action is denied, the daemon returns:
 | **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
 | **COSMIC** | Wayland | ⚠️ Partial | cosmic-helper + cosmic-randr + ydotool + grim |
 | **Sway** | Wayland | ✅ Supported (v0.7.0) | swaymsg + ydotool + grim |
-| **Niri** | Wayland | ✅ Supported (v0.7.0, geometry degraded) | niri msg + ydotool + grim + wlr-randr |
+| **Niri** | Wayland | ✅ Partial | niri msg + ydotool + grim + wlr-randr |
 | **Wayfire** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wf-ipc + ydotool + grim + wlr-randr |
 | **Labwc** | Wayland | ✅ Supported (v0.7.0, no move/resize) | wlrctl + ydotool + grim + wlr-randr |
 | Cinnamon | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
@@ -312,192 +68,211 @@ When an action is denied, the daemon returns:
 
 Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
 
-All protocol actions accept `dry_run: true` to validate permissions without execution and `timeout_ms` to override the daemon action timeout. The CLI exposes these as global `--dry-run` and `--timeout-ms` flags.
+## Installation
 
-Runaway clients are throttled with a per-UID token bucket. Tune it with `DESKBRID_RATE_LIMIT_PER_SEC` and `DESKBRID_RATE_LIMIT_BURST`, or set the rate to `0` to disable limiting.
+**One-liner install (recommended):**
 
-## What it can do
+```bash
+bash <(curl -fsSL https://deskbrid.patchhive.dev/install.sh)
+```
 
-### 🖥️ Windows & Workspaces
+Auto-detects your distro and desktop environment, installs dependencies, sets up uinput, and downloads the binary.
+
+**Manual installation:**
+
+Download the latest release binary from the [releases page](https://github.com/coe0718/deskbrid/releases):
+
+```bash
+curl -LO https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid
+chmod +x deskbrid
+sudo mv deskbrid /usr/local/bin/
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/coe0718/deskbrid
+cd deskbrid
+cargo build --release
+sudo cp target/release/deskbrid /usr/local/bin/
+```
+
+### Desktop Setup
+
+**GNOME:**
+```bash
+sudo apt install -y grim wl-clipboard
+deskbrid setup
+```
+
+**Hyprland:**
+```bash
+sudo pacman -S grim wl-clipboard ydotool
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo usermod -aG input $USER
+```
+
+**KDE Plasma:**
+```bash
+sudo apt install spectacle imagemagick wl-clipboard ydotool
+```
+
+## Quick Start
+
+```bash
+deskbrid daemon &
+
+deskbrid windows list          # List open windows
+deskbrid clipboard read        # Read clipboard
+deskbrid screenshot            # Take screenshot
+deskbrid system info           # Get system info
+deskbrid windows focus --app code  # Focus VS Code
+deskbrid input keyboard type "Hello!"  # Type text
+```
+
+## Features
+
+### Windows & Workspaces
+
 | Action | Description |
-|---|---|
-| `windows.list` | List all open windows (title, app_id, workspace, geometry) |
-| `windows.focus` | Focus a window by app_id, title substring, or hex address |
+|--------|-------------|
+| `windows.list` | List all open windows |
+| `windows.focus` | Focus a window by app_id or title |
 | `windows.get` | Get details for a specific window |
-| `windows.close` | Request that a window close |
-| `windows.minimize` | Minimize a window where the compositor supports it |
-| `windows.maximize` | Maximize a window |
-| `windows.move_resize` | Move and resize a window |
-| `windows.tile` | Move a window into a named tiling preset |
-| `windows.activate_or_launch` | Focus an app if open, launch it if not |
-| `workspaces.list` | List workspaces |
-| `workspaces.switch` | Switch to a workspace |
-| `workspaces.move_window` | Move a window to another workspace |
+| `windows.close` | Request window close |
+| `windows.minimize/maximize` | Window state control |
+| `windows.move_resize` | Move and resize windows |
+| `windows.tile` | Tile to screen regions |
+| `windows.activate_or_launch` | Focus or launch app |
+| `workspaces.*` | Workspace management |
+| `layout_profiles.*` | Save/restore layouts |
 
-`windows.activate_or_launch` may start a process, so permission-gated deployments must grant both `windows.activate_or_launch` and `process.start`.
+### Input & Clipboard
 
-### 🧩 Layout Profiles
 | Action | Description |
-|---|---|
-| `layout_profiles.save` | Save current windows, monitors, workspaces, and active workspace |
-| `layout_profiles.list` | List saved layout profile summaries |
-| `layout_profiles.get` | Get a saved layout profile snapshot |
-| `layout_profiles.restore` | Restore saved workspace placement, window geometry, minimized state, and active workspace |
-| `layout_profiles.delete` | Delete a saved layout profile |
+|--------|-------------|
+| `input.keyboard type` | Type text |
+| `input.keyboard key` | Send keypress |
+| `input.keyboard combo` | Send key combinations |
+| `input.mouse.*` | Mouse control |
+| `clipboard.read/write` | Clipboard access |
+| `clipboard.history` | Clipboard history |
 
-Profiles are stored in `~/.config/deskbrid/layout_profiles/`. Restores compare monitor topology and report mismatches; monitor mode changes are not applied yet. Permission-gated deployments should grant `windows.list`, `workspaces.list`, and `system.info` for saving, and window/workspace control permissions for restoring.
+### Screenshots & Media
 
-### ⌨️ Input
 | Action | Description |
-|---|---|
-| `input.keyboard type` | Type text into the focused window |
-| `input.keyboard key` | Send a single keypress |
-| `input.keyboard combo` | Send key combos (ctrl+l, super+space, alt+tab) |
-| `input.mouse move` | Move mouse to absolute position |
-| `input.mouse click` | Click (left/middle/right) |
-| `input.mouse scroll` | Scroll (dx/dy) |
+|--------|-------------|
+| `screenshot` | Screen capture |
+| `screenshot.ocr` | Extract text via Tesseract |
+| `screenshot.diff` | Compare screenshots |
+| `mpris.*` | Media player control |
+| `color.pick` | Sample pixel colors |
 
-### 📋 Clipboard · 📸 Screenshots · 🔔 Notifications
+### System & Services
+
 | Action | Description |
-|---|---|
-| `clipboard.read` | Read Wayland clipboard |
-| `clipboard.write` | Write to Wayland clipboard |
-| `clipboard.history` / `clipboard.history.clear` | List or clear clipboard text observed by Deskbrid |
-| `apps.list` / `apps.search` / `apps.get` | Discover installed `.desktop` applications |
-| `mpris.list` / `mpris.get` / `mpris.control` | Inspect and control standard Linux media players |
-| `color.pick` | Sample a pixel color from the screen or screenshot path |
-| `screenshot` | Capture screen (full, monitor, region, or window) |
-| `screenshot.ocr` | Extract text from a screenshot path or fresh capture via Tesseract |
-| `screenshot.diff` | Compare two screenshots or compare a baseline with a fresh capture |
-| `notification.send` | Send a desktop notification |
-| `notification.close` | Close a notification by ID |
+|--------|-------------|
+| `system.info` | Desktop information |
+| `system.battery` | Battery status |
+| `system.idle` | Idle detection |
+| `system.power` | Power management |
+| `service.*` | systemd units |
+| `journal.query` | Log inspection |
+| `terminal.*` | PTY sessions |
+| `monitor.*` | Display control |
 
-### ⚙️ System · 🌐 Network · 📡 Bluetooth · 🎵 Audio · 📁 Files
+### Network & Bluetooth
+
 | Action | Description |
-|---|---|
-| `system.info` | Desktop info (compositor, version, monitors, workspaces) |
-| `system.idle` | Seconds since last user input |
-| `system.battery` | Battery percentage, state, time remaining |
-| `system.power` | Suspend, hibernate, shutdown, reboot, lock, logout |
-| `system.inhibit` / `system.release_inhibit` | Hold and release systemd sleep/shutdown/idle inhibitors |
-| `system.sessions` / `system.lock_session` / `system.switch_user` | List, lock, and switch logind sessions |
-| `system.check_auth` / `system.elevate` | Check or request polkit authorization |
-| `system.confinement` | Detect Flatpak, Snap, container, WSL, AppArmor, and SELinux context |
-| `wait.for` | Wait for windows, clipboard, process, file, idle, and screenshot stability conditions |
-| `audit.log` / `audit.clear` | Inspect or clear the in-memory action audit log |
-| `service.*` | List/status/start/stop/restart/enable/disable systemd units |
-| `journal.query` | Read recent journald lines with unit, priority, time, and tail filters |
-| `timer.*` | List/start/stop systemd timers |
-| `network.status` | Online/offline via NetworkManager |
-| `network.interfaces` | List interfaces with IPs |
-| `network.wifi.scan` | Scan for WiFi networks |
-| `network.wifi.connect` | Connect to a WiFi network |
-| `bluetooth.list` | List known/available devices |
-| `bluetooth.scan` | Start device discovery |
-| `bluetooth.connect` | Connect to a device |
-| `audio.list_sinks` | List audio output devices |
-| `audio.set_sink_volume` | Set sink volume (0.0-1.0) |
-| `terminal.*` | Create, write, read, resize, list, and kill interactive PTY sessions |
-| `monitor.list` | List display outputs |
-| `monitor.set_primary` | Set the primary output where supported |
-| `monitor.set_resolution` | Set output resolution and optional refresh rate |
-| `monitor.set_scale` | Set output scale |
-| `monitor.set_rotation` | Set output rotation: normal, left, right, inverted |
-| `monitor.enable` | Enable an output |
-| `monitor.disable` | Disable an output |
-| `files.search` | Search files by name |
-| `files.watch` | Watch a path for changes (creates, modifies, deletes) |
-| `files.unwatch` | Stop watching a path |
+|--------|-------------|
+| `network.*` | WiFi status/connect |
+| `bluetooth.*` | Device pairing/control |
 
-Monitor control uses compositor-native tooling: KDE uses `kscreen-doctor`, Hyprland uses `hyprctl`, Sway uses `swaymsg`, X11 uses `xrandr`, GNOME uses `xrandr` on X11 or `wlr-randr` where available, and Niri/Wayfire/Labwc use `wlr-randr` where output-management is exposed. Hyprland and several wlroots compositors do not expose a native primary-monitor setting.
+## Protocol
 
-### 📡 Events (subscribe)
+Deskbrid uses JSON-over-Unix-socket. See [PROTOCOL.md](PROTOCOL.md) for the complete specification.
+
 ```json
-{"action": "subscribe", "events": ["file.*"]}
-```
-| Pattern | What you get |
-|---|---|
-| `file.*` | file.created, file.modified, file.deleted |
-| `file.created` | Just file creation events |
-| `*` | Everything |
-
-## Real-world example: an AI agent controlling VS Code
-
-```
 → {"action": "windows.list"}
-← [{"title": "PatchHive — VS Code", "app_id": "code", ...},
-   {"title": "praxis — VS Code", "app_id": "code", ...}]
+← {"type": "response", "status": "ok", "data": [{"title": "VS Code", ...}]}
 
 → {"action": "windows.focus", "window_id": "code"}
 ← {"type": "response", "status": "ok"}
-
-→ {"action": "input.mouse", "action": "move", "x": 900, "y": 920}
-→ {"action": "input.mouse", "action": "click", "button": "left"}
-→ {"action": "input.keyboard", "action": "type", "text": "Fix the build errors\n"}
 ```
 
-The agent picks the right window by title substring, brings it to front, clicks into the chat input, and types. Works across the supported GNOME, Hyprland, KDE, wlroots-style, and shared X11 backends, subject to compositor-specific capability notes.
+### Events
 
-## Client libraries
+Subscribe to real-time updates:
 
-| Language | Status | Install |
-|---|---|---|
-| **Python** | ✅ Done | `pip install ./clients/python/` |
-| **Rust** (built-in CLI) | ✅ Done | CLI included in binary |
-| TypeScript | 🔄 Planned | `npm install deskbrid` |
+```json
+{"action": "subscribe", "events": ["file.*"]}
+```
 
-### Python example
+## Python Client
 
 ```python
 from deskbrid import Deskbrid
 
 client = Deskbrid()
 
+# List and focus VS Code
+windows = client.windows_list()
+code_window = next((w for w in windows if w.app_id == 'code'), None)
+if code_window:
+    client.focus_window(app_id='code')
+    client.type_text("Fixed the bug!\n")
+
 # Subscribe to events
 @client.on("file.*")
 def on_file_change(event):
     print(f"File changed: {event['path']}")
-
-# Actions
-client.windows_list()
-client.keyboard_type("deploy production\n")
-text = client.clipboard_read()
-path = client.screenshot()
-
-client.listen()  # blocks, streaming events
 ```
 
-## How it works
+## MCP Integration
 
-Deskbrid binds a Unix socket at `$XDG_RUNTIME_DIR/deskbrid.sock`. Every interaction is one JSON line in → one JSON line out. Agents subscribe to events and get pushed real-time updates.
+Deskbrid exposes a full Model Context Protocol server for AI coding tools:
 
-At startup, deskbrid auto-detects your desktop environment and loads the matching backend:
+```bash
+deskbrid mcp
+```
 
-- **GNOME** — talks to Mutter RemoteDesktop (input injection), the GNOME Shell extension (windows/workspaces), and standard Linux utilities (grim, wl-clipboard, NetworkManager, BlueZ)
-- **Hyprland** — uses `hyprctl` (JSON CLI) for windows/workspaces, `ydotool` for input, `grim` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
-- **KDE** — uses KWin D-Bus + scripting API for windows/workspaces, `ydotool` for input (run ydotoold as user, not root), `spectacle` + ImageMagick `convert` for screenshots, `wl-copy/wl-paste` for clipboard, and standard Linux utilities for everything else
-- **Sway / Niri / Wayfire / Labwc** — use each compositor's CLI (`swaymsg`, `niri msg`, `wf-ipc`, or `wlrctl`) plus shared Wayland tools (`ydotool`, `grim`, `wl-clipboard`, `wlr-randr`)
-- **COSMIC** — uses the in-repo `cosmic-helper` and `cosmic-randr` where supported; window move/resize is currently capability-marked unsupported
-- **Cinnamon / MATE / X11** — uses `wmctrl` for window listing/maximize, `xdotool` for input and window actions, `xclip` for clipboard, and ImageMagick for screenshots
+**Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
 
-## Compared to alternatives
+```json
+{
+  "mcpServers": {
+    "deskbrid": {
+      "command": "/usr/local/bin/deskbrid",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
-| Tool | Wayland | Agent-native | JSON protocol | Windows | Input | Clipboard | Screenshot | Bluetooth | Audio | File watch |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **deskbrid** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| xdotool | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| ydotool | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| wtype | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| grim | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| atspi | limited | ❌ | ❌ | limited | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+**Available MCP tools (20+):**
+- `list_windows`, `focus_window`
+- `type_text`, `press_keys`, `mouse_move`, `mouse_click`
+- `screenshot`, `clipboard_read`, `clipboard_write`
+- `list_apps`, `get_accessibility_tree`
+- `perform_action`, `set_element_value`, `get_element_text`, `click_element`
+- `doctor`, `setup_accessibility`, `capabilities`
 
-Deskbrid is the only tool that combines all of these into a single daemon with a structured protocol designed for programmatic use — and it works on GNOME, Hyprland, KDE, wlroots-style compositors, COSMIC, and shared X11 desktops.
+## Compared to Alternatives
 
-## Full protocol
-
-See **[PROTOCOL.md](PROTOCOL.md)** for the complete JSON-over-socket specification.
+| Tool | Wayland | Agent-native | JSON | Windows | Input | Clipboard | Screenshot | Bluetooth | Audio |
+|------|---------|--------------|------|---------|-------|-----------|------------|-----------|-------|
+| **deskbrid** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| xdotool | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| ydotool | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| grim | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| wl-clipboard | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 
 ## License
 
 MIT
+
+## How This Started
+
+Deskbrid began with Tuck — an autonomous agent that needed to control a real Linux desktop. When the community asked for Hyprland support, Tuck asked Jeremy for a bare Arch Linux box with SSH and sudo. He installed Hyprland himself and built the backend from inside the environment he just configured.
+
+The first working demo was a Telegram message: Tuck focused a window and typed "Hello from the other side" in under 60 seconds. That moment — an agent controlling a real desktop through a Unix socket — became Deskbrid. It's built for agents first: same protocol for humans on the CLI, same socket for AIs, one binary that works everywhere.

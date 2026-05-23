@@ -11,6 +11,7 @@ pub(crate) mod files;
 pub(crate) mod init;
 pub(crate) mod inner;
 pub(crate) mod input;
+pub(crate) mod keyboard_layout;
 pub(crate) mod keysym;
 pub(crate) mod monitor;
 pub(crate) mod network;

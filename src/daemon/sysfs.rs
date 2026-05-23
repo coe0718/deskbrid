@@ -176,7 +176,7 @@ async fn select_backlight(device: Option<&str>) -> anyhow::Result<PathBuf> {
     }
 
     let mut entries = tokio::fs::read_dir(root).await?;
-    while let Some(entry) = entries.next_entry().await? {
+    if let Some(entry) = entries.next_entry().await? {
         return Ok(entry.path());
     }
     anyhow::bail!("no backlight devices found")

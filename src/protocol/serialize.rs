@@ -53,6 +53,11 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::InputKeyboardCombo { .. }
         | Action::InputMouse { .. }
         | Action::InputMouseDrag { .. }
+        | Action::InputListLayouts
+        | Action::InputGetLayout
+        | Action::InputSetLayout { .. }
+        | Action::InputAddLayout { .. }
+        | Action::InputRemoveLayout { .. }
         | Action::ClipboardRead
         | Action::ClipboardWrite { .. }
         | Action::ClipboardHistoryList { .. }

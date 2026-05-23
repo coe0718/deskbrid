@@ -70,6 +70,37 @@ pub(crate) async fn execute_input(
                 "duration_ms": duration_ms.unwrap_or(0)
             })
         }
+        InputListLayouts => {
+            let layouts = backend.keyboard_layout_list().await?;
+            serde_json::to_value(layouts)?
+        }
+        InputGetLayout => {
+            let layout = backend.keyboard_layout_get().await?;
+            serde_json::to_value(layout)?
+        }
+        InputSetLayout {
+            index,
+            ref name,
+            ref variant,
+        } => {
+            backend
+                .keyboard_layout_set(index, name.as_deref(), variant.as_deref())
+                .await?;
+            serde_json::json!({"set": true})
+        }
+        InputAddLayout {
+            ref name,
+            ref variant,
+        } => {
+            backend
+                .keyboard_layout_add(name, variant.as_deref())
+                .await?;
+            serde_json::json!({"added": name})
+        }
+        InputRemoveLayout { index } => {
+            backend.keyboard_layout_remove(index).await?;
+            serde_json::json!({"removed": index})
+        }
 
         _ => unreachable!("not a input action"),
     })

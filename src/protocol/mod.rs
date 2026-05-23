@@ -91,6 +91,20 @@ pub enum Action {
         button: Option<String>,
         duration_ms: Option<u64>,
     },
+    InputListLayouts,
+    InputGetLayout,
+    InputSetLayout {
+        index: Option<u32>,
+        name: Option<String>,
+        variant: Option<String>,
+    },
+    InputAddLayout {
+        name: String,
+        variant: Option<String>,
+    },
+    InputRemoveLayout {
+        index: u32,
+    },
 
     // Clipboard
     ClipboardRead,
@@ -559,6 +573,11 @@ impl Action {
             "input.keyboard",
             "input.mouse",
             "input.mouse.drag",
+            "input.layouts.list",
+            "input.layout.get",
+            "input.layout.set",
+            "input.layout.add",
+            "input.layout.remove",
             "clipboard.read",
             "clipboard.write",
             "clipboard.history",

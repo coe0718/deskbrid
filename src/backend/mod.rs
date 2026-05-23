@@ -172,6 +172,28 @@ pub trait DesktopBackend: Send + Sync {
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()>;
     async fn mouse_click(&self, button: &str) -> anyhow::Result<()>;
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()>;
+    // ─── Keyboard Layout ────────────────────────────────
+    async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<protocol::KeyboardLayout>> {
+        anyhow::bail!("keyboard layout list not supported by this backend")
+    }
+    async fn keyboard_layout_get(&self) -> anyhow::Result<protocol::KeyboardLayout> {
+        anyhow::bail!("keyboard layout get not supported by this backend")
+    }
+    async fn keyboard_layout_set(
+        &self,
+        _index: Option<u32>,
+        _name: Option<&str>,
+        _variant: Option<&str>,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("keyboard layout set not supported by this backend")
+    }
+    async fn keyboard_layout_add(&self, _name: &str, _variant: Option<&str>) -> anyhow::Result<()> {
+        anyhow::bail!("keyboard layout add not supported by this backend")
+    }
+    async fn keyboard_layout_remove(&self, _index: u32) -> anyhow::Result<()> {
+        anyhow::bail!("keyboard layout remove not supported by this backend")
+    }
+
     async fn mouse_drag(
         &self,
         from_x: f64,
