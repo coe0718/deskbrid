@@ -31,6 +31,7 @@ it to the completed table below.
 | [12. OCR / Text Extraction](#12-ocr--text-extraction) | OCR existing screenshots or fresh captures with optional word boxes through Tesseract | `src/ocr.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [13. Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer) | Create, write, read, resize, list, and kill interactive PTY sessions | `src/daemon/terminal.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [14. MPRIS Media Control](#14-mpris-media-control) | List MPRIS players, inspect playback status/metadata, and send common playback commands | `src/daemon/mpris.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [15. Drag & Drop](#15-drag--drop) | Drag pointer coordinates with configurable button and duration through backend input injection | `src/backend/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [16. Application Menu Catalog](#16-application-menu-catalog) | List, search, and inspect installed `.desktop` applications from XDG application directories | `src/daemon/apps.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [19. Window Tiling Presets](#19-window-tiling-presets) | Move windows into named monitor-aware presets with optional padding | `src/tiling.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
@@ -1174,6 +1175,9 @@ infrastructure.
 ---
 
 ## 15. Drag & Drop
+
+**Status:** ✅ Done. Deskbrid exposes `input.mouse.drag` and maps it to
+Mutter RemoteDesktop on GNOME, `ydotool` on Wayland backends, and `xdotool` on X11.
 
 ### What's Missing
 
@@ -6071,7 +6075,7 @@ SnapshotClone { id: String, target_path: String },
 | **MPRIS media control** | ✅ Done | Low (~300 lines, zbus calls) | Medium | Pauses audio before recording and exposes current media context |
 | **Color picker** | ✅ Done | Trivial (~80 lines, `image` crate already dep) | Medium | Pixel sampling for visual verification |
 | **Window tiling presets** | ✅ Done | Low (~150 lines, helper over existing) | Medium | Tiles windows without forcing agents to compute pixel coordinates |
-| **Drag & drop** | 🧭 Planned | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
+| **Drag & drop** | ✅ Done | Very low (~100 lines, 4 backends) | Medium | Helps with file managers, design tools, and browser upload zones |
 | **sysfs brightness/backlight** | 🧭 Planned | Very low (std::fs only) | Medium | Works across all DEs, no new deps |
 | **sysfs thermal/CPU** | 🧭 Planned | Very low (std::fs only) | Medium | Useful for monitoring and simple read-only hardware insight |
 

@@ -24,6 +24,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::InputKeyboardKey { .. } => "input.keyboard",
         Action::InputKeyboardCombo { .. } => "input.keyboard",
         Action::InputMouse { .. } => "input.mouse",
+        Action::InputMouseDrag { .. } => "input.mouse.drag",
         Action::ClipboardRead => "clipboard.read",
         Action::ClipboardWrite { .. } => "clipboard.write",
         Action::ClipboardHistoryList { .. } => "clipboard.history",

@@ -85,6 +85,34 @@ pub(super) async fn mouse_scroll(backend: &SwayBackend, dx: f64, dy: f64) -> any
     Ok(())
 }
 
+pub(super) async fn mouse_drag(
+    backend: &SwayBackend,
+    from_x: f64,
+    from_y: f64,
+    to_x: f64,
+    to_y: f64,
+    button: &str,
+    duration_ms: Option<u64>,
+) -> anyhow::Result<()> {
+    let btn = ydotool_mouse_button(button)?;
+    mouse_move(backend, from_x, from_y).await?;
+    backend.ydotool(&["mousedown", btn]).await?;
+    if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
+        tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
+    }
+    mouse_move(backend, to_x, to_y).await?;
+    backend.ydotool(&["mouseup", btn]).await
+}
+
+fn ydotool_mouse_button(button: &str) -> anyhow::Result<&'static str> {
+    match button {
+        "left" => Ok("1"),
+        "middle" => Ok("2"),
+        "right" => Ok("3"),
+        _ => anyhow::bail!("unknown button: {}", button),
+    }
+}
+
 // ─── Clipboard ────────────────────────────────────
 
 pub(super) async fn clipboard_read(backend: &SwayBackend) -> anyhow::Result<String> {

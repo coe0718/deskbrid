@@ -15,6 +15,26 @@ class SyncActionsMixin:
     def mouse_click(self, x: int, y: int, button: str = "left") -> None:
         self._loop.submit(self._client.mouse_click(x=x, y=y, button=button)).result()
 
+    def mouse_drag(
+        self,
+        from_x: float,
+        from_y: float,
+        to_x: float,
+        to_y: float,
+        button: str = "left",
+        duration_ms: int | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.mouse_drag(
+                from_x=from_x,
+                from_y=from_y,
+                to_x=to_x,
+                to_y=to_y,
+                button=button,
+                duration_ms=duration_ms,
+            )
+        ).result()
+
     def clipboard_read(self) -> ClipboardContent:
         return self._loop.submit(self._client.clipboard_read()).result()
 

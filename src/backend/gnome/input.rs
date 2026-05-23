@@ -107,4 +107,33 @@ impl GnomeBackend {
         }
         Ok(())
     }
+
+    pub(super) async fn mouse_drag_inner(
+        &self,
+        from_x: f64,
+        from_y: f64,
+        to_x: f64,
+        to_y: f64,
+        button: &str,
+        duration_ms: Option<u64>,
+    ) -> anyhow::Result<()> {
+        let btn = mouse_button(button)?;
+        self.mouse_move_inner(from_x, from_y).await?;
+        self.rd_button(btn, true).await?;
+        if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
+            tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
+        }
+        self.mouse_move_inner(to_x, to_y).await?;
+        self.rd_button(btn, false).await?;
+        Ok(())
+    }
+}
+
+fn mouse_button(button: &str) -> anyhow::Result<i32> {
+    match button {
+        "left" => Ok(1),
+        "middle" => Ok(2),
+        "right" => Ok(3),
+        _ => anyhow::bail!("unknown button: {}", button),
+    }
 }

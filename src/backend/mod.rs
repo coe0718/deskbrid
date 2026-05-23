@@ -172,6 +172,18 @@ pub trait DesktopBackend: Send + Sync {
     async fn mouse_move(&self, x: f64, y: f64) -> anyhow::Result<()>;
     async fn mouse_click(&self, button: &str) -> anyhow::Result<()>;
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()>;
+    async fn mouse_drag(
+        &self,
+        from_x: f64,
+        from_y: f64,
+        to_x: f64,
+        to_y: f64,
+        button: &str,
+        duration_ms: Option<u64>,
+    ) -> anyhow::Result<()> {
+        let _ = (from_x, from_y, to_x, to_y, button, duration_ms);
+        anyhow::bail!("mouse drag is not supported by this backend")
+    }
 
     // ─── Clipboard ──────────────────────────────────────
     async fn clipboard_read(&self) -> anyhow::Result<String>;

@@ -38,6 +38,21 @@ pub fn into_input_action(cmd: Command) -> anyhow::Result<Action> {
                 dx: Some(dx),
                 dy: Some(dy),
             },
+            MouseCmd::Drag {
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+                button,
+                duration_ms,
+            } => Action::InputMouseDrag {
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+                button: Some(button),
+                duration_ms,
+            },
         },
 
         Command::Clipboard { cmd } => match cmd {

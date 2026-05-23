@@ -1,3 +1,4 @@
+use super::helpers::*;
 use crate::protocol::Action;
 use serde_json::Value;
 
@@ -33,6 +34,14 @@ pub(super) fn parse_input(raw: &Value, _id: &str, type_str: &str) -> anyhow::Res
             button: raw["button"].as_str().map(String::from),
             dx: raw["dx"].as_f64(),
             dy: raw["dy"].as_f64(),
+        },
+        "input.mouse.drag" => Action::InputMouseDrag {
+            from_x: required_number(raw, "from_x")?,
+            from_y: required_number(raw, "from_y")?,
+            to_x: required_number(raw, "to_x")?,
+            to_y: required_number(raw, "to_y")?,
+            button: raw["button"].as_str().map(String::from),
+            duration_ms: raw["duration_ms"].as_u64(),
         },
         _ => anyhow::bail!("unknown input type: {type_str}"),
     })

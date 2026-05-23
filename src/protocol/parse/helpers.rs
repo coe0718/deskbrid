@@ -154,6 +154,16 @@ pub(super) fn required_positive_f64(raw: &serde_json::Value, field: &str) -> any
     Ok(value)
 }
 
+pub(super) fn required_number(raw: &serde_json::Value, field: &str) -> anyhow::Result<f64> {
+    let value = raw[field]
+        .as_f64()
+        .ok_or_else(|| anyhow::anyhow!("missing or invalid '{}' field", field))?;
+    if !value.is_finite() {
+        anyhow::bail!("'{}' must be a finite number", field);
+    }
+    Ok(value)
+}
+
 pub(super) fn optional_positive_f64(
     raw: &serde_json::Value,
     field: &str,

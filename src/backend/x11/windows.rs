@@ -198,6 +198,48 @@ pub(super) async fn mouse_scroll(_backend: &X11Backend, _dx: f64, dy: f64) -> an
     _backend.sh("xdotool", &["click", b]).await.map(|_| ())
 }
 
+pub(super) async fn mouse_drag(
+    backend: &X11Backend,
+    from_x: f64,
+    from_y: f64,
+    to_x: f64,
+    to_y: f64,
+    button: &str,
+    duration_ms: Option<u64>,
+) -> anyhow::Result<()> {
+    let b = match button {
+        "left" => "1",
+        "middle" => "2",
+        "right" => "3",
+        _ => anyhow::bail!("unknown button: {}", button),
+    };
+    backend
+        .sh(
+            "xdotool",
+            &[
+                "mousemove",
+                &(from_x as i32).to_string(),
+                &(from_y as i32).to_string(),
+            ],
+        )
+        .await?;
+    backend.sh("xdotool", &["mousedown", b]).await?;
+    if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
+        tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
+    }
+    backend
+        .sh(
+            "xdotool",
+            &[
+                "mousemove",
+                &(to_x as i32).to_string(),
+                &(to_y as i32).to_string(),
+            ],
+        )
+        .await?;
+    backend.sh("xdotool", &["mouseup", b]).await.map(|_| ())
+}
+
 pub(super) async fn clipboard_read(backend: &X11Backend) -> anyhow::Result<String> {
     backend
         .sh("xclip", &["-o", "-selection", "clipboard"])

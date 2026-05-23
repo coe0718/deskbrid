@@ -50,6 +50,26 @@ pub(crate) async fn execute_input(
             }
             serde_json::json!({"mouse": action})
         }
+        InputMouseDrag {
+            from_x,
+            from_y,
+            to_x,
+            to_y,
+            ref button,
+            duration_ms,
+        } => {
+            let button = button.as_deref().unwrap_or("left");
+            backend
+                .mouse_drag(from_x, from_y, to_x, to_y, button, duration_ms)
+                .await?;
+            serde_json::json!({
+                "dragged": true,
+                "from": {"x": from_x, "y": from_y},
+                "to": {"x": to_x, "y": to_y},
+                "button": button,
+                "duration_ms": duration_ms.unwrap_or(0)
+            })
+        }
 
         _ => unreachable!("not a input action"),
     })

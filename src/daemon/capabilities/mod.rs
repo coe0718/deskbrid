@@ -105,10 +105,17 @@ fn apply_input_capabilities(
             "input.mouse",
             "depends_on_ydotoold_and_uinput_permissions",
         );
+        set_degraded(
+            actions,
+            "input.mouse.drag",
+            "depends_on_ydotoold_and_uinput_permissions",
+        );
         set_requires(actions, "input.keyboard", &["ydotoold", "/dev/uinput"]);
         set_requires(actions, "input.mouse", &["ydotoold", "/dev/uinput"]);
+        set_requires(actions, "input.mouse.drag", &["ydotoold", "/dev/uinput"]);
         set_session(actions, "input.keyboard", "wayland");
         set_session(actions, "input.mouse", "wayland");
+        set_session(actions, "input.mouse.drag", "wayland");
     }
 }
 
@@ -214,6 +221,7 @@ fn apply_monitor_capabilities(
             "workspaces.list",
             "workspaces.switch",
             "workspaces.move_window",
+            "input.mouse.drag",
         ] {
             set_requires(actions, action, &["xdotool"]);
         }

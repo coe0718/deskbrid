@@ -469,7 +469,7 @@ Three sub-modes controlled by the `action` parameter.
 
 ### `input.mouse`
 
-Four sub-modes controlled by the `action` parameter.
+Three sub-modes controlled by the `action` parameter.
 
 **Mode: move** — move mouse to absolute screen coordinates:
 ```json
@@ -507,6 +507,27 @@ Four sub-modes controlled by the `action` parameter.
 ```
 
 Positive `dy`: scroll down. Negative: scroll up. `dx`: horizontal scroll (positive = right).
+
+### `input.mouse.drag`
+
+Drag from one absolute screen coordinate to another. `button` defaults to
+`"left"`; accepted values are `"left"`, `"middle"`, and `"right"`.
+
+```json
+{"type": "input.mouse.drag", "id": "req-15", "from_x": 100, "from_y": 200, "to_x": 600, "to_y": 420, "button": "left", "duration_ms": 250}
+```
+```json
+{
+  "type": "response", "id": "req-15", "seq": 15, "status": "ok",
+  "data": {
+    "dragged": true,
+    "from": { "x": 100, "y": 200 },
+    "to": { "x": 600, "y": 420 },
+    "button": "left",
+    "duration_ms": 250
+  }
+}
+```
 
 ---
 

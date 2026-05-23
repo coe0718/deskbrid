@@ -107,7 +107,8 @@ pub async fn execute_action(
         InputKeyboardType { .. }
         | InputKeyboardKey { .. }
         | InputKeyboardCombo { .. }
-        | InputMouse { .. } => execute_input::execute_input(action, backend, state).await?,
+        | InputMouse { .. }
+        | InputMouseDrag { .. } => execute_input::execute_input(action, backend, state).await?,
 
         MonitorList
         | MonitorSetPrimary { .. }

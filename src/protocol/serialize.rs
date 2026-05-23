@@ -52,6 +52,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::InputKeyboardKey { .. }
         | Action::InputKeyboardCombo { .. }
         | Action::InputMouse { .. }
+        | Action::InputMouseDrag { .. }
         | Action::ClipboardRead
         | Action::ClipboardWrite { .. }
         | Action::ClipboardHistoryList { .. }

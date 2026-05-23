@@ -67,6 +67,18 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     async fn mouse_scroll(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
         self.mouse_scroll_inner(dx, dy).await
     }
+    async fn mouse_drag(
+        &self,
+        from_x: f64,
+        from_y: f64,
+        to_x: f64,
+        to_y: f64,
+        button: &str,
+        duration_ms: Option<u64>,
+    ) -> anyhow::Result<()> {
+        self.mouse_drag_inner(from_x, from_y, to_x, to_y, button, duration_ms)
+            .await
+    }
 
     async fn clipboard_read(&self) -> anyhow::Result<String> {
         self.clipboard_read_inner().await

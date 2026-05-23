@@ -33,6 +33,26 @@ class AsyncActionsMixin:
     async def mouse_scroll(self, dx: float = 0.0, dy: float = 0.0) -> None:
         await self._request("input.mouse", {"action": "scroll", "dx": dx, "dy": dy})
 
+    async def mouse_drag(
+        self,
+        from_x: float,
+        from_y: float,
+        to_x: float,
+        to_y: float,
+        button: str = "left",
+        duration_ms: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "from_x": from_x,
+            "from_y": from_y,
+            "to_x": to_x,
+            "to_y": to_y,
+            "button": button,
+        }
+        if duration_ms is not None:
+            params["duration_ms"] = duration_ms
+        return await self._request("input.mouse.drag", params)
+
     async def clipboard_read(self) -> ClipboardContent:
         return decode_clipboard(await self._request("clipboard.read"))
 

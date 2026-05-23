@@ -83,6 +83,14 @@ pub enum Action {
         dx: Option<f64>,
         dy: Option<f64>,
     },
+    InputMouseDrag {
+        from_x: f64,
+        from_y: f64,
+        to_x: f64,
+        to_y: f64,
+        button: Option<String>,
+        duration_ms: Option<u64>,
+    },
 
     // Clipboard
     ClipboardRead,
@@ -537,6 +545,7 @@ impl Action {
             "layout_profiles.restore",
             "input.keyboard",
             "input.mouse",
+            "input.mouse.drag",
             "clipboard.read",
             "clipboard.write",
             "clipboard.history",
@@ -715,6 +724,27 @@ mod tests {
         assert!(actions.contains(&"apps.list"));
         assert!(actions.contains(&"mpris.list"));
         assert!(actions.contains(&"color.pick"));
+        assert!(actions.contains(&"input.mouse.drag"));
+    }
+
+    #[test]
+    fn parses_mouse_drag() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"input.mouse.drag","id":"x","from_x":1,"from_y":2,"to_x":30,"to_y":40,"button":"right","duration_ms":150}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            Action::InputMouseDrag {
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+                button: Some(button),
+                duration_ms: Some(150),
+            } if from_x == 1.0 && from_y == 2.0 && to_x == 30.0 && to_y == 40.0 && button == "right"
+        ));
+        assert!(Action::from_json(r#"{"type":"input.mouse.drag","id":"x","from_x":1}"#).is_err());
     }
 
     #[test]

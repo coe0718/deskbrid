@@ -39,6 +39,30 @@ pub(super) fn serialize_input(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::InputMouseDrag {
+            from_x,
+            from_y,
+            to_x,
+            to_y,
+            button,
+            duration_ms,
+        } => {
+            let mut obj = json!({
+                "type": "input.mouse.drag",
+                "id": id,
+                "from_x": from_x,
+                "from_y": from_y,
+                "to_x": to_x,
+                "to_y": to_y
+            });
+            if let Some(button) = button {
+                obj["button"] = json!(button);
+            }
+            if let Some(duration_ms) = duration_ms {
+                obj["duration_ms"] = json!(duration_ms);
+            }
+            obj
+        }
 
         // Clipboard
         Action::ClipboardRead => json!({"type": "clipboard.read", "id": id}),

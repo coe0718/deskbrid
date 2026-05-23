@@ -16,4 +16,15 @@ pub enum MouseCmd {
     Click { button: String },
     /// Scroll: dx dy
     Scroll { dx: f64, dy: f64 },
+    /// Drag from one coordinate to another
+    Drag {
+        from_x: f64,
+        from_y: f64,
+        to_x: f64,
+        to_y: f64,
+        #[arg(long, default_value = "left")]
+        button: String,
+        #[arg(long)]
+        duration_ms: Option<u64>,
+    },
 }
