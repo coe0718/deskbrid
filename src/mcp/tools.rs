@@ -13,6 +13,10 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let id = args["window_id"].as_str().unwrap_or("");
             do_focus_window(state, id).await?
         }
+        "close_window" => {
+            let id = args["window_id"].as_str().unwrap_or("");
+            do_execute(state, "windows.close", json!({"window_id": id})).await?
+        }
         "type_text" => {
             let text = args["text"].as_str().unwrap_or("");
             do_type_text(state, text).await?

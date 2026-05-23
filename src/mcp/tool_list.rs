@@ -28,6 +28,17 @@ pub fn list_tools() -> Vec<Value> {
             }),
         ),
         tool(
+            "close_window",
+            "Close a window by its ID.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "window_id": {"type": "string", "description": "Window ID from list_windows"}
+                },
+                "required": ["window_id"]
+            }),
+        ),
+        tool(
             "type_text",
             "Type a string via keyboard input.",
             json!({
