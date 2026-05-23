@@ -89,6 +89,8 @@ pub(crate) async fn execute_process(
             ensure_safe_pid(pid)?;
             let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
             let started = std::time::Instant::now();
+            let mut poll_interval = std::time::Duration::from_millis(50);
+            const MAX_POLL: std::time::Duration = std::time::Duration::from_millis(500);
             loop {
                 let rc = unsafe { libc::kill(pid as i32, 0) };
                 if rc != 0 {
@@ -109,7 +111,8 @@ pub(crate) async fn execute_process(
                         serde_json::json!({"pid": pid, "exited": false, "timeout_ms": timeout.as_millis()}),
                     );
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                tokio::time::sleep(poll_interval).await;
+                poll_interval = (poll_interval * 2).min(MAX_POLL);
             }
             serde_json::json!({"pid": pid, "exited": true, "elapsed_ms": started.elapsed().as_millis()})
         }

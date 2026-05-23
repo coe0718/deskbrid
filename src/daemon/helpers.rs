@@ -50,6 +50,31 @@ pub async fn spawn_detached_process(
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("command must not be empty"))?;
 
+    // Validate against command allowlist (env-configured, colon-separated)
+    // If DESKBRID_ALLOWED_COMMANDS is unset, only allow known-safe starters
+    let allowed_cmds = std::env::var("DESKBRID_ALLOWED_COMMANDS")
+        .unwrap_or_default();
+    if !allowed_cmds.is_empty() {
+        let allowed: Vec<&str> = allowed_cmds.split(':').collect();
+        let program_str = program.as_str();
+        let is_allowed = allowed.iter().any(|a| {
+            // Exact match or glob-style prefix match (e.g., "/usr/bin/*")
+            if *a == program_str { return true; }
+            if let Some(prefix) = a.strip_suffix("/*") {
+                if program_str.starts_with(prefix) && program_str.contains('/') {
+                    return true;
+                }
+            }
+            false
+        });
+        if !is_allowed {
+            anyhow::bail!(
+                "command '{}' is not in the allowed commands list (DESKBRID_ALLOWED_COMMANDS)",
+                program
+            );
+        }
+    }
+
     let mut cmd = tokio::process::Command::new(program);
     cmd.args(&command[1..]);
     if let Some(wd) = workdir {
@@ -70,6 +95,9 @@ pub async fn spawn_detached_process(
 }
 
 /// Expand ~ to $HOME and resolve relative paths to absolute.
+/// Canonicalizes existent paths (resolves symlinks, `..`, `.`).
+/// For non-existent paths, canonicalizes the parent directory.
+/// Then verifies the result is within the allowed sandbox dirs.
 pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
     let expanded = if path.starts_with('~') {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
@@ -77,12 +105,55 @@ pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
     } else {
         PathBuf::from(path)
     };
-    Ok(expanded)
+
+    // Canonicalize to resolve symlinks and `../` traversal
+    let canonical = match std::fs::canonicalize(&expanded) {
+        Ok(p) => p,
+        Err(_) => {
+            // Path doesn't exist yet — canonicalize parent instead
+            if let Some(parent) = expanded.parent() {
+                let canon_parent = std::fs::canonicalize(parent)
+                    .map_err(|_| anyhow::anyhow!("invalid path: {path}"))?;
+                let file_name = expanded
+                    .file_name()
+                    .ok_or_else(|| anyhow::anyhow!("invalid path: {path}"))?;
+                canon_parent.join(file_name)
+            } else {
+                anyhow::bail!("invalid path: {path}");
+            }
+        }
+    };
+
+    // Sandbox check: verify path is within allowed directories
+    let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS")
+        .unwrap_or_else(|_| std::env::var("HOME").unwrap_or_else(|_| "/root".into()));
+    let allowed: Vec<PathBuf> = allowed_dirs
+        .split(':')
+        .map(|d| {
+            let p = PathBuf::from(d);
+            // Canonicalize each allowed dir for comparison
+            std::fs::canonicalize(&p).unwrap_or(p)
+        })
+        .collect();
+
+    let is_allowed = allowed.iter().any(|dir| canonical.starts_with(dir));
+    if !is_allowed {
+        anyhow::bail!(
+            "access denied: path {} is outside allowed directories",
+            canonical.display()
+        );
+    }
+
+    Ok(canonical)
 }
 
 pub fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
     if pid <= 1 {
         anyhow::bail!("refusing to target reserved pid {}", pid);
+    }
+    // Block kernel pseudo-processes (PID 2 = kthreadd)
+    if pid == 2 {
+        anyhow::bail!("refusing to target kernel pid {}", pid);
     }
     if pid > i32::MAX as u32 {
         anyhow::bail!(

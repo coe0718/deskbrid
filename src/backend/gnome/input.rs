@@ -98,11 +98,11 @@ impl GnomeBackend {
 
     pub(super) async fn mouse_scroll_inner(&self, dx: f64, dy: f64) -> anyhow::Result<()> {
         if dy != 0.0 {
-            self.rd_call("NotifyPointerAxisDiscrete", &(0u32, dy as i32))
+            self.rd_call("NotifyPointerAxisDiscrete", &(0u32, dy.round() as i32))
                 .await?;
         }
         if dx != 0.0 {
-            self.rd_call("NotifyPointerAxisDiscrete", &(1u32, dx as i32))
+            self.rd_call("NotifyPointerAxisDiscrete", &(1u32, dx.round() as i32))
                 .await?;
         }
         Ok(())

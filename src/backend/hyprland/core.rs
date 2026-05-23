@@ -10,7 +10,7 @@ impl HyprBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let (instance_sig, wl_socket) = detect_hypr_instance().await;
         let xdg_runtime =
-            std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+            std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
         if let Some(ref sig) = instance_sig {
             if sig.is_empty() {
                 eprintln!(

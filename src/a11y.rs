@@ -25,8 +25,12 @@ pub async fn tree(depth: Option<u32>) -> anyhow::Result<Value> {
     let mut elements = vec![element_json(&conn, &root).await];
     let mut queue: VecDeque<(ObjectPath<'static>, usize)> = VecDeque::new();
     queue.push_back((root.into_owned(), 0));
+    const MAX_NODES: usize = 10_000;
 
     while let Some((path, d)) = queue.pop_front() {
+        if elements.len() >= MAX_NODES {
+            break;
+        }
         if d >= max_depth {
             continue;
         }

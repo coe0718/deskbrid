@@ -14,7 +14,7 @@ pipewire = ["dep:pipewire", "dep:spa"]
 
 [dependencies]
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["fs", "process", "sync", "time", "io-util", "net", "rt", "rt-multi-thread", "macros"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -77,3 +77,9 @@ required-features = ["cosmic"]
 name = "labwc-helper"
 path = "src/bin/labwc_helper.rs"
 required-features = ["labwc"]
+
+[profile.release]
+strip = "symbols"
+lto = true
+codegen-units = 1
+panic = "abort"

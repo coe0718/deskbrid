@@ -222,3 +222,21 @@ pub(super) fn optional_string_array(
     }
     Ok(items)
 }
+
+/// An array of strings with at least one non-empty element
+pub(super) fn required_string_array(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Vec<String>> {
+    let items = optional_string_array(raw, field)?;
+    if items.is_empty() {
+        anyhow::bail!("'{}' must contain at least one entry", field);
+    }
+    Ok(items)
+}
+
+/// Required path field — must be a non-empty string
+pub(super) fn required_path(raw: &serde_json::Value, field: &str) -> anyhow::Result<String> {
+    let value = required_non_empty_string(raw, field)?;
+    Ok(value)
+}

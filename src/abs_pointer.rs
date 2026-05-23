@@ -148,6 +148,12 @@ pub async fn create_for_screen() -> Option<AbsPointer> {
     AbsPointer::new(w, h).ok()
 }
 
+/// Sync version for use inside spawn_blocking
+pub fn create_for_screen_sync() -> Option<AbsPointer> {
+    let (w, h) = detect_screen_dimensions_sync();
+    AbsPointer::new(w, h).ok()
+}
+
 async fn detect_screen_dimensions() -> (u32, u32) {
     if let Ok(output) = tokio::process::Command::new("xrandr")
         .args(["--current"])
@@ -175,11 +181,37 @@ async fn detect_screen_dimensions() -> (u32, u32) {
     (1920, 1080)
 }
 
-pub fn button_code(name: &str) -> u16 {
+fn detect_screen_dimensions_sync() -> (u32, u32) {
+    if let Ok(output) = std::process::Command::new("xrandr")
+        .args(["--current"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+        for line in text.lines() {
+            if line.contains(" connected") {
+                if let Some(res) = line.find(|c: char| c.is_ascii_digit()) {
+                    let rest = &line[res..];
+                    if let Some(space) = rest.find(' ') {
+                        let res_str = &rest[..space];
+                        let parts: Vec<&str> = res_str.split('x').collect();
+                        if parts.len() == 2 {
+                            if let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse()) {
+                                return (w, h);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (1920, 1080)
+}
+
+pub fn button_code(name: &str) -> Result<u16, String> {
     match name.to_lowercase().as_str() {
-        "left" => KeyCode::BTN_LEFT.0,
-        "right" => KeyCode::BTN_RIGHT.0,
-        "middle" => KeyCode::BTN_MIDDLE.0,
-        _ => KeyCode::BTN_LEFT.0,
+        "left" => Ok(KeyCode::BTN_LEFT.0),
+        "right" => Ok(KeyCode::BTN_RIGHT.0),
+        "middle" => Ok(KeyCode::BTN_MIDDLE.0),
+        other => Err(format!("unknown button '{other}': expected 'left', 'right', or 'middle'")),
     }
 }

@@ -1,5 +1,6 @@
 use crate::DaemonState;
 use anyhow::Context;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 use tokio::net::UnixListener;
 use tracing::{debug, error, info, warn};
@@ -98,7 +99,7 @@ pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
 pub(crate) fn socket_path() -> String {
     std::env::var("XDG_RUNTIME_DIR")
         .map(|d| format!("{}/deskbrid.sock", d))
-        .unwrap_or_else(|_| "/run/user/1000/deskbrid.sock".into())
+        .expect("XDG_RUNTIME_DIR must be set — cannot determine socket path")
 }
 
 /// Start the Unix socket daemon and accept connections.
@@ -111,6 +112,10 @@ pub async fn run() -> anyhow::Result<()> {
     }
 
     let listener = UnixListener::bind(&sock).context("failed to bind Unix socket")?;
+
+    // Restrict socket to owner-only — prevents other local users from connecting
+    std::fs::set_permissions(&sock, std::fs::Permissions::from_mode(0o600))
+        .context("failed to set socket permissions")?;
 
     info!("Deskbrid daemon listening on {}", sock);
 

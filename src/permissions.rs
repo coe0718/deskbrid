@@ -30,7 +30,7 @@ struct PermissionEntry {
 
 impl Permissions {
     /// Load from config file, or return allow-all if no file exists.
-    /// On parse error, logs a warning and falls back to allow-all.
+    /// On read/parse error, returns deny-all to prevent accidental over-permission.
     pub fn load() -> Self {
         let path = config_path();
         if !path.exists() {
@@ -44,8 +44,12 @@ impl Permissions {
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
             Err(e) => {
-                warn!("Failed to read permissions file {}: {}", path.display(), e);
-                return Self::allow_all();
+                warn!(
+                    "Failed to read permissions file {}: {}. Denying all actions.",
+                    path.display(),
+                    e
+                );
+                return Self::deny_all();
             }
         };
 
@@ -57,8 +61,12 @@ impl Permissions {
                 }
             }
             Err(e) => {
-                warn!("Failed to parse permissions file {}: {}", path.display(), e);
-                Self::allow_all()
+                warn!(
+                    "Failed to parse permissions file {}: {}. Denying all actions.",
+                    path.display(),
+                    e
+                );
+                Self::deny_all()
             }
         }
     }
@@ -70,6 +78,19 @@ impl Permissions {
                 default: PermissionEntry {
                     allow: vec!["*".to_string()],
                     deny: vec![],
+                },
+                permissions: HashMap::new(),
+            }),
+        }
+    }
+
+    /// Deny everything — used when the config file exists but can't be parsed
+    pub fn deny_all() -> Self {
+        Self {
+            inner: Arc::new(PermissionsInner {
+                default: PermissionEntry {
+                    allow: vec![],
+                    deny: vec!["*".to_string()],
                 },
                 permissions: HashMap::new(),
             }),
@@ -174,7 +195,15 @@ pub fn socket_peer_uid(stream: &tokio::net::UnixStream) -> Option<u32> {
         )
     };
 
-    if ret == 0 { Some(cred.uid) } else { None }
+    if ret == 0 {
+        let expected_len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+        if len != expected_len {
+            return None;
+        }
+        Some(cred.uid)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

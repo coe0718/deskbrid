@@ -10,7 +10,7 @@ impl GnomeBackend {
     ) -> anyhow::Result<protocol::ScreenshotResult> {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs();
+            .as_nanos();
         let path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
 
         if let Some(ref wid) = window_id {
@@ -60,11 +60,11 @@ impl GnomeBackend {
 }
 
 fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
-    let data = std::fs::read(path)?;
-    if data.len() < 24 {
-        anyhow::bail!("PNG file too small");
-    }
-    let width = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-    let height = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut header = [0u8; 24];
+    file.read_exact(&mut header)?;
+    let width = u32::from_be_bytes([header[16], header[17], header[18], header[19]]);
+    let height = u32::from_be_bytes([header[20], header[21], header[22], header[23]]);
     Ok((width, height))
 }

@@ -9,7 +9,9 @@ use super::dispatch::dispatch_action_with_options;
 use super::helpers::ok_response;
 
 pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Result<()> {
-    let peer_uid = socket_peer_uid(&stream).unwrap_or(u32::MAX);
+    let peer_uid = socket_peer_uid(&stream).ok_or_else(|| {
+        anyhow::anyhow!("failed to determine peer UID — connection rejected")
+    })?;
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut conn = ConnectionState::default();
@@ -59,15 +61,15 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                                 "data": parsed
                             });
                             if let Ok(out) = serde_json::to_string(&envelope) {
-                                let _ = writer.write_all(format!("{}\n", out).as_bytes()).await;
+                                let _ = writer.write_all(format!("{out}\n").as_bytes()).await;
                             }
                         }
                     }
                 }
             }
 
-            // Read next client command
-            result = reader.read_line(&mut line) => {
+            // Read next client command (capped at 10MB to prevent memory exhaustion)
+            result = read_line_limited(&mut reader, &mut line) => {
                 let n = result?;
                 if n == 0 {
                     break;
@@ -161,6 +163,17 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
 
     info!("Client disconnected");
     Ok(())
+}
+
+/// Read a line from a buffered reader with a 10MB cap to prevent memory exhaustion.
+async fn read_line_limited(
+    reader: &mut BufReader<tokio::net::unix::OwnedReadHalf>,
+    buf: &mut String,
+) -> std::io::Result<usize> {
+    use tokio::io::AsyncReadExt;
+    const MAX_BYTES: u64 = 10 * 1024 * 1024;
+    let mut limited = reader.take(MAX_BYTES);
+    limited.read_line(buf).await
 }
 
 /// Check if an event type matches any subscription glob pattern.

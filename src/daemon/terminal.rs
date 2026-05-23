@@ -99,6 +99,14 @@ async fn write_terminal(
     terminal_id: &str,
     input: String,
 ) -> anyhow::Result<serde_json::Value> {
+    const MAX_WRITE_BYTES: usize = 1_000_000; // 1MB cap per write
+    if input.len() > MAX_WRITE_BYTES {
+        anyhow::bail!(
+            "terminal write input too large: {} bytes (max {})",
+            input.len(),
+            MAX_WRITE_BYTES
+        );
+    }
     let session = terminal_session(state, terminal_id).await?;
     if session.closed.load(Ordering::Relaxed) {
         anyhow::bail!("terminal is closed: {terminal_id}");

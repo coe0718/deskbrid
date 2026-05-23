@@ -34,14 +34,8 @@ pub(super) async fn keyboard_combo(backend: &HyprBackend, keys: &[String]) -> an
 }
 
 pub(super) async fn mouse_move(backend: &HyprBackend, x: f64, y: f64) -> anyhow::Result<()> {
-    let (last_x, last_y) = {
-        let pos = backend.last_mouse.lock().unwrap();
-        *pos
-    };
-    let _dx = x - last_x;
-    let _dy = y - last_y;
-    {
-        let mut pos = backend.last_mouse.lock().unwrap();
+    // Single lock acquisition to avoid double-lock + poison risk
+    if let Ok(mut pos) = backend.last_mouse.lock() {
         *pos = (x, y);
     }
     backend

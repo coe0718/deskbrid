@@ -12,7 +12,10 @@ from .errors import DeskbridError
 from .events import EventManager
 
 def default_socket_path() -> str:
-    runtime = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime is None:
+        uid = os.getuid()
+        runtime = f"/run/user/{uid}"
     return os.path.join(runtime, "deskbrid.sock")
 
 

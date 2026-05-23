@@ -7,6 +7,9 @@ use serde_json::{Value, json};
 pub use super::tool_list::list_tools;
 
 pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow::Result<String> {
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        anyhow::bail!("invalid tool name: '{name}'");
+    }
     let result = match name {
         "list_windows" => do_execute(state, "windows.list", json!({})).await?,
         "focus_window" => {

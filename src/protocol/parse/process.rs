@@ -7,14 +7,7 @@ pub(super) fn parse_process(raw: &Value, _id: &str, type_str: &str) -> anyhow::R
         // Process
         "process.list" => Action::ProcessList,
         "process.start" => Action::ProcessStart {
-            command: raw["command"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default(),
+            command: required_string_array(raw, "command")?,
             workdir: raw["workdir"].as_str().map(String::from),
             env: raw["env"].as_object().map(|o| {
                 o.iter()

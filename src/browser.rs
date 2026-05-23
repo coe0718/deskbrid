@@ -101,15 +101,13 @@ pub async fn click(tab_index: Option<u32>, selector: &str) -> anyhow::Result<Val
     let targets = discover_targets().await?;
     let ws_url = get_page_ws_url(&targets, tab_index)?;
 
-    // First find the element
+    // First find the element — use JSON serialization for safe JS string literal
+    let escaped_sel = serde_json::to_string(selector)?;
     let doc_result = send_cdp_command(
         &ws_url,
         "Runtime.evaluate",
         serde_json::json!({
-            "expression": format!(
-                "document.querySelector('{}')",
-                selector.replace('\'', "\\'")
-            ),
+            "expression": format!("document.querySelector({escaped_sel})"),
             "returnByValue": false,
         }),
     )
@@ -183,19 +181,16 @@ pub async fn set_text(tab_index: Option<u32>, selector: &str, text: &str) -> any
     let targets = discover_targets().await?;
     let ws_url = get_page_ws_url(&targets, tab_index)?;
 
-    let escaped_text = text
-        .replace('\\', "\\\\")
-        .replace('\'', "\\'")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r");
-    let escaped_selector = selector.replace('\'', "\\'");
+    // Use JSON serialization for safe JS string literals (handles all escaping)
+    let js_selector = serde_json::to_string(selector)?;
+    let js_text = serde_json::to_string(text)?;
 
     let js = format!(
         "(function() {{ \
-            const el = document.querySelector('{escaped_selector}'); \
+            const el = document.querySelector({js_selector}); \
             if (!el) return {{ ok: false, error: 'element not found' }}; \
             el.focus(); \
-            el.value = '{escaped_text}'; \
+            el.value = {js_text}; \
             el.dispatchEvent(new Event('input', {{ bubbles: true }})); \
             el.dispatchEvent(new Event('change', {{ bubbles: true }})); \
             return {{ ok: true }}; \
