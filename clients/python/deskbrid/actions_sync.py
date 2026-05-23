@@ -277,6 +277,18 @@ class SyncActionsMixin:
     def info(self) -> DaemonInfo:
         return self._loop.submit(self._client.info()).result()
 
+    def backlight_get(self, device: str | None = None) -> dict[str, Any]:
+        return self._loop.submit(self._client.backlight_get(device=device)).result()
+
+    def backlight_set(
+        self,
+        percent: float,
+        device: str | None = None,
+    ) -> dict[str, Any]:
+        return self._loop.submit(
+            self._client.backlight_set(percent=percent, device=device)
+        ).result()
+
     def inhibit_system(
         self,
         what: str,

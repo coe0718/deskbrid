@@ -3,7 +3,7 @@ use crate::backend::DesktopBackend;
 use crate::protocol::Action;
 use serde_json::Value;
 
-use super::{build_system_health, normalize_coords};
+use super::{backlight_get, backlight_set, build_system_health, normalize_coords};
 
 pub(crate) async fn execute_system(
     action: Action,
@@ -22,6 +22,11 @@ pub(crate) async fn execute_system(
             serde_json::json!({"power": action})
         }
         SystemBattery => serde_json::json!(backend.battery_status().await?),
+        SystemBacklightGet { ref device } => backlight_get(device.as_deref()).await?,
+        SystemBacklightSet {
+            percent,
+            ref device,
+        } => backlight_set(percent, device.as_deref()).await?,
 
         _ => unreachable!("not a system action"),
     })

@@ -53,6 +53,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemIdle => "system.idle",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
+        Action::SystemBacklightGet { .. } => "system.backlight.get",
+        Action::SystemBacklightSet { .. } => "system.backlight.set",
         Action::SystemInhibit { .. } => "system.inhibit",
         Action::SystemReleaseInhibit { .. } => "system.release_inhibit",
         Action::SystemListSessions => "system.sessions",

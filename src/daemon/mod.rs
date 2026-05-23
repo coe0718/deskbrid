@@ -39,6 +39,7 @@ mod layout;
 mod mpris;
 pub(crate) mod mpris_convert;
 mod rate_limit;
+mod sysfs;
 mod system;
 pub mod terminal;
 pub(crate) mod terminal_create;
@@ -78,6 +79,7 @@ pub(crate) use mpris::{execute_mpris_action, is_mpris_action};
 pub(crate) use rate_limit::{
     RateBucket, RateLimitConfig, check_rate_limit, rate_limit_from_env, rate_limited_response,
 };
+pub(crate) use sysfs::{backlight_get, backlight_set};
 pub use system::{execute_system_control_action, is_system_control_action};
 pub use terminal::{execute_terminal_action, is_terminal_action};
 pub use wait::wait_for_condition;

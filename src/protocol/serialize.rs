@@ -91,6 +91,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemIdle
         | Action::SystemPower { .. }
         | Action::SystemBattery
+        | Action::SystemBacklightGet { .. }
+        | Action::SystemBacklightSet { .. }
         | Action::SystemInhibit { .. }
         | Action::SystemReleaseInhibit { .. }
         | Action::SystemListSessions

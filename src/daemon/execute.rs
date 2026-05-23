@@ -150,7 +150,12 @@ pub async fn execute_action(
         | UiElementSetText { .. }
         | Ping => execute_stubs::execute_stubs(action, backend, state).await?,
 
-        SystemHealth | SystemNormalizeCoords { .. } | SystemPower { .. } | SystemBattery => {
+        SystemHealth
+        | SystemNormalizeCoords { .. }
+        | SystemPower { .. }
+        | SystemBattery
+        | SystemBacklightGet { .. }
+        | SystemBacklightSet { .. } => {
             execute_system::execute_system(action, backend, state).await?
         }
 

@@ -205,6 +205,13 @@ pub enum Action {
         action: String,
     },
     SystemBattery,
+    SystemBacklightGet {
+        device: Option<String>,
+    },
+    SystemBacklightSet {
+        percent: f64,
+        device: Option<String>,
+    },
     SystemInhibit {
         what: String,
         who: String,
@@ -574,6 +581,8 @@ impl Action {
             "system.idle",
             "system.power",
             "system.battery",
+            "system.backlight.get",
+            "system.backlight.set",
             "system.inhibit",
             "system.release_inhibit",
             "system.sessions",
@@ -725,6 +734,8 @@ mod tests {
         assert!(actions.contains(&"mpris.list"));
         assert!(actions.contains(&"color.pick"));
         assert!(actions.contains(&"input.mouse.drag"));
+        assert!(actions.contains(&"system.backlight.get"));
+        assert!(actions.contains(&"system.backlight.set"));
     }
 
     #[test]
@@ -745,6 +756,33 @@ mod tests {
             } if from_x == 1.0 && from_y == 2.0 && to_x == 30.0 && to_y == 40.0 && button == "right"
         ));
         assert!(Action::from_json(r#"{"type":"input.mouse.drag","id":"x","from_x":1}"#).is_err());
+    }
+
+    #[test]
+    fn parses_backlight_actions() {
+        let (_, get) =
+            Action::from_json(r#"{"type":"system.backlight.get","id":"x","device":"intel"}"#)
+                .unwrap();
+        assert!(matches!(
+            get,
+            Action::SystemBacklightGet {
+                device: Some(device),
+            } if device == "intel"
+        ));
+
+        let (_, set) =
+            Action::from_json(r#"{"type":"system.backlight.set","id":"x","percent":42.5}"#)
+                .unwrap();
+        assert!(matches!(
+            set,
+            Action::SystemBacklightSet {
+                percent,
+                device: None,
+            } if percent == 42.5
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"system.backlight.set","id":"x","percent":101}"#).is_err()
+        );
     }
 
     #[test]

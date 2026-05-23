@@ -35,6 +35,20 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             json!({"type": "system.power", "id": id, "action": action})
         }
         Action::SystemBattery => json!({"type": "system.battery", "id": id}),
+        Action::SystemBacklightGet { device } => {
+            let mut obj = json!({"type": "system.backlight.get", "id": id});
+            if let Some(device) = device {
+                obj["device"] = json!(device);
+            }
+            obj
+        }
+        Action::SystemBacklightSet { percent, device } => {
+            let mut obj = json!({"type": "system.backlight.set", "id": id, "percent": percent});
+            if let Some(device) = device {
+                obj["device"] = json!(device);
+            }
+            obj
+        }
         Action::SystemInhibit {
             what,
             who,

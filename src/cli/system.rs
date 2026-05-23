@@ -10,6 +10,14 @@ pub enum SystemCmd {
     Power { action: String },
     /// Battery status
     Battery,
+    /// Read backlight brightness from /sys/class/backlight
+    BacklightGet { device: Option<String> },
+    /// Set backlight brightness percentage
+    BacklightSet {
+        percent: f64,
+        #[arg(long)]
+        device: Option<String>,
+    },
     /// Inhibit sleep/shutdown/idle while work is active
     Inhibit {
         what: String,

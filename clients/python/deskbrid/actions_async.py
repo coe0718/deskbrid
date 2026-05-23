@@ -377,6 +377,22 @@ class AsyncActionsMixin:
     async def confinement(self) -> dict[str, Any]:
         return await self._request("system.confinement")
 
+    async def backlight_get(self, device: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if device is not None:
+            params["device"] = device
+        return await self._request("system.backlight.get", params)
+
+    async def backlight_set(
+        self,
+        percent: float,
+        device: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"percent": percent}
+        if device is not None:
+            params["device"] = device
+        return await self._request("system.backlight.set", params)
+
     async def service_status(self, name: str) -> dict[str, Any]:
         return await self._request("service.status", {"name": name})
 

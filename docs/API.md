@@ -844,6 +844,50 @@ Perform a power action.
 }
 ```
 
+### `system.backlight.get`
+
+Read backlight devices from `/sys/class/backlight`. Pass `device` to focus one
+device; omit it to list all detected backlights.
+
+```json
+{"type": "system.backlight.get", "id": "req-24", "device": "intel_backlight"}
+```
+```json
+{
+  "type": "response", "id": "req-24", "seq": 24, "status": "ok",
+  "data": {
+    "device": {
+      "name": "intel_backlight",
+      "brightness": 4800,
+      "max_brightness": 9600,
+      "percent": 50.0,
+      "writable": true
+    },
+    "devices": []
+  }
+}
+```
+
+### `system.backlight.set`
+
+Set a backlight device to a percentage from `0` to `100`. If `device` is omitted,
+Deskbrid uses the first backlight under `/sys/class/backlight`.
+
+```json
+{"type": "system.backlight.set", "id": "req-25", "percent": 65, "device": "intel_backlight"}
+```
+```json
+{
+  "type": "response", "id": "req-25", "seq": 25, "status": "ok",
+  "data": {
+    "device": "intel_backlight",
+    "percent": 65.0,
+    "brightness": 6240,
+    "max_brightness": 9600
+  }
+}
+```
+
 ### `system.inhibit` / `system.release_inhibit`
 
 Hold a systemd inhibitor while an agent task is running, then release it by ID.

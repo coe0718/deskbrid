@@ -43,6 +43,7 @@ pub async fn build_system_capabilities(
         apply_gnome_capability_overrides(&mut actions, &session_type);
     }
     apply_systemd_capability_overrides(&mut actions);
+    apply_sysfs_capabilities(&mut actions);
     apply_shared_linux_tool_capabilities(&mut actions, &desktop);
     apply_input_capabilities(&mut actions, &desktop);
     apply_monitor_capabilities(&mut actions, &desktop);
@@ -117,6 +118,15 @@ fn apply_input_capabilities(
         set_session(actions, "input.mouse", "wayland");
         set_session(actions, "input.mouse.drag", "wayland");
     }
+}
+
+fn apply_sysfs_capabilities(actions: &mut serde_json::Map<String, serde_json::Value>) {
+    set_requires(actions, "system.backlight.get", &["/sys/class/backlight"]);
+    set_requires(
+        actions,
+        "system.backlight.set",
+        &["/sys/class/backlight", "backlight-write-permission"],
+    );
 }
 
 fn apply_monitor_capabilities(
