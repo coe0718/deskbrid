@@ -358,8 +358,8 @@ struct ActionState {
     target_id: u64,
     // ext_foreign_toplevel_handle_v1 -> its identifier hash
     ext_handles: HashMap<ObjectId, u64>,
-    // zcosmic_toplevel_handle_v1 -> the matching ext handle id
-    cosmic_handle_ids: HashMap<ObjectId, u64>,
+    // ext_foreign_toplevel_handle_v1 -> zcosmic_toplevel_handle_v1
+    ext_cosmic_map: HashMap<ObjectId, ZcosmicToplevelHandleV1>,
     target_cosmic: Option<ZcosmicToplevelHandleV1>,
     got_globals: bool,
 }
@@ -444,9 +444,10 @@ impl Dispatch<ExtForeignToplevelListV1, ()> for ActionState {
     ) {
         if let ext_list::Event::Toplevel { toplevel } = event {
             let obj_id = toplevel.id();
-            state.ext_handles.insert(obj_id, 0);
+            state.ext_handles.insert(obj_id.clone(), 0);
             if let Some(info) = &state.toplevel_info {
-                let _cosmic_h = info.get_cosmic_toplevel(&toplevel, qh, ());
+                let cosmic_h = info.get_cosmic_toplevel(&toplevel, qh, ());
+                state.ext_cosmic_map.insert(obj_id, cosmic_h);
             }
         }
     }
@@ -464,9 +465,12 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for ActionState {
         if let ext_handle::Event::Identifier { identifier } = event {
             let nid = id_from_identifier(&identifier);
             let obj_id = proxy.id();
-            state.ext_handles.insert(obj_id, nid);
+            state.ext_handles.insert(obj_id.clone(), nid);
             if nid != 0 && nid == state.target_id {
                 state.got_globals = true;
+                if let Some(cosmic) = state.ext_cosmic_map.get(&obj_id) {
+                    state.target_cosmic = Some(cosmic.clone());
+                }
             }
         }
     }
@@ -486,28 +490,14 @@ impl Dispatch<ZcosmicToplevelInfoV1, ()> for ActionState {
 
 impl Dispatch<ZcosmicToplevelHandleV1, ()> for ActionState {
     fn event(
-        state: &mut Self,
-        proxy: &ZcosmicToplevelHandleV1,
+        _state: &mut Self,
+        _proxy: &ZcosmicToplevelHandleV1,
         _event: <ZcosmicToplevelHandleV1 as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // COSMIC handle created — check if it matches our target
-        let obj_id = proxy.id();
-        // We can't directly map cosmic handle -> ext handle in all cases,
-        // so look through ext handles for a match
-        if state.target_cosmic.is_none() {
-            // Check if there's an ext handle with our target id
-            if state.ext_handles.values().any(|&id| id == state.target_id) {
-                state.target_cosmic = Some(proxy.clone());
-            }
-            // Also handle small sequential IDs
-            if state.target_id > 0 && state.target_id < 100 {
-                state.target_cosmic = Some(proxy.clone());
-            }
-        }
-        state.cosmic_handle_ids.insert(obj_id, state.target_id);
+        // COSMIC handle matching is done via ext_cosmic_map in the Identifier handler
     }
 }
 
@@ -546,7 +536,7 @@ fn do_action(
         seat: None,
         target_id: window_id,
         ext_handles: HashMap::new(),
-        cosmic_handle_ids: HashMap::new(),
+        ext_cosmic_map: HashMap::new(),
         target_cosmic: None,
         got_globals: false,
     };
@@ -590,7 +580,7 @@ fn do_action_with_seat(window_id: u64) {
         seat: None,
         target_id: window_id,
         ext_handles: HashMap::new(),
-        cosmic_handle_ids: HashMap::new(),
+        ext_cosmic_map: HashMap::new(),
         target_cosmic: None,
         got_globals: false,
     };

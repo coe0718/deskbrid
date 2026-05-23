@@ -31,7 +31,8 @@ impl CosmicBackend {
         event_tx: tokio::sync::broadcast::Sender<protocol::DeskbridEvent>,
     ) -> anyhow::Result<Self> {
         let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
-        let wl_socket = std::env::var("WAYLAND_DISPLAY").ok();
+        let wl_socket = std::env::var("WAYLAND_DISPLAY").ok()
+            .or_else(|| detect_wayland_socket(&xdg_runtime));
 
         // Find cosmic-helper binary: next to our binary, then on PATH
         let helper_path = Self::find_helper();
@@ -165,3 +166,18 @@ mod system_info;
 mod trait_impl;
 mod windows;
 mod workspaces;
+
+/// Auto-detect the Wayland display socket by scanning $XDG_RUNTIME_DIR.
+/// Falls back to "wayland-0" if nothing is found.
+fn detect_wayland_socket(xdg_runtime: &str) -> Option<String> {
+    let dir = std::path::Path::new(xdg_runtime);
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("wayland-") && !name.contains("lock") && !name.contains("render") {
+            return Some(name.to_string());
+        }
+    }
+    None
+}
