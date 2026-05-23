@@ -13,6 +13,25 @@ mod types;
 
 pub mod server;
 
+// Tool group macros (used by server.rs via #[macro_export])
+mod tools_a11y;
+mod tools_audio;
+mod tools_bluetooth;
+mod tools_browser;
+mod tools_clipboard;
+mod tools_files;
+mod tools_input;
+mod tools_media;
+mod tools_misc;
+mod tools_monitors;
+mod tools_network;
+mod tools_notifications;
+mod tools_screenshot;
+mod tools_services;
+mod tools_system;
+mod tools_terminal;
+mod tools_windows;
+
 use anyhow::Context;
 use serde_json::{Value, json};
 use std::sync::Arc;
