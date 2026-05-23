@@ -20,8 +20,7 @@ pub struct SwayBackend {
 impl SwayBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let sway_socket = std::env::var("SWAYSOCK").ok();
-        let xdg_runtime =
-            std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+        let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
 
         if sway_socket.is_none() {
             eprintln!("[deskbrid] WARN: SWAYSOCK not set — swaymsg may fail");

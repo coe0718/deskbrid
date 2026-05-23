@@ -154,26 +154,20 @@ pub fn create_for_screen_sync() -> Option<AbsPointer> {
     AbsPointer::new(w, h).ok()
 }
 
-async fn detect_screen_dimensions() -> (u32, u32) {
-    if let Ok(output) = tokio::process::Command::new("xrandr")
-        .args(["--current"])
-        .output()
-        .await
-    {
-        let text = String::from_utf8_lossy(&output.stdout);
-        for line in text.lines() {
-            if line.contains(" connected")
-                && let Some(res) = line.find(|c: char| c.is_ascii_digit())
-            {
-                let rest = &line[res..];
-                if let Some(space) = rest.find(' ') {
-                    let res_str = &rest[..space];
-                    let parts: Vec<&str> = res_str.split('x').collect();
-                    if parts.len() == 2
-                        && let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse())
-                    {
-                        return (w, h);
-                    }
+fn parse_xrandr_output(output: &[u8]) -> (u32, u32) {
+    let text = String::from_utf8_lossy(output);
+    for line in text.lines() {
+        if line.contains(" connected")
+            && let Some(res) = line.find(|c: char| c.is_ascii_digit())
+        {
+            let rest = &line[res..];
+            if let Some(space) = rest.find(' ') {
+                let res_str = &rest[..space];
+                let parts: Vec<&str> = res_str.split('x').collect();
+                if parts.len() == 2
+                    && let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse())
+                {
+                    return (w, h);
                 }
             }
         }
@@ -181,30 +175,27 @@ async fn detect_screen_dimensions() -> (u32, u32) {
     (1920, 1080)
 }
 
+async fn detect_screen_dimensions() -> (u32, u32) {
+    if let Ok(output) = tokio::process::Command::new("xrandr")
+        .args(["--current"])
+        .output()
+        .await
+    {
+        parse_xrandr_output(&output.stdout)
+    } else {
+        (1920, 1080)
+    }
+}
+
 fn detect_screen_dimensions_sync() -> (u32, u32) {
     if let Ok(output) = std::process::Command::new("xrandr")
         .args(["--current"])
         .output()
     {
-        let text = String::from_utf8_lossy(&output.stdout);
-        for line in text.lines() {
-            if line.contains(" connected")
-                && let Some(res) = line.find(|c: char| c.is_ascii_digit())
-            {
-                let rest = &line[res..];
-                if let Some(space) = rest.find(' ') {
-                    let res_str = &rest[..space];
-                    let parts: Vec<&str> = res_str.split('x').collect();
-                    if parts.len() == 2
-                        && let (Ok(w), Ok(h)) = (parts[0].parse(), parts[1].parse())
-                    {
-                        return (w, h);
-                    }
-                }
-            }
-        }
+        parse_xrandr_output(&output.stdout)
+    } else {
+        (1920, 1080)
     }
-    (1920, 1080)
 }
 
 pub fn button_code(name: &str) -> Result<u16, String> {

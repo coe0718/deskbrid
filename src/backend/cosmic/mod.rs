@@ -30,8 +30,7 @@ impl CosmicBackend {
     pub async fn new(
         event_tx: tokio::sync::broadcast::Sender<protocol::DeskbridEvent>,
     ) -> anyhow::Result<Self> {
-        let xdg_runtime =
-            std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+        let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
         let wl_socket = std::env::var("WAYLAND_DISPLAY").ok();
 
         // Find cosmic-helper binary: next to our binary, then on PATH

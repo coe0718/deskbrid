@@ -23,8 +23,7 @@ pub(super) fn json_truthy(value: Option<&serde_json::Value>) -> bool {
 
 /// Auto-detect the running Hyprland instance and Wayland display.
 pub(super) async fn detect_hypr_instance() -> (Option<String>, Option<String>) {
-    let xdg_runtime =
-        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
     let hypr_dir = std::path::Path::new(&xdg_runtime).join("hypr");
 
     let mut entries = match tokio::fs::read_dir(&hypr_dir).await {
