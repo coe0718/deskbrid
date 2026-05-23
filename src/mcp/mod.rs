@@ -7,6 +7,9 @@
 
 pub mod tools;
 
+mod helpers;
+mod tool_list;
+
 use anyhow::Context;
 use serde_json::{Value, json};
 use std::sync::Arc;

@@ -7,7 +7,6 @@ pub mod cli;
 pub mod client;
 pub mod color;
 pub mod daemon;
-#[cfg(feature = "mcp")]
 pub mod mcp;
 pub mod ocr;
 pub mod permissions;

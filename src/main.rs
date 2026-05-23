@@ -27,35 +27,21 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             if let Some(port) = mcp_port {
-                #[cfg(feature = "mcp")]
-                {
-                    // Start daemon + MCP TCP listener in parallel
-                    let daemon_handle = tokio::spawn(async { daemon::run().await });
-                    let mcp_handle =
-                        tokio::spawn(async move { deskbrid::mcp::run_mcp_tcp(port).await });
-                    let (daemon_result, mcp_result) = tokio::join!(daemon_handle, mcp_handle);
-                    daemon_result??;
-                    mcp_result??;
-                    Ok(())
-                }
-                #[cfg(not(feature = "mcp"))]
-                anyhow::bail!(
-                    "MCP server not compiled (enable 'mcp' feature: cargo build --features mcp)"
-                )
+                // Start daemon + MCP TCP listener in parallel
+                let daemon_handle = tokio::spawn(async { daemon::run().await });
+                let mcp_handle =
+                    tokio::spawn(async move { deskbrid::mcp::run_mcp_tcp(port).await });
+                let (daemon_result, mcp_result) = tokio::join!(daemon_handle, mcp_handle);
+                daemon_result??;
+                mcp_result??;
+                Ok(())
             } else {
                 daemon::run().await
             }
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         cli::Command::Setup => deskbrid::setup::run().await,
-        #[cfg(feature = "mcp")]
         cli::Command::Mcp => deskbrid::mcp::run_mcp_server().await,
-        #[cfg(not(feature = "mcp"))]
-        cli::Command::Mcp => {
-            anyhow::bail!(
-                "MCP server not compiled (enable 'mcp' feature: cargo build --features mcp)"
-            )
-        }
         _ => {
             let action = cli::into_action(args.command)?;
             client::send_one_shot_with_options(action, request_options).await
