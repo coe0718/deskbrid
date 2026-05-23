@@ -1,7 +1,7 @@
 # deskbrid
 
 <p align="center">
-  <img src="logo.png" alt="deskbrid logo" width="280">
+  <img src="docs/assets/logo.png" alt="deskbrid logo" width="280">
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@ Every major AI lab is racing to ship desktop agents. AppleScript gives macOS age
 
 Deskbrid fills that gap. It auto-detects your compositor and loads the right backend — GNOME (Mutter RemoteDesktop DBus), Hyprland (hyprctl + ydotool + grim), KDE (KWin D-Bus + ydotool + spectacle), wlroots-style compositors, or shared X11. Same binary, same protocol, same socket.
 
-![Demo: agent focuses VS Code window and types a command via deskbrid](demo.gif)
+![Demo: agent focuses VS Code window and types a command via deskbrid](docs/assets/demo.gif)
 
 ## Supported Desktops
 
@@ -190,7 +190,7 @@ deskbrid input keyboard type "Hello!"  # Type text
 
 ## Protocol
 
-Deskbrid uses JSON-over-Unix-socket. See [PROTOCOL.md](PROTOCOL.md) for the complete specification.
+Deskbrid uses JSON-over-Unix-socket. See [PROTOCOL.md](docs/PROTOCOL.md) for the complete specification.
 
 ```json
 → {"action": "windows.list"}
