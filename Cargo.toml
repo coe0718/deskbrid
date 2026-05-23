@@ -74,12 +74,10 @@ path = "src/main.rs"
 [[bin]]
 name = "cosmic-helper"
 path = "src/bin/cosmic_helper.rs"
-required-features = ["cosmic"]
 
 [[bin]]
 name = "labwc-helper"
 path = "src/bin/labwc_helper.rs"
-required-features = ["labwc"]
 
 [profile.release]
 strip = "symbols"
