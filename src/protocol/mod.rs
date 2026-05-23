@@ -534,10 +534,12 @@ pub enum Action {
     UiTreeGet,
     UiElementClick {
         selector: String,
+        tab_index: Option<u32>,
     },
     UiElementSetText {
         selector: String,
         text: String,
+        tab_index: Option<u32>,
     },
 
     // Connection

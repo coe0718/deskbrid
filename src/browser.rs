@@ -177,3 +177,50 @@ pub async fn click(tab_index: Option<u32>, selector: &str) -> anyhow::Result<Val
         "position": {"x": x, "y": y},
     }))
 }
+
+/// Set text on an element by CSS selector (input fields, textareas, contenteditable).
+pub async fn set_text(tab_index: Option<u32>, selector: &str, text: &str) -> anyhow::Result<Value> {
+    let targets = discover_targets().await?;
+    let ws_url = get_page_ws_url(&targets, tab_index)?;
+
+    let escaped_text = text
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r");
+    let escaped_selector = selector.replace('\'', "\\'");
+
+    let js = format!(
+        "(function() {{ \
+            const el = document.querySelector('{escaped_selector}'); \
+            if (!el) return {{ ok: false, error: 'element not found' }}; \
+            el.focus(); \
+            el.value = '{escaped_text}'; \
+            el.dispatchEvent(new Event('input', {{ bubbles: true }})); \
+            el.dispatchEvent(new Event('change', {{ bubbles: true }})); \
+            return {{ ok: true }}; \
+        }})()"
+    );
+
+    let result = send_cdp_command(
+        &ws_url,
+        "Runtime.evaluate",
+        serde_json::json!({
+            "expression": js,
+            "returnByValue": true,
+        }),
+    )
+    .await?;
+
+    let value = result
+        .get("result")
+        .and_then(|r| r.get("value"))
+        .cloned()
+        .unwrap_or(serde_json::json!({"ok": false, "error": "no result"}));
+
+    Ok(serde_json::json!({
+        "selector": selector,
+        "text_length": text.len(),
+        "result": value,
+    }))
+}

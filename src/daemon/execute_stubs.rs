@@ -98,15 +98,15 @@ pub(crate) async fn execute_stubs(
             // AT-SPI tree via a11y module (for desktop UI, not browser DOM)
             crate::a11y::tree(Some(5)).await?
         }
-        UiElementClick { ref selector, .. } => {
-            serde_json::json!({"supported": false, "reason": "browser UI automation not integrated", "selector": selector})
+        UiElementClick { ref selector, tab_index } => {
+            crate::browser::click(tab_index, selector).await?
         }
         UiElementSetText {
             ref selector,
             ref text,
-            ..
+            tab_index,
         } => {
-            serde_json::json!({"supported": false, "reason": "browser UI automation not integrated", "selector": selector, "text": text})
+            crate::browser::set_text(tab_index, selector, text).await?
         }
 
         // ─── Catch-all for actions handled before desktop dispatch ──
