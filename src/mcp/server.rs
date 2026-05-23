@@ -7,6 +7,7 @@
 use super::helpers::*;
 use super::types::*;
 use crate::DaemonState;
+use anyhow::Context;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
     tool, tool_router,
@@ -1367,6 +1368,559 @@ impl McpServer {
             json!({"name": name}),
         )
     }
+
+    // ═══════════════════════════════════════════════════════════
+    //  MONITOR
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "list_monitors",
+        description = "List all connected monitors/displays with resolution, position, scale, and refresh rate.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn list_monitors(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "monitor.list", json!({})))
+    }
+
+    #[tool(
+        name = "set_primary_monitor",
+        description = "Set a monitor as the primary display.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn set_primary_monitor(
+        &self,
+        Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "monitor.set_primary",
+            json!({"output": output}),
+        )
+    }
+
+    #[tool(
+        name = "set_monitor_resolution",
+        description = "Change a monitor's resolution and optionally refresh rate.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn set_monitor_resolution(
+        &self,
+        Parameters(SetResolution {
+            output,
+            width,
+            height,
+            refresh_rate,
+        }): Parameters<SetResolution>,
+    ) -> Json<Value> {
+        let mut args = json!({"output": output, "width": width, "height": height});
+        if let Some(r) = refresh_rate {
+            args["refresh_rate"] = json!(r);
+        }
+        execute(self.state.clone(), &self.rt, "monitor.set_resolution", args)
+    }
+
+    #[tool(
+        name = "set_monitor_scale",
+        description = "Set a monitor's display scale factor.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn set_monitor_scale(
+        &self,
+        Parameters(SetScale { output, scale }): Parameters<SetScale>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "monitor.set_scale",
+            json!({"output": output, "scale": scale}),
+        )
+    }
+
+    #[tool(
+        name = "set_monitor_rotation",
+        description = "Rotate a monitor's display output.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn set_monitor_rotation(
+        &self,
+        Parameters(SetRotation { output, rotation }): Parameters<SetRotation>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "monitor.set_rotation",
+            json!({"output": output, "rotation": rotation}),
+        )
+    }
+
+    #[tool(
+        name = "enable_monitor",
+        description = "Enable a previously disabled monitor.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn enable_monitor(
+        &self,
+        Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "monitor.enable",
+            json!({"output": output}),
+        )
+    }
+
+    #[tool(
+        name = "disable_monitor",
+        description = "Disable a monitor output.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    fn disable_monitor(
+        &self,
+        Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "monitor.disable",
+            json!({"output": output}),
+        )
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BROWSER (Chrome DevTools Protocol)
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "list_browser_tabs",
+        description = "List open browser tabs via Chrome DevTools Protocol. Requires Chrome/Chromium with remote debugging enabled.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn list_browser_tabs(&self) -> Json<Value> {
+        block(
+            &self.rt,
+            do_execute(&self.state, "browser.list_tabs", json!({})),
+        )
+    }
+
+    #[tool(
+        name = "browser_navigate",
+        description = "Navigate a browser tab to a URL.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn browser_navigate(
+        &self,
+        Parameters(BrowserNavigate { tab_index, url }): Parameters<BrowserNavigate>,
+    ) -> Json<Value> {
+        let mut args = json!({"url": url});
+        if let Some(t) = tab_index {
+            args["tab_index"] = json!(t);
+        }
+        execute(self.state.clone(), &self.rt, "browser.navigate", args)
+    }
+
+    #[tool(
+        name = "browser_evaluate",
+        description = "Evaluate JavaScript in a browser tab and return the result.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn browser_evaluate(
+        &self,
+        Parameters(BrowserEvaluate {
+            tab_index,
+            expression,
+            await_promise,
+        }): Parameters<BrowserEvaluate>,
+    ) -> Json<Value> {
+        let mut args = json!({"expression": expression, "await_promise": await_promise});
+        if let Some(t) = tab_index {
+            args["tab_index"] = json!(t);
+        }
+        execute(self.state.clone(), &self.rt, "browser.evaluate", args)
+    }
+
+    #[tool(
+        name = "browser_screenshot",
+        description = "Take a screenshot of a browser tab.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn browser_screenshot(
+        &self,
+        Parameters(TabIndex { tab_index }): Parameters<TabIndex>,
+    ) -> Json<Value> {
+        let mut args = json!({});
+        if let Some(t) = tab_index {
+            args["tab_index"] = json!(t);
+        }
+        execute(self.state.clone(), &self.rt, "browser.screenshot_tab", args)
+    }
+
+    #[tool(
+        name = "browser_click",
+        description = "Click an element in a browser tab by CSS selector.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn browser_click(
+        &self,
+        Parameters(BrowserClick {
+            tab_index,
+            selector,
+        }): Parameters<BrowserClick>,
+    ) -> Json<Value> {
+        let mut args = json!({"selector": selector});
+        if let Some(t) = tab_index {
+            args["tab_index"] = json!(t);
+        }
+        execute(self.state.clone(), &self.rt, "browser.click", args)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  MPRIS (Media Player Remote Interfacing Specification)
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "list_media_players",
+        description = "List MPRIS media players on the D-Bus session bus.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn list_media_players(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "mpris.list", json!({})))
+    }
+
+    #[tool(
+        name = "media_player_info",
+        description = "Get detailed info about an MPRIS media player (track, artist, album, position, playback status).",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn media_player_info(
+        &self,
+        Parameters(MprisPlayer { player }): Parameters<MprisPlayer>,
+    ) -> Json<Value> {
+        let mut args = json!({});
+        if let Some(p) = player {
+            args["player"] = json!(p);
+        }
+        execute(self.state.clone(), &self.rt, "mpris.get", args)
+    }
+
+    #[tool(
+        name = "media_player_control",
+        description = "Control an MPRIS media player (play, pause, next, previous, stop).",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn media_player_control(
+        &self,
+        Parameters(MprisControl { player, action }): Parameters<MprisControl>,
+    ) -> Json<Value> {
+        let mut args = json!({"action": action});
+        if let Some(p) = player {
+            args["player"] = json!(p);
+        }
+        execute(self.state.clone(), &self.rt, "mpris.control", args)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  PROCESS
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "list_processes",
+        description = "List running processes with PID, name, CPU, and memory.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn list_processes(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "process.list", json!({})))
+    }
+
+    #[tool(
+        name = "start_process",
+        description = "Start a new background process. Returns the PID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn start_process(
+        &self,
+        Parameters(ProcessStart { command, workdir }): Parameters<ProcessStart>,
+    ) -> Json<Value> {
+        let mut args = json!({"command": command});
+        if let Some(w) = workdir {
+            args["workdir"] = json!(w);
+        }
+        execute(self.state.clone(), &self.rt, "process.start", args)
+    }
+
+    #[tool(
+        name = "stop_process",
+        description = "Stop a running process by PID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn stop_process(
+        &self,
+        Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "process.stop",
+            json!({"pid": pid, "signal": signal}),
+        )
+    }
+
+    #[tool(
+        name = "signal_process",
+        description = "Send a signal to a running process.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn signal_process(
+        &self,
+        Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "process.signal",
+            json!({"pid": pid, "signal": signal}),
+        )
+    }
+
+    #[tool(
+        name = "process_exists",
+        description = "Check if a process with the given PID exists.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn process_exists(
+        &self,
+        Parameters(ProcessPid { pid }): Parameters<ProcessPid>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "process.exists",
+            json!({"pid": pid}),
+        )
+    }
+
+    #[tool(
+        name = "wait_for_process",
+        description = "Wait for a process to exit.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn wait_for_process(
+        &self,
+        Parameters(ProcessWait { pid, timeout_ms }): Parameters<ProcessWait>,
+    ) -> Json<Value> {
+        let mut args = json!({"pid": pid});
+        if let Some(t) = timeout_ms {
+            args["timeout_ms"] = json!(t);
+        }
+        execute(self.state.clone(), &self.rt, "process.wait", args)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  NOTIFICATIONS
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "send_notification",
+        description = "Send a desktop notification via D-Bus.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn send_notification(
+        &self,
+        Parameters(NotificationSend {
+            app_name,
+            title,
+            body,
+            urgency,
+        }): Parameters<NotificationSend>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "notification.send",
+            json!({"app_name": app_name, "title": title, "body": body, "urgency": urgency}),
+        )
+    }
+
+    #[tool(
+        name = "close_notification",
+        description = "Close a desktop notification by ID.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn close_notification(
+        &self,
+        Parameters(NotificationClose { notification_id }): Parameters<NotificationClose>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "notification.close",
+            json!({"notification_id": notification_id}),
+        )
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  HOTKEYS
+    // ═══════════════════════════════════════════════════════════
+
+    #[tool(
+        name = "register_hotkey",
+        description = "Register a global hotkey combination.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    fn register_hotkey(
+        &self,
+        Parameters(HotkeyRegister { hotkey_id, keys }): Parameters<HotkeyRegister>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "hotkeys.register",
+            json!({"hotkey_id": hotkey_id, "keys": keys}),
+        )
+    }
+
+    #[tool(
+        name = "unregister_hotkey",
+        description = "Unregister a previously registered hotkey.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    fn unregister_hotkey(
+        &self,
+        Parameters(HotkeyUnregister { hotkey_id }): Parameters<HotkeyUnregister>,
+    ) -> Json<Value> {
+        execute(
+            self.state.clone(),
+            &self.rt,
+            "hotkeys.unregister",
+            json!({"hotkey_id": hotkey_id}),
+        )
+    }
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).
@@ -1377,4 +1931,38 @@ pub async fn run_mcp(state: Arc<DaemonState>) -> anyhow::Result<()> {
         .waiting()
         .await?;
     Ok(())
+}
+
+/// Run the MCP server over TCP transport (for `deskbrid daemon --mcp-port`).
+/// Self-contained: creates its own daemon state and backend.
+pub async fn run_mcp_tcp_on_port(port: u16) -> anyhow::Result<()> {
+    let event_tx = tokio::sync::broadcast::channel(256).0;
+    let state = Arc::new(crate::DaemonState::new());
+    let backend = crate::backend::create_backend(event_tx)
+        .await
+        .context("no desktop backend detected")?;
+    *state.backend.write().await = Some(backend);
+    run_mcp_tcp(state, port).await
+}
+
+/// Run the MCP server over TCP transport (for `deskbrid daemon --mcp-port`).
+/// Uses rmcp's stream transport — same tool surface as stdio mode.
+pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16) -> anyhow::Result<()> {
+    use rmcp::service::serve_server;
+    use tokio::net::TcpListener;
+
+    let addr = format!("127.0.0.1:{port}");
+    let listener = TcpListener::bind(&addr).await?;
+    tracing::info!("Deskbrid MCP (rmcp) TCP server listening on {addr}");
+
+    loop {
+        let (stream, peer) = listener.accept().await?;
+        let state = state.clone();
+        tokio::spawn(async move {
+            let server = McpServer::new(state);
+            if let Err(e) = serve_server(server, stream).await {
+                tracing::error!("MCP connection error from {peer}: {e}");
+            }
+        });
+    }
 }

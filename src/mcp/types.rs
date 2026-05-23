@@ -386,3 +386,168 @@ pub struct LayoutName {
     #[schemars(description = "Layout profile name")]
     pub name: String,
 }
+
+// ── Monitor ─────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct MonitorOutput {
+    #[schemars(description = "Monitor output name (e.g. 'DP-1', 'HDMI-1')")]
+    pub output: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct SetResolution {
+    #[schemars(description = "Monitor output name")]
+    pub output: String,
+    #[schemars(description = "Width in pixels")]
+    pub width: u32,
+    #[schemars(description = "Height in pixels")]
+    pub height: u32,
+    #[schemars(description = "Refresh rate in Hz")]
+    pub refresh_rate: Option<f64>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct SetScale {
+    #[schemars(description = "Monitor output name")]
+    pub output: String,
+    #[schemars(description = "Scale factor (e.g. 1.0, 1.5, 2.0)")]
+    pub scale: f64,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct SetRotation {
+    #[schemars(description = "Monitor output name")]
+    pub output: String,
+    #[schemars(description = "Rotation: 'normal', 'left', 'right', 'inverted'")]
+    pub rotation: String,
+}
+
+// ── Browser (CDP) ──────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct TabIndex {
+    #[schemars(description = "Tab index from list_browser_tabs")]
+    pub tab_index: Option<u32>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct BrowserNavigate {
+    #[schemars(description = "Tab index")]
+    pub tab_index: Option<u32>,
+    #[schemars(description = "URL to navigate to")]
+    pub url: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct BrowserEvaluate {
+    #[schemars(description = "Tab index")]
+    pub tab_index: Option<u32>,
+    #[schemars(description = "JavaScript expression to evaluate")]
+    pub expression: String,
+    #[schemars(description = "Wait for returned promise to resolve")]
+    #[serde(default)]
+    pub await_promise: bool,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct BrowserClick {
+    #[schemars(description = "Tab index")]
+    pub tab_index: Option<u32>,
+    #[schemars(description = "CSS selector to click")]
+    pub selector: String,
+}
+
+// ── MPRIS ──────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct MprisPlayer {
+    #[schemars(description = "Player bus name (optional, uses first available if omitted)")]
+    pub player: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct MprisControl {
+    #[schemars(description = "Player bus name")]
+    pub player: Option<String>,
+    #[schemars(description = "Action: 'play', 'pause', 'play_pause', 'next', 'previous', 'stop'")]
+    pub action: String,
+}
+
+// ── Process ────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct ProcessStart {
+    #[schemars(description = "Command and arguments")]
+    pub command: Vec<String>,
+    #[schemars(description = "Working directory")]
+    pub workdir: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct ProcessPid {
+    #[schemars(description = "Process ID")]
+    pub pid: u32,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct ProcessSignal {
+    #[schemars(description = "Process ID")]
+    pub pid: u32,
+    #[schemars(description = "Signal name (e.g. 'SIGTERM', 'SIGKILL')")]
+    #[serde(default = "default_signal")]
+    pub signal: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct ProcessWait {
+    #[schemars(description = "Process ID")]
+    pub pid: u32,
+    #[schemars(description = "Timeout in milliseconds")]
+    pub timeout_ms: Option<u64>,
+}
+
+fn default_signal() -> String {
+    "SIGTERM".into()
+}
+
+// ── Notifications ──────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct NotificationSend {
+    #[schemars(description = "App name shown in notification")]
+    pub app_name: String,
+    #[schemars(description = "Notification title")]
+    pub title: String,
+    #[schemars(description = "Notification body text")]
+    pub body: String,
+    #[schemars(description = "Urgency: 'low', 'normal', or 'critical'")]
+    #[serde(default = "default_urgency")]
+    pub urgency: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct NotificationClose {
+    #[schemars(description = "Notification ID to close")]
+    pub notification_id: u32,
+}
+
+fn default_urgency() -> String {
+    "normal".into()
+}
+
+// ── Hotkeys ────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct HotkeyRegister {
+    #[schemars(description = "Unique hotkey identifier")]
+    pub hotkey_id: String,
+    #[schemars(description = "Key combination (e.g. ['Control_L', 'Shift_L', 'x'])")]
+    pub keys: Vec<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct HotkeyUnregister {
+    #[schemars(description = "Hotkey ID to unregister")]
+    pub hotkey_id: String,
+}
