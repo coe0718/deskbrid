@@ -81,12 +81,10 @@ use cosmic_protocols::toplevel_info::v1::client::{
     zcosmic_toplevel_handle_v1::{
         self as cosmic_handle, State as CosmicState, ZcosmicToplevelHandleV1,
     },
-    zcosmic_toplevel_info_v1::{self as cosmic_info, ZcosmicToplevelInfoV1},
+    zcosmic_toplevel_info_v1::ZcosmicToplevelInfoV1,
 };
 
-use cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1::{
-    self as cosmic_mgr, ZcosmicToplevelManagerV1,
-};
+use cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1::ZcosmicToplevelManagerV1;
 
 // ─── Window listing state ────────────────────────────
 
