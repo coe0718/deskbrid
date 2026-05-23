@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for the deskbrid NDJSON protocol. Every action's request format, response format, and example. The protocol runs over a Unix socket — see [ARCHITECTURE.md](ARCHITECTURE.md) for transport details and [PROTOCOL.md](../PROTOCOL.md) for the protocol specification.
+Complete reference for the deskbrid NDJSON protocol. Every action's request format, response format, and example. The protocol runs over a Unix socket — see [ARCHITECTURE.md](ARCHITECTURE.md) for transport details and [PROTOCOL.md](PROTOCOL.md) for the protocol specification.
 
 ## Convention
 

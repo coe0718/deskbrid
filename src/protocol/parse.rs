@@ -91,7 +91,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         s if s.starts_with("color.") => color_pick::parse_color_pick(&raw, &id, s)?,
 
         // Screenshot
-        s if s == "screenshot" || s.starts_with("screenshot.") => screenshot::parse_screenshot(&raw, &id, s)?,
+        s if s == "screenshot" || s.starts_with("screenshot.") => {
+            screenshot::parse_screenshot(&raw, &id, s)?
+        }
 
         // Audit
         s if s.starts_with("audit.") => audit::parse_audit(&raw, &id, s)?,

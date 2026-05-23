@@ -377,6 +377,9 @@ class AsyncActionsMixin:
     async def confinement(self) -> dict[str, Any]:
         return await self._request("system.confinement")
 
+    async def battery(self) -> dict[str, Any]:
+        return await self._request("system.battery")
+
     async def backlight_get(self, device: str | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {}
         if device is not None:

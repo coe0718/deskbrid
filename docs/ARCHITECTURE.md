@@ -48,7 +48,7 @@ The socket uses `SO_PEERCRED` (`src/permissions.rs:218-236`) to extract the conn
 
 ## Protocol: NDJSON
 
-Messages are newline-delimited JSON (`\n` separator, 1 MiB max). The protocol is fully documented in [PROTOCOL.md](../PROTOCOL.md), but the key architectural patterns are:
+Messages are newline-delimited JSON (`\n` separator, 1 MiB max). The protocol is fully documented in [PROTOCOL.md](PROTOCOL.md), but the key architectural patterns are:
 
 ### Request Flow
 

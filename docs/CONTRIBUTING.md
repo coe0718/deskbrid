@@ -389,9 +389,9 @@ For a deep dive into the daemon's internals, see [ARCHITECTURE.md](ARCHITECTURE.
 
 For the full API reference with every action's request/response format, see [API.md](API.md).
 
-For protocol-level details (message format, connection lifecycle, error codes), see [PROTOCOL.md](../PROTOCOL.md).
+For protocol-level details (message format, connection lifecycle, error codes), see [PROTOCOL.md](PROTOCOL.md).
 
-For dependency setup per desktop environment, see [DEPENDENCIES.md](../DEPENDENCIES.md).
+For dependency setup per desktop environment, see [DEPENDENCIES.md](DEPENDENCIES.md).
 
 ## Environment
 

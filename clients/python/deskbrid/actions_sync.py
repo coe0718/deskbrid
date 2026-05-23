@@ -333,6 +333,9 @@ class SyncActionsMixin:
     def confinement(self) -> dict[str, Any]:
         return self._loop.submit(self._client.confinement()).result()
 
+    def battery(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.battery()).result()
+
     def service_status(self, name: str) -> dict[str, Any]:
         return self._loop.submit(self._client.service_status(name)).result()
 
