@@ -14,4 +14,5 @@ build/
 .codex
 .codex-prompt.md
 .MCP_INTEGRATION.md
-MCP_INTEGRATION.md
+MCP_INTEGRATION.md/
+scripts/deploy-site.sh
