@@ -64,6 +64,9 @@ spa = { version = "0.8", package = "libspa", optional = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 evdev = "0.13.2"
 
+[target.aarch64-unknown-linux-gnu.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+
 [[bin]]
 name = "deskbrid"
 path = "src/main.rs"
