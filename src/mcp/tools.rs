@@ -91,7 +91,11 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let button = args["button"].as_str().unwrap_or("left");
             do_drag(from_x, from_y, to_x, to_y, button).await?
         }
-        _ => anyhow::bail!("unknown tool: {name}"),
+        _ => {
+            // Generic fallback: pass the tool name as action type and args directly.
+            // Covers all tools added in Phase 3 without per-tool boilerplate.
+            do_execute_with(state, name, args.clone()).await?
+        }
     };
     Ok(serde_json::to_string(&result)?)
 }

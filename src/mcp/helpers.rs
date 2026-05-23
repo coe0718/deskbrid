@@ -19,6 +19,27 @@ pub(super) async fn do_execute(
     crate::daemon::execute::execute_action(action, backend.as_ref(), state).await
 }
 
+/// Like do_execute but merges params into the action JSON.
+pub(super) async fn do_execute_with(
+    state: &DaemonState,
+    action_type: &str,
+    args: Value,
+) -> anyhow::Result<Value> {
+    let mut map = serde_json::Map::new();
+    map.insert("type".into(), action_type.into());
+    map.insert("id".into(), "mcp".into());
+    if let Value::Object(obj) = args {
+        map.extend(obj);
+    }
+    let action = crate::protocol::Action::from_json(&serde_json::to_string(&Value::Object(map))?)
+        .map(|(_, a)| a)?;
+    let backend = state.backend.read().await;
+    let backend = backend
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("no backend loaded"))?;
+    crate::daemon::execute::execute_action(action, backend.as_ref(), state).await
+}
+
 pub(super) async fn do_focus_window(state: &DaemonState, window_id: &str) -> anyhow::Result<Value> {
     let action = crate::protocol::Action::WindowsFocus(window_id.to_string());
     let backend = state.backend.read().await;
@@ -26,6 +47,26 @@ pub(super) async fn do_focus_window(state: &DaemonState, window_id: &str) -> any
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("no backend loaded"))?;
     crate::daemon::execute::execute_action(action, backend.as_ref(), state).await
+}
+
+pub(super) async fn do_focused_window(state: &DaemonState) -> anyhow::Result<Value> {
+    let action = crate::protocol::Action::WindowsList;
+    let backend = state.backend.read().await;
+    let backend = backend
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("no backend loaded"))?;
+    let result = crate::daemon::execute::execute_action(action, backend.as_ref(), state).await?;
+    // Filter for the focused/active window
+    if let Some(windows) = result.as_array() {
+        for w in windows {
+            if w.get("focused").and_then(|v| v.as_bool()).unwrap_or(false)
+                || w.get("active").and_then(|v| v.as_bool()).unwrap_or(false)
+            {
+                return Ok(w.clone());
+            }
+        }
+    }
+    Ok(json!({"error": "no focused window found"}))
 }
 
 pub(super) async fn do_type_text(state: &DaemonState, text: &str) -> anyhow::Result<Value> {
