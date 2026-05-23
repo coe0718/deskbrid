@@ -29,6 +29,13 @@ struct WindowInfo {
     fullscreen: bool,
     workspace_id: Option<u32>,
 }
+#[derive(Serialize, Clone, Debug)]
+#[allow(dead_code)]
+struct WorkspaceInfo {
+    id: u32,
+    name: String,
+    is_active: bool,
+}
 
 // ─── CLI helpers ──────────────────────────────────────
 
@@ -67,6 +74,7 @@ use wayland_client::{
     backend::ObjectId,
     event_created_child,
     protocol::{
+        wl_output::WlOutput,
         wl_registry::{self, WlRegistry},
         wl_seat::WlSeat,
     },
@@ -85,6 +93,12 @@ use cosmic_protocols::toplevel_info::v1::client::{
 };
 
 use cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1::ZcosmicToplevelManagerV1;
+
+use wayland_protocols::ext::workspace::v1::client::{
+    ext_workspace_group_handle_v1::ExtWorkspaceGroupHandleV1,
+    ext_workspace_handle_v1::{self as ws_handle, ExtWorkspaceHandleV1},
+    ext_workspace_manager_v1::{self as ws_mgr, ExtWorkspaceManagerV1},
+};
 
 // ─── Window listing state ────────────────────────────
 
@@ -227,20 +241,20 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for ListState {
                 }
             }
             ext_handle::Event::Done => {
-                if let Some(p) = state.pending_ext.remove(&obj_id) {
-                    if let Some(win) = state.windows.get_mut(p.window_idx) {
-                        let ident = p.identifier.as_deref().unwrap_or("");
-                        let nid = if !ident.is_empty() {
-                            id_from_identifier(ident)
-                        } else {
-                            0
-                        };
-                        if nid != 0 {
-                            win.window_id = nid;
-                        }
-                        win.title = p.title.clone();
-                        win.app_id = p.app_id.clone();
+                if let Some(p) = state.pending_ext.remove(&obj_id)
+                    && let Some(win) = state.windows.get_mut(p.window_idx)
+                {
+                    let ident = p.identifier.as_deref().unwrap_or("");
+                    let nid = if !ident.is_empty() {
+                        id_from_identifier(ident)
+                    } else {
+                        0
+                    };
+                    if nid != 0 {
+                        win.window_id = nid;
                     }
+                    win.title = p.title.clone();
+                    win.app_id = p.app_id.clone();
                 }
             }
             _ => {}
@@ -318,13 +332,13 @@ impl Dispatch<ZcosmicToplevelHandleV1, ()> for ListState {
                 height,
                 ..
             } => {
-                if let Some(idx) = state.cosmic_id_map.get(&obj_id).copied() {
-                    if let Some(win) = state.windows.get_mut(idx) {
-                        win.x = Some(x);
-                        win.y = Some(y);
-                        win.width = Some(width as u32);
-                        win.height = Some(height as u32);
-                    }
+                if let Some(idx) = state.cosmic_id_map.get(&obj_id).copied()
+                    && let Some(win) = state.windows.get_mut(idx)
+                {
+                    win.x = Some(x);
+                    win.y = Some(y);
+                    win.width = Some(width as u32);
+                    win.height = Some(height as u32);
                 }
             }
             _ => {}
@@ -447,16 +461,13 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for ActionState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        match event {
-            ext_handle::Event::Identifier { identifier } => {
-                let nid = id_from_identifier(&identifier);
-                let obj_id = proxy.id();
-                state.ext_handles.insert(obj_id, nid);
-                if nid != 0 && nid == state.target_id {
-                    state.got_globals = true;
-                }
+        if let ext_handle::Event::Identifier { identifier } = event {
+            let nid = id_from_identifier(&identifier);
+            let obj_id = proxy.id();
+            state.ext_handles.insert(obj_id, nid);
+            if nid != 0 && nid == state.target_id {
+                state.got_globals = true;
             }
-            _ => {}
         }
     }
 }
@@ -512,6 +523,7 @@ impl Dispatch<ZcosmicToplevelManagerV1, ()> for ActionState {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn do_action(
     window_id: u64,
     f: Box<dyn FnOnce(&ZcosmicToplevelManagerV1, &ZcosmicToplevelHandleV1)>,
@@ -596,7 +608,6 @@ fn do_action_with_seat(window_id: u64) {
             ok_json(None);
         } else {
             err_json("no wl_seat available for activate — compositor may not support it");
-            return;
         }
     } else if state.manager.is_none() {
         err_json("zcosmic_toplevel_manager_v1 not available");
@@ -605,6 +616,245 @@ fn do_action_with_seat(window_id: u64) {
     }
 }
 
+// ─── Workspace list state ────────────────────────────
+
+struct WorkspaceListState {
+    manager: Option<ExtWorkspaceManagerV1>,
+    workspaces: Vec<WorkspaceInfo>,
+    pending: HashMap<ObjectId, PendingWorkspace>,
+    next_id: u32,
+    finished: bool,
+}
+
+struct PendingWorkspace {
+    id: u32,
+    name: Option<String>,
+    is_active: bool,
+}
+
+impl Dispatch<WlRegistry, ()> for WorkspaceListState {
+    fn event(
+        state: &mut Self,
+        registry: &WlRegistry,
+        event: <WlRegistry as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+            && interface.as_str() == "ext_workspace_manager_v1"
+        {
+            let mgr =
+                registry.bind::<ExtWorkspaceManagerV1, (), Self>(name, version.min(1), qh, ());
+            state.manager = Some(mgr);
+        }
+    }
+}
+
+impl Dispatch<ExtWorkspaceManagerV1, ()> for WorkspaceListState {
+    event_created_child!(WorkspaceListState, ExtWorkspaceManagerV1, [
+        0 => (ExtWorkspaceGroupHandleV1, ()),
+        1 => (ExtWorkspaceHandleV1, ())
+    ]);
+
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtWorkspaceManagerV1,
+        event: <ExtWorkspaceManagerV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            ws_mgr::Event::Workspace { workspace } => {
+                let id = state.next_id;
+                state.next_id += 1;
+                let obj_id = workspace.id();
+                state.pending.insert(
+                    obj_id,
+                    PendingWorkspace {
+                        id,
+                        name: None,
+                        is_active: false,
+                    },
+                );
+            }
+            ws_mgr::Event::WorkspaceGroup { .. } => {
+                // We don't need group info for listing
+            }
+            ws_mgr::Event::Done => {
+                // All workspace info for this batch has been sent
+            }
+            ws_mgr::Event::Finished => {
+                state.finished = true;
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtWorkspaceHandleV1, ()> for WorkspaceListState {
+    fn event(
+        state: &mut Self,
+        proxy: &ExtWorkspaceHandleV1,
+        event: <ExtWorkspaceHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let obj_id = proxy.id();
+        match event {
+            ws_handle::Event::Name { name } => {
+                if let Some(p) = state.pending.get_mut(&obj_id) {
+                    p.name = Some(name);
+                }
+            }
+            ws_handle::Event::State { state: raw_state } => {
+                // state is a bitfield: 1=active, 2=urgent, 4=hidden
+                if let Some(p) = state.pending.get_mut(&obj_id) {
+                    use wayland_client::WEnum;
+                    let bits = match raw_state {
+                        WEnum::Value(s) => u32::from(s),
+                        WEnum::Unknown(v) => v,
+                    };
+                    p.is_active = (bits & 1) != 0;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtWorkspaceGroupHandleV1, ()> for WorkspaceListState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ExtWorkspaceGroupHandleV1,
+        _event: <ExtWorkspaceGroupHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+// ─── Workspace action state (activate, move) ────────
+
+struct WorkspaceActState {
+    manager: Option<ExtWorkspaceManagerV1>,
+    output: Option<WlOutput>,
+    target_id: u32,
+    target_workspace: Option<ExtWorkspaceHandleV1>,
+    workspace_map: HashMap<ObjectId, u32>,
+    next_id: u32,
+}
+
+impl Dispatch<WlRegistry, ()> for WorkspaceActState {
+    fn event(
+        state: &mut Self,
+        registry: &WlRegistry,
+        event: <WlRegistry as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
+            match interface.as_str() {
+                "ext_workspace_manager_v1" => {
+                    let mgr = registry.bind::<ExtWorkspaceManagerV1, (), Self>(
+                        name,
+                        version.min(1),
+                        qh,
+                        (),
+                    );
+                    state.manager = Some(mgr);
+                }
+                "wl_output" => {
+                    if state.output.is_none() {
+                        let output =
+                            registry.bind::<WlOutput, (), Self>(name, version.min(1), qh, ());
+                        state.output = Some(output);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl Dispatch<ExtWorkspaceManagerV1, ()> for WorkspaceActState {
+    event_created_child!(WorkspaceActState, ExtWorkspaceManagerV1, [
+        0 => (ExtWorkspaceGroupHandleV1, ()),
+        1 => (ExtWorkspaceHandleV1, ())
+    ]);
+
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtWorkspaceManagerV1,
+        event: <ExtWorkspaceManagerV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            ws_mgr::Event::Workspace { workspace } => {
+                let id = state.next_id;
+                state.next_id += 1;
+                let obj_id = workspace.id();
+                state.workspace_map.insert(obj_id, id);
+                if id == state.target_id {
+                    state.target_workspace = Some(workspace);
+                }
+            }
+            ws_mgr::Event::WorkspaceGroup { .. } => {}
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtWorkspaceHandleV1, ()> for WorkspaceActState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ExtWorkspaceHandleV1,
+        _event: <ExtWorkspaceHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<ExtWorkspaceGroupHandleV1, ()> for WorkspaceActState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ExtWorkspaceGroupHandleV1,
+        _event: <ExtWorkspaceGroupHandleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlOutput, ()> for WorkspaceActState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlOutput,
+        _event: <WlOutput as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
 // ─── Command implementations ─────────────────────────
 
 fn probe() {
@@ -744,15 +994,129 @@ fn set_fullscreen_act(window_id: u64, on: bool) {
 }
 
 fn workspace_list() {
-    println!("[]");
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(_) => {
+            err_json("cannot connect to Wayland display");
+            return;
+        }
+    };
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = WorkspaceListState {
+        manager: None,
+        workspaces: Vec::new(),
+        pending: HashMap::new(),
+        next_id: 1,
+        finished: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    for _ in 0..5 {
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        if state.finished {
+            break;
+        }
+    }
+
+    // Move all pending workspaces into the final list
+    for (_key, p) in state.pending.drain() {
+        state.workspaces.push(WorkspaceInfo {
+            id: p.id,
+            name: p.name.unwrap_or_else(|| format!("Workspace {}", p.id)),
+            is_active: p.is_active,
+        });
+    }
+
+    println!("{}", serde_json::to_string(&state.workspaces).unwrap());
 }
 
-fn workspace_activate(_id: u32) {
-    ok_json(Some("workspace-activate not yet implemented"));
+fn workspace_activate(id: u32) {
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(_) => {
+            err_json("cannot connect to Wayland display");
+            return;
+        }
+    };
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = WorkspaceActState {
+        manager: None,
+        output: None,
+        target_id: id,
+        target_workspace: None,
+        workspace_map: HashMap::new(),
+        next_id: 1,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+
+    if let (Some(mgr), Some(ws)) = (&state.manager, &state.target_workspace) {
+        ws.activate();
+        mgr.commit();
+        event_queue.roundtrip(&mut state).ok();
+        ok_json(None);
+    } else if state.manager.is_none() {
+        err_json("ext_workspace_manager_v1 not available");
+    } else {
+        err_json(&format!("workspace {} not found", id));
+    }
 }
 
-fn move_to_workspace(_window_id: u64, _workspace_id: u32) {
-    ok_json(Some("move-to-workspace not yet implemented"));
+fn move_to_workspace(window_id: u64, workspace_id: u32) {
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(_) => {
+            err_json("cannot connect to Wayland display");
+            return;
+        }
+    };
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    // First discover workspaces to find the target
+    let mut state = WorkspaceActState {
+        manager: None,
+        output: None,
+        target_id: workspace_id,
+        target_workspace: None,
+        workspace_map: HashMap::new(),
+        next_id: 1,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+
+    let ws_handle = state.target_workspace.clone();
+
+    if ws_handle.is_none() {
+        err_json(&format!("workspace {} not found", workspace_id));
+        return;
+    }
+
+    // Now find the toplevel and call move_to_ext_workspace
+    let output = state.output.clone();
+    do_action(
+        window_id,
+        Box::new(move |mgr, handle| {
+            if let Some(ws) = &ws_handle
+                && let Some(out) = &output
+            {
+                mgr.move_to_ext_workspace(handle, ws, out);
+            }
+        }),
+    )
 }
 
 // ─── Main ─────────────────────────────────────────────

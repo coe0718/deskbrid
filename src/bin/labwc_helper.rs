@@ -91,16 +91,11 @@ impl Dispatch<WlRegistry, ()> for WlState {
             interface,
             version,
         } = event
+            && interface == "ext_foreign_toplevel_list_v1"
         {
-            if interface == "ext_foreign_toplevel_list_v1" {
-                let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
-                    name,
-                    version.min(1),
-                    qh,
-                    (),
-                );
-                state.toplevel_list = Some(list);
-            }
+            let list =
+                registry.bind::<ExtForeignToplevelListV1, (), Self>(name, version.min(1), qh, ());
+            state.toplevel_list = Some(list);
         }
     }
 }
