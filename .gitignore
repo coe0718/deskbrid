@@ -13,3 +13,4 @@ build/
 *.egg-info/
 .codex
 .codex-prompt.md
+.MCP_INTEGRATION.md
