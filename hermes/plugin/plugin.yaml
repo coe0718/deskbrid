@@ -1,0 +1,14 @@
+name: deskbrid
+version: 1.0.0
+description: >
+  Linux desktop control for Hermes agents — windows, input, clipboard,
+  screenshots, AT-SPI UI inspection, audio, system controls, and more.
+  Connects to the deskbrid daemon over a Unix socket.
+homepage: https://deskbrid.patchhive.dev
+requires_env: []
+optional_env:
+  - name: DESKBRID_SOCKET
+    description: "Path to deskbrid Unix socket (default: /run/user/$UID/deskbrid.sock)"
+  - name: DESKBRID_MCP
+    description: "Set to '1' to prefer MCP mode over direct socket"
+    default: "0"
