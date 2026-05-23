@@ -64,6 +64,10 @@ impl X11Backend {
         self.sh(cmd, &refs).await
     }
 
+    pub(super) async fn sh_ok(&self, cmd: &str, args: &[&str]) -> bool {
+        self.sh(cmd, args).await.is_ok()
+    }
+
     pub(super) fn ensure_window_id(id: &str) -> anyhow::Result<()> {
         if id.trim().is_empty() {
             anyhow::bail!("window id must not be empty");

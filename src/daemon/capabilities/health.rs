@@ -60,6 +60,7 @@ async fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>
     deps.insert("wl_clipboard".to_string(), check_clipboard_tools().await);
     deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
     deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr").await);
+    insert_linux_domain_deps(deps).await;
 }
 
 async fn insert_kde_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
@@ -76,6 +77,7 @@ async fn insert_kde_deps(deps: &mut serde_json::Map<String, serde_json::Value>) 
     deps.insert("ydotoold".to_string(), check_process("ydotoold").await);
     deps.insert("ydotool".to_string(), check_in_path("ydotool").await);
     deps.insert("uinput".to_string(), check_uinput().await);
+    insert_linux_domain_deps(deps).await;
 }
 
 async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
@@ -89,6 +91,7 @@ async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Val
         "imagemagick_identify".to_string(),
         check_in_path("identify").await,
     );
+    insert_linux_domain_deps(deps).await;
 }
 
 async fn insert_cosmic_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
@@ -136,6 +139,7 @@ async fn insert_wlroots_common_deps(deps: &mut serde_json::Map<String, serde_jso
         "imagemagick_identify".to_string(),
         check_in_path("identify").await,
     );
+    insert_linux_domain_deps(deps).await;
 }
 
 async fn insert_x11_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
@@ -149,4 +153,17 @@ async fn insert_x11_deps(deps: &mut serde_json::Map<String, serde_json::Value>) 
         "notify-send".to_string(),
         check_in_path("notify-send").await,
     );
+    deps.insert("xprintidle".to_string(), check_in_path("xprintidle").await);
+    insert_linux_domain_deps(deps).await;
+}
+
+async fn insert_linux_domain_deps(deps: &mut serde_json::Map<String, serde_json::Value>) {
+    deps.insert("nmcli".to_string(), check_in_path("nmcli").await);
+    deps.insert("ping".to_string(), check_in_path("ping").await);
+    deps.insert(
+        "bluetoothctl".to_string(),
+        check_in_path("bluetoothctl").await,
+    );
+    deps.insert("pactl".to_string(), check_in_path("pactl").await);
+    deps.insert("find".to_string(), check_in_path("find").await);
 }

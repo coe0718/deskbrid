@@ -99,13 +99,27 @@ pub(super) async fn window_move_resize(
 }
 
 pub(super) async fn workspaces_list(
-    _backend: &X11Backend,
+    backend: &X11Backend,
 ) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
-    Ok(vec![protocol::WorkspaceInfo {
-        id: 0,
-        name: "Desktop 1".into(),
-        is_active: true,
-    }])
+    let count = backend
+        .sh("xdotool", &["get_num_desktops"])
+        .await?
+        .trim()
+        .parse::<u32>()
+        .unwrap_or(1);
+    let active = backend
+        .sh("xdotool", &["get_desktop"])
+        .await
+        .ok()
+        .and_then(|value| value.trim().parse::<u32>().ok())
+        .unwrap_or(0);
+    Ok((0..count)
+        .map(|id| protocol::WorkspaceInfo {
+            id,
+            name: format!("Desktop {}", id + 1),
+            is_active: id == active,
+        })
+        .collect())
 }
 
 pub(super) async fn workspace_switch(backend: &X11Backend, id: u32) -> anyhow::Result<()> {
@@ -116,12 +130,28 @@ pub(super) async fn workspace_switch(backend: &X11Backend, id: u32) -> anyhow::R
 }
 
 pub(super) async fn workspace_move_window(
-    _backend: &X11Backend,
-    _window_id: &str,
-    _workspace_id: u32,
-    _follow: bool,
+    backend: &X11Backend,
+    window_id: &str,
+    workspace_id: u32,
+    follow: bool,
 ) -> anyhow::Result<()> {
-    anyhow::bail!("not implemented on x11 backend")
+    X11Backend::ensure_window_id(window_id)?;
+    backend
+        .sh(
+            "xdotool",
+            &[
+                "set_desktop_for_window",
+                window_id,
+                &workspace_id.to_string(),
+            ],
+        )
+        .await?;
+    if follow {
+        backend
+            .sh("xdotool", &["set_desktop", &workspace_id.to_string()])
+            .await?;
+    }
+    Ok(())
 }
 
 pub(super) async fn keyboard_type(backend: &X11Backend, text: &str) -> anyhow::Result<()> {

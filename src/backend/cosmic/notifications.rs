@@ -18,8 +18,7 @@ pub(super) async fn notification_send(
 }
 
 pub(super) async fn notification_close(_backend: &CosmicBackend, _id: u32) -> anyhow::Result<()> {
-    // notify-send doesn't support close by ID
-    Ok(())
+    anyhow::bail!("closing notifications is not supported by notify-send on COSMIC")
 }
 
 // ─── System ─────────────────────────────────────────

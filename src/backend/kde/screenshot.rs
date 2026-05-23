@@ -92,5 +92,5 @@ pub(super) async fn notification_send(
 }
 
 pub(super) async fn notification_close(_backend: &KdeBackend, _id: u32) -> anyhow::Result<()> {
-    Ok(())
+    anyhow::bail!("closing notifications is not supported by notify-send on KDE")
 }

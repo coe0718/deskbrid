@@ -4,12 +4,14 @@ mod coords;
 mod health;
 mod overrides;
 mod remediation;
+mod shared_tools;
 
 use super::MONITOR_CONTROL_ACTIONS;
 use overrides::{
     apply_systemd_capability_overrides, set_degraded, set_requires, set_session, set_unsupported,
 };
 use remediation::health_remediation;
+use shared_tools::apply_shared_linux_tool_capabilities;
 
 pub use confinement::build_confinement_report;
 pub use coords::normalize_coords;
@@ -41,6 +43,7 @@ pub async fn build_system_capabilities(
         apply_gnome_capability_overrides(&mut actions, &session_type);
     }
     apply_systemd_capability_overrides(&mut actions);
+    apply_shared_linux_tool_capabilities(&mut actions, &desktop);
     apply_input_capabilities(&mut actions, &desktop);
     apply_monitor_capabilities(&mut actions, &desktop);
     apply_stub_capabilities(&mut actions, &desktop);
@@ -117,6 +120,11 @@ fn apply_monitor_capabilities(
         for action in MONITOR_CONTROL_ACTIONS {
             set_requires(actions, action, &["kscreen-doctor"]);
         }
+        set_unsupported(
+            actions,
+            "notification.close",
+            "kde_notify_send_close_unsupported",
+        );
     }
     if desktop.contains("hyprland") {
         for action in MONITOR_CONTROL_ACTIONS {
@@ -135,6 +143,11 @@ fn apply_monitor_capabilities(
         for action in ["windows.move_resize", "windows.tile"] {
             set_unsupported(actions, action, "cosmic_move_resize_not_available");
         }
+        set_unsupported(
+            actions,
+            "notification.close",
+            "cosmic_notify_send_close_unsupported",
+        );
     }
     if desktop.contains("sway") {
         for action in MONITOR_CONTROL_ACTIONS {
@@ -150,6 +163,7 @@ fn apply_monitor_capabilities(
             "monitor.set_primary",
             "niri_has_no_primary_monitor_setting",
         );
+        set_unsupported(actions, "windows.minimize", "niri_has_no_minimize_concept");
         set_degraded(
             actions,
             "windows.move_resize",
@@ -197,6 +211,9 @@ fn apply_monitor_capabilities(
             "windows.minimize",
             "windows.move_resize",
             "windows.tile",
+            "workspaces.list",
+            "workspaces.switch",
+            "workspaces.move_window",
         ] {
             set_requires(actions, action, &["xdotool"]);
         }

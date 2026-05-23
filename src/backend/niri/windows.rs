@@ -29,8 +29,7 @@ pub(super) async fn window_close(backend: &NiriBackend, id: &str) -> anyhow::Res
 }
 
 pub(super) async fn window_minimize(_backend: &NiriBackend, _id: &str) -> anyhow::Result<()> {
-    // Niri is scrollable-tiling — no minimize concept
-    Ok(())
+    anyhow::bail!("Niri does not expose a minimize concept")
 }
 
 pub(super) async fn window_maximize(backend: &NiriBackend, id: &str) -> anyhow::Result<()> {
