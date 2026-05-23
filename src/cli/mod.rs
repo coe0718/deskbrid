@@ -39,7 +39,7 @@ use workspace::{ProfileCmd, WorkspaceCmd};
 #[command(
     name = "deskbrid",
     about = "The HAL your Linux desktop agents are missing",
-    version = "0.4.1"
+    version = env!("CARGO_PKG_VERSION")
 )]
 pub struct Args {
     /// Validate permissions and show what would happen without executing the action.
