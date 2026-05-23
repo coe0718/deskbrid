@@ -157,4 +157,95 @@ fn test_permissions_ping_always_allowed_in_default_deny() {
     assert!(!p.check(9999, &Action::Ping));
 }
 
+#[test]
+fn test_high_risk_denied_by_wildcard() {
+    // allow_all uses "*" — high-risk actions should still be denied
+    let p = Permissions::allow_all();
+    assert!(!p.check(
+        1000,
+        &Action::BrowserEvaluate {
+            tab_index: None,
+            expression: "alert(1)".into(),
+            await_promise: false,
+        }
+    ));
+}
+
+#[test]
+fn test_high_risk_denied_by_category_wildcard() {
+    let inner = PermissionsInner {
+        default: PermissionEntry {
+            allow: vec!["browser.*".into()],
+            deny: vec![],
+        },
+        permissions: HashMap::new(),
+    };
+    let p = Permissions {
+        inner: Arc::new(inner),
+    };
+    // browser.navigate should work via category wildcard
+    assert!(p.check(
+        1000,
+        &Action::BrowserNavigate {
+            tab_index: None,
+            url: "https://example.com".into(),
+        }
+    ));
+    // browser.evaluate should NOT work via category wildcard
+    assert!(!p.check(
+        1000,
+        &Action::BrowserEvaluate {
+            tab_index: None,
+            expression: "alert(1)".into(),
+            await_promise: false,
+        }
+    ));
+}
+
+#[test]
+fn test_high_risk_explicitly_allowed() {
+    let inner = PermissionsInner {
+        default: PermissionEntry {
+            allow: vec!["browser.evaluate".into(), "browser.*".into()],
+            deny: vec![],
+        },
+        permissions: HashMap::new(),
+    };
+    let p = Permissions {
+        inner: Arc::new(inner),
+    };
+    // Explicit naming should allow it
+    assert!(p.check(
+        1000,
+        &Action::BrowserEvaluate {
+            tab_index: None,
+            expression: "alert(1)".into(),
+            await_promise: false,
+        }
+    ));
+}
+
+#[test]
+fn test_high_risk_deny_still_wins() {
+    let inner = PermissionsInner {
+        default: PermissionEntry {
+            allow: vec!["browser.evaluate".into()],
+            deny: vec!["browser.evaluate".into()],
+        },
+        permissions: HashMap::new(),
+    };
+    let p = Permissions {
+        inner: Arc::new(inner),
+    };
+    // Explicit deny should still override
+    assert!(!p.check(
+        1000,
+        &Action::BrowserEvaluate {
+            tab_index: None,
+            expression: "alert(1)".into(),
+            await_promise: false,
+        }
+    ));
+}
+
 mod action_names;

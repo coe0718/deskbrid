@@ -118,6 +118,11 @@ impl Permissions {
         // Allow list
         for pattern in &entry.allow {
             if glob_match(pattern, action_name) {
+                // High-risk actions require explicit naming, not wildcards.
+                // `"*"`, `"browser.*"`, `"browser.eval*"` won't work — only `"browser.evaluate"`.
+                if is_high_risk(action_name) && pattern != action_name {
+                    continue;
+                }
                 return true;
             }
         }
@@ -137,6 +142,14 @@ fn config_path() -> PathBuf {
         .join(".config")
         .join("deskbrid")
         .join("permissions.toml")
+}
+
+/// Actions that are never authorized by wildcard patterns.
+/// These require explicit naming in the allow list — `"*"` or `"browser.*"` won't cut it.
+const HIGH_RISK_ACTIONS: &[&str] = &["browser.evaluate"];
+
+fn is_high_risk(action_name: &str) -> bool {
+    HIGH_RISK_ACTIONS.contains(&action_name)
 }
 
 /// Map an Action to its permission name string.
