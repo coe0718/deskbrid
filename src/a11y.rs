@@ -238,3 +238,38 @@ pub async fn get_text(
         "element": {"name": info["name"], "role": info["role"], "path": path},
     }))
 }
+
+/// List AT-SPI application roots (root-level children).
+pub async fn list_apps(limit: Option<usize>) -> anyhow::Result<Vec<Value>> {
+    let limit = limit.unwrap_or(50);
+    let conn = connect_a11y().await?;
+    let root: ObjectPath = ObjectPath::try_from(ROOT)?;
+
+    let child_count = get_i32(&conn, &root, "ChildCount").await.min(limit as i32);
+    let mut apps = Vec::new();
+
+    for i in 0..child_count {
+        if let Some(cp) = child_path(&conn, &root, i).await {
+            let mut info = element_json(&conn, &cp).await;
+            info["path"] = serde_json::json!(cp.as_str());
+            // Try to resolve PID via D-Bus
+            let pid: Option<u32> = conn
+                .call_method(
+                    Some("org.freedesktop.DBus"),
+                    "/org/freedesktop/DBus",
+                    Some("org.freedesktop.DBus"),
+                    "GetConnectionUnixProcessID",
+                    &(cp.as_str(),),
+                )
+                .await
+                .ok()
+                .and_then(|r| r.body().deserialize().ok());
+            if let Some(pid) = pid {
+                info["pid"] = serde_json::json!(pid);
+            }
+            apps.push(info);
+        }
+    }
+
+    Ok(apps)
+}
