@@ -8,8 +8,6 @@ repository = "https://github.com/coe0718/deskbrid"
 
 [features]
 default = []
-cosmic = ["dep:cosmic-protocols", "dep:wayland-client", "dep:wayland-protocols"]
-labwc = ["dep:wayland-client", "dep:wayland-protocols"]
 pipewire = ["dep:pipewire", "dep:spa"]
 
 [dependencies]
@@ -54,9 +52,9 @@ rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
 schemars = "1"
 
 # COSMIC desktop environment (Wayland protocol client)
-cosmic-protocols = { version = "0.2", default-features = false, features = ["client"], optional = true }
-wayland-client = { version = "0.31", optional = true }
-wayland-protocols = { version = "0.32", features = ["client", "staging"], optional = true }
+cosmic-protocols = { version = "0.2", default-features = false, features = ["client"] }
+wayland-client = { version = "0.31" }
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 
 # PipeWire (optional)
 pipewire = { version = "0.8", optional = true }

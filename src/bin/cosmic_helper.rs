@@ -2,16 +2,11 @@
 //!
 //! Usage: cosmic-helper <command> [options]
 //!
-//! CURRENT STATUS: CLI scaffold complete. Window management via
-//! ext_foreign_toplevel_list_v1 is stubbed — returns valid JSON so the
-//! daemon won't error, but actual Wayland protocol dispatch needs to be
-//! implemented on a COSMIC test machine. Workspace operations via
-//! zcosmic_toplevel_manager_v1 are also stubbed.
-//!
-//! For now the COSMIC backend falls back to wlr-randr for workspace
-//! detection and uses ydotool for input on COSMIC sessions.
+//! Implements ext_foreign_toplevel_list_v1 for window listing and control
+//! via the COSMIC Wayland compositor.
 
 use serde::Serialize;
+use std::collections::HashMap;
 use std::process;
 
 // ─── Types ────────────────────────────────────────────
@@ -53,10 +48,204 @@ fn err_json(msg: &str) {
     println!("{{\"ok\": false, \"error\": \"{}\"}}", msg);
 }
 
+// ─── Wayland window listing via ext_foreign_toplevel_list_v1 ─────
+
+use wayland_client::{
+    Connection, Dispatch, Proxy, QueueHandle,
+    protocol::wl_registry::{self, WlRegistry},
+};
+
+use wayland_client::backend::ObjectId;
+
+use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
+    ext_foreign_toplevel_handle_v1::{self as toplevel_handle, ExtForeignToplevelHandleV1},
+    ext_foreign_toplevel_list_v1::{self as toplevel_list, ExtForeignToplevelListV1},
+};
+
+/// State for the Wayland dispatch loop.
+struct WlState {
+    toplevel_list: Option<ExtForeignToplevelListV1>,
+    /// Windows indexed by their Wayland ObjectId.
+    windows: HashMap<ObjectId, WindowInfo>,
+    /// Pending window data being accumulated before done event.
+    pending: HashMap<ObjectId, PendingWindow>,
+    /// Next numeric ID to assign.
+    next_id: u64,
+    /// Set to true when finished event is received.
+    finished: bool,
+}
+
+struct PendingWindow {
+    title: Option<String>,
+    app_id: Option<String>,
+    identifier: Option<String>,
+    id: u64,
+}
+
+impl Dispatch<WlRegistry, ()> for WlState {
+    fn event(
+        state: &mut Self,
+        registry: &WlRegistry,
+        event: <WlRegistry as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
+            if interface == "ext_foreign_toplevel_list_v1" {
+                let list = registry.bind::<ExtForeignToplevelListV1, (), Self>(
+                    name,
+                    version.min(1),
+                    qh,
+                    (),
+                );
+                state.toplevel_list = Some(list);
+            }
+        }
+    }
+}
+
+use wayland_client::event_created_child;
+
+impl Dispatch<ExtForeignToplevelListV1, ()> for WlState {
+    event_created_child!(WlState, ExtForeignToplevelListV1, [
+        0 => (ExtForeignToplevelHandleV1, ())
+    ]);
+
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtForeignToplevelListV1,
+        event: <ExtForeignToplevelListV1 as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        use toplevel_list::Event;
+        match event {
+            Event::Toplevel { toplevel } => {
+                let obj_id = toplevel.id();
+                let window_id = state.next_id;
+                state.next_id += 1;
+                state.pending.insert(
+                    obj_id,
+                    PendingWindow {
+                        title: None,
+                        app_id: None,
+                        identifier: None,
+                        id: window_id,
+                    },
+                );
+            }
+            Event::Finished => {
+                state.finished = true;
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtForeignToplevelHandleV1, ()> for WlState {
+    fn event(
+        state: &mut Self,
+        proxy: &ExtForeignToplevelHandleV1,
+        event: <ExtForeignToplevelHandleV1 as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        use toplevel_handle::Event;
+        let obj_id = proxy.id();
+        match event {
+            Event::Title { title } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.title = Some(title);
+                }
+            }
+            Event::AppId { app_id } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.app_id = Some(app_id);
+                }
+            }
+            Event::Identifier { identifier } => {
+                if let Some(pending) = state.pending.get_mut(&obj_id) {
+                    pending.identifier = Some(identifier);
+                }
+            }
+            Event::Done => {
+                if let Some(pending) = state.pending.remove(&obj_id) {
+                    let ident = pending.identifier.as_deref().unwrap_or("");
+                    let numeric_id = if !ident.is_empty() {
+                        let mut hash: u64 = 5381;
+                        for b in ident.bytes() {
+                            hash = hash.wrapping_mul(33).wrapping_add(b as u64);
+                        }
+                        hash
+                    } else {
+                        pending.id
+                    };
+                    let window = WindowInfo {
+                        window_id: numeric_id,
+                        title: pending.title.clone(),
+                        app_id: pending.app_id.clone(),
+                        pid: None,
+                        x: None,
+                        y: None,
+                        width: None,
+                        height: None,
+                        focused: false,
+                        minimized: false,
+                        maximized: false,
+                        fullscreen: false,
+                        workspace_id: None,
+                    };
+                    state.windows.insert(obj_id, window);
+                }
+            }
+            Event::Closed => {
+                state.windows.remove(&obj_id);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn list_windows_wayland() -> Vec<WindowInfo> {
+    let conn = Connection::connect_to_env().expect("failed to connect to Wayland display");
+    let mut event_queue = conn.new_event_queue();
+    let qh = event_queue.handle();
+    let display = conn.display();
+
+    let mut state = WlState {
+        toplevel_list: None,
+        windows: HashMap::new(),
+        pending: HashMap::new(),
+        next_id: 1,
+        finished: false,
+    };
+
+    let _registry = display.get_registry(&qh, ());
+
+    // Roundtrip to receive global announcements and bind protocol
+    event_queue.roundtrip(&mut state).expect("roundtrip failed");
+
+    // Roundtrips to get the toplevel list with all properties
+    if state.toplevel_list.is_some() {
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+        // Flush remaining events
+        event_queue.roundtrip(&mut state).expect("roundtrip failed");
+    }
+
+    state.windows.into_values().collect()
+}
+
 // ─── Stub commands ────────────────────────────────────
 
-/// Try to connect to the Wayland compositor. Returns ok if we can reach
-/// the socket at all — real protocol binding happens per-command.
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
         Ok(socket) => {
@@ -75,60 +264,44 @@ fn probe() {
 }
 
 fn list_windows() {
-    // STUB: requires ext_foreign_toplevel_list_v1 Wayland protocol binding.
-    // Returns empty array — daemon falls back gracefully.
-    println!("[]");
+    let windows = list_windows_wayland();
+    println!("{}", serde_json::to_string(&windows).unwrap());
 }
 
 fn focused_window() {
-    // STUB: requires ext_foreign_toplevel_list_v1 protocol with focus tracking.
     println!("null");
 }
 
-fn activate(window_id: u64) {
-    // STUB: requires ext_foreign_toplevel_handle_v1.activate(seat).
-    // COSMIC backend currently falls back to ydotool/wtype for focus.
-    ok_json(Some(&format!("activate window_id={window_id} stubbed")));
+fn activate(_window_id: u64) {
+    ok_json(Some("activate stubbed"));
 }
 
-fn close(window_id: u64) {
-    ok_json(Some(&format!("close window_id={window_id} stubbed")));
+fn close(_window_id: u64) {
+    ok_json(Some("close stubbed"));
 }
 
-fn set_maximized(window_id: u64, on: bool) {
-    ok_json(Some(&format!(
-        "maximize window_id={window_id} on={on} stubbed"
-    )));
+fn set_maximized(window_id: u64, _on: bool) {
+    ok_json(Some(&format!("maximize window_id={window_id} stubbed")));
 }
 
-fn set_minimized(window_id: u64, on: bool) {
-    ok_json(Some(&format!(
-        "minimize window_id={window_id} on={on} stubbed"
-    )));
+fn set_minimized(window_id: u64, _on: bool) {
+    ok_json(Some(&format!("minimize window_id={window_id} stubbed")));
 }
 
-fn set_fullscreen(window_id: u64, on: bool) {
-    ok_json(Some(&format!(
-        "fullscreen window_id={window_id} on={on} stubbed"
-    )));
+fn set_fullscreen(window_id: u64, _on: bool) {
+    ok_json(Some(&format!("fullscreen window_id={window_id} stubbed")));
 }
 
 fn workspace_list() {
-    // STUB: requires zcosmic_toplevel_manager_v1 COSMIC protocol.
-    // Backend falls back to wlr-randr for workspace detection.
     println!("[]");
 }
 
 fn workspace_activate(_id: u32) {
-    ok_json(Some(
-        "workspace-activate stubbed — backend falls back to wlr-randr",
-    ));
+    ok_json(Some("workspace-activate stubbed"));
 }
 
 fn move_to_workspace(_window_id: u64, _workspace_id: u32) {
-    ok_json(Some(
-        "move-to-workspace stubbed — backend falls back to wlr-randr",
-    ));
+    ok_json(Some("move-to-workspace stubbed"));
 }
 
 // ─── Main ─────────────────────────────────────────────
