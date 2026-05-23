@@ -121,9 +121,9 @@ pub(super) async fn mouse_move(backend: &KdeBackend, x: f64, y: f64) -> anyhow::
 
 pub(super) async fn mouse_click(backend: &KdeBackend, button: &str) -> anyhow::Result<()> {
     let btn_id = match button {
-        "left" => "0x1",
-        "middle" => "0x2",
-        "right" => "0x3",
+        "left" => "0xC0",
+        "middle" => "0xC1",
+        "right" => "0xC2",
         _ => anyhow::bail!("unknown button: {button}"),
     };
     backend.sh("ydotool", &["click", btn_id]).await?;
@@ -157,22 +157,22 @@ pub(super) async fn mouse_drag(
     button: &str,
     duration_ms: Option<u64>,
 ) -> anyhow::Result<()> {
-    let btn = ydotool_mouse_button(button)?;
+    let (down_mask, up_mask) = ydotool_drag_masks(button)?;
     mouse_move(backend, from_x, from_y).await?;
-    backend.sh("ydotool", &["mousedown", btn]).await?;
+    backend.sh("ydotool", &["click", down_mask]).await?;
     if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
         tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
     }
     mouse_move(backend, to_x, to_y).await?;
-    backend.sh("ydotool", &["mouseup", btn]).await?;
+    backend.sh("ydotool", &["click", up_mask]).await?;
     Ok(())
 }
 
-fn ydotool_mouse_button(button: &str) -> anyhow::Result<&'static str> {
+fn ydotool_drag_masks(button: &str) -> anyhow::Result<(&'static str, &'static str)> {
     match button {
-        "left" => Ok("1"),
-        "middle" => Ok("2"),
-        "right" => Ok("3"),
+        "left" => Ok(("0x40", "0x80")),
+        "right" => Ok(("0x41", "0x81")),
+        "middle" => Ok(("0x42", "0x82")),
         _ => anyhow::bail!("unknown button: {}", button),
     }
 }

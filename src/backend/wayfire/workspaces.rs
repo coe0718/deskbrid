@@ -59,13 +59,13 @@ pub(super) async fn mouse_move(backend: &WayfireBackend, x: f64, y: f64) -> anyh
 }
 
 pub(super) async fn mouse_click(backend: &WayfireBackend, button: &str) -> anyhow::Result<()> {
-    let btn: u8 = match button {
-        "left" => 1,
-        "middle" => 2,
-        "right" => 3,
-        _ => 1,
+    let code: &str = match button {
+        "left" => "0xC0",
+        "middle" => "0xC1",
+        "right" => "0xC2",
+        _ => "0xC0",
     };
-    backend.ydotool(&["click", &btn.to_string()]).await
+    backend.ydotool(&["click", code]).await
 }
 
 pub(super) async fn mouse_scroll(backend: &WayfireBackend, dx: f64, dy: f64) -> anyhow::Result<()> {
@@ -91,21 +91,21 @@ pub(super) async fn mouse_drag(
     button: &str,
     duration_ms: Option<u64>,
 ) -> anyhow::Result<()> {
-    let btn = ydotool_mouse_button(button)?;
+    let (down_mask, up_mask) = ydotool_drag_masks(button)?;
     mouse_move(backend, from_x, from_y).await?;
-    backend.ydotool(&["mousedown", btn]).await?;
+    backend.ydotool(&["click", down_mask]).await?;
     if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
         tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
     }
     mouse_move(backend, to_x, to_y).await?;
-    backend.ydotool(&["mouseup", btn]).await
+    backend.ydotool(&["click", up_mask]).await
 }
 
-fn ydotool_mouse_button(button: &str) -> anyhow::Result<&'static str> {
+fn ydotool_drag_masks(button: &str) -> anyhow::Result<(&'static str, &'static str)> {
     match button {
-        "left" => Ok("1"),
-        "middle" => Ok("2"),
-        "right" => Ok("3"),
+        "left" => Ok(("0x40", "0x80")),
+        "middle" => Ok(("0x42", "0x82")),
+        "right" => Ok(("0x41", "0x81")),
         _ => anyhow::bail!("unknown button: {}", button),
     }
 }

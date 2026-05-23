@@ -58,13 +58,13 @@ pub(super) async fn mouse_move(backend: &NiriBackend, x: f64, y: f64) -> anyhow:
 }
 
 pub(super) async fn mouse_click(backend: &NiriBackend, button: &str) -> anyhow::Result<()> {
-    let btn: u8 = match button.to_lowercase().as_str() {
-        "left" => 1,
-        "middle" => 2,
-        "right" => 3,
-        _ => 1,
+    let b = match button.to_lowercase().as_str() {
+        "left" => "0xC0",
+        "right" => "0xC1",
+        "middle" => "0xC2",
+        _ => anyhow::bail!("unknown button: {button}"),
     };
-    backend.ydotool(&["click", &btn.to_string()]).await
+    backend.ydotool(&["click", b]).await
 }
 
 pub(super) async fn mouse_scroll(backend: &NiriBackend, dx: f64, dy: f64) -> anyhow::Result<()> {
@@ -90,22 +90,24 @@ pub(super) async fn mouse_drag(
     button: &str,
     duration_ms: Option<u64>,
 ) -> anyhow::Result<()> {
-    let btn = ydotool_mouse_button(button)?;
+    let (down_mask, up_mask) = ydotool_drag_masks(button)?;
     mouse_move(backend, from_x, from_y).await?;
-    backend.ydotool(&["mousedown", btn]).await?;
+    backend.ydotool(&["click", down_mask]).await?;
     if let Some(duration_ms) = duration_ms.filter(|duration| *duration > 0) {
         tokio::time::sleep(std::time::Duration::from_millis(duration_ms.min(5_000))).await;
     }
     mouse_move(backend, to_x, to_y).await?;
-    backend.ydotool(&["mouseup", btn]).await
+    backend.ydotool(&["click", up_mask]).await
 }
 
-fn ydotool_mouse_button(button: &str) -> anyhow::Result<&'static str> {
+fn ydotool_drag_masks(button: &str) -> anyhow::Result<(&'static str, &'static str)> {
+    // ydotool uses hex button masks: 0x40 = down, 0x80 = up
+    // OR with button code: left=0x00, right=0x01, middle=0x02
     match button {
-        "left" => Ok("1"),
-        "middle" => Ok("2"),
-        "right" => Ok("3"),
-        _ => anyhow::bail!("unknown button: {}", button),
+        "left" => Ok(("0x40", "0x80")),
+        "right" => Ok(("0x41", "0x81")),
+        "middle" => Ok(("0x42", "0x82")),
+        _ => anyhow::bail!("unknown button: {button}"),
     }
 }
 
