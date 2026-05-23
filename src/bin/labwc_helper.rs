@@ -10,8 +10,8 @@
 //! The Labwc backend currently uses wlrctl as the primary window management
 //! interface and has_labwc_helper is hardcoded to false.
 
-use std::process;
 use serde::Serialize;
+use std::process;
 
 // ─── Types ────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ fn ok_json(msg: Option<&str>) {
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
         Ok(socket) => {
-            let xdg = std::env::var("XDG_RUNTIME_DIR")
-                .unwrap_or_else(|_| "/run/user/1000".to_string());
+            let xdg =
+                std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
             let path = format!("{xdg}/{socket}");
             if std::path::Path::new(&path).exists() {
                 println!("{{\"ok\": true, \"compositor\": \"labwc\", \"socket\": \"{path}\"}}");

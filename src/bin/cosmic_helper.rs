@@ -11,8 +11,8 @@
 //! For now the COSMIC backend falls back to wlr-randr for workspace
 //! detection and uses ydotool for input on COSMIC sessions.
 
-use std::process;
 use serde::Serialize;
+use std::process;
 
 // ─── Types ────────────────────────────────────────────
 
@@ -60,8 +60,8 @@ fn err_json(msg: &str) {
 fn probe() {
     match std::env::var("WAYLAND_DISPLAY") {
         Ok(socket) => {
-            let xdg = std::env::var("XDG_RUNTIME_DIR")
-                .unwrap_or_else(|_| "/run/user/1000".to_string());
+            let xdg =
+                std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
             let path = format!("{xdg}/{socket}");
             if std::path::Path::new(&path).exists() {
                 println!("{{\"ok\": true, \"compositor\": \"cosmic\", \"socket\": \"{path}\"}}");
@@ -97,15 +97,21 @@ fn close(window_id: u64) {
 }
 
 fn set_maximized(window_id: u64, on: bool) {
-    ok_json(Some(&format!("maximize window_id={window_id} on={on} stubbed")));
+    ok_json(Some(&format!(
+        "maximize window_id={window_id} on={on} stubbed"
+    )));
 }
 
 fn set_minimized(window_id: u64, on: bool) {
-    ok_json(Some(&format!("minimize window_id={window_id} on={on} stubbed")));
+    ok_json(Some(&format!(
+        "minimize window_id={window_id} on={on} stubbed"
+    )));
 }
 
 fn set_fullscreen(window_id: u64, on: bool) {
-    ok_json(Some(&format!("fullscreen window_id={window_id} on={on} stubbed")));
+    ok_json(Some(&format!(
+        "fullscreen window_id={window_id} on={on} stubbed"
+    )));
 }
 
 fn workspace_list() {
@@ -115,11 +121,15 @@ fn workspace_list() {
 }
 
 fn workspace_activate(_id: u32) {
-    ok_json(Some("workspace-activate stubbed — backend falls back to wlr-randr"));
+    ok_json(Some(
+        "workspace-activate stubbed — backend falls back to wlr-randr",
+    ));
 }
 
 fn move_to_workspace(_window_id: u64, _workspace_id: u32) {
-    ok_json(Some("move-to-workspace stubbed — backend falls back to wlr-randr"));
+    ok_json(Some(
+        "move-to-workspace stubbed — backend falls back to wlr-randr",
+    ));
 }
 
 // ─── Main ─────────────────────────────────────────────

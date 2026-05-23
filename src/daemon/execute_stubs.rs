@@ -13,7 +13,6 @@ pub(crate) async fn execute_stubs(
     use Action::*;
     Ok(match action {
         // ─── System ──────────────────────────────────
-
         SystemInfo => serde_json::json!(backend.system_info().await?),
         SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
         SystemConfinement => serde_json::json!(crate::daemon::build_confinement_report().await?),
@@ -23,20 +22,15 @@ pub(crate) async fn execute_stubs(
         }
 
         // ─── Ping ────────────────────────────────────
-
         Ping => serde_json::json!({"ok": true}),
 
         // ─── Location ────────────────────────────────
-
         LocationGet => {
             serde_json::json!(get_location().await)
         }
 
         // ─── AT-SPI: core (existing protocol) ────────
-
-        A11yTree { depth } => {
-            crate::a11y::tree(depth).await?
-        }
+        A11yTree { depth } => crate::a11y::tree(depth).await?,
         A11yGetElement {
             role,
             ref name,
@@ -54,19 +48,13 @@ pub(crate) async fn execute_stubs(
         } => crate::a11y::get_text(role.as_deref(), name.as_deref(), index).await?,
 
         // ─── AT-SPI: expanded (computer-use-linux compat) ──
-
         A11ySnapshotTree {
             app_name,
             pid,
             max_nodes,
             max_depth,
         } => {
-            crate::a11y::tree::snapshot_tree(
-                app_name.as_deref(),
-                pid,
-                max_nodes,
-                max_depth,
-            ).await?
+            crate::a11y::tree::snapshot_tree(app_name.as_deref(), pid, max_nodes, max_depth).await?
         }
         A11yPerformAction {
             ref object_ref,
@@ -85,7 +73,9 @@ pub(crate) async fn execute_stubs(
         }
         A11yDoctor => crate::a11y::setup::doctor_report().await,
         A11ySetupAccessibility => {
-            let ok = crate::a11y::setup::enable_accessibility().await.unwrap_or(false);
+            let ok = crate::a11y::setup::enable_accessibility()
+                .await
+                .unwrap_or(false);
             serde_json::json!({"ok": ok, "note": if ok { "accessibility enabled" } else { "may need logout/login" }})
         }
         A11yClickElementByRef { ref object_ref } => {
@@ -93,24 +83,21 @@ pub(crate) async fn execute_stubs(
         }
 
         // ─── UI automation (browser-side — not AT-SPI) ──
-
         UiTreeGet => {
             // AT-SPI tree via a11y module (for desktop UI, not browser DOM)
             crate::a11y::tree(Some(5)).await?
         }
-        UiElementClick { ref selector, tab_index } => {
-            crate::browser::click(tab_index, selector).await?
-        }
+        UiElementClick {
+            ref selector,
+            tab_index,
+        } => crate::browser::click(tab_index, selector).await?,
         UiElementSetText {
             ref selector,
             ref text,
             tab_index,
-        } => {
-            crate::browser::set_text(tab_index, selector, text).await?
-        }
+        } => crate::browser::set_text(tab_index, selector, text).await?,
 
         // ─── Catch-all for actions handled before desktop dispatch ──
-
         SystemInhibit { .. }
         | SystemReleaseInhibit { .. }
         | SystemListSessions
@@ -138,9 +125,9 @@ pub(crate) async fn execute_stubs(
         | TerminalKill { .. }
         | Subscribe { .. }
         | Unsubscribe { .. }
-        | Disconnect => unreachable!(
-            "action reached execute_stubs but should have been handled earlier"
-        ),
+        | Disconnect => {
+            unreachable!("action reached execute_stubs but should have been handled earlier")
+        }
 
         _ => unreachable!("unexpected action in execute_stubs"),
     })
