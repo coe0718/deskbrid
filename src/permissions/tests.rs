@@ -39,6 +39,7 @@ fn test_glob_match_prefix_not_segment() {
 #[test]
 fn test_permissions_allow_all() {
     let p = Permissions::allow_all();
+    // Normal actions work under allow-all
     assert!(p.check(
         1000,
         &Action::Screenshot {
@@ -48,7 +49,8 @@ fn test_permissions_allow_all() {
         }
     ));
     assert!(p.check(1000, &Action::ClipboardRead));
-    assert!(p.check(
+    // High-risk actions require explicit naming — wildcard "*" doesn't authorize them
+    assert!(!p.check(
         2000,
         &Action::ProcessStart {
             command: vec!["rm".into(), "-rf".into(), "/".into()],

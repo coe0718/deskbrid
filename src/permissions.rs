@@ -146,7 +146,7 @@ fn config_path() -> PathBuf {
 
 /// Actions that are never authorized by wildcard patterns.
 /// These require explicit naming in the allow list — `"*"` or `"browser.*"` won't cut it.
-const HIGH_RISK_ACTIONS: &[&str] = &["browser.evaluate"];
+const HIGH_RISK_ACTIONS: &[&str] = &["browser.evaluate", "process.start", "terminal.create"];
 
 fn is_high_risk(action_name: &str) -> bool {
     HIGH_RISK_ACTIONS.contains(&action_name)
