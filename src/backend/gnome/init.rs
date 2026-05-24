@@ -89,8 +89,7 @@ impl GnomeBackend {
             }
         }
         if self.sc_stream_path.is_empty() {
-            return Err(last_err
-                .unwrap_or_else(|| anyhow::anyhow!("failed to record any monitor")));
+            return Err(last_err.unwrap_or_else(|| anyhow::anyhow!("failed to record any monitor")));
         }
 
         // ── 3. Listen for PipeWireStreamAdded signal, then Start ──
@@ -105,9 +104,7 @@ impl GnomeBackend {
         )
         .await?;
 
-        let mut signal_rx = stream_proxy
-            .receive_signal("PipeWireStreamAdded")
-            .await?;
+        let mut signal_rx = stream_proxy.receive_signal("PipeWireStreamAdded").await?;
 
         // ── 4. Start (after signal listener is set up) ──
         self.conn
@@ -121,23 +118,22 @@ impl GnomeBackend {
             .await?;
 
         // ── 5. Wait for PipeWireStreamAdded signal (2s timeout) ──
-        let pw_node: u32 = tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            async {
-                use futures_util::StreamExt;
-                while let Some(msg) = signal_rx.next().await {
-                    if let Ok(node_id) = msg.body().deserialize::<u32>() {
-                        return node_id;
-                    }
+        let pw_node: u32 = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            use futures_util::StreamExt;
+            while let Some(msg) = signal_rx.next().await {
+                if let Ok(node_id) = msg.body().deserialize::<u32>() {
+                    return node_id;
                 }
-                0
-            },
-        )
+            }
+            0
+        })
         .await
         .unwrap_or(0);
 
         if pw_node == 0 {
-            tracing::warn!("PipeWireStreamAdded signal not received after Start — screenshots will fall back");
+            tracing::warn!(
+                "PipeWireStreamAdded signal not received after Start — screenshots will fall back"
+            );
         } else {
             tracing::info!("ScreenCast PipeWire node: {}", pw_node);
         }

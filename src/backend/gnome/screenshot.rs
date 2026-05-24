@@ -1,9 +1,9 @@
 use super::GnomeBackend;
 use crate::protocol::{self, Region};
 use anyhow::Context;
-use tokio::time::{timeout, Duration};
-use tokio::process::Command;
 use std::path::PathBuf;
+use tokio::process::Command;
+use tokio::time::{Duration, timeout};
 
 impl GnomeBackend {
     pub(super) async fn screenshot_inner(
@@ -18,16 +18,14 @@ impl GnomeBackend {
         let path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
 
         // Fast path: use existing Mutter ScreenCast PipeWire stream (no dialogs)
-        if self.sc_pw_node > 0 {
-            if self.screenshot_via_pipewire(&path).await.is_ok() {
-                let dims = get_png_dimensions(&path)?;
-                return Ok(protocol::ScreenshotResult {
-                    path,
-                    width: dims.0,
-                    height: dims.1,
-                    format: "png".into(),
-                });
-            }
+        if self.sc_pw_node > 0 && self.screenshot_via_pipewire(&path).await.is_ok() {
+            let dims = get_png_dimensions(&path)?;
+            return Ok(protocol::ScreenshotResult {
+                path,
+                width: dims.0,
+                height: dims.1,
+                format: "png".into(),
+            });
         }
 
         // Build a grim-compatible region string if we have geometry
@@ -58,16 +56,15 @@ impl GnomeBackend {
         // If grim failed (GNOME Wayland — no wlr-screencopy), try multiple fallbacks
         if !grim_ok {
             // Fallback 1: GNOME Shell extension (may hang on GNOME 47+)
-            let ext_ok = timeout(
-                Duration::from_secs(5),
-                self.screenshot_via_extension(&path),
-            ).await;
+            let ext_ok =
+                timeout(Duration::from_secs(5), self.screenshot_via_extension(&path)).await;
 
             match ext_ok {
                 Ok(Ok(())) => {} // Extension worked
                 _ => {
                     // Fallback 2: XDG Desktop Portal (ScreenCast)
-                    self.screenshot_via_portal(&path).await
+                    self.screenshot_via_portal(&path)
+                        .await
                         .context("all screenshot methods failed (grim, extension, portal)")?;
                 }
             }
@@ -89,10 +86,16 @@ impl GnomeBackend {
         let output = Command::new("gst-launch-1.0")
             .args([
                 "-q",
-                "pipewiresrc", &format!("path={}", node_id),
-                "!", "videoconvert",
-                "!", "pngenc", "snapshot=true",
-                "!", "filesink", &format!("location={}", output_path),
+                "pipewiresrc",
+                &format!("path={}", node_id),
+                "!",
+                "videoconvert",
+                "!",
+                "pngenc",
+                "snapshot=true",
+                "!",
+                "filesink",
+                &format!("location={}", output_path),
             ])
             .output()
             .await

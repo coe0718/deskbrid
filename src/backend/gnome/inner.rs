@@ -17,7 +17,7 @@ fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
         if !name.contains('-') {
             continue;
         }
-        let connector = name.splitn(2, '-').nth(1).unwrap_or(&name);
+        let connector = name.split_once('-').map(|x| x.1).unwrap_or(&name);
         let status_path = entry.path().join("status");
         let status = match std::fs::read_to_string(&status_path) {
             Ok(s) => s.trim().to_string(),
@@ -29,18 +29,16 @@ fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
         let modes_path = entry.path().join("modes");
         let mut width = 1920u32;
         let mut height = 1080u32;
-        if let Ok(modes) = std::fs::read_to_string(&modes_path) {
-            if let Some(first_mode) = modes.lines().next() {
-                if let Some(x_pos) = first_mode.find('x') {
-                    if let (Ok(w), Ok(h)) = (
-                        first_mode[..x_pos].parse::<u32>(),
-                        first_mode[x_pos + 1..].parse::<u32>(),
-                    ) {
-                        width = w;
-                        height = h;
-                    }
-                }
-            }
+        if let Ok(modes) = std::fs::read_to_string(&modes_path)
+            && let Some(first_mode) = modes.lines().next()
+            && let Some(x_pos) = first_mode.find('x')
+            && let (Ok(w), Ok(h)) = (
+                first_mode[..x_pos].parse::<u32>(),
+                first_mode[x_pos + 1..].parse::<u32>(),
+            )
+        {
+            width = w;
+            height = h;
         }
         let is_primary = id == 0;
         monitors.push(protocol::MonitorInfo {
