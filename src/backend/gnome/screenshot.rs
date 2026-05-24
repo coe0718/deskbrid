@@ -38,24 +38,9 @@ impl GnomeBackend {
             self.sh("grim", &[&path]).await.is_ok()
         };
 
-        // If grim failed (GNOME Wayland — no wlr-screencopy), use the Shell Screenshot DBus API
+        // If grim failed (GNOME Wayland — no wlr-screencopy), use our GNOME extension
         if !grim_ok {
-            self.sh(
-                "busctl",
-                &[
-                    "call",
-                    "--user",
-                    "org.gnome.Shell.Screenshot",
-                    "/org/gnome/Shell/Screenshot",
-                    "org.gnome.Shell.Screenshot",
-                    "Screenshot",
-                    "bbs",
-                    "false",
-                    "false",
-                    &path,
-                ],
-            )
-            .await?;
+            self.screenshot_via_extension(&path).await?;
         }
 
         let dims = get_png_dimensions(&path)?;
@@ -65,6 +50,32 @@ impl GnomeBackend {
             height: dims.1,
             format: "png".into(),
         })
+    }
+
+    /// Take a screenshot via the deskbrid GNOME Shell extension.
+    /// The extension runs inside GNOME Shell and has access to its screenshot API.
+    async fn screenshot_via_extension(&self, output_path: &str) -> anyhow::Result<()> {
+        const DBUS_SERVICE: &str = "org.deskbrid.WindowManager";
+        const DBUS_PATH: &str = "/org/deskbrid/WindowManager";
+        const DBUS_IFACE: &str = "org.deskbrid.WindowManager";
+
+        let reply = self
+            .conn
+            .call_method(
+                Some(DBUS_SERVICE),
+                DBUS_PATH,
+                Some(DBUS_IFACE),
+                "Screenshot",
+                &(output_path,),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("extension Screenshot call failed: {e}"))?;
+
+        let success: bool = reply.body().deserialize()?;
+        if !success {
+            anyhow::bail!("extension screenshot returned false");
+        }
+        Ok(())
     }
 }
 
