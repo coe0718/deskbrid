@@ -43,6 +43,7 @@ where
 }
 
 pub(crate) async fn action_response(
+    request_id: &str,
     state: &DaemonState,
     action: &Action,
     peer_uid: u32,
@@ -55,13 +56,13 @@ pub(crate) async fn action_response(
         Ok(data) => {
             emit_action_event(state, action, &data);
             serde_json::json!({
-                "type": "response", "id": "action", "seq": seq, "status": "ok", "data": data
+                "type": "response", "id": request_id, "seq": seq, "status": "ok", "data": data
             })
         }
         Err(e) => {
             warn!("Action failed: {}", e);
             serde_json::json!({
-                "type": "response", "id": "action", "seq": seq, "status": "error",
+                "type": "response", "id": request_id, "seq": seq, "status": "error",
                 "error": { "code": "INTERNAL_ERROR", "message": format!("{}", e) }
             })
         }

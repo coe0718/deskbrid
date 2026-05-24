@@ -15,15 +15,17 @@ use super::{
 };
 
 pub async fn dispatch_action(
+    request_id: &str,
     action: Action,
     state: &DaemonState,
     peer_uid: u32,
     seq: u64,
 ) -> serde_json::Value {
-    dispatch_action_with_options(action, state, peer_uid, seq, RequestOptions::default()).await
+    dispatch_action_with_options(request_id, action, state, peer_uid, seq, RequestOptions::default()).await
 }
 
 pub async fn dispatch_action_with_options(
+    request_id: &str,
     action: Action,
     state: &DaemonState,
     peer_uid: u32,
@@ -41,13 +43,13 @@ pub async fn dispatch_action_with_options(
 
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
-        let response = permission_denied_response(seq);
+        let response = permission_denied_response(request_id, seq);
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;
         return response;
     }
     for implied_action in implied_permission_actions(&action) {
         if !state.permissions.check(peer_uid, &implied_action) {
-            let response = permission_denied_response(seq);
+            let response = permission_denied_response(request_id, seq);
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }
@@ -65,7 +67,7 @@ pub async fn dispatch_action_with_options(
             env: env.clone(),
         };
         if !state.permissions.check(peer_uid, &process_start) {
-            let response = permission_denied_response(seq);
+            let response = permission_denied_response(request_id, seq);
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }
@@ -79,7 +81,7 @@ pub async fn dispatch_action_with_options(
             "timeout_ms": action_timeout_ms,
             "permissions": {"allowed": true}
         });
-        return action_response(state, &action, peer_uid, seq, Ok(data), started, Some(true)).await;
+        return action_response(request_id, state, &action, peer_uid, seq, Ok(data), started, Some(true)).await;
     }
 
     if is_audit_action(&action) {
@@ -89,7 +91,7 @@ pub async fn dispatch_action_with_options(
             execute_audit_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_clipboard_history_action(&action) {
         let result = with_action_timeout(
@@ -98,7 +100,7 @@ pub async fn dispatch_action_with_options(
             execute_clipboard_history_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_app_catalog_action(&action) {
         let result = with_action_timeout(
@@ -107,7 +109,7 @@ pub async fn dispatch_action_with_options(
             execute_app_catalog_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_mpris_action(&action) {
         let result = with_action_timeout(
@@ -116,7 +118,7 @@ pub async fn dispatch_action_with_options(
             execute_mpris_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_system_control_action(&action) {
         let result = with_action_timeout(
@@ -125,7 +127,7 @@ pub async fn dispatch_action_with_options(
             execute_system_control_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
     if is_terminal_action(&action) {
         let result = with_action_timeout(
@@ -134,7 +136,7 @@ pub async fn dispatch_action_with_options(
             execute_terminal_action(action.clone(), state),
         )
         .await;
-        return action_response(state, &action, peer_uid, seq, result, started, None).await;
+        return action_response(request_id, state, &action, peer_uid, seq, result, started, None).await;
     }
 
     let backend = state.backend.read().await;
@@ -142,6 +144,7 @@ pub async fn dispatch_action_with_options(
         Some(b) => b,
         None => {
             let response = not_supported_response(
+                request_id,
                 "no desktop backend loaded (start daemon inside a supported Linux session)",
                 seq,
             );
@@ -178,5 +181,5 @@ pub async fn dispatch_action_with_options(
         )
         .await
     };
-    action_response(state, &action, peer_uid, seq, result, started, None).await
+    action_response(request_id, state, &action, peer_uid, seq, result, started, None).await
 }

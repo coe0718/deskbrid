@@ -80,8 +80,8 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                     continue;
                 }
 
-                let (action, options) = match Action::from_json_with_options(&line) {
-                    Ok((_, action, options)) => (action, options),
+                let (request_id, action, options) = match Action::from_json_with_options(&line) {
+                    Ok((id, action, options)) => (id, action, options),
                     Err(e) => {
                         warn!("Failed to parse message: {}", e);
                         let err = serde_json::json!({
@@ -117,7 +117,7 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                         for evt in &events {
                             conn.subscriptions.insert(evt.clone());
                         }
-                        let resp = ok_response("subscribe", seq);
+                        let resp = ok_response(&request_id, seq);
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
@@ -127,7 +127,7 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                         for evt in &events {
                             conn.subscriptions.remove(evt);
                         }
-                        let resp = ok_response("unsubscribe", seq);
+                        let resp = ok_response(&request_id, seq);
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
@@ -136,21 +136,21 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
                     // Files — track watched paths locally
                     Action::FilesWatch { ref path, .. } => {
                         conn.watched_paths.insert(path.clone());
-                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
                     Action::FilesUnwatch { ref path } => {
                         conn.watched_paths.remove(path);
-                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
 
                     _ => {
-                        let resp = dispatch_action_with_options(action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
