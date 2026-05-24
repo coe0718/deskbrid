@@ -106,6 +106,7 @@ async fn audit_actions_work_without_desktop_backend() {
     let state = crate::DaemonState::new();
 
     let first = dispatch_action(
+        "test",
         crate::protocol::Action::AuditLog {
             limit: None,
             action_type: None,
@@ -120,6 +121,7 @@ async fn audit_actions_work_without_desktop_backend() {
     assert_eq!(first["data"]["entries"].as_array().unwrap().len(), 0);
 
     let second = dispatch_action(
+        "test",
         crate::protocol::Action::AuditLog {
             limit: None,
             action_type: None,
@@ -140,6 +142,7 @@ async fn dry_run_validates_permissions_without_backend() {
     let state = crate::DaemonState::new();
 
     let response = dispatch::dispatch_action_with_options(
+        "test",
         crate::protocol::Action::WindowsClose("0x1".to_string()),
         &state,
         1000,
@@ -157,6 +160,7 @@ async fn dry_run_validates_permissions_without_backend() {
     assert_eq!(response["data"]["timeout_ms"], 250);
 
     let audit = dispatch_action(
+        "test",
         crate::protocol::Action::AuditLog {
             limit: None,
             action_type: Some("windows.close".to_string()),
