@@ -28,6 +28,8 @@ pub struct GnomeBackend {
     pub(super) event_tx: broadcast::Sender<DeskbridEvent>,
     pub(super) watchers: Arc<Mutex<HashMap<String, notify::RecommendedWatcher>>>,
     pub(super) rd_session_path: String,
+    pub(super) sc_session_path: String,
     pub(super) sc_stream_path: String,
+    pub(super) sc_pw_node: u32,
     pub(super) last_mouse: std::sync::Mutex<(f64, f64)>,
 }

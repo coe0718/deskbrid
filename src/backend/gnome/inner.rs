@@ -2,6 +2,65 @@ use super::*;
 use crate::protocol;
 use zbus::zvariant;
 
+/// Probe DRM connectors for connected monitors.
+/// Returns monitor info with real connector names and resolutions.
+fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
+    let mut monitors = Vec::new();
+    let drm_path = std::path::Path::new("/sys/class/drm");
+    let dir = match std::fs::read_dir(drm_path) {
+        Ok(d) => d,
+        Err(_) => return monitors,
+    };
+    let mut id: u32 = 0;
+    for entry in dir.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.contains('-') {
+            continue;
+        }
+        let connector = name.splitn(2, '-').nth(1).unwrap_or(&name);
+        let status_path = entry.path().join("status");
+        let status = match std::fs::read_to_string(&status_path) {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => continue,
+        };
+        if status != "connected" {
+            continue;
+        }
+        let modes_path = entry.path().join("modes");
+        let mut width = 1920u32;
+        let mut height = 1080u32;
+        if let Ok(modes) = std::fs::read_to_string(&modes_path) {
+            if let Some(first_mode) = modes.lines().next() {
+                if let Some(x_pos) = first_mode.find('x') {
+                    if let (Ok(w), Ok(h)) = (
+                        first_mode[..x_pos].parse::<u32>(),
+                        first_mode[x_pos + 1..].parse::<u32>(),
+                    ) {
+                        width = w;
+                        height = h;
+                    }
+                }
+            }
+        }
+        let is_primary = id == 0;
+        monitors.push(protocol::MonitorInfo {
+            id,
+            name: connector.to_string(),
+            width,
+            height,
+            scale: 1.0,
+            primary: is_primary,
+            enabled: true,
+            x: 0,
+            y: 0,
+            refresh_rate: None,
+            rotation: "normal".into(),
+        });
+        id += 1;
+    }
+    monitors
+}
+
 impl GnomeBackend {
     pub(super) async fn idle_seconds_inner(&self) -> anyhow::Result<u64> {
         let reply = self
@@ -31,6 +90,11 @@ impl GnomeBackend {
             if !monitors.is_empty() {
                 return Ok(monitors);
             }
+        }
+        // Fallback: probe DRM connectors (works on any Linux)
+        let drm_monitors = probe_drm_monitors();
+        if !drm_monitors.is_empty() {
+            return Ok(drm_monitors);
         }
         monitors.push(protocol::MonitorInfo {
             id: 0,

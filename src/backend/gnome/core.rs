@@ -10,12 +10,15 @@ use tokio::sync::broadcast;
 impl GnomeBackend {
     pub async fn new(event_tx: broadcast::Sender<DeskbridEvent>) -> anyhow::Result<Self> {
         let conn = zbus::Connection::session().await?;
+        conn.request_name("org.deskbrid.Daemon").await?;
         let mut backend = Self {
             conn,
             event_tx,
             watchers: Arc::new(Mutex::new(HashMap::new())),
             rd_session_path: String::new(),
+            sc_session_path: String::new(),
             sc_stream_path: String::new(),
+            sc_pw_node: 0,
             last_mouse: std::sync::Mutex::new((960.0, 540.0)),
         };
         backend.init_remote_desktop().await?;
