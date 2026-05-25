@@ -105,12 +105,14 @@ sudo apt install -y grim wl-clipboard python3-gi gstreamer1.0-tools gstreamer1.0
 deskbrid setup
 ```
 
-**Hyprland:**
+**Hyprland (and other standalone Wayland compositors — Sway, Niri, Wayfire, Labwc):**
 ```bash
 sudo pacman -S grim wl-clipboard ydotool
 echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
 sudo usermod -aG input $USER
 ```
+
+> ⚠️ Standalone Wayland compositors don't ship a notification daemon. Deskbrid's `notify send` will hang without one. Install **dunst**, **mako**, or **swaync** and add it to your compositor's autostart.
 
 **KDE Plasma:**
 ```bash

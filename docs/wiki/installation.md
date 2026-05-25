@@ -50,7 +50,7 @@ gnome-shell --version
 gsettings set org.gnome.shell disable-extension-version-validation "true"
 ```
 
-### Hyprland
+### Hyprland (and other standalone Wayland compositors)
 
 ```bash
 # System dependencies (Arch)
@@ -71,6 +71,13 @@ Add to your Hyprland config (`~/.config/hypr/hyprland.conf`):
 ```
 exec-once = ydotoold
 ```
+
+> ⚠️ **Notification daemon required.** Standalone Wayland compositors (Hyprland, Sway, Niri, Wayfire, Labwc, COSMIC) don't ship a notification daemon. Deskbrid's `notify send` will time out after 30 seconds without one. Install one of:
+> - **dunst** — lightweight, highly configurable (`sudo pacman -S dunst`)
+> - **mako** — minimal, Wayland-native (`sudo pacman -S mako`)
+> - **swaync** — Sway-style notification center (`sudo pacman -S swaync`)
+>
+> Then add it to your compositor's autostart (e.g. `exec-once = dunst` for Hyprland). Deskbrid's `system.health` check will warn if no notification daemon is detected.
 
 ### KDE Plasma
 

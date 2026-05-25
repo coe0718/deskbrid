@@ -7,7 +7,8 @@ pub fn health_remediation() -> serde_json::Value {
         "gst_launch": "Install GStreamer tools so gst-launch-1.0 is available.",
         "gstreamer_pipewire": "Install the GStreamer PipeWire plugin that provides pipewiresrc.",
         "python_gi": "Install Python GObject bindings for the XDG portal screenshot fallback.",
-        "spectacle": "Install spectacle package for KDE screenshots."
+        "spectacle": "Install spectacle package for KDE screenshots.",
+        "notify_daemon": "Install a notification daemon for your desktop: dunst (lightweight), mako (Wayland-native), or swaync (Sway-style)."
     })
 }
 

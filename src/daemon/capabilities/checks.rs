@@ -83,6 +83,29 @@ pub async fn check_python_gi() -> serde_json::Value {
     }
 }
 
+pub async fn check_notify_daemon() -> serde_json::Value {
+    let daemons = [
+        "dunst",
+        "mako",
+        "swaync",
+        "fnott",
+        "notification-daemon",
+        "xfce4-notifyd",
+    ];
+    let mut found = Vec::new();
+    for daemon in &daemons {
+        match Command::new("pgrep").args(["-x", daemon]).output().await {
+            Ok(out) if out.status.success() => found.push(*daemon),
+            _ => {}
+        }
+    }
+    if found.is_empty() {
+        serde_json::json!({"ok": false, "details": "no notification daemon running (install dunst, mako, or swaync)"})
+    } else {
+        serde_json::json!({"ok": true, "details": format!("running: {}", found.join(", "))})
+    }
+}
+
 pub async fn check_gstreamer_pipewire() -> serde_json::Value {
     match Command::new("gst-inspect-1.0")
         .arg("pipewiresrc")

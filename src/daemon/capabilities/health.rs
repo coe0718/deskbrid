@@ -1,6 +1,6 @@
 use super::checks::{
-    check_clipboard_tools, check_cmd, check_gstreamer_pipewire, check_in_path, check_process,
-    check_python_gi, check_uinput,
+    check_clipboard_tools, check_cmd, check_gstreamer_pipewire, check_in_path, check_notify_daemon,
+    check_process, check_python_gi, check_uinput,
 };
 
 pub(super) async fn insert_deps(
@@ -103,6 +103,7 @@ async fn insert_hyprland_deps(deps: &mut serde_json::Map<String, serde_json::Val
         "imagemagick_identify".to_string(),
         check_in_path("identify").await,
     );
+    deps.insert("notify_daemon".to_string(), check_notify_daemon().await);
     insert_linux_domain_deps(deps).await;
 }
 
@@ -151,6 +152,7 @@ async fn insert_wlroots_common_deps(deps: &mut serde_json::Map<String, serde_jso
         "imagemagick_identify".to_string(),
         check_in_path("identify").await,
     );
+    deps.insert("notify_daemon".to_string(), check_notify_daemon().await);
     insert_linux_domain_deps(deps).await;
 }
 
