@@ -8,10 +8,17 @@
   <a href="https://github.com/coe0718/deskbrid/actions"><img src="https://github.com/coe0718/deskbrid/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2024%20edition-orange.svg" alt="Rust 2024"></a>
+  <a href="https://github.com/coe0718/deskbrid/releases"><img src="https://img.shields.io/github/v/release/coe0718/deskbrid?color=06b6d4" alt="Release"></a>
+  <a href="https://discord.gg/Hs4ryPwEs"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://nicklaunches.com/products/deskbrid/"><img src="https://img.shields.io/badge/Nick%20Launches-featured-8b5cf6" alt="Nick Launches"></a>
 </p>
 
 <p align="center">
   <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/coe0718/deskbrid"><img src="https://github-readme-stats.vercel.app/api/pin/?username=coe0718&repo=deskbrid&theme=tokyonight&show_owner=true" alt="Repo card"></a>
 </p>
 
 **[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md)**
