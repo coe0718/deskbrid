@@ -37,11 +37,11 @@ Deskbrid protocol action support across 11 desktop environments.
 | `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `input.mouse` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 | `input.mouse.drag` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.layouts.list` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.layout.get` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.layout.set` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.layout.add` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.layout.remove` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `input.list_layouts` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `input.get_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `input.set_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `input.add_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| `input.remove_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
 
 ## Monitor
 
@@ -107,7 +107,7 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **COSMIC** | `windows.move_resize` ⛔, `windows.tile` ⛔ | `zcosmic_toplevel_manager_v1` (v4) has no geometry control. `set_rectangle` is a visual hint only, not a move/resize command. |
 | **KDE** | No known gaps | All 7 bugs from initial test matrix fixed. |
 | **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed. |
-| **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌, `notification.send/close` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 28/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications: no daemon. Keyboard layout parser fixed for 0.54+ `rules:` format. |
+| **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌, `notification.send/close` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 30/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications: no daemon. Keyboard layouts all ✅ (parser fixed for 0.54+ `rules:` format). |
 | **Sway** | `notification.send/close` ❌ | **Tested May 2026** on Sway 1.11 (Turtle). 31/33 ✅. Notifications: no daemon. Keyboard layouts implemented via swaymsg. |
 | **Labwc** | `windows.move_resize` ⛔, `windows.minimize` ⛔, `windows.tile` ⛔, `monitor.set_primary` ⛔, `workspaces.move_window` ⛔ | **Tested May 2026** on Labwc 0.9.7 (Turtle). 26/33 ✅. `move_resize`/`minimize`/`tile`: NO_PROTOCOL_SURFACE — wlrctl doesn't expose these, and labwc has no IPC for window geometry or minimize. `set_primary`: NO_PROTOCOL_SURFACE — wlr-randr has no --primary flag, no protocol. `workspace.move_window`: NO_PROTOCOL_SURFACE — no Wayland protocol exists, no Labwc IPC. Notifications: mako daemon installed, working. Workspaces list/switch via ext_workspace_v1 protocol client. Keyboard layouts via XKB_DEFAULT_LAYOUT env file. `set_resolution`: fixed with wlr-randr fallback. `activate_or_launch`: works via daemon-level spawn. |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM. |
