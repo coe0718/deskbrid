@@ -79,7 +79,25 @@ impl KdeBackend {
     }
 }
 
+fn strip_ansi(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut in_escape = false;
+    for ch in s.chars() {
+        if in_escape {
+            if ch == 'm' {
+                in_escape = false;
+            }
+        } else if ch == '\x1b' {
+            in_escape = true;
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
 pub(super) fn parse_kscreen_outputs(raw: &str) -> Vec<protocol::MonitorInfo> {
+    let raw = strip_ansi(raw);
     let mut monitors = Vec::new();
     let mut current: Option<protocol::MonitorInfo> = None;
 
@@ -201,6 +219,7 @@ pub(super) fn find_kscreen_mode(
     width: u32,
     height: u32,
 ) -> Option<String> {
+    let raw = strip_ansi(raw);
     let target = format!("{}x{}@", width, height);
     let mut in_output = false;
     for line in raw.lines() {
