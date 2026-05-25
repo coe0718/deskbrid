@@ -51,14 +51,17 @@ impl SwayBackend {
     /// Run arbitrary swaymsg commands (no JSON output expected).
     async fn swaymsg_raw(&self, args: &[&str]) -> anyhow::Result<()> {
         let mut cmd = Command::new("swaymsg");
-        cmd.args(args).stdin(Stdio::null()).stderr(Stdio::piped());
+        cmd.args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         self.apply_env(&mut cmd);
         let output = cmd.output().await?;
         if !output.status.success() {
-            anyhow::bail!(
-                "swaymsg failed: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            );
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let detail = if stdout.is_empty() { stderr } else { stdout };
+            anyhow::bail!("swaymsg failed: {}", detail);
         }
         Ok(())
     }
@@ -93,6 +96,7 @@ impl SwayBackend {
 mod audio;
 mod bluetooth;
 mod files;
+mod keyboard;
 mod monitor;
 mod networking;
 mod notifications;

@@ -13,13 +13,13 @@ Deskbrid protocol action support across 11 desktop environments.
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
 | `windows.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.focus` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.get` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.close` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.minimize` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.maximize` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.move_resize` | ✅ | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.tile` | ✅ | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.focus` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.get` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.close` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.minimize` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.maximize` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.move_resize` | ✅ | 🔲 | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.tile` | ✅ | 🔲 | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `windows.activate_or_launch` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Workspaces
@@ -28,7 +28,7 @@ Deskbrid protocol action support across 11 desktop environments.
 |---|---|---|---|---|---|---|---|---|---|
 | `workspaces.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `workspaces.switch` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `workspaces.move_window` | ✅ | 🔲 | ✅ | ✅ | ⚠️ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.move_window` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Input
 
@@ -37,11 +37,11 @@ Deskbrid protocol action support across 11 desktop environments.
 | `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `input.mouse` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `input.mouse.drag` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layouts.list` | ✅ | 🔲 | ✅ | ✅ | ❌ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.get` | ✅ | 🔲 | ✅ | ✅ | ❌ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.set` | ✅ | 🔲 | ✅ | ✅ | ❌ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.add` | ✅ | 🔲 | ✅ | ✅ | ❌ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.remove` | ✅ | 🔲 | ✅ | ✅ | ❌ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layouts.list` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.get` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.set` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.add` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.remove` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Monitor
 
@@ -108,7 +108,7 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **KDE** | No known gaps | All 7 bugs from initial test matrix fixed. |
 | **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed: windows, workspaces, input, monitor, system, notifications, keyboard layouts. |
 | **Hyprland** | `notification.send` ❌, `notification.close` ❌, `screenshot.ocr` ❌, Bluetooth ⚠️, 16/33 actions 🔲 untested | **Tested May 2026** on Hyprland 0.54.3. 7/33 DE-dependent actions verified. Notifications hung (30s timeout) — no notification daemon on bare Hyprland install. OCR requires tesseract (not installed). Bluetooth adapter dead on test hardware (Turtle laptop). Daemon-level: clipboard, apps, screenshots, services, network, wifi, files, terminal, audio all ✅. color.pick fixed via hyprpicker backend (commit 2641b1b). screenshot-diff sandbox fixed (/tmp allowed). terminal.create permission message fixed. 16 DE-dependent actions remain untested — need a fuller test pass. |
-| **Sway** | `input.layouts.*` ❌ (5 actions), `notification.send/close` ❌, `workspaces.move_window` ⚠️, 12/33 actions 🔲 untested | **Tested May 2026** on Sway 1.11 (headless). 13/33 DE-dependent actions verified passing. Keyboard layouts: backend returns "not supported" for all 5 layout actions — needs implementation. Notifications hung (30s timeout) — no notification daemon on bare install (same as Hyprland). `workspaces.move_window` returns "swaymsg failed" — likely due to no real windows in headless mode, needs verification with real windows. `system.power` routes correctly but systemd auth blocks non-interactive calls. Daemon-level: same capabilities as other DEs. SWAYSOCK handling confirmed working (daemon reads at startup, passes to swaymsg subprocesses). |
+| **Sway** | `notification.send/close` ❌, 7/33 actions 🔲 untested | **Tested May 2026** on Sway 1.11 (real display, Turtle). 26/33 DE-dependent actions verified passing. Only gaps: notifications hung (30s timeout — no notification daemon on bare install, same as Hyprland), and 7 untested actions (windows.activate_or_launch, input.mouse.drag, monitor.set_primary/enable/disable). Keyboard layouts implemented via swaymsg get_inputs. windows.move_resize fixed (floating enable before absolute positioning). swaymsg_raw error handling fixed (captures stdout — swaymsg outputs errors as JSON on stdout, not stderr). `system.power` routes correctly but systemd auth blocks non-interactive calls. Screenshots working on real display (grim 1366x768). |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM, no minimize concept. |
 | **Wayfire** | 🔲 Untested | Backend exists with workspace/window stubs. |
 | **Labwc** | 🔲 Untested | Backend exists with workspace/window stubs. |

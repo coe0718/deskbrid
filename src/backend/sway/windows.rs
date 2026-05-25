@@ -47,6 +47,10 @@ pub(super) async fn window_move_resize(
     width: u32,
     height: u32,
 ) -> anyhow::Result<()> {
+    // Sway requires floating windows for absolute positioning
+    backend
+        .swaymsg_raw(&["[con_id=", id, "]", "floating", "enable"])
+        .await?;
     backend
         .swaymsg_raw(&[
             "[con_id=",
