@@ -31,26 +31,36 @@ pub(super) fn parse_labwc_windows_json(raw: &Value) -> Vec<protocol::WindowInfo>
 /// Parse `wlrctl toplevel list` output (fallback when labwc-helper is missing).
 ///
 /// Output format (one window per line):
-///   0: Firefox (firefox)
-///   1: Alacritty (Alacritty)
+///   foot: jeremy@jeremy-hp15notebookpc:~
+///   firefox: Mozilla Firefox
+///
+/// wlrctl identifies windows by app_id (the part before the colon+space).
+/// The full line is `app_id: title` — we use app_id as the window ID for
+/// focus/close/maximize operations and the full title for display.
 pub(super) fn parse_wlrctl_windows(
     raw: &str,
     focused_id: Option<&str>,
 ) -> Vec<protocol::WindowInfo> {
     raw.lines()
         .filter_map(|line| {
-            let (id_part, rest) = line.split_once(':')?;
-            let id = id_part.trim().to_string();
-            let rest = rest.trim();
-            let (title, app_id) = if let Some((t, a)) = rest.rsplit_once(" (") {
-                (t.to_string(), a.strip_suffix(')').unwrap_or(a).to_string())
+            let line = line.trim();
+            if line.is_empty() {
+                return None;
+            }
+            // wlrctl format: "app_id: title" — app_id is before the first colon
+            let (app_id, title) = line
+                .split_once(':')
+                .map(|(a, t)| (a.trim().to_string(), t.trim().to_string()))
+                .unwrap_or((line.to_string(), String::new()));
+            let title_clean = if let Some((t, _c)) = title.rsplit_once(" (") {
+                t.to_string()
             } else {
-                (rest.to_string(), String::new())
+                title
             };
-            let is_focused = focused_id.is_some_and(|fid| fid == id);
+            let is_focused = focused_id.is_some_and(|fid| fid == app_id);
             Some(protocol::WindowInfo {
-                id,
-                title,
+                id: app_id.clone(),
+                title: title_clean,
                 app_id: app_id.to_ascii_lowercase(),
                 workspace_id: 0,
                 is_focused,

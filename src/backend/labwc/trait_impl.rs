@@ -25,13 +25,13 @@ impl DesktopBackend for LabwcBackend {
     }
     async fn window_move_resize(
         &self,
-        _id: &str,
-        _x: i32,
-        _y: i32,
-        _w: u32,
-        _h: u32,
+        id: &str,
+        x: i32,
+        y: i32,
+        w: u32,
+        h: u32,
     ) -> anyhow::Result<()> {
-        windows::window_move_resize(self, _id, _x, _y, _w, _h).await
+        windows::window_move_resize(self, id, x, y, w, h).await
     }
     async fn workspaces_list(&self) -> anyhow::Result<Vec<protocol::WorkspaceInfo>> {
         workspaces::workspaces_list(self).await
@@ -41,6 +41,27 @@ impl DesktopBackend for LabwcBackend {
     }
     async fn workspace_move_window(&self, _w: &str, _ws: u32, _follow: bool) -> anyhow::Result<()> {
         workspaces::workspace_move_window(self, _w, _ws, _follow).await
+    }
+    // ─── Keyboard Layout ────────────────────────────────
+    async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<protocol::KeyboardLayout>> {
+        LabwcBackend::keyboard_layout_list(self).await
+    }
+    async fn keyboard_layout_get(&self) -> anyhow::Result<protocol::KeyboardLayout> {
+        LabwcBackend::keyboard_layout_get(self).await
+    }
+    async fn keyboard_layout_set(
+        &self,
+        index: Option<u32>,
+        name: Option<&str>,
+        variant: Option<&str>,
+    ) -> anyhow::Result<()> {
+        LabwcBackend::keyboard_layout_set(self, index, name, variant).await
+    }
+    async fn keyboard_layout_add(&self, name: &str, variant: Option<&str>) -> anyhow::Result<()> {
+        LabwcBackend::keyboard_layout_add(self, name, variant).await
+    }
+    async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
+        LabwcBackend::keyboard_layout_remove(self, index).await
     }
     async fn keyboard_type(&self, t: &str) -> anyhow::Result<()> {
         workspaces::keyboard_type(self, t).await
