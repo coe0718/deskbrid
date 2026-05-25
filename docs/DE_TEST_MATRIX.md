@@ -16,7 +16,7 @@
 | `windows.minimize` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `windows.maximize` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `windows.move_resize` | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `windows.tile` | ✅ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `windows.tile` | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | `windows.activate_or_launch` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### Workspaces
@@ -77,7 +77,7 @@
 
 ### Notifications
 
-| `notification.send` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `notification.send` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `notification.close` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### System
@@ -203,7 +203,7 @@
 
 ### Monitor
 
-| `monitor.list` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `monitor.list` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `monitor.set_primary` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `monitor.set_scale` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -241,7 +241,7 @@
 | **COSMIC** | `windows.move_resize` ❌ (not yet implemented in cosmic-helper). Keyboard layout ❌ (no trait override). README: ⚠️ Partial. |
 | **Wayfire** | `windows.move_resize` ❌ ("not supported by wf-ipc"). Keyboard layout ❌ (no trait override). README: "no move/resize". |
 | **Labwc** | `windows.move_resize` ❌ ("not supported by wlrctl"). Keyboard layout ❌ (no trait override). README: "no move/resize". |
-| **KDE** | Keyboard layout ❌ (no trait override). Monitors ❌ (KScreen D-Bus path wrong). Notifications ❌ (urgency=0 unsupported by notify-send). Bluetooth ❌ (hangs). Mouse scroll ❌ (ydotool -- separator corruption). Screenshot -o flag ❌ (output path ignored). Tile ❌ (cascades from monitors). Process/A11y/Browser: no CLI subcommands (daemon/MCP only). |
+| **KDE** | Keyboard layout ❌ (no trait override). Bluetooth ❌ (hangs). Mouse scroll ❌ (ydotool -- separator corruption). Screenshot -o flag ❌ (output path ignored). Process/A11y/Browser: no CLI subcommands (daemon/MCP only). |
 | **Sway** | Keyboard layout ❌ (no trait override). |
 | **GNOME** | No known gaps. Full implementation including keyboard layout. |
 | **Hyprland** | No known gaps. Full implementation. |
