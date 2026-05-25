@@ -77,21 +77,8 @@ impl KdeBackend {
     }
 }
 
-fn strip_ansi(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut in_escape = false;
-    for ch in s.chars() {
-        if in_escape {
-            if ch == 'm' {
-                in_escape = false;
-            }
-        } else if ch == '\x1b' {
-            in_escape = true;
-        } else {
-            result.push(ch);
-        }
-    }
-    result
+pub(crate) fn strip_ansi(s: &str) -> String {
+    crate::util::strip_ansi(s)
 }
 
 pub(super) fn parse_kscreen_outputs(raw: &str) -> Vec<protocol::MonitorInfo> {

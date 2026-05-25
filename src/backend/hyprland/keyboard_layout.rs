@@ -57,7 +57,7 @@ impl HyprBackend {
 
     pub(super) async fn keyboard_layout_list_inner(&self) -> anyhow::Result<Vec<KeyboardLayout>> {
         let raw = self.sh("hyprctl", &["devices"]).await?;
-        Self::parse_hyprctl_keyboard(&raw)
+        Self::parse_hyprctl_keyboard(&crate::util::strip_ansi(&raw))
             .ok_or_else(|| anyhow::anyhow!("could not parse keyboard layout from hyprctl devices"))
     }
 

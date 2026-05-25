@@ -1,6 +1,7 @@
 use crate::protocol::MonitorInfo;
 
 pub(crate) fn parse_monitors(raw: &str) -> Vec<MonitorInfo> {
+    let raw = crate::util::strip_ansi(raw);
     let mut monitors = Vec::new();
     let mut current: Option<MonitorInfo> = None;
 

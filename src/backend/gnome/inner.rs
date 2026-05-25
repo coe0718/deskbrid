@@ -78,13 +78,13 @@ impl GnomeBackend {
     pub(super) async fn get_monitors(&self) -> anyhow::Result<Vec<protocol::MonitorInfo>> {
         let mut monitors = Vec::new();
         if let Ok(out) = self.sh("gnome-randr", &[]).await {
-            super::parsers::parse_gnome_randr(&out, &mut monitors);
+            super::parsers::parse_gnome_randr(&crate::util::strip_ansi(&out), &mut monitors);
             if !monitors.is_empty() {
                 return Ok(monitors);
             }
         }
         if let Ok(out) = self.sh("wlr-randr", &[]).await {
-            super::parsers::parse_wlr_randr(&out, &mut monitors);
+            super::parsers::parse_wlr_randr(&crate::util::strip_ansi(&out), &mut monitors);
             if !monitors.is_empty() {
                 return Ok(monitors);
             }
