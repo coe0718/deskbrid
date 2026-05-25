@@ -4,7 +4,7 @@ Deskbrid protocol action support across 11 desktop environments.
 
 > **Legend:** ✅ = Working &nbsp; ❌ = Broken &nbsp; ⚠️ = Partial &nbsp; 🔲 = Untested &nbsp; ⛔ = No Protocol Surface
 >
-> **KDE** and **COSMIC** tested on Turtle (EndeavourOS, real hardware). All other DEs have backend code but **zero runtime verification** — they're 🔲 until a daemon is started on a live session.
+> **KDE**, **COSMIC**, and **GNOME** tested on Turtle (EndeavourOS, real hardware). All other DEs have backend code but **zero runtime verification** — they're 🔲 until a daemon is started on a live session.
 
 ---
 
@@ -12,91 +12,91 @@ Deskbrid protocol action support across 11 desktop environments.
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `windows.list` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.focus` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.get` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.close` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.minimize` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.maximize` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.move_resize` | 🔲 | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.tile` | 🔲 | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.activate_or_launch` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.list` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.focus` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.get` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.close` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.minimize` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.maximize` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.move_resize` | ✅ | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.tile` | ✅ | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.activate_or_launch` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Workspaces
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `workspaces.list` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `workspaces.switch` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `workspaces.move_window` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.list` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.switch` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.move_window` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Input
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `input.keyboard` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.mouse` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.mouse.drag` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layouts.list` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.get` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.set` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.add` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.layout.remove` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.keyboard` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.mouse` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.mouse.drag` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layouts.list` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.get` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.set` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.add` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.layout.remove` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Monitor
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `monitor.list` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.set_primary` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.set_resolution` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.set_scale` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.set_rotation` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.enable` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.disable` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.list` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.set_primary` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.set_resolution` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.set_scale` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.set_rotation` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.enable` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.disable` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## System
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `system.info` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `system.idle` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `system.power` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `system.battery` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `system.info` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `system.idle` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `system.power` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `system.battery` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Notifications
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
-| `notification.send` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `notification.close` | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `notification.send` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
+| `notification.close` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ---
 
 ## Daemon-Level (DE-Independent)
 
-These actions don't touch the `DesktopBackend` trait. They should work on any DE where the daemon starts, but have only been verified on KDE and COSMIC sessions.
+These actions don't touch the `DesktopBackend` trait. They should work on any DE where the daemon starts, but have been verified on KDE, COSMIC, and GNOME sessions.
 
 | Category | Actions | Tested On |
 |---|---|---|
-| Clipboard | `read`, `write`, `history`, `history.clear` | KDE, COSMIC |
-| Apps | `list`, `search`, `get` | KDE, COSMIC |
-| MPRIS Media | `list`, `get`, `control` | KDE, COSMIC |
-| Color & Screenshot | `color.pick`, `screenshot`, `screenshot.ocr`, `screenshot.diff` | KDE, COSMIC |
-| Audit | `audit.log`, `audit.clear` | KDE, COSMIC |
-| Services & Journal | `service.*`, `timer.list`, `journal.query` | KDE, COSMIC |
-| Network | `status`, `interfaces`, `wifi.scan`, `wifi.connect` | KDE, COSMIC |
-| Bluetooth | `list`, `scan`, `scan_stop`, `connect`, `disconnect`, `pair`, `forget` | KDE, COSMIC |
-| Files | `watch`, `unwatch`, `search`, `read`, `write`, `copy`, `move`, `delete`, `mkdir`, `list` | KDE, COSMIC |
-| Browser (CDP) | `list_tabs`, `navigate`, `evaluate`, `screenshot_tab`, `click` | KDE, COSMIC |
-| A11y (AT-SPI2) | `tree`, `get_element`, `click_element`, `get_text`, `snapshot_tree`, `perform_action`, `set_value`, `list_apps`, `doctor` | KDE, COSMIC |
-| Process | `list`, `start`, `stop`, `signal`, `exists`, `wait` | KDE, COSMIC |
-| Terminal / PTY | `create`, `write`, `read`, `resize`, `list`, `kill` | KDE, COSMIC |
-| Hotkeys | `register`, `unregister` | KDE, COSMIC |
-| Audio | `list_sinks`, `set_sink_volume` | KDE, COSMIC |
-| Layout Profiles | `list`, `get`, `save`, `delete`, `restore` | KDE, COSMIC |
-| Location & UI | `location.get`, `ui.tree.get`, `ui.element.click`, `ui.element.set_text` | KDE, COSMIC |
-| Meta | `capabilities.list` | KDE, COSMIC |
+| Clipboard | `read`, `write`, `history`, `history.clear` | KDE, COSMIC, GNOME |
+| Apps | `list`, `search`, `get` | KDE, COSMIC, GNOME |
+| MPRIS Media | `list`, `get`, `control` | KDE, COSMIC, GNOME |
+| Color & Screenshot | `color.pick`, `screenshot`, `screenshot.ocr`, `screenshot.diff` | KDE, COSMIC, GNOME |
+| Audit | `audit.log`, `audit.clear` | KDE, COSMIC, GNOME |
+| Services & Journal | `service.*`, `timer.list`, `journal.query` | KDE, COSMIC, GNOME |
+| Network | `status`, `interfaces`, `wifi.scan`, `wifi.connect` | KDE, COSMIC, GNOME |
+| Bluetooth | `list`, `scan`, `scan_stop`, `connect`, `disconnect`, `pair`, `forget` | KDE, COSMIC, GNOME |
+| Files | `watch`, `unwatch`, `search`, `read`, `write`, `copy`, `move`, `delete`, `mkdir`, `list` | KDE, COSMIC, GNOME |
+| Browser (CDP) | `list_tabs`, `navigate`, `evaluate`, `screenshot_tab`, `click` | KDE, COSMIC, GNOME |
+| A11y (AT-SPI2) | `tree`, `get_element`, `click_element`, `get_text`, `snapshot_tree`, `perform_action`, `set_value`, `list_apps`, `doctor` | KDE, COSMIC, GNOME |
+| Process | `list`, `start`, `stop`, `signal`, `exists`, `wait` | KDE, COSMIC, GNOME |
+| Terminal / PTY | `create`, `write`, `read`, `resize`, `list`, `kill` | KDE, COSMIC, GNOME |
+| Hotkeys | `register`, `unregister` | KDE, COSMIC, GNOME |
+| Audio | `list_sinks`, `set_sink_volume` | KDE, COSMIC, GNOME |
+| Layout Profiles | `list`, `get`, `save`, `delete`, `restore` | KDE, COSMIC, GNOME |
+| Location & UI | `location.get`, `ui.tree.get`, `ui.element.click`, `ui.element.set_text` | KDE, COSMIC, GNOME |
+| Meta | `capabilities.list` | KDE, COSMIC, GNOME |
 
 ---
 
@@ -106,7 +106,7 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 |---|---|---|
 | **COSMIC** | `windows.move_resize` ⛔, `windows.tile` ⛔ | `zcosmic_toplevel_manager_v1` (v4) has no geometry control. `set_rectangle` is a visual hint only, not a move/resize command. Capabilities enum: close/activate/maximize/minimize/fullscreen/workspace/sticky — no move, no resize. Super+Click drag works at the compositor level but there is no programmatic API. |
 | **KDE** | No known gaps | All 7 bugs from initial test matrix fixed. |
-| **GNOME** | 🔲 Untested | Full backend in `src/backend/gnome/` — needs live session verification. |
+| **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed: windows, workspaces, input, monitor, system, notifications, keyboard layouts. |
 | **Hyprland** | 🔲 Untested | Full backend in `src/backend/hyprland/` — needs live session verification. |
 | **Sway** | 🔲 Untested | Backend exists with workspace/window stubs. |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM, no minimize concept. |
