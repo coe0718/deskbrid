@@ -36,13 +36,13 @@
 ### Input
 
 | `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `input.mouse` | ✅ | ✅ | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `input.mouse` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `input.mouse.drag` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `input.layouts.list` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `input.layout.get` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `input.layout.set` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `input.layout.add` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| `input.layout.remove` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `input.layouts.list` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `input.layout.get` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `input.layout.set` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `input.layout.add` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `input.layout.remove` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ### Clipboard
 
@@ -66,7 +66,7 @@
 ### Color & Screenshot
 
 | `color.pick` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `screenshot` | ✅ | ✅ | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `screenshot` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `screenshot.ocr` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `screenshot.diff` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
@@ -129,8 +129,8 @@
 
 ### Bluetooth
 
-| `bluetooth.list` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `bluetooth.scan` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `bluetooth.list` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `bluetooth.scan` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `bluetooth.scan_stop` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `bluetooth.connect` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `bluetooth.disconnect` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -241,7 +241,7 @@
 | **COSMIC** | `windows.move_resize` ❌ (not yet implemented in cosmic-helper). Keyboard layout ❌ (no trait override). README: ⚠️ Partial. |
 | **Wayfire** | `windows.move_resize` ❌ ("not supported by wf-ipc"). Keyboard layout ❌ (no trait override). README: "no move/resize". |
 | **Labwc** | `windows.move_resize` ❌ ("not supported by wlrctl"). Keyboard layout ❌ (no trait override). README: "no move/resize". |
-| **KDE** | Keyboard layout ❌ (no trait override). Bluetooth ❌ (hangs). Mouse scroll ❌ (ydotool -- separator corruption). Screenshot -o flag ❌ (output path ignored). Process/A11y/Browser: no CLI subcommands (daemon/MCP only). |
+| **KDE** | Process/A11y/Browser: no CLI subcommands (daemon/MCP only). Keyboard layouts: backend supported via setxkbmap, no CLI surface. |
 | **Sway** | Keyboard layout ❌ (no trait override). |
 | **GNOME** | No known gaps. Full implementation including keyboard layout. |
 | **Hyprland** | No known gaps. Full implementation. |
