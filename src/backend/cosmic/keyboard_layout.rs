@@ -80,7 +80,6 @@ impl CosmicBackend {
             .gsettings_get("org.gnome.desktop.input-sources", "current")
             .await?;
         let current: u32 = raw
-            .trim()
             .split_whitespace()
             .last()
             .and_then(|s| s.parse().ok())

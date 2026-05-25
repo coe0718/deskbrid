@@ -81,7 +81,6 @@ fn parse_cosmic_randr(raw: &str) -> Vec<protocol::MonitorInfo> {
             }
             if let Some(refresh_part) = clean.split('@').nth(1) {
                 mon.refresh_rate = refresh_part
-                    .trim()
                     .split_whitespace()
                     .next()
                     .and_then(|s| s.parse().ok());
