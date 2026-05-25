@@ -13,13 +13,13 @@ Deskbrid protocol action support across 11 desktop environments.
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
 | `windows.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.focus` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.get` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.close` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.minimize` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.maximize` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.move_resize` | ✅ | 🔲 | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `windows.tile` | ✅ | 🔲 | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.focus` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.get` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.minimize` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.maximize` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.move_resize` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `windows.tile` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `windows.activate_or_launch` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Workspaces
@@ -27,15 +27,15 @@ Deskbrid protocol action support across 11 desktop environments.
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
 | `workspaces.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `workspaces.switch` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `workspaces.move_window` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.switch` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `workspaces.move_window` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Input
 
 | Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
 |---|---|---|---|---|---|---|---|---|---|
 | `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `input.mouse` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `input.mouse` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `input.mouse.drag` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
 | `input.layouts.list` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `input.layout.get` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
@@ -49,7 +49,7 @@ Deskbrid protocol action support across 11 desktop environments.
 |---|---|---|---|---|---|---|---|---|---|
 | `monitor.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `monitor.set_primary` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
-| `monitor.set_resolution` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `monitor.set_scale` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `monitor.set_rotation` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `monitor.enable` | ✅ | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 | 🔲 |
@@ -61,7 +61,7 @@ Deskbrid protocol action support across 11 desktop environments.
 |---|---|---|---|---|---|---|---|---|---|
 | `system.info` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `system.idle` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
-| `system.power` | ✅ | 🔲 | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
+| `system.power` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 | `system.battery` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | 🔲 | 🔲 |
 
 ## Notifications
@@ -107,7 +107,7 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **COSMIC** | `windows.move_resize` ⛔, `windows.tile` ⛔ | `zcosmic_toplevel_manager_v1` (v4) has no geometry control. `set_rectangle` is a visual hint only, not a move/resize command. Capabilities enum: close/activate/maximize/minimize/fullscreen/workspace/sticky — no move, no resize. Super+Click drag works at the compositor level but there is no programmatic API. |
 | **KDE** | No known gaps | All 7 bugs from initial test matrix fixed. |
 | **GNOME** | No known gaps | Mutter 50.1, Wayland. Full test passed: windows, workspaces, input, monitor, system, notifications, keyboard layouts. |
-| **Hyprland** | `notification.send` ❌, `notification.close` ❌, `screenshot.ocr` ❌, Bluetooth ⚠️, 16/33 actions 🔲 untested | **Tested May 2026** on Hyprland 0.54.3. 7/33 DE-dependent actions verified. Notifications hung (30s timeout) — no notification daemon on bare Hyprland install. OCR requires tesseract (not installed). Bluetooth adapter dead on test hardware (Turtle laptop). Daemon-level: clipboard, apps, screenshots, services, network, wifi, files, terminal, audio all ✅. color.pick fixed via hyprpicker backend (commit 2641b1b). screenshot-diff sandbox fixed (/tmp allowed). terminal.create permission message fixed. 16 DE-dependent actions remain untested — need a fuller test pass. |
+| **Hyprland** | `windows.minimize` ❌, `notification.send/close` ❌, `screenshot.ocr` ❌, Bluetooth ⚠️, 8/33 actions 🔲 untested | **Tested May 2026** on Hyprland 0.54.3 (real display, Turtle). 23/33 DE-dependent actions verified passing. `windows.minimize` returns "Hyprland does not expose a native minimize dispatcher" — compositor limitation (works via scratchpad instead). Notifications hung (30s timeout) — no notification daemon on bare Hyprland install. OCR requires tesseract (not installed). Bluetooth adapter dead on test hardware. Daemon-level: clipboard, apps, screenshots, services, network, wifi, files, terminal, audio all ✅. color.pick fixed via hyprpicker backend. screenshot-diff sandbox fixed. terminal.create permission message fixed. Keyboard layout parser fixed for Hyprland 0.54+ rules: format. |
 | **Sway** | `notification.send/close` ❌, 7/33 actions 🔲 untested | **Tested May 2026** on Sway 1.11 (real display, Turtle). 26/33 DE-dependent actions verified passing. Only gaps: notifications hung (30s timeout — no notification daemon on bare install, same as Hyprland), and 7 untested actions (windows.activate_or_launch, input.mouse.drag, monitor.set_primary/enable/disable). Keyboard layouts implemented via swaymsg get_inputs. windows.move_resize fixed (floating enable before absolute positioning). swaymsg_raw error handling fixed (captures stdout — swaymsg outputs errors as JSON on stdout, not stderr). `system.power` routes correctly but systemd auth blocks non-interactive calls. Screenshots working on real display (grim 1366x768). |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM, no minimize concept. |
 | **Wayfire** | 🔲 Untested | Backend exists with workspace/window stubs. |

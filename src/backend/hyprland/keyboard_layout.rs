@@ -3,28 +3,56 @@ use crate::protocol::KeyboardLayout;
 
 impl HyprBackend {
     /// Parse hyprctl devices output to extract keyboard layout config.
-    /// Look for lines like `kb_layout: us,ru` inside the Keyboard section.
+    /// Handles both old format (kb_layout: us,ru) and new Hyprland 0.54+ format
+    /// (rules: r "", m "", l "us", v "", o "").
     fn parse_hyprctl_keyboard(raw: &str) -> Option<Vec<KeyboardLayout>> {
-        let mut in_keyboard = false;
         let mut layout_str = String::new();
         let mut variant_str = String::new();
+        let mut keymap_str = String::new();
 
         for line in raw.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with("Keyboard") {
-                in_keyboard = true;
-                continue;
+
+            // Old format: kb_layout: us,ru / kb_variant: ,phonetic
+            if let Some(val) = trimmed.strip_prefix("kb_layout:") {
+                layout_str = val.trim().to_string();
             }
-            if in_keyboard && (trimmed.starts_with("Mouse") || trimmed.starts_with("Touchpad")) {
-                break;
+            if let Some(val) = trimmed.strip_prefix("kb_variant:") {
+                variant_str = val.trim().to_string();
             }
-            if in_keyboard {
-                if let Some(val) = trimmed.strip_prefix("kb_layout:") {
-                    layout_str = val.trim().to_string();
+
+            // New format (Hyprland 0.54+): rules: r "", m "", l "us", v "", o ""
+            // After trim: the 'l' and '"us"' are separate tokens
+            if trimmed.starts_with("rules:") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                let mut i = 0;
+                while i < parts.len() {
+                    match parts[i] {
+                        "l" if i + 1 < parts.len() => {
+                            // Next token is the quoted layout: "us" or "us,ru"
+                            layout_str = parts[i + 1]
+                                .trim_matches(|c: char| c == '"' || c == ',')
+                                .to_string();
+                            i += 1;
+                        }
+                        "v" if i + 1 < parts.len() => {
+                            let v = parts[i + 1]
+                                .trim_matches(|c: char| c == '"' || c == ',')
+                                .to_string();
+                            if !v.is_empty() {
+                                variant_str = v;
+                            }
+                            i += 1;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
                 }
-                if let Some(val) = trimmed.strip_prefix("kb_variant:") {
-                    variant_str = val.trim().to_string();
-                }
+            }
+
+            // active keymap: English (US) — display name
+            if let Some(val) = trimmed.strip_prefix("active keymap:") {
+                keymap_str = val.trim().to_string();
             }
         }
 
@@ -34,21 +62,24 @@ impl HyprBackend {
 
         let layouts: Vec<&str> = layout_str.split(',').collect();
         let variants: Vec<&str> = variant_str.split(',').collect();
+        let keymaps: Vec<&str> = keymap_str.split(',').collect();
 
         Some(
             layouts
                 .into_iter()
                 .enumerate()
                 .map(|(i, name)| {
+                    let name = name.trim();
                     let variant = variants
                         .get(i)
                         .filter(|v| !v.is_empty())
-                        .map(|v| v.to_string());
+                        .map(|v| v.trim().to_string());
+                    let display_name = keymaps.get(i).map(|k| k.trim().to_string());
                     KeyboardLayout {
                         index: i as u32,
                         name: name.to_string(),
                         variant,
-                        display_name: None,
+                        display_name,
                     }
                 })
                 .collect(),
