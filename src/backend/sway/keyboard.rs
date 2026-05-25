@@ -43,7 +43,7 @@ impl SwayBackend {
                         .unwrap_or(false)
                 })
                 .find(|k| {
-                    phys_id.as_ref().map_or(true, |id| {
+                    phys_id.as_ref().is_none_or(|id| {
                         k.get("identifier")
                             .and_then(|i| i.as_str())
                             .map(|i| i == *id)
@@ -102,7 +102,7 @@ impl SwayBackend {
         layouts
             .into_iter()
             .find(|l| l.index == active_index)
-            .or_else(|| {
+            .or({
                 // Fallback: return first layout if active index doesn't match
                 None
             })

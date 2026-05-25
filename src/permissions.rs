@@ -76,7 +76,7 @@ impl Permissions {
         Self {
             inner: Arc::new(PermissionsInner {
                 default: PermissionEntry {
-                    allow: vec!["*".to_string()],
+                    allow: vec!["*".to_string(), "process.start".to_string()],
                     deny: vec![],
                 },
                 permissions: HashMap::new(),
