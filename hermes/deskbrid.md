@@ -3,7 +3,7 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v0.8.0)
+# Deskbrid Desktop Control (v0.10.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
@@ -61,17 +61,17 @@ pub async fn connect_a11y() -> anyhow::Result<Connection> {
 
 **Pitfall:** If `connect_a11y()` creates a new `Connection::session()` + `GetAddress` + `Builder::address().build()` on every call, it leaks DBus connections. Always cache — zbus `Connection` is cheap to clone.
 
-## Keyboard Layout Management (v0.8.0)
+## Keyboard Layout Management (v0.10.0)
 
 Five actions for cross-desktop keyboard layout management:
 
 | Action | Protocol String | Description |
 |--------|----------------|-------------|
-| `InputListLayouts` | `input.layouts.list` | List all configured keyboard layouts |
-| `InputGetLayout` | `input.layout.get` | Get active layout |
-| `InputSetLayout` | `input.layout.set` | Switch to a layout by index or name |
-| `InputAddLayout` | `input.layout.add` | Add a new layout |
-| `InputRemoveLayout` | `input.layout.remove` | Remove a layout by index |
+| `InputListLayouts` | `input.list_layouts` | List all configured keyboard layouts |
+| `InputGetLayout` | `input.get_layout` | Get active layout |
+| `InputSetLayout` | `input.set_layout` | Switch to a layout by index or name |
+| `InputAddLayout` | `input.add_layout` | Add a new layout |
+| `InputRemoveLayout` | `input.remove_layout` | Remove a layout by index |
 
 **Response type** — `KeyboardLayout`:
 ```rust
@@ -90,6 +90,8 @@ pub struct KeyboardLayout {
 | **GNOME** | `gsettings org.gnome.desktop.input-sources` | ✅ | ✅ | ✅ (by index) | ✅ | ✅ |
 | **X11** | `setxkbmap -query/-layout/-variant` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Hyprland** | `hyprctl devices` + `hyprctl keyword` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Sway** | `swaymsg -t get_inputs` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Labwc** | XKB_DEFAULT_LAYOUT env file | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Other | Trait defaults | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Implementation files:**
@@ -339,16 +341,16 @@ See `templates/waybar-top-only.jsonc` and `templates/waybar-top-only.css` for a 
 
 ## Quick Test
 
-### Keyboard Layout Management (v0.8.0)
+### Keyboard Layout Management (v0.10.0)
 ```bash
 # List layouts
-echo '{"type":"input.layouts.list","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"input.list_layouts","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 
 # Switch layout by index
-echo '{"type":"input.layout.set","id":"2","index":1}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"input.set_layout","id":"2","index":1}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 
 # Add a layout
-echo '{"type":"input.layout.add","id":"3","name":"ru"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"input.add_layout","id":"3","name":"ru"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
 ```
 
 ### One-command setup (v0.4.1+)
