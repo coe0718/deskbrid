@@ -280,19 +280,18 @@ footer a:hover{color:var(--accent-light)}
 </nav>
 
 <section class="hero">
-  <div class="hero-badge">🖥️ v0.8.0 — 85 MCP tools · Hermes plugin · 9 backends · AT-SPI2</div>
+  <div class="hero-badge">🖥️ v0.10.0 — 9 backends · Sway + Labwc + Hyprland verified · Real hardware tested</div>
   <h1>
     The <span class="gradient-text">Linux Desktop HAL</span><br>
     for AI Agents
   </h1>
   <p>
     Deskbrid is the hardware abstraction layer your AI agents are missing.
-    Unix socket, MCP server, 85 tools, nine desktop backends.
-    Native Hermes Agent plugin with bundled skill.
-    Also Claude Code, Codex, Cursor — any MCP client.
+    Unix socket daemon + MCP server, nine desktop backends, auto-detection at startup.
+    Tested on real hardware — not VMs, not headless CI. If a 2014 Haswell laptop can run it, your desktop can too.
   </p>
   <div class="hero-actions">
-    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.8.0</a>
+    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v0.10.0</a>
     <a href="https://github.com/coe0718/deskbrid" class="btn-secondary">View on GitHub →</a>
   </div>
 
@@ -308,16 +307,16 @@ footer a:hover{color:var(--accent-light)}
       <span class="cm"># Unix socket daemon + MCP server — talk to it from any AI tool</span><br>
       <br>
       <span class="prompt">$</span> deskbrid daemon --mcp-port 9001 <span class="cm"># socket + TCP</span><br>
-      <span class="ok">  ← daemon ready · GNOME backend loaded</span><br>
+      <span class="ok">  ← daemon ready · Sway backend loaded (auto-detected)</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"a11y.tree","id":"r1"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
-      <span class="ok">  ← 142 accessible elements · tree depth 5</span><br>
+      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.list","id":"r1"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
+      <span class="ok">  ← 4 windows · Sway 1.11 · Wayland</span><br>
       <br>
-      <span class="prompt">$</span> deskbrid mcp <span class="cm"># 85-tool MCP server for Hermes Agent, Claude Code, Cursor, Codex</span><br>
-      <span class="ok">  ← MCP server ready on stdin/stdout</span><br>
+      <span class="prompt">$</span> deskbrid mcp <span class="cm"># MCP server for Hermes Agent, Claude Code, Cursor, Codex</span><br>
+      <span class="ok">  ← MCP server ready on stdin/stdout · 9 backends available</span><br>
       <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"files.read","id":"r4","path":"/etc/hostname"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
-      <span class="ok">  ← read 42 bytes from /etc/hostname</span>
+      <span class="prompt">$</span> deskbrid health <span class="cm"># verify dependencies in one shot</span><br>
+      <span class="ok">  ← all deps OK · mako notifications · uinput ready</span>
     </div>
   </div>
 </section>
@@ -398,32 +397,32 @@ footer a:hover{color:var(--accent-light)}
 <section class="section" style="padding-top:40px">
   <div class="section-inner">
     <h2><span class="gradient-text">Backend</span> Support</h2>
-    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:8px">Auto-detected at startup — no config needed</p>
+    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:8px">Auto-detected at startup — no config needed. Verified on real hardware.</p>
     <div class="backend-grid">
       <div class="backend-card reveal">
         <div class="icon">🐚</div>
         <h4>GNOME 46+</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">🌀</div>
         <h4>Hyprland</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified · 31/33</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">💜</div>
         <h4>KDE Plasma 6</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">🚀</div>
         <h4>COSMIC</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified · 31/33</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">🌊</div>
         <h4>Sway</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified · 33/33 🏆</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">📜</div>
@@ -438,7 +437,7 @@ footer a:hover{color:var(--accent-light)}
       <div class="backend-card reveal">
         <div class="icon">🧱</div>
         <h4>Labwc</h4>
-        <div class="status ok">✅ Supported</div>
+        <div class="status ok">✅ Verified · 26/33</div>
       </div>
       <div class="backend-card reveal">
         <div class="icon">🖥️</div>
@@ -446,6 +445,31 @@ footer a:hover{color:var(--accent-light)}
         <div class="status ok">✅ Supported</div>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:40px;padding-bottom:40px">
+  <div class="section-inner" style="max-width:900px">
+    <h2>Tested on <span class="gradient-text">real hardware</span></h2>
+    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:32px">No VMs. No headless CI. No fake green checkmarks.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+      <div class="feature-card reveal" style="text-align:center">
+        <span class="icon">🐢</span>
+        <h3>Turtle</h3>
+        <p style="font-size:0.85rem">2014 Haswell laptop — i3-4010U, 4GB RAM, Intel HD 4400, 465GB spinning rust, dead battery, busted keyboard. Runs 6 DEs.</p>
+      </div>
+      <div class="feature-card reveal" style="text-align:center">
+        <span class="icon">✅</span>
+        <h3>6 DEs Verified</h3>
+        <p style="font-size:0.85rem">GNOME, KDE, Hyprland, COSMIC, Sway, Labwc — all tested live via SSH. Sway scored a perfect 33/33.</p>
+      </div>
+      <div class="feature-card reveal" style="text-align:center">
+        <span class="icon">📊</span>
+        <h3>Full Matrix</h3>
+        <p style="font-size:0.85rem">Every action, every DE, every result documented. <a href="https://github.com/coe0718/deskbrid/blob/main/docs/DE_TEST_MATRIX.md" style="color:var(--accent-light)">DE_TEST_MATRIX.md</a> — no guessing, no lies.</p>
+      </div>
+    </div>
+    <p style="text-align:center;color:var(--text-muted);font-size:0.9rem;margin-top:24px;font-style:italic">If this laptop can run it, your desktop can too.</p>
   </div>
 </section>
 
@@ -459,7 +483,7 @@ footer a:hover{color:var(--accent-light)}
       </div>
       <div class="install-cmd reveal">
         <div class="comment"># Download binary directly</div>
-        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.8.0/deskbrid-x86_64-unknown-linux-gnu.tar.gz && tar xzf deskbrid-x86_64-unknown-linux-gnu.tar.gz && chmod +x deskbrid
+        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.10.0/deskbrid-x86_64-unknown-linux-gnu.tar.gz && tar xzf deskbrid-x86_64-unknown-linux-gnu.tar.gz && chmod +x deskbrid
       </div>
       <div class="install-cmd reveal">
         <div class="comment"># Or build from source</div>
