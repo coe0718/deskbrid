@@ -65,3 +65,42 @@ pub async fn check_clipboard_tools() -> serde_json::Value {
         serde_json::json!({"ok": false, "details": format!("missing: {}", missing.join(", "))})
     }
 }
+
+pub async fn check_python_gi() -> serde_json::Value {
+    match Command::new("python3")
+        .args(["-c", "from gi.repository import GLib, Gio"])
+        .output()
+        .await
+    {
+        Ok(out) if out.status.success() => {
+            serde_json::json!({"ok": true, "details": "python3 gi repository bindings present"})
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            serde_json::json!({"ok": false, "details": stderr.trim().to_string()})
+        }
+        Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
+    }
+}
+
+pub async fn check_gstreamer_pipewire() -> serde_json::Value {
+    match Command::new("gst-inspect-1.0")
+        .arg("pipewiresrc")
+        .output()
+        .await
+    {
+        Ok(out) if out.status.success() => {
+            serde_json::json!({"ok": true, "details": "pipewiresrc plugin present"})
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let details = if stderr.trim().is_empty() {
+                "pipewiresrc plugin missing".to_string()
+            } else {
+                stderr.trim().to_string()
+            };
+            serde_json::json!({"ok": false, "details": details})
+        }
+        Err(e) => serde_json::json!({"ok": false, "details": format!("check failed: {}", e)}),
+    }
+}

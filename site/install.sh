@@ -113,7 +113,7 @@ apt_pkgs_common="socat libnotify-bin"
 pacman_pkgs_common="socat libnotify"
 
 declare -A apt_map=(
-  ["gnome"]="grim wl-clipboard"
+  ["gnome"]="grim wl-clipboard python3-gi gstreamer1.0-tools gstreamer1.0-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
   ["x11"]="xdotool wmctrl xclip imagemagick"
@@ -121,7 +121,7 @@ declare -A apt_map=(
 )
 
 declare -A pacman_map=(
-  ["gnome"]="grim wl-clipboard"
+  ["gnome"]="grim wl-clipboard python-gobject gstreamer gst-plugin-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
   ["x11"]="xdotool wmctrl xclip imagemagick"
@@ -136,6 +136,18 @@ check_dep() {
   fi
 }
 
+check_python_gi() {
+  if ! python3 -c 'from gi.repository import GLib, Gio' &>/dev/null; then
+    need_install+=("python3-gi")
+  fi
+}
+
+check_gstreamer_pipewire() {
+  if ! command -v gst-inspect-1.0 &>/dev/null || ! gst-inspect-1.0 pipewiresrc &>/dev/null; then
+    need_install+=("gstreamer-pipewire")
+  fi
+}
+
 # check specific tools, not just package names
 check_dep "socat"
 check_dep "notify-send"
@@ -143,6 +155,10 @@ check_dep "notify-send"
 case "$DE" in
   gnome)
     check_dep "grim"
+    check_dep "gst-launch-1.0"
+    check_dep "python3"
+    check_python_gi
+    check_gstreamer_pipewire
     check_dep "wl-copy"
     ;;
   hyprland)

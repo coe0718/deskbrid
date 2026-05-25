@@ -7,12 +7,19 @@ Deskbrid auto-detects your desktop environment and loads the matching backend. D
 | Dependency | Package | Purpose |
 |---|---|---|
 | GNOME Shell Extension | `extensions/deskbrid@deskbrid/` (in-repo) | Window listing, focus, workspace control |
-| `grim` | `grim` | Wayland screenshots |
+| `grim` | `grim` | Screenshot fast path where available |
+| `gst-launch-1.0` | `gstreamer1.0-tools` / `gstreamer` | Capture frames from Mutter PipeWire streams |
+| `pipewiresrc` | `gstreamer1.0-pipewire` / `gst-plugin-pipewire` | GStreamer PipeWire source plugin |
+| Python GI | `python3-gi` / `python-gobject` | XDG Desktop Portal screenshot fallback |
 | `wl-paste` / `wl-copy` | `wl-clipboard` | Clipboard read/write |
 | `ydotool` | `ydotool` | Mouse control (move, click, scroll) |
 
 ```bash
-sudo apt install -y grim wl-clipboard ydotool
+# Debian/Ubuntu
+sudo apt install -y grim wl-clipboard ydotool python3-gi gstreamer1.0-tools gstreamer1.0-pipewire xdg-desktop-portal xdg-desktop-portal-gnome
+
+# Arch
+sudo pacman -S grim wl-clipboard ydotool python-gobject gstreamer gst-plugin-pipewire xdg-desktop-portal xdg-desktop-portal-gnome
 
 # Install and enable the GNOME Shell extension
 cp -r extensions/deskbrid@deskbrid ~/.local/share/gnome-shell/extensions/

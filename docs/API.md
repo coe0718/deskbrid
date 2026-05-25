@@ -713,7 +713,7 @@ Optional params:
 }
 ```
 
-The screenshot is saved to `/tmp/deskbrid/screenshot_<unix_timestamp>.png`. The daemon tries `gnome-screenshot` first, then falls back to the XDG Desktop Portal Python script.
+The screenshot is saved under `/tmp`. Backend-specific capture paths may use compositor tools, Mutter PipeWire streams, or the XDG Desktop Portal fallback.
 
 ---
 

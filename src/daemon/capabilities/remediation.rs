@@ -4,6 +4,9 @@ pub fn health_remediation() -> serde_json::Value {
         "uinput": "Configure udev: KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\" and add your user to input group.",
         "gnome-extension": "Install/enable deskbrid GNOME extension, then restart shell/session.",
         "grim": "Install grim package for screenshots.",
+        "gst_launch": "Install GStreamer tools so gst-launch-1.0 is available.",
+        "gstreamer_pipewire": "Install the GStreamer PipeWire plugin that provides pipewiresrc.",
+        "python_gi": "Install Python GObject bindings for the XDG portal screenshot fallback.",
         "spectacle": "Install spectacle package for KDE screenshots."
     })
 }

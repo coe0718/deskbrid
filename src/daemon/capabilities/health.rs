@@ -1,4 +1,7 @@
-use super::checks::{check_clipboard_tools, check_cmd, check_in_path, check_process, check_uinput};
+use super::checks::{
+    check_clipboard_tools, check_cmd, check_gstreamer_pipewire, check_in_path, check_process,
+    check_python_gi, check_uinput,
+};
 
 pub(super) async fn insert_deps(
     desktop: &str,
@@ -57,6 +60,15 @@ async fn insert_gnome_deps(deps: &mut serde_json::Map<String, serde_json::Value>
         .await,
     );
     deps.insert("grim".to_string(), check_in_path("grim").await);
+    deps.insert(
+        "gst_launch".to_string(),
+        check_in_path("gst-launch-1.0").await,
+    );
+    deps.insert(
+        "gstreamer_pipewire".to_string(),
+        check_gstreamer_pipewire().await,
+    );
+    deps.insert("python_gi".to_string(), check_python_gi().await);
     deps.insert("wl_clipboard".to_string(), check_clipboard_tools().await);
     deps.insert("xrandr".to_string(), check_in_path("xrandr").await);
     deps.insert("wlr-randr".to_string(), check_in_path("wlr-randr").await);

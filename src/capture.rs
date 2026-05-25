@@ -5,6 +5,8 @@ use anyhow::{Context, Result, anyhow};
 use std::path::PathBuf;
 use tokio::process::Command;
 
+const PORTAL_SCREENSHOT_SCRIPT: &str = include_str!("../scripts/screenshot_portal.py");
+
 pub async fn fallback_screenshot(_monitor: Option<u32>) -> Result<String> {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
@@ -27,20 +29,16 @@ pub async fn fallback_screenshot(_monitor: Option<u32>) -> Result<String> {
     }
 
     // Fallback: XDG Desktop Portal
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/coemedia".to_string());
-    let script_path = PathBuf::from(home).join("projects/deskbrid/scripts/screenshot_portal.py");
-
     let portal = Command::new("python3")
-        .arg(&script_path)
+        .arg("-c")
+        .arg(PORTAL_SCREENSHOT_SCRIPT)
+        .arg(&path)
         .output()
         .await
         .context("running portal screenshot script")?;
 
-    if portal.status.success() {
-        let portal_path = String::from_utf8_lossy(&portal.stdout).trim().to_string();
-        if !portal_path.is_empty() {
-            return Ok(portal_path);
-        }
+    if portal.status.success() && path.exists() {
+        return Ok(path.display().to_string());
     }
 
     Err(anyhow!(

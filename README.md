@@ -101,7 +101,7 @@ sudo cp target/release/deskbrid /usr/local/bin/
 
 **GNOME:**
 ```bash
-sudo apt install -y grim wl-clipboard
+sudo apt install -y grim wl-clipboard python3-gi gstreamer1.0-tools gstreamer1.0-pipewire
 deskbrid setup
 ```
 
