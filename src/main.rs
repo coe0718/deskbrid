@@ -10,7 +10,22 @@ fn main() -> anyhow::Result<()> {
             std::env::set_var("DESKBRID_LOG", "debug");
         }
     }
+    ensure_xdg_runtime_dir();
     runtime(args)
+}
+
+fn ensure_xdg_runtime_dir() {
+    if std::env::var_os("XDG_RUNTIME_DIR").is_some() {
+        return;
+    }
+
+    let runtime_dir = format!("/run/user/{}", unsafe { libc::geteuid() });
+    if std::path::Path::new(&runtime_dir).is_dir() {
+        // SAFETY: called in single-threaded fn main before tokio runtime starts
+        unsafe {
+            std::env::set_var("XDG_RUNTIME_DIR", runtime_dir);
+        }
+    }
 }
 
 #[tokio::main]
@@ -20,6 +35,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::try_from_env("DESKBRID_LOG")
                 .unwrap_or_else(|_| "warn".into()),
         )
+        .with_writer(std::io::stderr)
         .init();
 
     let request_options = deskbrid::protocol::RequestOptions {
