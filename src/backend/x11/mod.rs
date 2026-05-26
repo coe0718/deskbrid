@@ -44,7 +44,9 @@ impl X11Backend {
         if std::env::var("DISPLAY").is_err() {
             // SAFETY: Setting DISPLAY for child process environment.
             // :0 is the standard first X11 display and safe to assume.
-            unsafe { std::env::set_var("DISPLAY", ":0"); }
+            unsafe {
+                std::env::set_var("DISPLAY", ":0");
+            }
         }
         if std::env::var("XAUTHORITY").is_err() {
             let xauthority_path = std::env::var("HOME")
@@ -59,25 +61,24 @@ impl X11Backend {
                 }
             }
             // Fallback: scan /tmp/xauth_* for files owned by current user
-            if found.is_none() {
-                if let Ok(entries) = std::fs::read_dir("/tmp") {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                        if name.starts_with("xauth_") {
-                            found = Some(path);
-                            break;
-                        }
+            if found.is_none()
+                && let Ok(entries) = std::fs::read_dir("/tmp")
+            {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if name.starts_with("xauth_") {
+                        found = Some(path);
+                        break;
                     }
                 }
             }
             if let Some(auth_path) = found {
-                tracing::info!(
-                    "Auto-detected XAUTHORITY={}",
-                    auth_path.display()
-                );
+                tracing::info!("Auto-detected XAUTHORITY={}", auth_path.display());
                 // SAFETY: Setting XAUTHORITY for child X11 tools (xdotool, wmctrl, etc.).
-                unsafe { std::env::set_var("XAUTHORITY", auth_path); }
+                unsafe {
+                    std::env::set_var("XAUTHORITY", auth_path);
+                }
             } else {
                 tracing::warn!(
                     "No XAUTHORITY found — X11 tools (xdotool, wmctrl) will fail. \
