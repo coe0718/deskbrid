@@ -128,6 +128,7 @@ async fn process_running(name: &str) -> bool {
 #[derive(Clone, Copy)]
 enum DesktopEnv {
     Cosmic,
+    #[allow(dead_code)]
     Enlightenment,
     Gnome,
     Hyprland,
