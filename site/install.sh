@@ -116,7 +116,7 @@ declare -A apt_map=(
   ["gnome"]="grim wl-clipboard python3-gi gstreamer1.0-tools gstreamer1.0-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
-  ["x11"]="xdotool wmctrl xclip imagemagick"
+  ["x11"]="xdotool wmctrl xclip imagemagick xprintidle"
   ["wayland-generic"]="grim wl-clipboard"
 )
 
@@ -124,7 +124,7 @@ declare -A pacman_map=(
   ["gnome"]="grim wl-clipboard python-gobject gstreamer gst-plugin-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
-  ["x11"]="xdotool wmctrl xclip imagemagick"
+  ["x11"]="xdotool wmctrl xclip imagemagick xprintidle"
   ["wayland-generic"]="grim wl-clipboard"
 )
 
@@ -178,6 +178,7 @@ case "$DE" in
     check_dep "wmctrl"
     check_dep "xclip"
     check_dep "import"
+    check_dep "xprintidle"
     ;;
   wayland-generic)
     check_dep "grim"

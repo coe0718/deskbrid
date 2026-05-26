@@ -87,6 +87,7 @@ async fn detect_desktop() -> DesktopEnv {
             || lower.contains("xfce")
             || lower.contains("mate")
             || lower.contains("cinnamon")
+            || lower.contains("enlightenment")
         {
             return DesktopEnv::X11;
         }
@@ -101,6 +102,7 @@ async fn detect_desktop() -> DesktopEnv {
         ("labwc", DesktopEnv::Labwc),
         ("kwin_wayland", DesktopEnv::Kde),
         ("cosmic-comp", DesktopEnv::Cosmic),
+        ("enlightenment", DesktopEnv::X11),
     ] {
         if process_running(process).await {
             return desktop_env;
@@ -126,6 +128,7 @@ async fn process_running(name: &str) -> bool {
 #[derive(Clone, Copy)]
 enum DesktopEnv {
     Cosmic,
+    Enlightenment,
     Gnome,
     Hyprland,
     Kde,

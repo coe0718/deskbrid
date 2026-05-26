@@ -1,75 +1,75 @@
 # DE Test Matrix
 
-Deskbrid protocol action support across 11 desktop environments.
+Deskbrid protocol action support across 14 desktop environments.
 
 > **Legend:** ✅ = Working &nbsp; ❌ = Broken &nbsp; ⚠️ = Partial &nbsp; 🔲 = Untested &nbsp; ⛔ = No Protocol Surface
 >
-> **KDE**, **COSMIC**, **GNOME**, **Hyprland**, **Sway**, and **Labwc** tested on Turtle (EndeavourOS, real hardware). All other DEs have backend code but **zero runtime verification** — they're 🔲 until a daemon is started on a live session.
+> **KDE**, **COSMIC**, **GNOME**, **Hyprland**, **Sway**, **Labwc**, and **XFCE** tested on Turtle (EndeavourOS, real hardware). **Enlightenment**, **Budgie**, **Niri**, **Wayfire**, and **X11** have backend code but **zero runtime verification** — they're 🔲 until a daemon is started on a live session.
 
 ---
 
 ## Windows
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `windows.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `windows.focus` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `windows.get` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `windows.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `windows.minimize` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | 🔲 |
-| `windows.maximize` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `windows.move_resize` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | ⛔ | 🔲 |
-| `windows.tile` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | ⛔ | 🔲 |
-| `windows.activate_or_launch` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⚠️ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `windows.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.focus` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.get` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.minimize` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.maximize` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.move_resize` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | ⛔ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.tile` | ✅ | ✅ | ✅ | ⛔ | ✅ | 🔲 | 🔲 | ⛔ | ✅ | 🔲 | 🔲 | 🔲 |
+| `windows.activate_or_launch` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⚠️ | ✅ | 🔲 | 🔲 | 🔲 |
 
 ## Workspaces
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `workspaces.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `workspaces.switch` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `workspaces.move_window` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `workspaces.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `workspaces.switch` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `workspaces.move_window` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | ✅ | 🔲 | 🔲 | 🔲 |
 
 ## Input
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.mouse` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.mouse.drag` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.list_layouts` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.get_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.set_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.add_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `input.remove_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `input.keyboard` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.mouse` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.mouse.drag` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.list_layouts` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.get_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.set_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.add_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `input.remove_layout` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
 
 ## Monitor
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `monitor.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `monitor.set_primary` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | 🔲 |
-| `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `monitor.set_scale` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `monitor.set_rotation` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `monitor.enable` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `monitor.disable` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `monitor.list` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.set_primary` | ✅ | ❌ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ⛔ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.set_resolution` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.set_scale` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.set_rotation` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.enable` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `monitor.disable` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
 
 ## System
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `system.info` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `system.idle` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `system.power` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `system.battery` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `system.info` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `system.idle` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `system.power` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `system.battery` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
 
 ## Notifications
 
-| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | X11 |
-|---|---|---|---|---|---|---|---|---|---|
-| `notification.send` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
-| `notification.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | 🔲 |
+| Action | GNOME | Hyprland | KDE | COSMIC | Sway | Niri | Wayfire | Labwc | XFCE | Enlightenment | Budgie | X11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `notification.send` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ✅ | 🔲 | 🔲 | 🔲 |
+| `notification.close` | ✅ | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 | ✅ | ⛔ | 🔲 | 🔲 | 🔲 |
 
 ---
 
@@ -110,13 +110,16 @@ These actions don't touch the `DesktopBackend` trait. They should work on any DE
 | **Hyprland** | `windows.minimize` ❌, `monitor.set_primary` ❌ | **Tested May 2026** on Hyprland 0.54.3 (Turtle). 31/33 ✅. `windows.minimize`: compositor limitation. `monitor.set_primary`: compositor limitation. Notifications ✅ via mako. Keyboard layouts all ✅. |
 | **Sway** | No known gaps | **Tested May 2026** on Sway 1.11 (Turtle). 33/33 ✅. Notifications via mako, keyboard layouts via swaymsg. |
 | **Labwc** | `windows.move_resize` ⛔, `windows.minimize` ⛔, `windows.tile` ⛔, `monitor.set_primary` ⛔, `workspaces.move_window` ⛔ | **Tested May 2026** on Labwc 0.9.7 (Turtle). 26/33 ✅. `move_resize`/`minimize`/`tile`: NO_PROTOCOL_SURFACE — wlrctl doesn't expose these, and labwc has no IPC for window geometry or minimize. `set_primary`: NO_PROTOCOL_SURFACE — wlr-randr has no --primary flag, no protocol. `workspace.move_window`: NO_PROTOCOL_SURFACE — no Wayland protocol exists, no Labwc IPC. Notifications: mako daemon installed, working. Workspaces list/switch via ext_workspace_v1 protocol client. Keyboard layouts via XKB_DEFAULT_LAYOUT env file. `set_resolution`: fixed with wlr-randr fallback. `activate_or_launch`: works via daemon-level spawn. |
+| **XFCE** | `notification.close` ⛔ | **Tested May 2026** on XFCE 4.20 (Turtle). 32/33 ✅. `notification.close`: notify-send is fire-and-forget on X11 — no protocol surface for closing. All window, workspace, input, monitor, system actions pass. Required xprintidle (system.idle) — installed post-test. |
+| **Enlightenment** | 🔲 Untested | Own compositor (not wlroots, not mutter, not kwin). Wayland with X11 compatibility layer. Unique enough to expose assumptions in every backend implementation. |
+| **Budgie** | 🔲 Untested | Uses GNOME stack but Budgie WM (not Mutter). X11-based. tests the X11 backend with a different window manager approach than XFCE/XFWM4. |
 | **Niri** | 🔲 Untested | Backend exists — scroll-based tiling WM. |
 | **Wayfire** | 🔲 Untested | Backend exists with workspace/window stubs. |
 | **X11** | 🔲 Untested | Full backend in `src/backend/x11/` — needs live session verification. |
 
 ## Architecture
 
-- **DE-dependent actions** (Windows, Workspaces, Input, Monitor, Notifications, System) route through the `DesktopBackend` trait — 9 backends, each with 44+ mandatory methods
+- **DE-dependent actions** (Windows, Workspaces, Input, Monitor, Notifications, System) route through the `DesktopBackend` trait — 12 backends, each with 44+ mandatory methods
 - **DE-independent actions** (Files, Process, Terminal, etc.) use D-Bus, sysfs, systemd, AT-SPI2, CDP, or direct OS calls — should work anywhere the daemon runs
 - `windows.tile` composites `system_info()` + `window_move_resize()` — move_resize gaps cascade to tile
 - `windows.activate_or_launch` composites `windows_list()` + `window_focus()` + daemon spawn
@@ -135,7 +138,7 @@ All verified scores are tested on real hardware — no headless false negatives.
 | **Disk** | 465 GB HDD |
 | **Network** | Realtek RTL810xE 100Mbps Ethernet |
 | **OS** | EndeavourOS (Arch) |
-| **DEs** | GNOME 46, KDE Plasma 6.6.4, Hyprland 0.54.3, COSMIC, Sway 1.11, Labwc 0.9.7 |
+| **DEs** | GNOME 46, KDE Plasma 6.6.4, Hyprland 0.54.3, COSMIC, Sway 1.11, Labwc 0.9.7, XFCE 4.20, Enlightenment 🔲, Budgie 🔲 |
 | **SDDM** | Auto-login, session switched remotely via SSH |
 | **Battery** | Dead (must be plugged in) |
 
