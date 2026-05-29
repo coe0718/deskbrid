@@ -49,6 +49,7 @@ pub(crate) mod terminal_create;
 pub(crate) mod terminal_helpers;
 #[cfg(test)]
 mod tests;
+mod update_check;
 mod wait;
 pub(crate) mod wait_checks;
 pub(crate) mod wait_params;
@@ -151,6 +152,9 @@ pub async fn run(no_dashboard: bool) -> anyhow::Result<()> {
             );
         }
     }
+
+    // Start periodic update checker — polls GitHub for new releases
+    update_check::spawn_update_checker(Arc::clone(&state));
 
     loop {
         match listener.accept().await {

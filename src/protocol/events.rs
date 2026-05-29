@@ -107,4 +107,9 @@ pub enum DeskbridEvent {
         duration_secs: u64,
         output_path: Option<String>,
     },
+    #[serde(rename = "update.available")]
+    UpdateAvailable {
+        current_version: String,
+        latest_version: String,
+    },
 }
