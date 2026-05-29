@@ -71,6 +71,10 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             action_id: required_non_empty_string(raw, "action_id")?,
             reason: raw["reason"].as_str().map(String::from),
         },
+        "system.update" => Action::SystemUpdate {
+            check: raw["check"].as_bool().unwrap_or(false),
+            force: raw["force"].as_bool().unwrap_or(false),
+        },
         "service.status" => Action::ServiceStatus {
             name: required_non_empty_string(raw, "name")?,
         },

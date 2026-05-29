@@ -178,9 +178,8 @@ pub async fn execute_action(
         | SystemThermalGet
         | SystemCpuFrequency
         | SystemCpuGovernor
-        | SystemCpuSetGovernor { .. } => {
-            execute_system::execute_system(action, backend, state).await?
-        }
+        | SystemCpuSetGovernor { .. }
+        | SystemUpdate { .. } => execute_system::execute_system(action, backend, state).await?,
 
         WindowsList
         | WindowsFocus(..)

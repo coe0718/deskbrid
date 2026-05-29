@@ -89,10 +89,13 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
         }
         Action::SystemElevate { action_id, reason } => {
             let mut obj = json!({"type": "system.elevate", "id": id, "action_id": action_id});
-            if let Some(reason) = reason {
-                obj["reason"] = json!(reason);
+            if let Some(r) = reason {
+                obj["reason"] = json!(r);
             }
             obj
+        }
+        Action::SystemUpdate { check, force } => {
+            json!({"type": "system.update", "id": id, "check": check, "force": force})
         }
         Action::ServiceStatus { name } => {
             json!({"type": "service.status", "id": id, "name": name})

@@ -474,3 +474,11 @@ class SyncActionsMixin:
 
     def audio_set_default(self, target: str = "sink", name: str = "") -> dict[str, Any]:
         return self._loop.submit(self._client.audio_set_default(target, name)).result()
+
+    def update_check(self) -> dict[str, Any]:
+        """Check for Deskbrid updates without installing."""
+        return self._loop.submit(self._client.update_check()).result()
+
+    def self_update(self, force: bool = False) -> dict[str, Any]:
+        """Install the latest Deskbrid release. Requires explicit system.update permission."""
+        return self._loop.submit(self._client.self_update(force)).result()

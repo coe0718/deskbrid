@@ -33,7 +33,11 @@ pub fn into_apps_action(cmd: Command) -> anyhow::Result<Action> {
             AudioCmd::SetVolume { target, id, volume } => {
                 Action::AudioSetVolume { target, id, volume }
             }
-            AudioCmd::Mute { target, id, mute } => Action::AudioMute { target, id, mute },
+            AudioCmd::Mute { target, id, mute } => Action::AudioMute {
+                target,
+                id,
+                mute: parse_bool_arg(&mute)?,
+            },
             AudioCmd::SetDefault { target, name } => Action::AudioSetDefault { target, name },
         },
 
@@ -80,4 +84,12 @@ pub fn into_apps_action(cmd: Command) -> anyhow::Result<Action> {
             std::mem::discriminant(&cmd)
         ),
     })
+}
+
+fn parse_bool_arg(value: &str) -> anyhow::Result<bool> {
+    match value.to_ascii_lowercase().as_str() {
+        "true" | "yes" | "on" | "1" | "mute" => Ok(true),
+        "false" | "no" | "off" | "0" | "unmute" => Ok(false),
+        _ => bail!("expected boolean value (true/false, on/off, 1/0), got '{value}'"),
+    }
 }

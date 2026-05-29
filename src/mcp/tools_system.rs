@@ -46,6 +46,40 @@ macro_rules! tools_system {
         block(&self.rt, do_execute(&self.state, "system.idle", json!({})))
     }
 
+    #[tool(
+        name = "check_update",
+        description = "Check the latest GitHub release without installing it.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn check_update(&self) -> Json<Value> {
+        block(
+            &self.rt,
+            do_execute(&self.state, "system.update", json!({"check": true})),
+        )
+    }
+
+    #[tool(
+        name = "self_update",
+        description = "Download the latest GitHub release, replace the deskbrid binary, and restart the user service if active. High-risk action: requires explicit system.update permission.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn self_update(&self) -> Json<Value> {
+        block(
+            &self.rt,
+            do_execute(&self.state, "system.update", json!({"force": false})),
+        )
+    }
+
 
     #[tool(
         name = "list_processes",

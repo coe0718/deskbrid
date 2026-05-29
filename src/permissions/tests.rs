@@ -59,6 +59,13 @@ fn test_permissions_allow_all() {
             env: None,
         }
     ));
+    assert!(!p.check(
+        2000,
+        &Action::SystemUpdate {
+            check: false,
+            force: false,
+        }
+    ));
 }
 
 #[test]

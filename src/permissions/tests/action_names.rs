@@ -96,4 +96,11 @@ fn test_action_name_mapping() {
         }),
         "system.elevate"
     );
+    assert_eq!(
+        action_name(&Action::SystemUpdate {
+            check: true,
+            force: false,
+        }),
+        "system.update"
+    );
 }

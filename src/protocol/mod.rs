@@ -271,6 +271,10 @@ pub enum Action {
         action_id: String,
         reason: Option<String>,
     },
+    SystemUpdate {
+        check: bool,
+        force: bool,
+    },
 
     // systemd units, journal, and timers
     ServiceStatus {
@@ -664,6 +668,7 @@ impl Action {
             "system.switch_user",
             "system.check_auth",
             "system.elevate",
+            "system.update",
             "service.status",
             "service.start",
             "service.stop",
@@ -729,6 +734,11 @@ impl Action {
             "hotkeys.unregister",
             "audio.list_sinks",
             "audio.set_sink_volume",
+            "audio.list_sources",
+            "audio.get_volume",
+            "audio.set_volume",
+            "audio.mute",
+            "audio.set_default",
             "monitor.list",
             "monitor.set_primary",
             "monitor.set_resolution",
@@ -794,6 +804,7 @@ mod tests {
         assert!(actions.contains(&"monitor.disable"));
         assert!(actions.contains(&"system.inhibit"));
         assert!(actions.contains(&"system.check_auth"));
+        assert!(actions.contains(&"system.update"));
         assert!(actions.contains(&"service.restart"));
         assert!(actions.contains(&"journal.query"));
         assert!(actions.contains(&"timer.start"));
@@ -1091,6 +1102,17 @@ mod tests {
             elevate,
             Action::SystemElevate { action_id, .. }
                 if action_id == "org.deskbrid.system.service-control"
+        ));
+
+        let (_, update) =
+            Action::from_json(r#"{"type":"system.update","id":"x","check":true,"force":false}"#)
+                .unwrap();
+        assert!(matches!(
+            update,
+            Action::SystemUpdate {
+                check: true,
+                force: false,
+            }
         ));
 
         assert!(Action::from_json(r#"{"type":"journal.query","id":"x","priority":8}"#).is_err());

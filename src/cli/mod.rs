@@ -357,6 +357,17 @@ pub enum Command {
     // ─── Clients ────────────────────────────────────────
     #[command(name = "clients")]
     Clients,
+
+    /// Check for updates and self-update the deskbrid binary
+    #[command(name = "update")]
+    Update {
+        /// Only check for updates, don't download
+        #[arg(long)]
+        check: bool,
+        /// Re-download even if same version
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 pub fn parse() -> Args {

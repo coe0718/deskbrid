@@ -48,6 +48,7 @@ it to the completed table below.
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [54. Audio Control](#54-audio-control-pipewire--pulseaudio-d-bus) | Full audio control: list sources, get/set volume, mute/unmute, set default sink/source via pactl | `src/daemon/execute_audio.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [125. Auto-Update](#125-auto-update-with-rollback) | Self-update command: check latest GitHub release, download matching tarball, optional checksum verification, binary backup/replacement, user-service restart | `src/cmd/update/`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -79,14 +80,14 @@ These features exist in the codebase already for reference:
 7. [fanotify (System-Wide File Monitoring)](#7-fanotify-system-wide-file-monitoring)
 8. [eBPF / LSM BPF](#8-ebpf--lsm-bpf)
 9. [✅ Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
-10. [Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
+10. [✅ Desktop Portal Integration (XDG Portals)](#10-desktop-portal-integration-xdg-portals)
 11. [elogind (Non-systemd Systems)](#11-elogind-non-systemd-systems)
 12. [✅ OCR / Text Extraction](#12-ocr--text-extraction)
 13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [✅ MPRIS Media Control](#14-mpris-media-control)
 15. [Drag & Drop](#15-drag--drop)
 16. [✅ Application Menu Catalog](#16-application-menu-catalog)
-17. [Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
+17. [✅ Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
 18. [✅ Clipboard History](#18-clipboard-history)
 19. [✅ Window Tiling Presets](#19-window-tiling-presets)
 20. [✅ Color Picker](#20-color-picker)
@@ -123,7 +124,7 @@ These features exist in the codebase already for reference:
 51. [OpenAPI Schema](#51-openapi--json-schema-export)
 52. [Semantic Screen Indexing](#52-semantic-screen-indexing)
 53. [Wayland Protocols](#53-wayland-protocols-not-yet-wrapped)
-54. [Audio Control (PipeWire)](#54-audio-control-pipewire--pulseaudio-d-bus)
+54. [✅ Audio Control (PipeWire)](#54-audio-control-pipewire--pulseaudio-d-bus)
 55. [GPU Power States](#55-gpu-power-states)
 56. [Battery Thresholds](#56-battery-charge-threshold-management)
 57. [Power Profiles](#57-power-profiles-daemon)
@@ -191,7 +192,7 @@ These features exist in the codebase already for reference:
 120. [Mock Backend](#122-mock-backend-for-agent-testing)
 121. [Plugin Hot-Reload](#123-plugin-hot-reload)
 122. [Graceful Restart](#124-graceful-restart--config-live-reload)
-123. [Auto-Update](#125-auto-update-with-rollback)
+123. [✅ Auto-Update](#125-auto-update-with-rollback)
 124. [Shared Memory](#126-shared-memory--zero-copy-buffer-passing)
 125. [Locale Events](#127-locale--timezone-change-events)
 126. [Filesystem Snapshots](#128-btrfs--zfs-snapshot-integration)
@@ -5919,8 +5920,9 @@ startup, re-hydrate from this file.
 
 ## 125. Auto-Update with Rollback
 
-**What's Missing:** No update mechanism. Users manually download new binaries.
-No checks for updates, no safe rollback.
+**Status:** ✅ Done — *TESTING NEEDED with an actual newer GitHub release and service-managed install*
+
+**What's Missing:** Full automatic crash rollback/history is still future work. The shipped implementation covers check/install with a binary backup (`deskbrid.old`) and user-service restart.
 
 **Implementation:** Built-in update checker with rollback support:
 

@@ -67,6 +67,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,
         cli::Command::Setup => deskbrid::setup::run().await,
+        cli::Command::Update { check, force } => deskbrid::cmd::update::run(check, force).await,
         cli::Command::Mcp => {
             let event_tx = tokio::sync::broadcast::channel(256).0;
             let state = std::sync::Arc::new(deskbrid::DaemonState::new());

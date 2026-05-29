@@ -34,6 +34,7 @@ pub(crate) async fn execute_system(
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,
         SystemCpuSetGovernor { ref governor } => cpu_set_governor(governor).await?,
+        SystemUpdate { check, force } => crate::cmd::update::run_json(check, force).await?,
 
         _ => unreachable!("not a system action"),
     })

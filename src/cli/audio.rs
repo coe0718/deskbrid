@@ -31,8 +31,7 @@ pub enum AudioCmd {
         /// Device ID
         id: u32,
         /// true to mute, false to unmute
-        #[arg(default_missing_value = "true", default_value = "true")]
-        mute: bool,
+        mute: String,
     },
     /// Set default sink or source
     SetDefault {

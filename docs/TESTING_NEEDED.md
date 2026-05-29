@@ -16,17 +16,17 @@ The following features were implemented but **require manual testing on a live d
 - ScreenCast portal stub (requires PipeWire stream handling for full support)
 - **Test on:** Any Wayland DE with `xdg-desktop-portal` installed
 
-### Audio Control (#54) — `src/daemon/audio.rs`
-- Volume get/set via `wpctl`
-- Mute/unmute via `wpctl`
-- Sink/source listing via `pactl`
+### Audio Control (#54) — `src/daemon/execute_audio.rs`
+- Volume get/set via `wpctl`/`pactl`
+- Mute/unmute via `pactl`
+- Sink/source listing and default sink/source via `pactl`
 - **Test on:** Any system with PipeWire + WirePlumber (`pipewire-pulse`)
 
-### Self-Update (#19) — `src/daemon/update.rs`
+### Self-Update (#19 / roadmap #125) — `src/cmd/update/`
 - GitHub release binary download and replacement
 - Check-only mode (`deskbrid update --check`)
-- Binary self-replacement via temp file + rename
-- **Test on:** Any Linux x86_64 with internet access
+- Binary backup to `deskbrid.old`, install replacement, restart `deskbrid.service` if active
+- **Test on:** Any Linux x86_64/aarch64 with internet access and an actual newer GitHub release
 
 ## How to Test
 
@@ -42,10 +42,12 @@ cargo build --release
 ./target/release/deskbrid portal screenshot --interactive
 
 # Audio
-./target/release/deskbrid audio volume get
-./target/release/deskbrid audio volume set --level 50
-./target/release/deskbrid audio mute
-./target/release/deskbrid audio list-sinks
+./target/release/deskbrid audio sinks
+./target/release/deskbrid audio sources
+./target/release/deskbrid audio get-volume sink 0
+./target/release/deskbrid audio set-volume sink 0 0.50
+./target/release/deskbrid audio mute sink 0 true
+./target/release/deskbrid audio set-default sink alsa_output.example
 
 # Self-update
 ./target/release/deskbrid update --check

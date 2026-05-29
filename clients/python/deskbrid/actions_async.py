@@ -563,3 +563,11 @@ class AsyncActionsMixin:
 
     async def audio_set_default(self, target: str = "sink", name: str = "") -> dict[str, Any]:
         return await self._request("audio.set_default", {"target": target, "name": name})
+
+    async def update_check(self) -> dict[str, Any]:
+        """Check for Deskbrid updates without installing."""
+        return await self._request("system.update", {"check": True})
+
+    async def self_update(self, force: bool = False) -> dict[str, Any]:
+        """Install the latest Deskbrid release. Requires explicit system.update permission."""
+        return await self._request("system.update", {"force": force})

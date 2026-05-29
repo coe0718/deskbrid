@@ -76,6 +76,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemSwitchUser { .. } => "system.switch_user",
         Action::SystemCheckAuth { .. } => "system.check_auth",
         Action::SystemElevate { .. } => "system.elevate",
+        Action::SystemUpdate { .. } => "system.update",
         Action::ServiceStatus { .. } => "service.status",
         Action::ServiceStart { .. } => "service.start",
         Action::ServiceStop { .. } => "service.stop",
