@@ -28,6 +28,13 @@ pub fn into_apps_action(cmd: Command) -> anyhow::Result<Action> {
         Command::Audio { cmd } => match cmd {
             AudioCmd::Sinks => Action::AudioListSinks,
             AudioCmd::Volume { sink_id, volume } => Action::AudioSetSinkVolume { sink_id, volume },
+            AudioCmd::Sources => Action::AudioListSources,
+            AudioCmd::GetVolume { target, id } => Action::AudioGetVolume { target, id },
+            AudioCmd::SetVolume { target, id, volume } => {
+                Action::AudioSetVolume { target, id, volume }
+            }
+            AudioCmd::Mute { target, id, mute } => Action::AudioMute { target, id, mute },
+            AudioCmd::SetDefault { target, name } => Action::AudioSetDefault { target, name },
         },
 
         Command::Network { cmd } => match cmd {

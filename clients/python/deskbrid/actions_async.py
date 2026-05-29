@@ -538,3 +538,28 @@ class AsyncActionsMixin:
     async def portal_screencast_stop(self) -> dict[str, Any]:
         return await self._request("portal.screencast_stop")
 
+
+    # ── Audio ────────────────────────────────────────────
+
+    async def audio_list_sinks(self) -> list[dict[str, Any]]:
+        response = await self._request("audio.list_sinks")
+        return list(response.get("sinks", response) if isinstance(response, dict) else response)
+
+    async def audio_list_sources(self) -> list[dict[str, Any]]:
+        response = await self._request("audio.list_sources")
+        return list(response if isinstance(response, list) else response.get("sources", []))
+
+    async def audio_get_volume(self, target: str = "sink", id: int = 0) -> dict[str, Any]:
+        return await self._request("audio.get_volume", {"target": target, "id": id})
+
+    async def audio_set_volume(self, target: str = "sink", id: int = 0, volume: float = 1.0) -> dict[str, Any]:
+        return await self._request("audio.set_volume", {"target": target, "id": id, "volume": volume})
+
+    async def audio_set_sink_volume(self, sink_id: int, volume: float) -> dict[str, Any]:
+        return await self._request("audio.set_sink_volume", {"sink_id": sink_id, "volume": volume})
+
+    async def audio_mute(self, target: str = "sink", id: int = 0, mute: bool = True) -> dict[str, Any]:
+        return await self._request("audio.mute", {"target": target, "id": id, "mute": mute})
+
+    async def audio_set_default(self, target: str = "sink", name: str = "") -> dict[str, Any]:
+        return await self._request("audio.set_default", {"target": target, "name": name})

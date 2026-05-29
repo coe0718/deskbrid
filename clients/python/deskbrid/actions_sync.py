@@ -451,3 +451,26 @@ class SyncActionsMixin:
     def portal_screencast_stop(self) -> dict[str, Any]:
         return self._loop.submit(self._client.portal_screencast_stop()).result()
 
+
+    # ── Audio ────────────────────────────────────────────
+
+    def audio_list_sinks(self) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.audio_list_sinks()).result()
+
+    def audio_list_sources(self) -> list[dict[str, Any]]:
+        return self._loop.submit(self._client.audio_list_sources()).result()
+
+    def audio_get_volume(self, target: str = "sink", id: int = 0) -> dict[str, Any]:
+        return self._loop.submit(self._client.audio_get_volume(target, id)).result()
+
+    def audio_set_volume(self, target: str = "sink", id: int = 0, volume: float = 1.0) -> dict[str, Any]:
+        return self._loop.submit(self._client.audio_set_volume(target, id, volume)).result()
+
+    def audio_set_sink_volume(self, sink_id: int, volume: float) -> dict[str, Any]:
+        return self._loop.submit(self._client.audio_set_sink_volume(sink_id, volume)).result()
+
+    def audio_mute(self, target: str = "sink", id: int = 0, mute: bool = True) -> dict[str, Any]:
+        return self._loop.submit(self._client.audio_mute(target, id, mute)).result()
+
+    def audio_set_default(self, target: str = "sink", name: str = "") -> dict[str, Any]:
+        return self._loop.submit(self._client.audio_set_default(target, name)).result()

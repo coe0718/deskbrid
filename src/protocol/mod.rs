@@ -521,6 +521,25 @@ pub enum Action {
         sink_id: u32,
         volume: f64,
     },
+    AudioListSources,
+    AudioGetVolume {
+        target: String, // "sink" or "source"
+        id: u32,
+    },
+    AudioSetVolume {
+        target: String,
+        id: u32,
+        volume: f64,
+    },
+    AudioMute {
+        target: String,
+        id: u32,
+        mute: bool,
+    },
+    AudioSetDefault {
+        target: String, // "sink" or "source"
+        name: String,
+    },
 
     // Monitor
     MonitorList,

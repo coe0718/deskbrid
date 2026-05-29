@@ -51,6 +51,15 @@ pub struct AudioSinkInfo {
     pub muted: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AudioSourceInfo {
+    pub id: u32,
+    pub name: String,
+    pub description: String,
+    pub volume: f64,
+    pub muted: bool,
+}
+
 // ─── Event Types (Server → Client push) ────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

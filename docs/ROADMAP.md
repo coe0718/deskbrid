@@ -47,6 +47,7 @@ it to the completed table below.
 | [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
+| [54. Audio Control](#54-audio-control-pipewire--pulseaudio-d-bus) | Full audio control: list sources, get/set volume, mute/unmute, set default sink/source via pactl | `src/daemon/execute_audio.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -3125,6 +3126,8 @@ bind to the compositor's globals.
 ---
 
 ## 54. Audio Control (PipeWire / PulseAudio D-Bus)
+
+**Status:** ✅ Done — *TESTING NEEDED on live desktop environment*
 
 **What's Missing:** Deskbrid has `AudioListSinks` and `AudioSetSinkVolume` (sink
 volume only). No per-app audio, no routing, no loopback, no mute state.

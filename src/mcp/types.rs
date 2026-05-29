@@ -236,6 +236,58 @@ pub struct SetVolume {
     pub volume: f64,
 }
 
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct AudioTargetParams {
+    #[schemars(description = "\"sink\" for output, \"source\" for input")]
+    #[serde(default = "default_audio_target")]
+    pub target: String,
+    #[schemars(description = "Device ID")]
+    #[serde(default)]
+    pub id: u32,
+}
+
+fn default_audio_target() -> String {
+    "sink".to_string()
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct AudioVolumeParams {
+    #[schemars(description = "\"sink\" for output, \"source\" for input")]
+    #[serde(default = "default_audio_target")]
+    pub target: String,
+    #[schemars(description = "Device ID")]
+    #[serde(default)]
+    pub id: u32,
+    #[schemars(description = "Volume 0.0–1.0")]
+    pub volume: f64,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub struct AudioMuteParams {
+    #[schemars(description = "\"sink\" for output, \"source\" for input")]
+    #[serde(default = "default_audio_target")]
+    pub target: String,
+    #[schemars(description = "Device ID")]
+    #[serde(default)]
+    pub id: u32,
+    #[schemars(description = "true to mute, false to unmute")]
+    #[serde(default = "default_true")]
+    pub mute: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub struct AudioDefaultParams {
+    #[schemars(description = "\"sink\" for output, \"source\" for input")]
+    #[serde(default = "default_audio_target")]
+    pub target: String,
+    #[schemars(description = "Device name (from list_audio_sinks/list_audio_sources)")]
+    pub name: String,
+}
+
 // ── System ─────────────────────────────────────────────────
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]

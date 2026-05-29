@@ -43,9 +43,13 @@ pub async fn execute_action(
             execute_a11y::execute_a11y(action, backend, state).await?
         }
 
-        AudioListSinks | AudioSetSinkVolume { .. } => {
-            execute_audio::execute_audio(action, backend, state).await?
-        }
+        AudioListSinks
+        | AudioSetSinkVolume { .. }
+        | AudioListSources
+        | AudioGetVolume { .. }
+        | AudioSetVolume { .. }
+        | AudioMute { .. }
+        | AudioSetDefault { .. } => execute_audio::execute_audio(action, backend, state).await?,
 
         AuditLog { .. } | AuditClear => {
             execute_audit::execute_audit(action, backend, state).await?

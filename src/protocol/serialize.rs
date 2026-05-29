@@ -202,6 +202,11 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         // Audio / Monitor
         Action::AudioListSinks
         | Action::AudioSetSinkVolume { .. }
+        | Action::AudioListSources
+        | Action::AudioGetVolume { .. }
+        | Action::AudioSetVolume { .. }
+        | Action::AudioMute { .. }
+        | Action::AudioSetDefault { .. }
         | Action::MonitorList
         | Action::MonitorSetPrimary { .. }
         | Action::MonitorSetResolution { .. }
