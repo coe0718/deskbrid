@@ -14,6 +14,7 @@ pub mod permissions;
 pub mod protocol;
 pub mod setup;
 pub mod tiling;
+pub mod tray;
 pub mod util;
 pub mod visual;
 

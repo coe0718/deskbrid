@@ -368,6 +368,10 @@ pub enum Command {
         #[arg(long)]
         force: bool,
     },
+
+    /// Start the system tray icon (requires a running daemon)
+    #[command(name = "tray")]
+    Tray,
 }
 
 pub fn parse() -> Args {
