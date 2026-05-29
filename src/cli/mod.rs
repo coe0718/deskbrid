@@ -13,6 +13,7 @@ mod monitor;
 mod mpris;
 mod network;
 mod notify;
+mod portal;
 mod system;
 mod terminal;
 mod windows;
@@ -30,6 +31,7 @@ use monitor::MonitorCmd;
 use mpris::MprisCmd;
 use network::{NetworkCmd, WifiCmd};
 use notify::NotifyCmd;
+use portal::PortalCmd;
 use system::{JournalCmd, ServiceCmd, SystemCmd, TimerCmd};
 use terminal::TerminalCmd;
 use windows::WindowCmd;
@@ -183,6 +185,13 @@ pub enum Command {
     Screencast {
         #[command(subcommand)]
         cmd: ScreencastCmd,
+    },
+
+    // ─── Desktop Portal ────────────────────────────────
+    #[command(name = "portal")]
+    Portal {
+        #[command(subcommand)]
+        cmd: PortalCmd,
     },
 
     // ─── OCR ───────────────────────────────────────────

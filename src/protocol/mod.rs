@@ -182,6 +182,15 @@ pub enum Action {
     },
     ScreencastStop,
 
+    // Desktop Portal
+    PortalScreenshot {
+        interactive: bool,
+    },
+    PortalScreencastStart {
+        output_path: String,
+    },
+    PortalScreencastStop,
+
     // Audit
     AuditLog {
         limit: Option<usize>,
@@ -606,6 +615,9 @@ impl Action {
             "screenshot.diff",
             "screencast.start",
             "screencast.stop",
+            "portal.screenshot",
+            "portal.screencast_start",
+            "portal.screencast_stop",
             "audit.log",
             "audit.clear",
             "notification.send",

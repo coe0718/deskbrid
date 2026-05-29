@@ -526,3 +526,15 @@ class AsyncActionsMixin:
 
     async def screencast_stop(self) -> dict[str, Any]:
         return await self._request("screencast.stop")
+
+    # ── Desktop Portal ───────────────────────────────────
+
+    async def portal_screenshot(self, interactive: bool = False) -> dict[str, Any]:
+        return await self._request("portal.screenshot", {"interactive": interactive})
+
+    async def portal_screencast_start(self, output_path: str) -> dict[str, Any]:
+        return await self._request("portal.screencast_start", {"output_path": output_path})
+
+    async def portal_screencast_stop(self) -> dict[str, Any]:
+        return await self._request("portal.screencast_stop")
+

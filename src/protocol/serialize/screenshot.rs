@@ -93,6 +93,15 @@ pub(super) fn serialize_screenshot(action: &Action, id: &str) -> serde_json::Val
         Action::ScreencastStop => {
             json!({"type": "screencast.stop", "id": id})
         }
+        Action::PortalScreenshot { interactive } => {
+            json!({"type": "portal.screenshot", "id": id, "interactive": interactive})
+        }
+        Action::PortalScreencastStart { output_path } => {
+            json!({"type": "portal.screencast_start", "id": id, "output_path": output_path})
+        }
+        Action::PortalScreencastStop => {
+            json!({"type": "portal.screencast_stop", "id": id})
+        }
         _ => unreachable!("not a screenshot action"),
     }
 }

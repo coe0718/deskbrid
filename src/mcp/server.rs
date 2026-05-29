@@ -15,7 +15,7 @@ use crate::DaemonState;
 use crate::{
     tools_a11y, tools_audio, tools_bluetooth, tools_browser, tools_clipboard, tools_files,
     tools_input, tools_media, tools_misc, tools_monitors, tools_network, tools_notifications,
-    tools_screencast, tools_screenshot, tools_services, tools_system, tools_terminal,
+    tools_portal, tools_screencast, tools_screenshot, tools_services, tools_system, tools_terminal,
     tools_windows,
 };
 use anyhow::Context;
@@ -81,6 +81,7 @@ impl McpServer {
     tools_monitors!();
     tools_notifications!();
     tools_misc!();
+    tools_portal!();
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).

@@ -108,6 +108,22 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             _ => anyhow::bail!("unknown screencast action: {}", s),
         },
 
+        // Desktop Portal
+        s if s.starts_with("portal.") => match s {
+            "portal.screenshot" => Action::PortalScreenshot {
+                interactive: raw["interactive"].as_bool().unwrap_or(false),
+            },
+            "portal.screencast_start" => {
+                let output_path = raw["output_path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("portal.screencast_start requires output_path"))?
+                    .to_string();
+                Action::PortalScreencastStart { output_path }
+            }
+            "portal.screencast_stop" => Action::PortalScreencastStop,
+            _ => anyhow::bail!("unknown portal action: {}", s),
+        },
+
         // Audit
         s if s.starts_with("audit.") => audit::parse_audit(&raw, &id, s)?,
 

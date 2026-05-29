@@ -148,6 +148,10 @@ pub async fn execute_action(
             execute_screenshot::execute_screencast(action, backend).await?
         }
 
+        PortalScreenshot { .. } | PortalScreencastStart { .. } | PortalScreencastStop => {
+            execute_portal(action).await?
+        }
+
         SystemInfo
         | SystemCapabilities
         | SystemConfinement
@@ -198,5 +202,17 @@ pub async fn execute_action(
         }
 
         _ => execute_stubs::execute_stubs(action, backend, state).await?,
+    })
+}
+
+async fn execute_portal(action: Action) -> anyhow::Result<serde_json::Value> {
+    use Action::*;
+    Ok(match action {
+        PortalScreenshot { interactive } => super::portal::portal_screenshot(interactive).await?,
+        PortalScreencastStart { output_path } => {
+            super::portal::portal_screencast_start(&output_path).await?
+        }
+        PortalScreencastStop => super::portal::portal_screencast_stop().await?,
+        _ => unreachable!("not a portal action"),
     })
 }

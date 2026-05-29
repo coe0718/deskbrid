@@ -79,7 +79,10 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::ScreenshotOcr { .. }
         | Action::ScreenshotDiff { .. }
         | Action::ScreencastStart { .. }
-        | Action::ScreencastStop => screenshot::serialize_screenshot(action, &id),
+        | Action::ScreencastStop
+        | Action::PortalScreenshot { .. }
+        | Action::PortalScreencastStart { .. }
+        | Action::PortalScreencastStop => screenshot::serialize_screenshot(action, &id),
 
         // Audit / Notifications
         Action::AuditLog { .. }

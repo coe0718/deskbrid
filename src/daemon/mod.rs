@@ -40,6 +40,7 @@ pub(crate) mod helpers;
 mod layout;
 mod mpris;
 pub(crate) mod mpris_convert;
+mod portal;
 mod rate_limit;
 mod sysfs;
 mod system;

@@ -46,6 +46,7 @@ it to the completed table below.
 | [35. Rate Limiting](#35-rate-limiting-per-client) | Per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
 | [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
+| [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -829,6 +830,8 @@ SystemConfinement,
 ---
 
 ## 10. Desktop Portal Integration (XDG Portals)
+
+**Status:** ✅ Done — *TESTING NEEDED on live desktop environment*
 
 ### What's Missing
 

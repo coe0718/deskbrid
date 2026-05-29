@@ -25,7 +25,8 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         | Command::Screenshot { .. }
         | Command::Ocr { .. }
         | Command::ScreenshotDiff { .. }
-        | Command::Screencast { .. } => screenshot::into_screenshot_action(cmd),
+        | Command::Screencast { .. }
+        | Command::Portal { .. } => screenshot::into_screenshot_action(cmd),
 
         Command::Notify { .. }
         | Command::System { .. }

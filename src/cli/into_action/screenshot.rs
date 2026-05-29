@@ -78,6 +78,14 @@ pub fn into_screenshot_action(cmd: Command) -> anyhow::Result<Action> {
             ScreencastCmd::Stop => Action::ScreencastStop,
         },
 
+        Command::Portal { cmd } => match cmd {
+            PortalCmd::Screenshot { interactive } => Action::PortalScreenshot { interactive },
+            PortalCmd::ScreencastStart { output_path } => {
+                Action::PortalScreencastStart { output_path }
+            }
+            PortalCmd::ScreencastStop => Action::PortalScreencastStop,
+        },
+
         _ => bail!(
             "unexpected command in client mode: {:?}",
             std::mem::discriminant(&cmd)

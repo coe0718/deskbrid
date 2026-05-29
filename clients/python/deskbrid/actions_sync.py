@@ -439,3 +439,15 @@ class SyncActionsMixin:
 
     def screencast_stop(self) -> dict[str, Any]:
         return self._loop.submit(self._client.screencast_stop()).result()
+
+    # ── Desktop Portal ───────────────────────────────────
+
+    def portal_screenshot(self, interactive: bool = False) -> dict[str, Any]:
+        return self._loop.submit(self._client.portal_screenshot(interactive)).result()
+
+    def portal_screencast_start(self, output_path: str) -> dict[str, Any]:
+        return self._loop.submit(self._client.portal_screencast_start(output_path)).result()
+
+    def portal_screencast_stop(self) -> dict[str, Any]:
+        return self._loop.submit(self._client.portal_screencast_stop()).result()
+

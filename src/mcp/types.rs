@@ -559,3 +559,12 @@ pub struct ScreencastStartParams {
     #[schemars(description = "Output file path for the recording (e.g. /tmp/recording.mp4)")]
     pub output_path: String,
 }
+
+// ── Portal ────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct PortalScreenshotParams {
+    #[schemars(description = "Show interactive picker to select area/window")]
+    #[serde(default)]
+    pub interactive: bool,
+}
