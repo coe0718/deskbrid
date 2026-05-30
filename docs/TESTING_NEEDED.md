@@ -76,3 +76,30 @@ cargo build --release
 ./target/release/deskbrid daemon --tcp-port 127.0.0.1:7890 &
 DESKBRID_PORT=7890 DESKBRID_TCP_TOKEN=<token-from-logs> ./target/release/deskbrid status
 ```
+
+### Action Recording & Replay (#25) — `src/daemon/macro_engine.rs`
+- `deskbrid macro record <name>` — starts recording all dispatched actions
+- `deskbrid macro stop` — saves to `~/.local/share/deskbrid/macros/<name>.json`
+- `deskbrid macro replay <name>` — executes saved sequence
+- Modes: fast (no delays), timed (preserved timing)
+- Loop count and stop_on_error enforcement
+- **Test on:** Running daemon (record a few actions, stop, replay, list, export, import)
+
+```bash
+# Recording
+./target/release/deskbrid macro record test-macro
+./target/release/deskbrid system info
+./target/release/deskbrid windows list
+./target/release/deskbrid macro stop
+
+# Replay
+./target/release/deskbrid macro replay test-macro
+./target/release/deskbrid macro replay test-macro --mode timed --loop-count 3
+
+# CRUD
+./target/release/deskbrid macro list
+./target/release/deskbrid macro get test-macro
+./target/release/deskbrid macro export test-macro > /tmp/macro-export.json
+./target/release/deskbrid macro import test-macro-2 "$(cat /tmp/macro-export.json)"
+./target/release/deskbrid macro delete test-macro-2
+```
