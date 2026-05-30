@@ -97,6 +97,23 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
         Action::SystemUpdate { check, force } => {
             json!({"type": "system.update", "id": id, "check": check, "force": force})
         }
+        Action::DbusCall {
+            bus,
+            service,
+            path,
+            interface,
+            method,
+            args,
+        } => {
+            let mut obj = json!({"type": "dbus.call", "id": id, "service": service, "path": path, "interface": interface, "method": method});
+            if let Some(b) = bus {
+                obj["bus"] = json!(b);
+            }
+            if let Some(a) = args {
+                obj["args"] = a.clone();
+            }
+            obj
+        }
         Action::ServiceStatus { name } => {
             json!({"type": "service.status", "id": id, "name": name})
         }

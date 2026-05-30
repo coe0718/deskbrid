@@ -80,6 +80,42 @@ macro_rules! tools_system {
         )
     }
 
+    #[tool(
+        name = "dbus_call",
+        description = "Raw D-Bus method call. Escape hatch for direct D-Bus access. Requires explicit dbus.call permission.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    fn dbus_call(
+        &self,
+        Parameters(DbusCallArgs {
+            bus,
+            service,
+            path,
+            interface,
+            method,
+            args,
+        }): Parameters<DbusCallArgs>,
+    ) -> Json<Value> {
+        let mut req = json!({
+            "service": service,
+            "path": path,
+            "interface": interface,
+            "method": method,
+        });
+        if let Some(b) = bus {
+            req["bus"] = json!(b);
+        }
+        if let Some(a) = args {
+            req["args"] = a;
+        }
+        execute(self.state.clone(), &self.rt, "dbus.call", req)
+    }
+
 
     #[tool(
         name = "list_processes",

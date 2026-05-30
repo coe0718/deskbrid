@@ -151,6 +151,7 @@ const HIGH_RISK_ACTIONS: &[&str] = &[
     "process.start",
     "terminal.create",
     "system.update",
+    "dbus.call",
 ];
 
 fn is_high_risk(action_name: &str) -> bool {

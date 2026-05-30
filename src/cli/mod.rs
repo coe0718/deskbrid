@@ -372,6 +372,29 @@ pub enum Command {
     /// Start the system tray icon (requires a running daemon)
     #[command(name = "tray")]
     Tray,
+
+    /// Make a raw D-Bus method call (escape hatch for power users)
+    #[command(name = "dbus-call")]
+    DbusCall {
+        /// D-Bus bus: 'session' (default) or 'system'
+        #[arg(long, default_value = "session")]
+        bus: String,
+        /// D-Bus service name
+        #[arg(long)]
+        service: String,
+        /// Object path
+        #[arg(long)]
+        path: String,
+        /// Interface name
+        #[arg(long)]
+        interface: String,
+        /// Method name
+        #[arg(long)]
+        method: String,
+        /// Method arguments as JSON string
+        #[arg(long)]
+        args: Option<String>,
+    },
 }
 
 pub fn parse() -> Args {

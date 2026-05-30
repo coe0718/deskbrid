@@ -75,6 +75,14 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             check: raw["check"].as_bool().unwrap_or(false),
             force: raw["force"].as_bool().unwrap_or(false),
         },
+        "dbus.call" => Action::DbusCall {
+            bus: raw["bus"].as_str().map(String::from),
+            service: required_non_empty_string(raw, "service")?,
+            path: required_non_empty_string(raw, "path")?,
+            interface: required_non_empty_string(raw, "interface")?,
+            method: required_non_empty_string(raw, "method")?,
+            args: raw.get("args").cloned(),
+        },
         "service.status" => Action::ServiceStatus {
             name: required_non_empty_string(raw, "name")?,
         },

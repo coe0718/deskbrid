@@ -276,6 +276,16 @@ pub enum Action {
         force: bool,
     },
 
+    // D-Bus
+    DbusCall {
+        bus: Option<String>,
+        service: String,
+        path: String,
+        interface: String,
+        method: String,
+        args: Option<serde_json::Value>,
+    },
+
     // systemd units, journal, and timers
     ServiceStatus {
         name: String,
@@ -669,6 +679,7 @@ impl Action {
             "system.check_auth",
             "system.elevate",
             "system.update",
+            "dbus.call",
             "service.status",
             "service.start",
             "service.stop",

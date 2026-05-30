@@ -66,6 +66,17 @@ fn test_permissions_allow_all() {
             force: false,
         }
     ));
+    assert!(!p.check(
+        2000,
+        &Action::DbusCall {
+            bus: None,
+            service: "org.freedesktop.DBus".into(),
+            path: "/".into(),
+            interface: "org.freedesktop.DBus".into(),
+            method: "ListNames".into(),
+            args: None,
+        }
+    ));
 }
 
 #[test]

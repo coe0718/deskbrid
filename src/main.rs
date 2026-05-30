@@ -69,6 +69,24 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
         cli::Command::Setup => deskbrid::setup::run().await,
         cli::Command::Update { check, force } => deskbrid::cmd::update::run(check, force).await,
         cli::Command::Tray => deskbrid::tray::run().await,
+        cli::Command::DbusCall {
+            bus,
+            service,
+            path,
+            interface,
+            method,
+            args,
+        } => {
+            let action = deskbrid::protocol::Action::DbusCall {
+                bus: Some(bus),
+                service,
+                path,
+                interface,
+                method,
+                args: args.and_then(|a| serde_json::from_str(&a).ok()),
+            };
+            client::send_one_shot(action).await
+        }
         cli::Command::Mcp => {
             let event_tx = tokio::sync::broadcast::channel(256).0;
             let state = std::sync::Arc::new(deskbrid::DaemonState::new());

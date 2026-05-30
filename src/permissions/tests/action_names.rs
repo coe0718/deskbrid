@@ -103,4 +103,15 @@ fn test_action_name_mapping() {
         }),
         "system.update"
     );
+    assert_eq!(
+        action_name(&Action::DbusCall {
+            bus: None,
+            service: "org.freedesktop.DBus".into(),
+            path: "/org/freedesktop/DBus".into(),
+            interface: "org.freedesktop.DBus".into(),
+            method: "ListNames".into(),
+            args: None,
+        }),
+        "dbus.call"
+    );
 }

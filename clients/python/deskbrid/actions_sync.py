@@ -482,3 +482,15 @@ class SyncActionsMixin:
     def self_update(self, force: bool = False) -> dict[str, Any]:
         """Install the latest Deskbrid release. Requires explicit system.update permission."""
         return self._loop.submit(self._client.self_update(force)).result()
+
+    def dbus_call(
+        self,
+        service: str,
+        path: str,
+        interface: str,
+        method: str,
+        bus: str = "session",
+        args: Any = None,
+    ) -> dict[str, Any]:
+        """Raw D-Bus method call. Escape hatch for direct D-Bus access. Requires explicit dbus.call permission."""
+        return self._loop.submit(self._client.dbus_call(service, path, interface, method, bus, args)).result()

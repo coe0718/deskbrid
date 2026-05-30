@@ -115,6 +115,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemCheckAuth { .. }
         | Action::SystemElevate { .. }
         | Action::SystemUpdate { .. }
+        | Action::DbusCall { .. }
         | Action::ServiceStatus { .. }
         | Action::ServiceStart { .. }
         | Action::ServiceStop { .. }

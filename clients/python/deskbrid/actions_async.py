@@ -571,3 +571,24 @@ class AsyncActionsMixin:
     async def self_update(self, force: bool = False) -> dict[str, Any]:
         """Install the latest Deskbrid release. Requires explicit system.update permission."""
         return await self._request("system.update", {"force": force})
+
+    async def dbus_call(
+        self,
+        service: str,
+        path: str,
+        interface: str,
+        method: str,
+        bus: str = "session",
+        args: Any = None,
+    ) -> dict[str, Any]:
+        """Raw D-Bus method call. Escape hatch for direct D-Bus access. Requires explicit dbus.call permission."""
+        req: dict[str, Any] = {
+            "service": service,
+            "path": path,
+            "interface": interface,
+            "method": method,
+            "bus": bus,
+        }
+        if args is not None:
+            req["args"] = args
+        return await self._request("dbus.call", req)

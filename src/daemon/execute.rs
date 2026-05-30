@@ -180,6 +180,7 @@ pub async fn execute_action(
         | SystemCpuGovernor
         | SystemCpuSetGovernor { .. }
         | SystemUpdate { .. } => execute_system::execute_system(action, backend, state).await?,
+        DbusCall { .. } => execute_system::execute_system(action, backend, state).await?,
 
         WindowsList
         | WindowsFocus(..)

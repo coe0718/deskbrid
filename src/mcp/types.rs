@@ -559,6 +559,22 @@ pub struct ProcessWait {
     pub timeout_ms: Option<u64>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DbusCallArgs {
+    #[schemars(description = "D-Bus bus: 'session' (default) or 'system'")]
+    pub bus: Option<String>,
+    #[schemars(description = "D-Bus service name (e.g. 'org.freedesktop.portal.Desktop')")]
+    pub service: String,
+    #[schemars(description = "Object path (e.g. '/org/freedesktop/portal/desktop')")]
+    pub path: String,
+    #[schemars(description = "Interface name (e.g. 'org.freedesktop.portal.Settings')")]
+    pub interface: String,
+    #[schemars(description = "Method name (e.g. 'Read')")]
+    pub method: String,
+    #[schemars(description = "Method arguments as JSON array or object")]
+    pub args: Option<serde_json::Value>,
+}
+
 fn default_signal() -> String {
     "SIGTERM".into()
 }
