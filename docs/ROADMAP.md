@@ -97,7 +97,7 @@ These features exist in the codebase already for reference:
 24. [✅ Screenshot Diffing](#24-screenshot-diffing)
 25. [Action Recording & Replay](#25-action-recording--replay-macros)
 26. [✅ Wait-for Conditions](#26-wait-for-conditions)
-27. [Cron / Scheduled Actions](#27-cron--scheduled-actions)
+27. [✅ Cron / Scheduled Actions](#27-cron--scheduled-actions)
 28. [✅ D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch)
 29. [Secret / Keyring Access](#29-secret--keyring-access)
 30. [TCP Mode (Network)](#30-tcp-mode-network-control)
