@@ -1,18 +1,42 @@
 use crate::permissions::socket_peer_uid;
 use crate::protocol::Action;
 use crate::{ConnectionState, DaemonState};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tracing::{info, warn};
 
 use super::dispatch::dispatch_action_with_options;
 use super::helpers::ok_response;
 
+/// Handle a Unix socket client (SO_PEERCRED auth).
 pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::Result<()> {
     let peer_uid = socket_peer_uid(&stream)
         .ok_or_else(|| anyhow::anyhow!("failed to determine peer UID — connection rejected"))?;
-    let (reader, mut writer) = stream.into_split();
-    let mut reader = BufReader::new(reader);
+    let (reader, writer) = stream.into_split();
+    handle_client_generic(BufReader::new(reader), writer, peer_uid, state).await
+}
+
+/// Handle a TCP client (pre-authenticated, caller provides effective UID).
+pub async fn handle_client_tcp<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: S,
+    effective_uid: u32,
+    state: &DaemonState,
+) -> anyhow::Result<()> {
+    let (reader, writer) = tokio::io::split(stream);
+    handle_client_generic(BufReader::new(reader), writer, effective_uid, state).await
+}
+
+/// Transport-agnostic client handler. Works over any AsyncRead + AsyncWrite.
+async fn handle_client_generic<R, W>(
+    mut reader: BufReader<R>,
+    mut writer: W,
+    peer_uid: u32,
+    state: &DaemonState,
+) -> anyhow::Result<()>
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
     let mut conn = ConnectionState::default();
     let mut line = String::new();
     let mut seq: u64 = 0;
@@ -160,16 +184,15 @@ pub async fn handle_client(stream: UnixStream, state: &DaemonState) -> anyhow::R
         }
     }
 
-    info!("Client disconnected");
+    info!("Client disconnected (uid={})", peer_uid);
     Ok(())
 }
 
 /// Read a line from a buffered reader with a 10MB cap to prevent memory exhaustion.
-async fn read_line_limited(
-    reader: &mut BufReader<tokio::net::unix::OwnedReadHalf>,
+async fn read_line_limited<R: AsyncRead + Unpin>(
+    reader: &mut BufReader<R>,
     buf: &mut String,
 ) -> std::io::Result<usize> {
-    use tokio::io::AsyncReadExt;
     const MAX_BYTES: u64 = 10 * 1024 * 1024;
     let mut limited = reader.take(MAX_BYTES);
     limited.read_line(buf).await

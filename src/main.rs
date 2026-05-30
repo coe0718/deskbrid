@@ -48,11 +48,16 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             verbose: _,
             mcp_port,
             no_dashboard,
+            tcp_port,
+            tcp_token,
         } => {
             if let Some(port) = mcp_port {
                 // Start daemon + MCP TCP listener in parallel (both use rmcp transport)
                 let no_dash = no_dashboard;
-                let daemon_handle = tokio::spawn(async move { daemon::run(no_dash).await });
+                let tcp_bind = tcp_port;
+                let tcp_tok = tcp_token;
+                let daemon_handle =
+                    tokio::spawn(async move { daemon::run(no_dash, tcp_bind, tcp_tok).await });
                 let mcp_handle =
                     tokio::spawn(
                         async move { deskbrid::mcp::server::run_mcp_tcp_on_port(port).await },
@@ -62,7 +67,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
                 mcp_result??;
                 Ok(())
             } else {
-                daemon::run(no_dashboard).await
+                daemon::run(no_dashboard, tcp_port, tcp_token).await
             }
         }
         cli::Command::Status => client::send_one_shot(deskbrid::protocol::Action::Ping).await,

@@ -45,6 +45,7 @@ mod rate_limit;
 pub(crate) mod schedule;
 mod sysfs;
 mod system;
+pub(crate) mod tcp;
 pub mod terminal;
 pub(crate) mod terminal_create;
 pub(crate) mod terminal_helpers;
@@ -107,7 +108,11 @@ pub(crate) fn socket_path() -> String {
 }
 
 /// Start the Unix socket daemon and accept connections.
-pub async fn run(no_dashboard: bool) -> anyhow::Result<()> {
+pub async fn run(
+    no_dashboard: bool,
+    tcp_bind: Option<String>,
+    tcp_token: Option<String>,
+) -> anyhow::Result<()> {
     let sock = socket_path();
     let _ = tokio::fs::remove_file(&sock).await;
 
@@ -159,6 +164,21 @@ pub async fn run(no_dashboard: bool) -> anyhow::Result<()> {
 
     // Start schedule engine — runs configured actions on a timer
     schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));
+
+    // Start TCP listener if configured
+    if let Some(bind) = tcp_bind {
+        let token = tcp_token.unwrap_or_else(|| {
+            let t = tcp::generate_token();
+            info!("Generated TCP auth token: {}", t);
+            t
+        });
+        let tcp_state = Arc::clone(&state);
+        tokio::spawn(async move {
+            if let Err(e) = tcp::run_tcp_listener(bind, token, tcp_state).await {
+                error!("TCP listener exited: {}", e);
+            }
+        });
+    }
 
     loop {
         match listener.accept().await {

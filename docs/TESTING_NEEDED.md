@@ -28,6 +28,26 @@ The following features were implemented but **require manual testing on a live d
 - Binary backup to `deskbrid.old`, install replacement, restart `deskbrid.service` if active
 - **Test on:** Any Linux x86_64/aarch64 with internet access and an actual newer GitHub release
 
+### D-Bus Raw Access (#28) — `src/daemon/execute_system.rs`
+- Raw D-Bus method calls via `dbus-send` subprocess
+- Session and system bus support
+- JSON args parsing
+- **Test on:** Any system with D-Bus (run `deskbrid dbus-call --service org.freedesktop.DBus --path /org/freedesktop/DBus --interface org.freedesktop.DBus --method ListNames`)
+
+### Cron / Scheduled Actions (#27) — `src/daemon/schedule.rs`
+- Schedule file at `~/.config/deskbrid/schedule.json`
+- `deskbrid schedule list|add|remove` CLI
+- 60-second polling daemon task executes scheduled actions
+- **Test on:** Running daemon (add a schedule entry, wait 60s, check audit log)
+
+### TCP Mode (#30) — `src/daemon/tcp.rs`
+- TCP listener with bearer token auth
+- Auto-generated token (logged at INFO level) or explicit `--tcp-token`
+- Rust client via `DESKBRID_HOST`/`DESKBRID_PORT`/`DESKBRID_TCP_TOKEN` env vars
+- Python client via `tcp_host`/`tcp_port`/`tcp_token` kwargs or same env vars
+- Synthetic UID `0xFFFF_FFFE` for permission scoping
+- **Test on:** Any machine (start daemon with `--tcp-port 127.0.0.1:7890`, connect with env vars)
+
 ## How to Test
 
 ```bash
@@ -51,4 +71,8 @@ cargo build --release
 
 # Self-update
 ./target/release/deskbrid update --check
+
+# TCP Mode
+./target/release/deskbrid daemon --tcp-port 127.0.0.1:7890 &
+DESKBRID_PORT=7890 DESKBRID_TCP_TOKEN=<token-from-logs> ./target/release/deskbrid status
 ```

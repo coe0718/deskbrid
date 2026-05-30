@@ -24,9 +24,17 @@ class AsyncDeskbrid(AsyncActionsMixin):
         self,
         socket_path: str | None = None,
         reconnect_delay: float = 1.0,
+        tcp_host: str | None = None,
+        tcp_port: int | None = None,
+        tcp_token: str | None = None,
     ) -> None:
         self.socket_path = socket_path or default_socket_path()
         self.reconnect_delay = reconnect_delay
+        # TCP transport — if tcp_port is set, use TCP instead of Unix socket
+        self._tcp_host = tcp_host or os.environ.get("DESKBRID_HOST", "127.0.0.1")
+        self._tcp_port = tcp_port or (int(os.environ["DESKBRID_PORT"]) if "DESKBRID_PORT" in os.environ else None)
+        self._tcp_token = tcp_token or os.environ.get("DESKBRID_TCP_TOKEN")
+        self._use_tcp = self._tcp_port is not None
         self._events = EventManager()
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
@@ -56,7 +64,11 @@ class AsyncDeskbrid(AsyncActionsMixin):
                 self._connected.set()
                 return
 
-            reader, writer = await asyncio.open_unix_connection(self.socket_path)
+            if self._use_tcp:
+                reader, writer = await self._connect_tcp()
+            else:
+                reader, writer = await self._connect_unix()
+
             try:
                 server_msg = await self._read_message_from(reader)
                 if server_msg.get("type") != "connected":
@@ -76,6 +88,31 @@ class AsyncDeskbrid(AsyncActionsMixin):
 
         if should_resubscribe:
             await self._resubscribe()
+
+    async def _connect_unix(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        return await asyncio.open_unix_connection(self.socket_path)
+
+    async def _connect_tcp(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        if not self._tcp_token:
+            raise DeskbridError("connection_closed",
+                "DESKBRID_TCP_TOKEN must be set for TCP transport")
+        reader, writer = await asyncio.open_connection(self._tcp_host, self._tcp_port)
+
+        # Send auth message
+        auth_msg = json.dumps({"type": "auth", "token": self._tcp_token}) + "\n"
+        writer.write(auth_msg.encode("utf-8"))
+        await writer.drain()
+
+        # Read auth response — daemon either sends error or proceeds to protocol
+        auth_line = await reader.readline()
+        if not auth_line:
+            raise DeskbridError("connection_closed", "TCP connection closed during auth")
+        auth_resp = json.loads(auth_line.decode("utf-8"))
+        if auth_resp.get("status") == "error":
+            msg = auth_resp.get("error", {}).get("message", "authentication failed")
+            raise DeskbridError("unauthorized", str(msg))
+
+        return reader, writer
 
     async def close(self) -> None:
         self._closed = True

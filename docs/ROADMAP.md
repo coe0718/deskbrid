@@ -48,7 +48,10 @@ it to the completed table below.
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [54. Audio Control](#54-audio-control-pipewire--pulseaudio-d-bus) | Full audio control: list sources, get/set volume, mute/unmute, set default sink/source via pactl | `src/daemon/execute_audio.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
-| [125. Auto-Update](#125-auto-update-with-rollback) | Self-update command: check latest GitHub release, download matching tarball, optional checksum verification, binary backup/replacement, user-service restart | `src/cmd/update/`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
+|| [125. Auto-Update](#125-auto-update-with-rollback) | Self-update command: check latest GitHub release, download matching tarball, optional checksum verification, binary backup/replacement, user-service restart | `src/cmd/update/`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
+|| [28. D-Bus Raw Access](#28-dbus-raw-access) | Raw D-Bus method calls via `dbus-send` subprocess, CLI `deskbrid dbus-call`, MCP `dbus_call` tool, Python client wrapper, high-risk action gate | `src/daemon/execute_system.rs`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
+|| [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
+|| [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -2130,6 +2133,8 @@ SecretBackends,
 
 ## 30. TCP Mode (Network Control)
 
+**Status:** ✅ Done
+
 ### What's Missing
 
 Deskbrid only listens on a Unix socket. Remote machines can't connect. Agents can't
@@ -2140,24 +2145,19 @@ control other computers on the network.
 Add optional TCP listener alongside the Unix socket with TLS and token auth:
 
 ```bash
-deskbrid daemon --tcp 0.0.0.0:7890              # plain TCP
-deskbrid daemon --tcp 0.0.0.0:7890 --tls         # TLS
+deskbrid daemon --tcp-port 0.0.0.0:7890              # plain TCP with token auth
+deskbrid daemon --tcp-port 0.0.0.0:7890 --tcp-token mysecret  # explicit token
 ```
 
-**Auth:** Self-signed TLS cert (generated on first run) + `Authorization: Bearer <token>`.
+**Auth:** Bearer token via `{"type":"auth","token":"..."}` handshake. Token auto-generated
+if not provided (logged at INFO level). TCP clients get synthetic UID `0xFFFF_FFFE`
+(4294967294) for permissions — configure under `[permissions."uid:4294967294"]`.
 
-### Protocol Actions
+**Client transport:** Rust client reads `DESKBRID_HOST`/`DESKBRID_PORT`/`DESKBRID_TCP_TOKEN`
+env vars. Python client accepts `tcp_host`/`tcp_port`/`tcp_token` constructor args or same
+env vars. Both fall back to Unix socket when TCP is not configured.
 
-```rust
-DaemonConfigSet {
-    tcp_bind, tls_enabled, tls_cert, tls_key, tcp_token,
-},
-DaemonConfigGet,
-```
-
-### Effort
-
-~400 lines. TCP listener, TLS, token auth handshake.
+**TLS deferred to section 68 (mTLS for TCP Mode).**
 
 ---
 

@@ -80,6 +80,14 @@ pub enum Command {
         /// Disable the built-in web dashboard (port 20129)
         #[arg(long)]
         no_dashboard: bool,
+
+        /// TCP bind address for network access (e.g. 0.0.0.0:7890)
+        #[arg(long)]
+        tcp_port: Option<String>,
+
+        /// TCP auth token (auto-generated if not provided)
+        #[arg(long)]
+        tcp_token: Option<String>,
     },
 
     /// Check if daemon is running
