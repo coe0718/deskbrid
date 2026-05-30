@@ -103,3 +103,24 @@ DESKBRID_PORT=7890 DESKBRID_TCP_TOKEN=<token-from-logs> ./target/release/deskbri
 ./target/release/deskbrid macro import test-macro-2 "$(cat /tmp/macro-export.json)"
 ./target/release/deskbrid macro delete test-macro-2
 ```
+
+### Drag & Drop (#15) — all backends
+- `input.mouse.drag` protocol action: press at (from_x, from_y), move to (to_x, to_y), release
+- Configurable button ("left"/"middle"/"right") and duration_ms for animated drags
+- Implemented in all 9 backends: GNOME (Mutter RemoteDesktop), KDE (ydotool), Hyprland/Sway/Wayfire/COSMIC/Niri/Labwc (ydotool), X11 (xdotool)
+- **Test on:** Any desktop (try dragging between file manager windows or into a browser upload zone)
+
+```bash
+# CLI
+./target/release/deskbrid mouse drag --from 100 100 --to 500 500 --button left --duration 500
+
+# Python
+python3 -c "
+import asyncio
+from deskbrid import AsyncDeskbrid
+async def main():
+    client = AsyncDeskbrid()
+    await client.mouse_drag(100, 100, 500, 500, button='left', duration_ms=500)
+asyncio.run(main())
+"
+```

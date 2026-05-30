@@ -1193,53 +1193,14 @@ infrastructure.
 
 ## 15. Drag & Drop
 
-**Status:** ✅ Done. Deskbrid exposes `input.mouse.drag` and maps it to
-Mutter RemoteDesktop on GNOME, `ydotool` on Wayland backends, and `xdotool` on X11.
+**Status:** ✅ Done. `input.mouse.drag` action: press-move-release sequence across all backends.
 
-### What's Missing
+**GNOME:** Mutter RemoteDesktop `NotifyPointerButton` + `NotifyPointerMotion`.
+**Wayland backends:** `ydotool mousedown` + `mousemove` + `mouseup`.
+**X11:** `xdotool mousedown` + `mousemove` + `mouseup`.
 
-`InputMouse` supports move, click (press-release), and scroll — but no press-move-release
-sequence. Agents can't:
-- Drag files between file manager windows
-- Reorder items in design tools
-- Drag to resize panels
-- Drag-and-drop into browser upload zones
-
-### Implementation
-
-Small gap. Each backend just needs a sequence command.
-
-**Mutter RemoteDesktop (GNOME):**
-```rust
-async fn mouse_drag(&self, from: (f64, f64), to: (f64, f64), button: i32) -> Result<()> {
-    self.rd_call("NotifyPointerButton", &(button, true)).await?;  // press
-    self.rd_call("NotifyPointerMotion", &(to.0, to.1)).await?;    // move
-    self.rd_call("NotifyPointerButton", &(button, false)).await?; // release
-}
-```
-
-**ydotool (KDE/Hyprland):** `ydotool mousedown 1 && ydotool mousemove --absolute X Y && ydotool mouseup 1`
-
-**xdotool (X11):** `xdotool mousedown 1 && xdotool mousemove X Y && xdotool mouseup 1`
-
-### Protocol Changes
-
-Add a dedicated action rather than extending the overloaded `InputMouse`:
-
-```rust
-InputMouseDrag {
-    from_x: f64,
-    from_y: f64,
-    to_x: f64,
-    to_y: f64,
-    button: Option<String>,       // "left" (default), "middle", "right"
-    duration_ms: Option<u64>,     // animation duration
-}
-```
-
-### Effort
-
-~100 lines. The backend trait gets one new method, 4 backends implement it.
+CLI: `deskbrid mouse drag --from 100 100 --to 500 500 --button left --duration 500`
+Python: `client.mouse_drag(from_x, from_y, to_x, to_y, button="left", duration_ms=500)`
 
 ---
 
