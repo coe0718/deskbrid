@@ -58,6 +58,9 @@ nav{
 .nav-right{display:flex;align-items:center;gap:20px}
 .nav-right a{color:var(--text-muted);text-decoration:none;font-size:0.9rem;font-weight:500;transition:color .2s}
 .nav-right a:hover{color:var(--text)}
+.nav-live{display:inline-flex!important;align-items:center;gap:6px;color:var(--success)!important;font-weight:600!important}
+.live-dot-nav{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .nav-cta{
   display:inline-flex;align-items:center;gap:6px;
   padding:8px 16px;border-radius:8px;
@@ -275,6 +278,7 @@ footer a:hover{color:var(--accent-light)}
   <div class="nav-right">
     <a href="#features">Features</a>
     <a href="#install">Install</a>
+    <a href="/live" class="nav-live"><span class="live-dot-nav"></span>Live Demo</a>
     <a href="https://github.com/coe0718/deskbrid" class="nav-cta">View on GitHub →</a>
   </div>
 </nav>
