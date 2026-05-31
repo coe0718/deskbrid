@@ -25,6 +25,29 @@ Response:
 }
 ```
 
+## List Audio Sources
+
+```bash
+deskbrid audio sources
+```
+
+Response:
+```json
+{
+  "type": "response",
+  "status": "ok",
+  "data": [
+    {
+      "name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+      "description": "Built-in Audio Analog Stereo",
+      "volume": 100,
+      "muted": false,
+      "default": true
+    }
+  ]
+}
+```
+
 ## Set Volume
 
 ```bash
@@ -39,6 +62,24 @@ Protocol:
 {"type": "audio.set_volume", "volume": 50, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
 ```
 
+## Get Volume
+
+```bash
+deskbrid audio volume --sink alsa_output.pci-0000_00_1f.3.analog-stereo
+```
+
+Response:
+```json
+{
+  "type": "response",
+  "status": "ok",
+  "data": {
+    "volume": 75,
+    "muted": false
+  }
+}
+```
+
 ## Mute Toggle
 
 ```bash
@@ -51,6 +92,18 @@ Protocol:
 {"type": "audio.set_mute", "muted": true, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
 ```
 
+## Unmute
+
+```bash
+deskbrid audio unmute
+deskbrid audio unmute --sink alsa_output.pci-0000_00_1f.3.analog-stereo
+```
+
+Protocol:
+```json
+{"type": "audio.set_mute", "muted": false, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
+```
+
 ## Set Default Sink
 
 ```bash
@@ -60,6 +113,24 @@ deskbrid audio set-default --sink alsa_output.usb-headphones.analog-stereo
 Protocol:
 ```json
 {"type": "audio.set_default_sink", "sink": "alsa_output.usb-headphones.analog-stereo"}
+```
+
+## Get Default Sink
+
+```bash
+deskbrid audio get-default
+```
+
+Response:
+```json
+{
+  "type": "response",
+  "status": "ok",
+  "data": {
+    "name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
+    "description": "Built-in Audio Analog Stereo"
+  }
+}
 ```
 
 ## Python Example
@@ -74,6 +145,17 @@ sinks = client.audio_sinks()
 for sink in sinks:
     print(f"{sink['description']}: {sink['volume']}%")
 
+# List sources
+sources = client.audio_sources()
+for source in sources:
+    print(f"{source['description']}: {source['volume']}%")
+
 # Muting
 client.audio_set_mute(True, sink="alsa_output.pci-0000_00_1f.3.analog-stereo")
+
+# Setting volume
+client.audio_set_volume(50, sink="alsa_output.pci-0000_00_1f.3.analog-stereo")
+
+# Setting default sink
+client.audio_set_default_sink("alsa_output.usb-headphones.analog-stereo")
 ```

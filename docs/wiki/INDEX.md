@@ -34,6 +34,9 @@ Deskbrid is a single Rust binary that auto-detects your desktop environment and 
 | **Services** | systemd unit management | [docs](Features-Services) |
 | **Terminals** | Interactive PTY sessions | [docs](Features-Terminals) |
 | **Monitors** | Display configuration | [docs](Features-Monitors) |
+| **Screen Recording** | PipeWire-based capture, web dashboard | [docs](Features-Screen-Recording) |
+| **Self-Update** | Automatic binary updates from GitHub | [docs](Features-Self-Update) |
+| **System Tray** | Tray icon with update notifications and quick actions | [docs](Features-System-Tray) |
 
 ### Advanced Features
 
@@ -43,6 +46,12 @@ Deskbrid is a single Rust binary that auto-detects your desktop environment and 
 | **Files** | File search and watching | [docs](Features-Files) |
 | **Layout Profiles** | Save and restore workspace layouts | [docs](Features-Layout-Profiles) |
 | **Accessibility** | AT-SPI tree inspection | [docs](Features-Accessibility) |
+| **Persistence** | SQLite-backed clipboard history, audit log, blackboard, rules, sessions | [docs](Features-Persistence) |
+| **Rules Engine** | Event-driven automation with cooldown and max_fires | [docs](Features-Rules) |
+| **Sessions** | Named sessions with isolated variable namespaces | [docs](Features-Sessions) |
+| **Blackboard** | Namespace-scoped KV store for multi-agent coordination | [docs](Features-Blackboard) |
+| **Macros** | Record and replay action sequences | [docs](Features-Macros) |
+| **Cron** | Schedule actions at intervals | [docs](Features-Cron) |
 
 ## Protocol
 
@@ -55,7 +64,7 @@ Deskbrid is a single Rust binary that auto-detects your desktop environment and 
 ## Integrations
 
 | Integration | Description |
-|------------|-------------|
+|-------------|-------------|
 | [Python Client](Integrations-Python) | Python library usage |
 | [AI Agents](Integrations-Agents) | Claude Code, Cursor, etc. |
 

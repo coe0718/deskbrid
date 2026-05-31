@@ -37,12 +37,12 @@ print(content.text)  # "Hello, world!"
 ## Write Clipboard
 
 ```bash
-deskbrid clipboard write "Hello from Deskbrid"
+deskbrid clipboard write "Hello from Deskbrid!"
 ```
 
 Protocol:
 ```json
-{"type": "clipboard.write", "text": "Hello from Deskbrid"}
+{"type": "clipboard.write", "text": "Hello from Deskbrid!"}
 ```
 
 Python:
@@ -54,7 +54,7 @@ client.clipboard_write("New clipboard content")
 
 Keep track of clipboard changes over time.
 
-**Note:** History requires the GNOME Shell extension or Hyprland autostart hook and is persisted in an SQLite database at `~/.local/share/deskbrid/deskbrid.db`.
+**Note:** History requires the GNOME Shell extension or Hyprland autostart hook.
 
 ### List History
 
@@ -130,7 +130,7 @@ deskbrid setup  # Enables the extension automatically
 
 Add to your Hyprland config:
 
-```ini
+```
 exec-once = systemctl --user start deskbrid-history
 ```
 
@@ -146,6 +146,6 @@ systemctl --user enable --now deskbrid-history.service
 → {"type": "clipboard.read"}
 ← {"type": "response", "status": "ok", "data": {"text": "def hello():"}}
 
-→ {"type": "clipboard.write", "text": "def hello():\\n    print('world')"}
+→ {"type": "clipboard.write", "text": "def hello():\n    print('world')"}
 ← {"type": "response", "status": "ok"}
 ```

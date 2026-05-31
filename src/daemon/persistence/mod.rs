@@ -1,0 +1,118 @@
+use anyhow::Context;
+use rusqlite::Connection;
+
+pub struct Database {
+    pub(crate) conn: Connection,
+}
+
+impl Database {
+    /// Open (or create) the SQLite database at ~/.local/share/deskbrid/deskbrid.db.
+    /// Enables WAL mode and runs schema initialization.
+    pub fn open() -> anyhow::Result<Self> {
+        let data_dir = dirs::data_dir()
+            .context("could not determine XDG data directory")?
+            .join("deskbrid");
+        std::fs::create_dir_all(&data_dir).context("failed to create deskbrid data directory")?;
+        let db_path = data_dir.join("deskbrid.db");
+
+        let conn = Connection::open(&db_path).context("failed to open SQLite database")?;
+
+        conn.execute_batch("PRAGMA journal_mode=WAL;")
+            .context("failed to set WAL journal mode")?;
+
+        let db = Self { conn };
+        db.init_db()?;
+
+        Ok(db)
+    }
+
+    /// Open an in-memory database (fallback when the on-disk DB is unavailable).
+    pub fn memory() -> anyhow::Result<Self> {
+        let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
+        let db = Self { conn };
+        db.init_db()?;
+        Ok(db)
+    }
+
+    fn init_db(&self) -> anyhow::Result<()> {
+        self.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS clipboard_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                text TEXT NOT NULL,
+                source TEXT,
+                copied_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY,
+                seq INTEGER NOT NULL,
+                uid INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                params TEXT,
+                status TEXT NOT NULL,
+                duration_ms INTEGER,
+                timestamp INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY,
+                app_name TEXT NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT,
+                urgency TEXT DEFAULT 'normal',
+                actions TEXT,
+                timestamp INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS macros (
+                name TEXT PRIMARY KEY,
+                actions_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS blackboard (
+                key TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                value_json TEXT NOT NULL,
+                ttl INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (key, namespace)
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                name TEXT PRIMARY KEY,
+                data_json TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL,
+                last_active INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS rules (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                trigger_json TEXT NOT NULL,
+                condition_json TEXT,
+                action_type TEXT NOT NULL,
+                action_params TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                max_fires INTEGER,
+                cooldown_ms INTEGER
+            );",
+        )?;
+        Ok(())
+    }
+}
+
+/// Current Unix timestamp in seconds.
+pub(crate) fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
+}
+
+pub mod audit;
+pub mod blackboard;
+pub mod clipboard;
+pub mod macros;
+pub mod notifications;
+pub mod rules;
+pub mod sessions;
+
+#[cfg(test)]
+mod tests;
