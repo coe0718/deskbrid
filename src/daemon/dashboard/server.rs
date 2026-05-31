@@ -2,8 +2,9 @@ use crate::DaemonState;
 use std::sync::Arc;
 
 use super::{
-    base64_encode, error_box_html, render_audit, render_clipboard, render_macros, render_network,
-    render_notifications, render_rules, render_sessions, sse_card_html,
+    base64_encode, error_box_html, render_audio, render_audit, render_clipboard, render_macros,
+    render_monitors, render_network, render_notifications, render_rules, render_sessions,
+    render_system, render_windows,
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
@@ -98,6 +99,43 @@ fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
     let mut response = header.into_bytes();
     response.extend_from_slice(body);
     response
+}
+
+/// SSE card dispatcher — called from the poll loop in handle_request.
+async fn sse_card_html(card: &str, state: &DaemonState) -> String {
+    match card {
+        "system" => {
+            let backend = state.backend.read().await;
+            let info = if let Some(ref b) = *backend {
+                b.system_info().await.ok()
+            } else {
+                None
+            };
+            render_system(&info)
+        }
+        "monitors" => {
+            let backend = state.backend.read().await;
+            let info = if let Some(ref b) = *backend {
+                b.system_info().await.ok()
+            } else {
+                None
+            };
+            render_monitors(&info)
+        }
+        "windows" => {
+            let backend = state.backend.read().await;
+            render_windows(&backend).await
+        }
+        "clipboard" => render_clipboard(state).await,
+        "audit" => render_audit(state).await,
+        "network" => render_network().await,
+        "audio" => render_audio().await,
+        "sessions" => render_sessions(state).await,
+        "rules" => render_rules(state).await,
+        "notifications" => render_notifications(state).await,
+        "macros" => render_macros().await,
+        _ => r#"<div class="empty">Unknown card</div>"#.into(),
+    }
 }
 
 pub(crate) async fn handle_request(
