@@ -49,10 +49,17 @@ pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord)
     };
 
     let mut entries = state.audit_log.lock().await;
-    entries.push_back(entry);
+    entries.push_back(entry.clone());
     while entries.len() > state.audit_capacity {
         entries.pop_front();
     }
+
+    // Persist to SQLite — fire-and-forget, don't slow down the hot path.
+    let db = state.database.clone();
+    tokio::spawn(async move {
+        let db = db.lock().await;
+        let _ = db.insert_audit(&entry);
+    });
 }
 
 pub(crate) fn is_audit_action(action: &Action) -> bool {

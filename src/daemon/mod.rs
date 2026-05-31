@@ -18,6 +18,7 @@ pub(crate) mod execute;
 mod execute_a11y;
 mod execute_audio;
 mod execute_audit;
+mod execute_blackboard;
 mod execute_bluetooth;
 mod execute_browser;
 mod execute_capabilities;

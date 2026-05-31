@@ -202,5 +202,9 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::RuleDelete { .. } => "rule.delete",
         Action::RulePause { .. } => "rule.pause",
         Action::RuleResume { .. } => "rule.resume",
+        Action::BlackboardSet { .. } => "blackboard.set",
+        Action::BlackboardGet { .. } => "blackboard.get",
+        Action::BlackboardDelete { .. } => "blackboard.delete",
+        Action::BlackboardList { .. } => "blackboard.list",
     }
 }

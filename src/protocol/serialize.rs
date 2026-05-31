@@ -8,6 +8,7 @@ mod action_type;
 mod apps;
 mod audio;
 mod audit;
+mod blackboard;
 mod bluetooth;
 mod color_pick;
 mod connection;
@@ -266,6 +267,12 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::RuleDelete { .. }
         | Action::RulePause { .. }
         | Action::RuleResume { .. } => rules::serialize_rules(action, &id),
+
+        // Blackboard
+        Action::BlackboardSet { .. }
+        | Action::BlackboardGet { .. }
+        | Action::BlackboardDelete { .. }
+        | Action::BlackboardList { .. } => blackboard::serialize_blackboard(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)

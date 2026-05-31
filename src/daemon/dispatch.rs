@@ -3,6 +3,7 @@ use crate::protocol::{Action, RequestOptions};
 
 use super::dispatch_helpers::*;
 use super::execute::execute_action;
+use super::execute_blackboard::{execute_blackboard_action, is_blackboard_action};
 use super::execute_macro::{execute_macro_action, is_macro_action};
 use super::execute_rules::{execute_rules_action, is_rules_action};
 use super::execute_sessions::{execute_session_action, is_session_action};
@@ -204,6 +205,18 @@ pub async fn dispatch_action_with_options(
             &action,
             action_timeout_ms,
             execute_terminal_action(action.clone(), state),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+    if is_blackboard_action(&action) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_blackboard_action(action.clone(), state),
         )
         .await;
         return action_response(

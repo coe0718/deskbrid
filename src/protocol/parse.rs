@@ -5,6 +5,7 @@ mod a11y;
 mod apps;
 mod audio;
 mod audit;
+mod blackboard;
 mod bluetooth;
 mod browser;
 mod clipboard;
@@ -189,6 +190,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Rules
         s if s.starts_with("rule.") => rules::parse_rules(&raw, &id, s)?,
+
+        // Blackboard
+        s if s.starts_with("blackboard.") => blackboard::parse_blackboard(&raw, &id, s)?,
 
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };

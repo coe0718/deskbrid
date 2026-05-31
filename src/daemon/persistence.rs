@@ -69,14 +69,6 @@ impl Database {
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS cron_jobs (
-                name TEXT PRIMARY KEY,
-                interval_secs INTEGER NOT NULL,
-                action_type TEXT NOT NULL,
-                action_params TEXT,
-                last_run INTEGER,
-                enabled INTEGER NOT NULL DEFAULT 1
-            );
             CREATE TABLE IF NOT EXISTS blackboard (
                 key TEXT NOT NULL,
                 namespace TEXT NOT NULL DEFAULT 'default',

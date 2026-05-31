@@ -36,6 +36,15 @@ pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, sourc
     while history.len() > state.clipboard_history_capacity {
         history.pop_front();
     }
+
+    // Persist to SQLite in the background — don't block on DB errors.
+    let db = state.database.clone();
+    let text_owned = text.to_string();
+    let source_owned = source.to_string();
+    tokio::spawn(async move {
+        let db = db.lock().await;
+        let _ = db.insert_clipboard(&text_owned, Some(&source_owned));
+    });
 }
 
 pub(crate) async fn execute_clipboard_history_action(

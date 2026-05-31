@@ -721,6 +721,24 @@ pub enum Action {
     RuleResume {
         rule_id: String,
     },
+
+    // ─── Blackboard (#84) ────────────────────────────────
+    BlackboardSet {
+        key: String,
+        value: String,
+        namespace: Option<String>,
+    },
+    BlackboardGet {
+        key: String,
+        namespace: Option<String>,
+    },
+    BlackboardDelete {
+        key: String,
+        namespace: Option<String>,
+    },
+    BlackboardList {
+        namespace: Option<String>,
+    },
 }
 
 impl Action {
@@ -909,6 +927,10 @@ impl Action {
             "rule.delete",
             "rule.pause",
             "rule.resume",
+            "blackboard.set",
+            "blackboard.get",
+            "blackboard.delete",
+            "blackboard.list",
         ]
     }
 
