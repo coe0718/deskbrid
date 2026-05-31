@@ -1,14 +1,18 @@
 use super::*;
 
-fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
+async fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
     let mut monitors = Vec::new();
     let drm_path = std::path::Path::new("/sys/class/drm");
-    let dir = match std::fs::read_dir(drm_path) {
+    let mut dir = match tokio::fs::read_dir(drm_path).await {
         Ok(d) => d,
         Err(_) => return monitors,
     };
     let mut id: u32 = 0;
-    for entry in dir.flatten() {
+    loop {
+        let entry = match dir.next_entry().await {
+            Ok(Some(e)) => e,
+            _ => break,
+        };
         let name = entry.file_name().to_string_lossy().to_string();
         if !name.contains('-') {
             continue;
@@ -60,7 +64,7 @@ impl KdeBackend {
         // Try kscreen-doctor first, fall back to DRM probing
         let monitors = match self.sh("kscreen-doctor", &["--outputs"]).await {
             Ok(out) if !out.trim().is_empty() => parse_kscreen_outputs(&out),
-            _ => probe_drm_monitors(),
+            _ => probe_drm_monitors().await,
         };
         Ok(monitors)
     }
