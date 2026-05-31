@@ -1,3 +1,46 @@
+## v0.11.2 — Repo Cleanup & Live Demo
+
+**12 files changed · 58 insertions · 741 deletions · 5 commits since v0.11.1**
+
+Housekeeping release. Dist zip nuked, stale design docs removed, version refs
+fixed across agent files, live dashboard proxied publicly, README updated.
+
+### 🧹 Repo Hygiene
+- **`9d578a4`** — Remove `dist/deskbrid-gnome-extension-v0.4.1.zip` (binary artifact, `dist/` already gitignored)
+- **`88542b5`** — Delete `docs/MCP_ATSPI_DESIGN.md` (shipped months ago), `docs/TESTING_NEEDED.md` (stale test tracker)
+- **`9d578a4`** — Fix `CLAUDE.md` download URL: hardcoded `v0.10.0` → `releases/latest/download/deskbrid`
+- **`9d578a4`** — Fix `hermes/deskbrid.md`: title `v0.10.0` → `v0.11.1`, highlights `v0.7.0` → `v0.11.1` features
+
+### 📡 Dashboard & Site
+- **`b78625b`** — Proxy `/live`, `/events`, `/screenshot` through Caddy to Turtle's live dashboard
+- **`b78625b`** — Add Live Demo nav link to `site/index.html` with green pulse animation
+- **`b33cabd`** — Add `🔴 Live Demo →` link above dashboard screenshot in README
+
+### 📋 Agent Files
+- **`2434ac8`** — Rewrite `AGENTS.md` from 23-line skeleton to 52-line usage-focused landing page (features, dashboard, MCP, Python client, supported desktops, self-update)
+
+### 🐛 Bug Fixes
+- **`e48c050`** — Audio volume shows 0%: Hyprland backend now parses full `pactl list sinks` output; SSE parser handles `%` sign in volume values
+
+---
+
+## v0.11.1 — Audio Fix & Dashboard Polish
+
+**7 commits since v0.11.0**
+
+Quick patch on top of v0.11.0. Audio volume was hardcoded to 0% in the Hyprland
+backend and the SSE parser choked on the `%` sign from `pactl`. Dashboard
+got a screenshot and README polish.
+
+### 🐛 Bug Fixes
+- **`e48c050`** — Audio volume: Hyprland backend switched from `pactl list short sinks` (no volume field) to full `pactl list sinks`; SSE handler applies `trim_end_matches('%')` before parsing
+
+### 📡 Dashboard
+- **`b78625b`** — Live dashboard proxied at `deskbrid.patchhive.dev/live`
+- **`5cbe515`** — Dashboard screenshot added to README
+
+---
+
 ## v0.11.0 — The Durable Desktop HAL
 
 **94 files changed · 7,832 insertions · 259 deletions · 42 commits since v0.10.0**
