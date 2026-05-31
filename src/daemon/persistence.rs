@@ -366,6 +366,7 @@ impl Database {
         ttl: Option<u64>,
     ) -> anyhow::Result<()> {
         let now = unix_now();
+        let ttl_val: Option<i64> = ttl.map(|v| v as i64);
         self.conn
             .execute(
                 "INSERT INTO blackboard (key, namespace, value_json, ttl, created_at, updated_at)
@@ -374,7 +375,7 @@ impl Database {
                      value_json = excluded.value_json,
                      ttl = excluded.ttl,
                      updated_at = excluded.updated_at",
-                params![key, namespace, value_json, ttl.map(|v| v as i64), now, now],
+                rusqlite::params![key, namespace, value_json, ttl_val, now, now],
             )
             .context("failed to upsert blackboard entry")?;
         Ok(())
@@ -788,6 +789,51 @@ mod tests {
         assert_eq!(err_only.len(), 1);
         assert_eq!(err_only[0].error.as_deref(), Some("fail"));
     }
+    #[test]
+    fn blackboard_upsert_get_delete() {
+        let db = Database::memory().unwrap();
+
+        db.upsert_blackboard("greeting", "default", "hello", None)
+            .unwrap();
+        let val = db.get_blackboard("greeting", "default").unwrap();
+        assert_eq!(val.unwrap(), "hello");
+
+        db.upsert_blackboard("greeting", "default", "bonjour", None)
+            .unwrap();
+        let val = db.get_blackboard("greeting", "default").unwrap();
+        assert_eq!(val.unwrap(), "bonjour");
+
+        assert!(db.delete_blackboard("greeting", "default").unwrap());
+        assert!(db.get_blackboard("greeting", "default").unwrap().is_none());
+    }
+
+    #[test]
+    fn blackboard_namespace_isolation() {
+        let db = Database::memory().unwrap();
+        db.upsert_blackboard("key", "ns1", "alpha", None).unwrap();
+        db.upsert_blackboard("key", "ns2", "beta", None).unwrap();
+
+        assert_eq!(db.get_blackboard("key", "ns1").unwrap().unwrap(), "alpha");
+        assert_eq!(db.get_blackboard("key", "ns2").unwrap().unwrap(), "beta");
+    }
+
+    #[test]
+    fn blackboard_list_keys() {
+        let db = Database::memory().unwrap();
+        db.upsert_blackboard("a", "default", "1", None).unwrap();
+        db.upsert_blackboard("b", "default", "2", None).unwrap();
+        db.upsert_blackboard("c", "other", "3", None).unwrap();
+
+        let keys = db.blackboard_keys("default").unwrap();
+        assert_eq!(keys.len(), 2);
+        assert!(keys.contains(&"a".into()));
+        assert!(keys.contains(&"b".into()));
+
+        let other = db.blackboard_keys("other").unwrap();
+        assert_eq!(other.len(), 1);
+        assert_eq!(other[0], "c");
+    }
+
     #[test]
     fn session_upsert_delete_load() {
         let db = Database::memory().unwrap();

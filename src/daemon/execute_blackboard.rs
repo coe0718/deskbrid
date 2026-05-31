@@ -17,7 +17,7 @@ pub(crate) async fn execute_blackboard_action(
             namespace,
         } => {
             let ns = namespace.unwrap_or(default_ns);
-            db.upsert_blackboard(&key, &value, &ns, None)?;
+            db.upsert_blackboard(&key, &ns, &value, None)?;
             debug!("blackboard: {}/{} = {}", ns, key, value);
             Ok(serde_json::json!({"ok": true, "key": key, "namespace": ns}))
         }
