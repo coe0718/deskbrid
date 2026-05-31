@@ -100,11 +100,11 @@ impl RuleEngine {
             // Check cooldown
             if let Some(cooldown_ms) = rule.cooldown_ms {
                 let rt = self.runtime.get(&rule.id);
-                if let Some(rt) = rt {
-                    if now_ms.saturating_sub(rt.last_fire_ms) < cooldown_ms {
-                        debug!("Rule '{}' is on cooldown", rule.name);
-                        continue;
-                    }
+                if let Some(rt) = rt
+                    && now_ms.saturating_sub(rt.last_fire_ms) < cooldown_ms
+                {
+                    debug!("Rule '{}' is on cooldown", rule.name);
+                    continue;
                 }
             }
 
@@ -126,11 +126,11 @@ impl RuleEngine {
                 "type": rule.action_type,
                 "id": format!("rule-{}", rule.id),
             });
-            if !rule.action_params.is_null() {
-                if let serde_json::Value::Object(ref params) = rule.action_params {
-                    for (k, v) in params {
-                        action_json[k] = v.clone();
-                    }
+            if !rule.action_params.is_null()
+                && let serde_json::Value::Object(ref params) = rule.action_params
+            {
+                for (k, v) in params {
+                    action_json[k] = v.clone();
                 }
             }
 

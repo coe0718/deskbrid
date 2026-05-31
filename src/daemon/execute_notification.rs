@@ -28,53 +28,52 @@ pub(crate) fn ensure_notification_watcher(event_tx: tokio::sync::broadcast::Send
                 .output()
                 .await;
 
-            if let Ok(o) = output {
-                if o.status.success() {
-                    let stdout = String::from_utf8_lossy(&o.stdout);
-                    for line in stdout.lines() {
-                        if line.contains("NotificationClosed") {
-                            // Extract notification ID
-                            if let Some(pos) = line.find("uint32 ") {
-                                let id_str = &line[pos + 7..];
-                                if let Some(end) = id_str.find(|c: char| !c.is_ascii_digit()) {
-                                    if let Ok(nid) = id_str[..end].parse::<u32>() {
-                                        tracing::debug!("notification closed via D-Bus: {}", nid);
-                                        let _ =
-                                            event_tx.send(DeskbridEvent::NotificationReceived {
-                                                id: nid,
-                                                app_name: "dbus".into(),
-                                                title: "closed".into(),
-                                                body: None,
-                                                urgency: "normal".into(),
-                                                actions: None,
-                                                timestamp: std::time::SystemTime::now()
-                                                    .duration_since(std::time::UNIX_EPOCH)
-                                                    .unwrap_or_default()
-                                                    .as_secs(),
-                                            });
-                                    }
-                                }
+            if let Ok(o) = output
+                && o.status.success()
+            {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                for line in stdout.lines() {
+                    if line.contains("NotificationClosed") {
+                        // Extract notification ID
+                        if let Some(pos) = line.find("uint32 ") {
+                            let id_str = &line[pos + 7..];
+                            if let Some(end) = id_str.find(|c: char| !c.is_ascii_digit())
+                                && let Ok(nid) = id_str[..end].parse::<u32>()
+                            {
+                                tracing::debug!("notification closed via D-Bus: {}", nid);
+                                let _ = event_tx.send(DeskbridEvent::NotificationReceived {
+                                    id: nid,
+                                    app_name: "dbus".into(),
+                                    title: "closed".into(),
+                                    body: None,
+                                    urgency: "normal".into(),
+                                    actions: None,
+                                    timestamp: std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs(),
+                                });
                             }
                         }
-                        if line.contains("ActionInvoked") {
-                            // Extract notification ID and action key
-                            if let Some(pos) = line.find("uint32 ") {
-                                let rest = &line[pos + 7..];
-                                let parts: Vec<&str> = rest.split_whitespace().collect();
-                                if parts.len() >= 2 {
-                                    if let Ok(nid) = parts[0].parse::<u32>() {
-                                        let action_key = parts[1].trim_matches('"').to_string();
-                                        let timestamp = std::time::SystemTime::now()
-                                            .duration_since(std::time::UNIX_EPOCH)
-                                            .unwrap_or_default()
-                                            .as_secs();
-                                        let _ = event_tx.send(DeskbridEvent::NotificationActed {
-                                            id: nid,
-                                            action_key,
-                                            timestamp,
-                                        });
-                                    }
-                                }
+                    }
+                    if line.contains("ActionInvoked") {
+                        // Extract notification ID and action key
+                        if let Some(pos) = line.find("uint32 ") {
+                            let rest = &line[pos + 7..];
+                            let parts: Vec<&str> = rest.split_whitespace().collect();
+                            if parts.len() >= 2
+                                && let Ok(nid) = parts[0].parse::<u32>()
+                            {
+                                let action_key = parts[1].trim_matches('"').to_string();
+                                let timestamp = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs();
+                                let _ = event_tx.send(DeskbridEvent::NotificationActed {
+                                    id: nid,
+                                    action_key,
+                                    timestamp,
+                                });
                             }
                         }
                     }

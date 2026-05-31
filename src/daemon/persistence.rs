@@ -559,7 +559,7 @@ impl Database {
         let condition_json = rule
             .condition
             .as_ref()
-            .map(|c| serde_json::to_string(c))
+            .map(serde_json::to_string)
             .transpose()?;
         let action_params = serde_json::to_string(&rule.action_params).unwrap_or_default();
         self.conn.execute(
