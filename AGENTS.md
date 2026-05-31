@@ -1,6 +1,6 @@
 # Deskbrid
 
-Deskbrid bridges AI agents to any Linux desktop over a Unix socket. Control windows, inject keystrokes, take screenshots, manage clipboards — on GNOME, KDE, Hyprland, or X11.
+Deskbrid bridges AI agents to any Linux desktop over a Unix socket. Control windows, inject keystrokes, take screenshots, manage clipboards — on GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, or X11.
 
 ## Install
 
@@ -14,9 +14,59 @@ Auto-detects distro + DE, installs deps, sets up uinput, downloads binary.
 
 ```bash
 deskbrid daemon                               # start daemon
-echo '{"type":"system.info","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
-deskbrid health                               # check deps
+deskbrid windows list                         # CLI: list windows
+deskbrid clipboard read                       # CLI: read clipboard
+deskbrid screenshot                           # CLI: screenshot
 ```
+
+```bash
+# Socket (agent-native)
+echo '{"type":"system.info","id":"1"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -w 2
+```
+
+## Features
+
+- **Windows & Workspaces** — list, focus, close, minimize, maximize, tile, move/resize
+- **Input** — keyboard typing, key combos, mouse control
+- **Clipboard** — read/write with history
+- **Screenshots** — capture, OCR, diffing
+- **System** — info, battery, idle, power management
+- **Audio** — volume, mute, sink management
+- **Network & Bluetooth** — WiFi, device pairing
+- **MPRIS** — media player control
+- **Terminal** — PTY sessions
+- **Files** — search, read, write, watch
+- **Notifications** — send, dismiss, history
+- **Keyboard Layouts** — list, switch, add, remove
+- **Self-update** — `deskbrid update` pulls latest from GitHub releases
+
+## Dashboard
+
+Built-in web dashboard at `localhost:20129` — system info, monitors, windows, network, audio, clipboard, audit log, all live via SSE.
+
+**[🔴 Live Demo →](https://deskbrid.patchhive.dev/live)**
+
+## MCP Integration
+
+```bash
+deskbrid mcp   # MCP stdio server for AI coding tools
+```
+
+85+ tools across 18 categories: window management, accessibility tree, keyboard, mouse, clipboard, screenshots, system info, and more. Claude Desktop, Codex, Cursor — any MCP client.
+
+## Python Client
+
+```python
+from deskbrid import Deskbrid
+client = Deskbrid()
+client.focus_window(app_id='code')
+client.type_text("Hello from Deskbrid!\n")
+```
+
+## Supported Desktops
+
+GNOME 46–50, Hyprland, KDE Plasma, COSMIC, Sway, Niri, Wayfire, Labwc, Cinnamon, MATE, X11. Auto-detected at startup — no config.
 
 ## Docs
 
