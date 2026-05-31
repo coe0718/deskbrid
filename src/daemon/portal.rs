@@ -158,7 +158,6 @@ async fn start_portal_screencast(
     output_path: &str,
     active: &Arc<Mutex<Option<ActiveScreencast>>>,
 ) -> anyhow::Result<Value> {
-
     let conn = Connection::session().await?;
     let token = format!("deskbrid_sc_{}", std::process::id());
 
@@ -168,8 +167,7 @@ async fn start_portal_screencast(
 
     // Step 2: SelectSources — request monitor capture (type 1 = screen)
     select_screencast_sources(&conn, &session_handle, &token).await?;
-    let response_path =
-        build_response_path(&conn, &token).await?;
+    let response_path = build_response_path(&conn, &token).await?;
     let result = wait_for_portal_response(&conn, &response_path).await?;
     if result.0 != 0 {
         anyhow::bail!(
@@ -253,11 +251,8 @@ pub async fn portal_screencast_stop(
             }
 
             // Wait up to 5 seconds for graceful exit, then force kill
-            let wait_result = tokio::time::timeout(
-                std::time::Duration::from_secs(5),
-                session.child.wait(),
-            )
-            .await;
+            let wait_result =
+                tokio::time::timeout(std::time::Duration::from_secs(5), session.child.wait()).await;
 
             if wait_result.is_err() {
                 let _ = session.child.start_kill();
@@ -278,10 +273,7 @@ pub async fn portal_screencast_stop(
 }
 
 /// Create a ScreenCast session, returns the session handle object path.
-async fn create_screencast_session(
-    conn: &Connection,
-    token: &str,
-) -> anyhow::Result<String> {
+async fn create_screencast_session(conn: &Connection, token: &str) -> anyhow::Result<String> {
     let mut options: std::collections::HashMap<&str, zbus::zvariant::Value<'_>> =
         std::collections::HashMap::new();
     options.insert("session_handle_token", zbus::zvariant::Value::new(token));
@@ -354,10 +346,7 @@ async fn start_screencast(
 
     // Then the streams array
     let streams: Vec<(u32, u32)> = body.deserialize()?;
-    let stream_node_id = streams
-        .first()
-        .map(|(node_id, _)| *node_id)
-        .unwrap_or(0);
+    let stream_node_id = streams.first().map(|(node_id, _)| *node_id).unwrap_or(0);
 
     Ok((pw_fd.into(), stream_node_id))
 }
