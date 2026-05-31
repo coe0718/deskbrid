@@ -128,13 +128,29 @@ pub async fn execute_action(
         | MonitorEnable { .. }
         | MonitorDisable { .. } => execute_monitor::execute_monitor(action, backend, state).await?,
 
-        NetworkStatus | NetworkInterfaces | NetworkWifiScan | NetworkWifiConnect { .. } => {
-            execute_network::execute_network(action, backend, state).await?
-        }
+        NetworkStatus
+        | NetworkInterfaces
+        | NetworkWifiScan
+        | NetworkWifiConnect { .. }
+        | NetworkConnectionList
+        | NetworkConnectionProfiles
+        | NetworkCreateHotspot { .. }
+        | NetworkStopHotspot
+        | NetworkWifiEnable { .. }
+        | NetworkWwanEnable { .. }
+        | NetworkDnsSet { .. }
+        | NetworkDnsReset
+        | NetworkVpnConnect { .. }
+        | NetworkVpnDisconnect => execute_network::execute_network(action, backend, state).await?,
 
         ClientsList => serde_json::json!({"clients": [], "count": 0}),
 
-        NotificationSend { .. } | NotificationClose { .. } => {
+        NotificationSend { .. }
+        | NotificationClose { .. }
+        | NotificationHistory { .. }
+        | NotificationAction { .. }
+        | NotificationClearHistory
+        | NotificationWatch => {
             execute_notification::execute_notification(action, backend, state).await?
         }
 

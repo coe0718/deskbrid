@@ -20,6 +20,7 @@ mod mpris;
 mod network;
 mod notifications;
 mod process;
+mod rules;
 mod screenshot;
 mod sessions;
 mod system;
@@ -185,6 +186,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Sessions
         s if s.starts_with("session.") => sessions::parse_session(&raw, &id, s)?,
+
+        // Rules
+        s if s.starts_with("rule.") => rules::parse_rules(&raw, &id, s)?,
 
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };

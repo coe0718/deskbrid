@@ -1,11 +1,13 @@
 // reason: re-export module; logic in parse.rs/serialize.rs/exhaustive match in mod.rs
 pub mod events;
 pub mod parse;
+pub mod rules_types;
 pub mod serialize;
 pub mod types;
 
 // Re-export all types so external imports don't break
 pub use events::*;
+pub use rules_types::*;
 pub use types::*;
 
 // reason: 90+ Action enum variants — cannot reduce without breaking exhaustiveness
@@ -209,6 +211,17 @@ pub enum Action {
     NotificationClose {
         notification_id: u32,
     },
+    NotificationHistory {
+        limit: Option<u32>,
+        app_name: Option<String>,
+        since: Option<u64>,
+    },
+    NotificationAction {
+        notification_id: u32,
+        action_key: String,
+    },
+    NotificationClearHistory,
+    NotificationWatch,
 
     // System
     SystemInfo,
@@ -345,6 +358,27 @@ pub enum Action {
         ssid: String,
         password: Option<String>,
     },
+    NetworkConnectionList,
+    NetworkConnectionProfiles,
+    NetworkCreateHotspot {
+        ssid: String,
+        password: Option<String>,
+    },
+    NetworkStopHotspot,
+    NetworkWifiEnable {
+        enabled: bool,
+    },
+    NetworkWwanEnable {
+        enabled: bool,
+    },
+    NetworkDnsSet {
+        dns: Vec<String>,
+    },
+    NetworkDnsReset,
+    NetworkVpnConnect {
+        profile_name: String,
+    },
+    NetworkVpnDisconnect,
 
     // Clients
     ClientsList,
@@ -662,6 +696,31 @@ pub enum Action {
         name: String,
     },
     SessionVarList,
+
+    // ─── Rules Engine (#83) ──────────────────────────────
+    RuleCreate {
+        name: String,
+        trigger: EventTrigger,
+        condition: Option<RuleCondition>,
+        action_type: String,
+        action_params: serde_json::Value,
+        enabled: bool,
+        max_fires: Option<u32>,
+        cooldown_ms: Option<u64>,
+    },
+    RuleList,
+    RuleGet {
+        rule_id: String,
+    },
+    RuleDelete {
+        rule_id: String,
+    },
+    RulePause {
+        rule_id: String,
+    },
+    RuleResume {
+        rule_id: String,
+    },
 }
 
 impl Action {
@@ -715,6 +774,10 @@ impl Action {
             "audit.clear",
             "notification.send",
             "notification.close",
+            "notification.history",
+            "notification.action",
+            "notification.clear_history",
+            "notification.watch",
             "system.info",
             "system.capabilities",
             "system.health",
@@ -840,6 +903,12 @@ impl Action {
             "session.var.set",
             "session.var.get",
             "session.var.list",
+            "rule.create",
+            "rule.list",
+            "rule.get",
+            "rule.delete",
+            "rule.pause",
+            "rule.resume",
         ]
     }
 

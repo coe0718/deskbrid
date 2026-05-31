@@ -28,6 +28,7 @@ use tokio::sync::{Mutex, RwLock, broadcast};
 use tracing::{info, warn};
 
 use crate::daemon::persistence::Database;
+use crate::daemon::rules::RuleEngine;
 
 /// Session-scoped data for named sessions (#31).
 /// Each session isolates variables and metadata per connecting agent.
@@ -86,6 +87,8 @@ pub struct DaemonState {
     pub database: Arc<Mutex<Database>>,
     /// Named sessions — map of session name to session data (#31)
     pub sessions: Arc<Mutex<HashMap<String, SessionData>>>,
+    /// Rules engine state — registered rules with runtime tracking (#83)
+    pub rules: Arc<Mutex<RuleEngine>>,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -137,6 +140,7 @@ impl DaemonState {
             recording: Arc::new(Mutex::new(None)),
             database: Arc::new(Mutex::new(database)),
             sessions: Arc::new(Mutex::new(sessions)),
+            rules: Arc::new(Mutex::new(RuleEngine::new())),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),

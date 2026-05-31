@@ -112,4 +112,20 @@ pub enum DeskbridEvent {
         current_version: String,
         latest_version: String,
     },
+    #[serde(rename = "notification.received")]
+    NotificationReceived {
+        id: u32,
+        app_name: String,
+        title: String,
+        body: Option<String>,
+        urgency: String,
+        actions: Option<Vec<String>>,
+        timestamp: u64,
+    },
+    #[serde(rename = "notification.acted")]
+    NotificationActed {
+        id: u32,
+        action_key: String,
+        timestamp: u64,
+    },
 }

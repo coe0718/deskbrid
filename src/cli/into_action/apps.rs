@@ -44,6 +44,18 @@ pub fn into_apps_action(cmd: Command) -> anyhow::Result<Action> {
         Command::Network { cmd } => match cmd {
             NetworkCmd::Status => Action::NetworkStatus,
             NetworkCmd::Interfaces => Action::NetworkInterfaces,
+            NetworkCmd::Connections => Action::NetworkConnectionList,
+            NetworkCmd::Profiles => Action::NetworkConnectionProfiles,
+            NetworkCmd::HotspotStart { ssid, password } => {
+                Action::NetworkCreateHotspot { ssid, password }
+            }
+            NetworkCmd::HotspotStop => Action::NetworkStopHotspot,
+            NetworkCmd::WifiEnable { enabled } => Action::NetworkWifiEnable { enabled },
+            NetworkCmd::WwanEnable { enabled } => Action::NetworkWwanEnable { enabled },
+            NetworkCmd::DnsSet { dns } => Action::NetworkDnsSet { dns },
+            NetworkCmd::DnsReset => Action::NetworkDnsReset,
+            NetworkCmd::VpnConnect { profile_name } => Action::NetworkVpnConnect { profile_name },
+            NetworkCmd::VpnDisconnect => Action::NetworkVpnDisconnect,
         },
 
         Command::Wifi { cmd } => match cmd {

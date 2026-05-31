@@ -32,6 +32,7 @@ mod execute_monitor;
 mod execute_network;
 mod execute_notification;
 mod execute_process;
+mod execute_rules;
 mod execute_screenshot;
 mod execute_sessions;
 mod execute_stubs;
@@ -46,6 +47,7 @@ pub(crate) mod mpris_convert;
 pub mod persistence;
 mod portal;
 mod rate_limit;
+pub(crate) mod rules;
 pub(crate) mod schedule;
 mod sysfs;
 mod system;
@@ -168,6 +170,9 @@ pub async fn run(
 
     // Start schedule engine — runs configured actions on a timer
     schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));
+
+    // Start rules engine — evaluates event-driven rules (#83)
+    rules::spawn_rules_engine(Arc::clone(&state));
 
     // Start TCP listener if configured
     if let Some(bind) = tcp_bind {

@@ -15,6 +15,7 @@ mod files;
 mod input;
 mod macro_cmd;
 mod process;
+mod rules;
 mod screenshot;
 mod sessions;
 mod system;
@@ -90,7 +91,11 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         Action::AuditLog { .. }
         | Action::AuditClear
         | Action::NotificationSend { .. }
-        | Action::NotificationClose { .. } => audit::serialize_audit(action, &id),
+        | Action::NotificationClose { .. }
+        | Action::NotificationHistory { .. }
+        | Action::NotificationAction { .. }
+        | Action::NotificationClearHistory
+        | Action::NotificationWatch => audit::serialize_audit(action, &id),
 
         // System / Network
         Action::SystemInfo
@@ -135,7 +140,17 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::NetworkStatus
         | Action::NetworkInterfaces
         | Action::NetworkWifiScan
-        | Action::NetworkWifiConnect { .. } => system::serialize_system(action, &id),
+        | Action::NetworkWifiConnect { .. }
+        | Action::NetworkConnectionList
+        | Action::NetworkConnectionProfiles
+        | Action::NetworkCreateHotspot { .. }
+        | Action::NetworkStopHotspot
+        | Action::NetworkWifiEnable { .. }
+        | Action::NetworkWwanEnable { .. }
+        | Action::NetworkDnsSet { .. }
+        | Action::NetworkDnsReset
+        | Action::NetworkVpnConnect { .. }
+        | Action::NetworkVpnDisconnect => system::serialize_system(action, &id),
 
         // Bluetooth
         Action::BluetoothList
@@ -243,6 +258,14 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SessionVarSet { .. }
         | Action::SessionVarGet { .. }
         | Action::SessionVarList => sessions::serialize_sessions(action, &id),
+
+        // Rules
+        Action::RuleCreate { .. }
+        | Action::RuleList
+        | Action::RuleGet { .. }
+        | Action::RuleDelete { .. }
+        | Action::RulePause { .. }
+        | Action::RuleResume { .. } => rules::serialize_rules(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)

@@ -195,6 +195,32 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::NetworkConnectionList => json!({"type": "network.connections.list", "id": id}),
+        Action::NetworkConnectionProfiles => {
+            json!({"type": "network.connections.profiles", "id": id})
+        }
+        Action::NetworkCreateHotspot { ssid, password } => {
+            let mut obj = json!({"type": "network.hotspot.start", "id": id, "ssid": ssid});
+            if let Some(pw) = password {
+                obj["password"] = json!(pw);
+            }
+            obj
+        }
+        Action::NetworkStopHotspot => json!({"type": "network.hotspot.stop", "id": id}),
+        Action::NetworkWifiEnable { enabled } => {
+            json!({"type": "network.wifi.enable", "id": id, "enabled": enabled})
+        }
+        Action::NetworkWwanEnable { enabled } => {
+            json!({"type": "network.wwan.enable", "id": id, "enabled": enabled})
+        }
+        Action::NetworkDnsSet { dns } => {
+            json!({"type": "network.dns.set", "id": id, "dns": dns})
+        }
+        Action::NetworkDnsReset => json!({"type": "network.dns.reset", "id": id}),
+        Action::NetworkVpnConnect { profile_name } => {
+            json!({"type": "network.vpn.connect", "id": id, "profile_name": profile_name})
+        }
+        Action::NetworkVpnDisconnect => json!({"type": "network.vpn.disconnect", "id": id}),
 
         // Clients
         Action::ClientsList => json!({"type": "clients.list", "id": id}),

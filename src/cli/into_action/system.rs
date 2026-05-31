@@ -15,6 +15,17 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
                 urgency,
             },
             NotifyCmd::Close { notification_id } => Action::NotificationClose { notification_id },
+            NotifyCmd::History {
+                limit,
+                app_name,
+                since,
+            } => Action::NotificationHistory {
+                limit,
+                app_name,
+                since,
+            },
+            NotifyCmd::ClearHistory => Action::NotificationClearHistory,
+            NotifyCmd::Watch => Action::NotificationWatch,
         },
 
         Command::System { cmd } => match cmd {
