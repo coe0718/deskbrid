@@ -48,7 +48,9 @@ pub async fn run_json(check_only: bool, force: bool) -> anyhow::Result<Value> {
     let checksum =
         github::verify_checksum_if_available(&client, &release, asset, &archive_path).await?;
     extract_tarball(&archive_path, tmp_dir.path()).await?;
-    let new_binary = find_binary(tmp_dir.path()).context("no deskbrid binary found in archive")?;
+    let new_binary = find_binary(tmp_dir.path())
+        .await
+        .context("no deskbrid binary found in archive")?;
 
     let current_exe = std::env::current_exe().context("failed to determine running binary path")?;
     let backup_path = current_exe.with_extension("old");
@@ -116,11 +118,16 @@ async fn extract_tarball(archive: &std::path::Path, dest: &std::path::Path) -> a
     Ok(())
 }
 
-fn find_binary(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    for entry in std::fs::read_dir(dir).ok()? {
-        let path = entry.ok()?.path();
+async fn find_binary(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut entries = tokio::fs::read_dir(dir).await.ok()?;
+    loop {
+        let entry = match entries.next_entry().await {
+            Ok(Some(e)) => e,
+            _ => break,
+        };
+        let path = entry.path();
         if path.is_dir() {
-            if let Some(found) = find_binary(&path) {
+            if let Some(found) = Box::pin(find_binary(&path)).await {
                 return Some(found);
             }
         } else if path.file_name().is_some_and(|name| name == "deskbrid") {
