@@ -16,6 +16,7 @@ mod input;
 mod macro_cmd;
 mod process;
 mod screenshot;
+mod sessions;
 mod system;
 mod windows;
 
@@ -233,6 +234,15 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::MacroDelete { .. }
         | Action::MacroExport { .. }
         | Action::MacroImport { .. } => macro_cmd::serialize_macro(action, &id),
+
+        // Sessions
+        Action::SessionCreate { .. }
+        | Action::SessionDestroy { .. }
+        | Action::SessionList
+        | Action::SessionSwitch { .. }
+        | Action::SessionVarSet { .. }
+        | Action::SessionVarGet { .. }
+        | Action::SessionVarList => sessions::serialize_sessions(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)

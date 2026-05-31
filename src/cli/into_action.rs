@@ -1,4 +1,5 @@
 use super::*;
+use crate::cli::sessions::{SessionCmd, VarCmd};
 use crate::protocol;
 
 mod apps;
@@ -46,6 +47,25 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         Command::Clients => Ok(protocol::Action::ClientsList),
 
         Command::Terminal { .. } | Command::Wait { .. } => terminal::into_terminal_action(cmd),
+
+        // Sessions
+        Command::Session { cmd } => Ok(match cmd {
+            SessionCmd::Create { name, clone_from } => protocol::Action::SessionCreate {
+                name: name.clone(),
+                clone_from: clone_from.clone(),
+            },
+            SessionCmd::Destroy { name } => protocol::Action::SessionDestroy { name: name.clone() },
+            SessionCmd::List => protocol::Action::SessionList,
+            SessionCmd::Switch { name } => protocol::Action::SessionSwitch { name: name.clone() },
+            SessionCmd::Var { cmd: var_cmd } => match var_cmd {
+                VarCmd::Set { name, value } => protocol::Action::SessionVarSet {
+                    name: name.clone(),
+                    value: value.clone(),
+                },
+                VarCmd::Get { name } => protocol::Action::SessionVarGet { name: name.clone() },
+                VarCmd::List => protocol::Action::SessionVarList,
+            },
+        }),
 
         _ => bail!(
             "unexpected command in client mode: {:?}",

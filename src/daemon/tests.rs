@@ -151,6 +151,7 @@ async fn dry_run_validates_permissions_without_backend() {
             dry_run: true,
             timeout_ms: Some(250),
         },
+        "default",
     )
     .await;
 

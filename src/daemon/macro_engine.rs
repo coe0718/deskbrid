@@ -186,6 +186,7 @@ pub async fn replay_macro(
                         peer_uid,
                         action.seq,
                         crate::protocol::RequestOptions::default(),
+                        "default",
                     ))
                     .await;
                     results.push(result.clone());

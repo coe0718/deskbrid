@@ -45,7 +45,7 @@ where
         "type": "connected",
         "id": "server",
         "seq": 0,
-        "data": { "version": "0.10.0", "protocol": "deskbrid-v2", "uid": peer_uid }
+        "data": { "version": "0.10.0", "protocol": "deskbrid-v2", "uid": peer_uid, "session": conn.session_id }
     });
     writer
         .write_all(format!("{}\n", serde_json::to_string(&connected)?).as_bytes())
@@ -104,6 +104,44 @@ where
                     continue;
                 }
 
+                // Handle "connect" message — join a named session
+                if let Ok(raw) = serde_json::from_str::<serde_json::Value>(&line)
+                    && raw["type"].as_str() == Some("connect")
+                {
+                    if let Some(session_name) = raw["session"].as_str() {
+                            let name = session_name.to_string();
+                            // Create session if it doesn't exist
+                            {
+                                let mut sessions = state.sessions.lock().await;
+                                if !sessions.contains_key(&name) {
+                                    let data = crate::SessionData::new(name.clone());
+                                    sessions.insert(name.clone(), data);
+                                }
+                            }
+                            conn.session_id = name;
+                            let resp = serde_json::json!({
+                                "type": "response",
+                                "id": raw["id"].as_str().unwrap_or("?"),
+                                "seq": seq,
+                                "status": "ok",
+                                "data": { "session": conn.session_id }
+                            });
+                            writer
+                                .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
+                                .await?;
+                        } else {
+                            let err = serde_json::json!({
+                                "type": "response", "id": "?", "seq": seq, "status": "error",
+                                "error": { "code": "INVALID_PARAMS", "message": "connect requires 'session' field" }
+                            });
+                            writer
+                                .write_all(format!("{}\n", serde_json::to_string(&err)?).as_bytes())
+                                .await?;
+                        }
+                        line.clear();
+                        continue;
+                }
+
                 let (request_id, action, options) = match Action::from_json_with_options(&line) {
                     Ok((id, action, options)) => (id, action, options),
                     Err(e) => {
@@ -160,21 +198,21 @@ where
                     // Files — track watched paths locally
                     Action::FilesWatch { ref path, .. } => {
                         conn.watched_paths.insert(path.clone());
-                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
                     Action::FilesUnwatch { ref path } => {
                         conn.watched_paths.remove(path);
-                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
 
                     _ => {
-                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options).await;
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;

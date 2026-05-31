@@ -21,6 +21,7 @@ mod network;
 mod notifications;
 mod process;
 mod screenshot;
+mod sessions;
 mod system;
 mod windows;
 mod workspace_layout;
@@ -181,6 +182,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Macro
         s if s.starts_with("macro.") => macro_cmd::parse_macro(&raw, &id, s)?,
+
+        // Sessions
+        s if s.starts_with("session.") => sessions::parse_session(&raw, &id, s)?,
 
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };

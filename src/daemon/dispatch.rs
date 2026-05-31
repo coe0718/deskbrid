@@ -4,6 +4,7 @@ use crate::protocol::{Action, RequestOptions};
 use super::dispatch_helpers::*;
 use super::execute::execute_action;
 use super::execute_macro::{execute_macro_action, is_macro_action};
+use super::execute_sessions::{execute_session_action, is_session_action};
 use super::helpers::{not_supported_response, permission_denied_response};
 use super::rate_limited_response;
 use super::system::{execute_system_control_action, is_system_control_action};
@@ -29,6 +30,7 @@ pub async fn dispatch_action(
         peer_uid,
         seq,
         RequestOptions::default(),
+        "default",
     )
     .await
 }
@@ -40,6 +42,7 @@ pub async fn dispatch_action_with_options(
     peer_uid: u32,
     seq: u64,
     options: RequestOptions,
+    session_id: &str,
 ) -> serde_json::Value {
     let started = std::time::Instant::now();
     let action_timeout_ms = effective_timeout_ms(&action, state, &options);
@@ -200,6 +203,19 @@ pub async fn dispatch_action_with_options(
             &action,
             action_timeout_ms,
             execute_terminal_action(action.clone(), state),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+    if is_session_action(&action) {
+        let sid = session_id.to_string();
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_session_action(action.clone(), state, &sid),
         )
         .await;
         return action_response(

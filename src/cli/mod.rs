@@ -14,6 +14,7 @@ mod mpris;
 mod network;
 mod notify;
 mod portal;
+mod sessions;
 mod system;
 mod terminal;
 mod windows;
@@ -32,6 +33,7 @@ use mpris::MprisCmd;
 use network::{NetworkCmd, WifiCmd};
 use notify::NotifyCmd;
 use portal::PortalCmd;
+use sessions::SessionCmd;
 use system::{JournalCmd, ServiceCmd, SystemCmd, TimerCmd};
 use terminal::TerminalCmd;
 use windows::WindowCmd;
@@ -409,6 +411,13 @@ pub enum Command {
     Macro {
         #[command(subcommand)]
         cmd: MacroCmd,
+    },
+
+    // ─── Sessions ────────────────────────────────────────
+    #[command(name = "session")]
+    Session {
+        #[command(subcommand)]
+        cmd: SessionCmd,
     },
 }
 

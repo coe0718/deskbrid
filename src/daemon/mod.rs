@@ -33,6 +33,7 @@ mod execute_network;
 mod execute_notification;
 mod execute_process;
 mod execute_screenshot;
+mod execute_sessions;
 mod execute_stubs;
 mod execute_system;
 mod execute_windows;

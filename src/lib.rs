@@ -29,6 +29,39 @@ use tracing::{info, warn};
 
 use crate::daemon::persistence::Database;
 
+/// Session-scoped data for named sessions (#31).
+/// Each session isolates variables and metadata per connecting agent.
+#[derive(Debug, Clone)]
+pub struct SessionData {
+    pub name: String,
+    pub vars: HashMap<String, String>,
+    pub created_at: u64,
+    pub last_active: u64,
+}
+
+impl SessionData {
+    fn new(name: String) -> Self {
+        let now = unix_timestamp();
+        Self {
+            name,
+            vars: HashMap::new(),
+            created_at: now,
+            last_active: now,
+        }
+    }
+
+    pub fn touch(&mut self) {
+        self.last_active = unix_timestamp();
+    }
+}
+
+fn unix_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
 /// Global daemon state shared across all client connections
 pub struct DaemonState {
     pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
@@ -51,6 +84,8 @@ pub struct DaemonState {
     pub schedule: Arc<daemon::schedule::ScheduleState>,
     pub recording: Arc<Mutex<Option<daemon::macro_engine::ActiveRecording>>>,
     pub database: Arc<Mutex<Database>>,
+    /// Named sessions — map of session name to session data (#31)
+    pub sessions: Arc<Mutex<HashMap<String, SessionData>>>,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -74,6 +109,17 @@ impl DaemonState {
             }
         };
 
+        // Load persisted sessions from DB
+        let sessions: HashMap<String, SessionData> = {
+            let mut map = HashMap::new();
+            if let Ok(persisted) = database.load_sessions() {
+                for s in persisted {
+                    map.insert(s.name.clone(), s);
+                }
+            }
+            map
+        };
+
         Self {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
@@ -90,6 +136,7 @@ impl DaemonState {
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),
             recording: Arc::new(Mutex::new(None)),
             database: Arc::new(Mutex::new(database)),
+            sessions: Arc::new(Mutex::new(sessions)),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),
@@ -125,12 +172,24 @@ impl Default for DaemonState {
 }
 
 /// Per-client connection state
-#[derive(Default)]
 pub struct ConnectionState {
+    /// Named session ID this client is connected to (defaults to "default")
+    pub session_id: String,
     /// Glob-pattern subscriptions (e.g., "window.*", "clipboard.changed")
     pub subscriptions: HashSet<String>,
     /// Registered hotkey IDs
     pub hotkeys: HashSet<String>,
     /// Watched file paths
     pub watched_paths: HashSet<String>,
+}
+
+impl Default for ConnectionState {
+    fn default() -> Self {
+        Self {
+            session_id: "default".to_string(),
+            subscriptions: HashSet::new(),
+            hotkeys: HashSet::new(),
+            watched_paths: HashSet::new(),
+        }
+    }
 }

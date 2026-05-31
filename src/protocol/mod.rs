@@ -641,6 +641,27 @@ pub enum Action {
         name: String,
         data: String,
     },
+
+    // ─── Named Sessions (#31) ──────────────────────────
+    SessionCreate {
+        name: String,
+        clone_from: Option<String>,
+    },
+    SessionDestroy {
+        name: String,
+    },
+    SessionList,
+    SessionSwitch {
+        name: String,
+    },
+    SessionVarSet {
+        name: String,
+        value: String,
+    },
+    SessionVarGet {
+        name: String,
+    },
+    SessionVarList,
 }
 
 impl Action {
@@ -812,6 +833,13 @@ impl Action {
             "macro.delete",
             "macro.export",
             "macro.import",
+            "session.create",
+            "session.destroy",
+            "session.list",
+            "session.switch",
+            "session.var.set",
+            "session.var.get",
+            "session.var.list",
         ]
     }
 
