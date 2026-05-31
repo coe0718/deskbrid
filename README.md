@@ -57,6 +57,8 @@ Deskbrid fills that gap. It auto-detects your compositor and loads the right bac
 
 Deskbrid ships with a built-in web dashboard at `localhost:20129` — system info, monitors, windows, network, audio, clipboard, and an audit log of agent actions, all live:
 
+**[🔴 Live Demo →](https://deskbrid.patchhive.dev/live)**
+
 ![Deskbrid Dashboard — Hyprland, system overview with SSE-connected live data](docs/assets/dashboard.png)
 
 ## Supported Desktops
