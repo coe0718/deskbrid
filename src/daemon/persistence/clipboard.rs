@@ -2,7 +2,7 @@ use crate::protocol::ClipboardHistoryEntry;
 use anyhow::Context;
 use rusqlite::params;
 
-use super::{unix_now, Database};
+use super::{Database, unix_now};
 
 impl Database {
     /// Insert a clipboard entry and return its row id.

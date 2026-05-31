@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deskbrid Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0f; color: #e2e8f0; min-height: 100vh; padding: 1.5rem;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 1rem; border-bottom: 1px solid #1e293b; margin-bottom: 1.5rem;
+    flex-wrap: wrap; gap: 0.5rem;
+  }
+  header h1 {
+    font-size: 1.5rem; font-weight: 700;
+    background: linear-gradient(135deg, #06b6d4, #22d3ee);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .version-badge {
+    background: #0f172a; border: 1px solid #334155;
+    color: #94a3b8; padding: 0.2rem 0.6rem; border-radius: 9999px;
+    font-size: 0.75rem; font-family: 'JetBrains Mono', monospace;
+  }
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e; box-shadow: 0 0 8px #22c55e66;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .live-text { font-size: 0.75rem; color: #22c55e; font-weight: 600; }
+  .status-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.4rem;
+  }
+  .status-dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e66; }
+  .status-dot.offline { background: #ef4444; box-shadow: 0 0 8px #ef444466; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } body { padding: 0.75rem; } }
+  .card {
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 1rem;
+    transition: border-color 0.3s;
+  }
+  .card.updated { border-color: #06b6d4; }
+  .card.wide { grid-column: span 2; }
+  @media (max-width: 1100px) { .card.wide { grid-column: span 1; } }
+  .card h2 {
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.6rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .card h2 .count {
+    font-size: 0.65rem; background: #1e293b; color: #94a3b8;
+    padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 400; margin-left: auto;
+  }
+  .kv { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #1e293b; font-size: 0.8rem; }
+  .kv:last-child { border-bottom: none; }
+  .kv .key { color: #94a3b8; }
+  .kv .val { color: #e2e8f0; font-weight: 500; text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kv .val.accent { color: #06b6d4; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+  .window-row {
+    display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0;
+    border-bottom: 1px solid #1e293b; font-size: 0.78rem;
+  }
+  .window-row:last-child { border-bottom: none; }
+  .window-icon { font-size: 0.85rem; flex-shrink: 0; }
+  .window-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .window-ws {
+    background: #1e293b; color: #64748b; padding: 0.1rem 0.4rem;
+    border-radius: 4px; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+  }
+  .window-focused { color: #06b6d4; font-weight: 600; }
+  .audit-row {
+    display: flex; gap: 0.4rem; padding: 0.2rem 0; border-bottom: 1px solid #1e293b;
+    font-size: 0.72rem; align-items: center;
+  }
+  .audit-row:last-child { border-bottom: none; }
+  .audit-status {
+    padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 600;
+    font-size: 0.62rem; text-transform: uppercase; flex-shrink: 0;
+  }
+  .audit-status.ok { background: #064e3b40; color: #22c55e; }
+  .audit-status.error { background: #7f1d1d40; color: #ef4444; }
+  .audit-action { color: #06b6d4; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .audit-ts { color: #64748b; font-size: 0.65rem; flex-shrink: 0; }
+  .clip-entry {
+    padding: 0.25rem 0; border-bottom: 1px solid #1e293b; font-size: 0.78rem;
+    display: flex; gap: 0.5rem; align-items: baseline;
+  }
+  .clip-entry:last-child { border-bottom: none; }
+  .clip-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e2e8f0; }
+  .clip-src { color: #64748b; font-size: 0.65rem; flex-shrink: 0; }
+  .clip-ts { color: #475569; font-size: 0.62rem; flex-shrink: 0; }
+  .rule-row {
+    display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0;
+    border-bottom: 1px solid #1e293b; font-size: 0.75rem;
+  }
+  .rule-row:last-child { border-bottom: none; }
+  .rule-name { flex: 1; font-weight: 500; }
+  .rule-trigger { color: #64748b; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; }
+  .rule-enabled { color: #22c55e; font-size: 0.65rem; font-weight: 600; }
+  .rule-disabled { color: #ef4444; font-size: 0.65rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: #06b6d4; color: #0a0a0f; border: none; padding: 0.5rem 1rem;
+    border-radius: 7px; font-weight: 600; font-size: 0.82rem; cursor: pointer;
+    text-decoration: none; font-family: 'Inter', sans-serif; transition: background 0.2s;
+  }
+  .btn:hover { background: #22d3ee; }
+  .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 5px; }
+  .btn-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .screenshot-wrap { margin-bottom: 1rem; }
+  .screenshot-wrap img { max-width: 100%; border-radius: 8px; border: 1px solid #1e293b; }
+  .empty { color: #64748b; font-style: italic; font-size: 0.8rem; padding: 0.25rem 0; }
+  .error-box { background: #7f1d1d20; border: 1px solid #7f1d1d40; border-radius: 8px; padding: 0.6rem 0.8rem; color: #fca5a5; font-size: 0.8rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>⚡ Deskbrid</h1>
+  <div class="header-right">
+    <span class="live-dot" id="live-dot"></span>
+    <span class="live-text">SSE</span>
+    <span class="version-badge">__VERSION__</span>
+  </div>
+</header>
+
+<div class="btn-bar">
+  <a href="?screenshot=1" class="btn">📸 Screenshot</a>
+  <a href="/screenshot" class="btn" style="background:#1e293b;color:#e2e8f0">📸 Raw PNG</a>
+  <span class="status-badge" style="font-size:0.8rem;color:#94a3b8;margin-left:auto">
+    <span class="status-dot __STATUS_CLASS__"></span>__STATUS_TEXT__
+  </span>
+</div>
+
+__ERROR_BOX__
+__SCREENSHOT_HTML__
+
+<div class="grid">
+  <div class="card" id="card-system">    <h2>🖥 System</h2>    <div class="card-body">__SYSTEM__</div></div>
+  <div class="card" id="card-monitors"> <h2>🖼 Monitors</h2>  <div class="card-body">__MONITORS__</div></div>
+  <div class="card" id="card-network">  <h2>📡 Network</h2>   <div class="card-body">__NETWORK__</div></div>
+  <div class="card" id="card-audio">    <h2>🔊 Audio</h2>     <div class="card-body">__AUDIO__</div></div>
+  <div class="card wide" id="card-windows"><h2>🪟 Windows <span class="count" id="win-count"></span></h2><div class="card-body">__WINDOWS__</div></div>
+  <div class="card wide" id="card-clipboard"><h2>📋 Clipboard <span class="count" id="clip-count"></span></h2><div class="card-body">__CLIPBOARD__</div></div>
+  <div class="card wide" id="card-audit">   <h2>📋 Audit Log <span class="count" id="audit-count"></span></h2><div class="card-body">__AUDIT__</div></div>
+  <div class="card" id="card-sessions"> <h2>👤 Sessions <span class="count" id="sess-count"></span></h2><div class="card-body">__SESSIONS__</div></div>
+  <div class="card" id="card-rules">    <h2>⚙ Rules <span class="count" id="rule-count"></span></h2><div class="card-body">__RULES__</div></div>
+  <div class="card" id="card-notifications"><h2>🔔 Notifications <span class="count" id="notif-count"></span></h2><div class="card-body">__NOTIFICATIONS__</div></div>
+  <div class="card" id="card-macros">   <h2>🎬 Macros <span class="count" id="macro-count"></span></h2><div class="card-body">__MACROS__</div></div>
+</div>
+</div>
+
+<script>
+const ES = new EventSource('/events');
+ES.onmessage = function(e) {
+  try {
+    const data = JSON.parse(e.data);
+    if (data.card && data.html) {
+      const card = document.getElementById('card-' + data.card);
+      if (card) {
+        card.querySelector('.card-body').innerHTML = data.html;
+        card.classList.add('updated');
+        setTimeout(() => card.classList.remove('updated'), 600);
+      }
+    }
+    if (data.counts) {
+      for (const [k, v] of Object.entries(data.counts)) {
+        const el = document.getElementById(k + '-count');
+        if (el) el.textContent = v;
+      }
+    }
+  } catch(_) {}
+};
+ES.onerror = function() {
+  document.getElementById('live-dot').style.background = '#ef4444';
+};
+</script>
+</body>
+</html>

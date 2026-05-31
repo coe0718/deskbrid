@@ -8,7 +8,6 @@
 pub mod tools;
 
 mod helpers;
-mod tool_list;
 mod types;
 
 pub mod server;

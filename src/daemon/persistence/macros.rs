@@ -1,7 +1,7 @@
 use anyhow::Context;
 use rusqlite::params;
 
-use super::{unix_now, Database};
+use super::{Database, unix_now};
 
 impl Database {
     /// Save (insert or replace) a macro.

@@ -1,10 +1,34 @@
-//! MCP tool implementations — no external MCP crate dependencies.
+//! MCP tool definitions + call dispatcher.
+
+use serde_json::{Value, json};
+
+mod discovery;
+mod display;
+mod files_misc;
+mod interaction;
+mod system;
+
+use discovery::tools as discovery_tools;
+use display::tools as display_tools;
+use files_misc::tools as files_misc_tools;
+use interaction::tools as interaction_tools;
+use system::tools as system_tools;
 
 use crate::DaemonState;
 use crate::mcp::helpers::*;
-use serde_json::{Value, json};
 
-pub use super::tool_list::list_tools;
+pub fn list_tools() -> Vec<Value> {
+    let mut tools = discovery_tools();
+    tools.extend(interaction_tools());
+    tools.extend(system_tools());
+    tools.extend(display_tools());
+    tools.extend(files_misc_tools());
+    tools
+}
+
+pub(crate) fn t(name: &str, description: &str, input_schema: Value) -> Value {
+    json!({"name": name, "description": description, "inputSchema": input_schema})
+}
 
 pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow::Result<String> {
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
@@ -96,7 +120,6 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
         }
         _ => {
             // Generic fallback: pass the tool name as action type and args directly.
-            // Covers all tools added in Phase 3 without per-tool boilerplate.
             do_execute_with(state, name, args.clone()).await?
         }
     };
