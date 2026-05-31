@@ -53,11 +53,11 @@ it to the completed table below.
 || [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
 || [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
 || [25. Action Recording & Replay](#25-action-recording--replay-macros) | Macro recording engine, dispatch hook, JSON file storage, replay with fast/timed modes, CLI, Python client | `src/daemon/macro_engine.rs`, `src/daemon/execute_macro.rs`, `src/protocol/parse/macro_cmd.rs`, `src/protocol/serialize/macro_cmd.rs` |
-|| [84. Persistence Layer (SQLite)](#84-persistence-layer-sqlite) | SQLite database with WAL mode, 7 tables (clipboard_history, audit_log, notifications, macros, cron_jobs, blackboard, sessions), CRUD methods for all data types | `src/daemon/persistence.rs` |
+|| [84. Persistence Layer (SQLite)](#84-persistence-layer-sqlite) | SQLite database with WAL mode, 6 tables (clipboard_history, audit_log, notifications, macros, blackboard, sessions), CRUD methods for all data types, clipboard/audit/blackboard wired | `src/daemon/persistence.rs` |
 || [31. Named Sessions](#31-named-sessions-multi-agent-isolation) | Per-agent session isolation with variables, create/destroy/list/switch, persisted to SQLite, CLI and protocol support | `src/daemon/execute_sessions.rs`, `src/protocol/parse/sessions.rs`, `src/cli/sessions.rs` |
 || [83. Rules Engine](#83-event-driven-triggers-rules-engine) | Event-driven triggers tied to subscription bus, rule CRUD, cooldown/max_fires, persists to SQLite, background evaluation task | `src/daemon/rules.rs`, `src/daemon/execute_rules.rs`, `src/protocol/rules_types.rs` |
 || [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
-|| [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | Native zbus integration: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
+|| [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | nmcli-backed: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
 
 ### Already Built (not covered here)
 
@@ -124,7 +124,7 @@ These features exist in the codebase already for reference:
 42. [Region Watching](#42-screen-region-watching)
 43. [Text Change Events](#43-text-change-events-watched-regions)
 44. [Agent Messaging](#44-agent-to-agent-messaging)
-45. [Shared Blackboard](#45-shared-blackboard-kv-store)
+45. [✅ Shared Blackboard](#45-shared-blackboard-kv-store)
 46. [Lock / Mutex](#46-lock--mutex-primitives)
 47. [Agent Registry](#47-agent-registry)
 48. [REPL Mode](#48-repl-mode)
@@ -2652,54 +2652,29 @@ DeskbridEvent::AgentMessage {
 
 ---
 
-## 45. Shared Blackboard (KV Store)
+## 45. Shared Blackboard (KV Store) ✅
 
-**What's Missing:** Agents need a coordination data store. No shared state means
-each agent re-discovers things the other already knows. A blackboard lets agents
-publish and consume facts.
+**Status:** ✅ Complete. Implemented as part of #84 Persistence Layer. SQLite-backed
+(namespace-scoped, no TTL yet — None passed). Socket commands: `blackboard.set`,
+`blackboard.get`, `blackboard.delete`, `blackboard.list`. See `src/daemon/execute_blackboard.rs`.
 
-**Implementation:** A key-value store scoped to the daemon. Keys are strings,
-values are any JSON-serializable data.
-
-```rust
-BlackboardSet {
-    key: String,
-    value: serde_json::Value,
-    ttl_secs: Option<u64>,       // auto-expire (session duration, or 0 for persistent)
-    namespace: Option<String>,   // "default", "shared", or session-specific
-    exclusive: Option<bool>,     // fail if key already exists (for locks)
-}
-
-BlackboardGet {
-    key: String,
-    namespace: Option<String>,
-}
-
-BlackboardDelete { key: String, namespace: Option<String> },
-
-BlackboardSearch {
-    prefix: Option<String>,      // find all keys starting with this
-    namespace: Option<String>,
-}
-
-BlackboardList {
-    namespace: Option<String>,
-}
-```
-
-### Subscription Events
+**What's implemented vs spec:**
+- ✅ `BlackboardSet { key, value, namespace }` — value is String (not arbitrary JSON)
+- ✅ `BlackboardGet { key, namespace }`
+- ✅ `BlackboardDelete { key, namespace }`
+- ✅ `BlackboardList { namespace }`
+- ❌ TTL / auto-expire — not yet
+- ❌ `exclusive` flag for lock semantics — not yet
+- ❌ `BlackboardSearch` (prefix search) — not yet
+- ❌ Subscription events — not yet
 
 ```rust
-DeskbridEvent::BlackboardChanged {
-    key, namespace, old_value, new_value, timestamp
-}
-DeskbridEvent::BlackboardDeleted {
-    key, namespace, timestamp
-}
+// Current wire format (simpler than original spec):
+blackboard.set   { key, value, namespace? }
+blackboard.get   { key, namespace? }
+blackboard.delete { key, namespace? }
+blackboard.list  { namespace? }
 ```
-
-**Effort:** ~200 lines. In-memory `HashMap<String, (Value, Instant)>` with TTL
-sweeper.
 
 ---
 
@@ -4396,23 +4371,24 @@ RulePause { rule_id }, RuleResume { rule_id },
 
 ## 84. Persistence Layer (SQLite)
 
-**What's Missing:** Clipboard history, audit log, blackboard, semantic index,
-cron jobs, macros — all in-memory. Lost on daemon restart.
+**Status:** ✅ Complete. SQLite database at `~/.local/share/deskbrid/deskbrid.db` with WAL mode.
+All tables have CRUD methods. Clipboard, audit, and blackboard wired in — no more in-memory-only data loss on restart.
 
-**Implementation:** Add SQLite via `rusqlite` crate. Contextual data persists
-across restarts:
+**Tables (6 active):**
 
 ```rust
-// Tables:
-// clipboard_history (id, text, source, copied_at)
-// audit_log (id, seq, uid, action, params, status, duration_ms, timestamp)
-// blackboard (key, value_json, namespace, ttl, created_at, updated_at)
-// semantic_index (id, text, x, y, w, h, confidence, screenshot_id, timestamp)
-// cron_jobs (id, name, schedule, action_json, enabled, next_run, run_count)
-// macros (name, actions_json, version, created_at)
-// rules (id, name, trigger_json, action_json, enabled, max_fires)
-// sessions (name, profile, created_at, last_seen)
+// clipboard_history (id, text, source, copied_at)         ← wired via record_clipboard_text()
+// audit_log (id, seq, uid, action, params, status, duration_ms, timestamp)  ← wired via record_audit_entry()
+// blackboard (key, value_json, namespace, ttl, created_at, updated_at)  ← wired via blackboard.set/get/delete/list
+// notifications (id, app_name, title, body, urgency, actions, timestamp)  ← wired via notification.history
+// rules (id, name, trigger_json, action_json, enabled, max_fires)  ← wired via rule.create/delete
+// sessions (name, profile, created_at, last_seen)  ← wired via session.create/destroy
 ```
+
+**Not wired (by design):**
+- macros table: macro engine uses file-based storage (`~/.local/share/deskbrid/macros/`)
+- cron_jobs table: removed — scheduler uses `schedule.json`
+- semantic_index: future (needs screenshot integration)
 
 **Migration strategy:** Embed schema version in SQLite user_version. Auto-migrate
 on daemon start. Ship migrations inline in the binary.
