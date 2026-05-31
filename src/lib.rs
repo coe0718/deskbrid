@@ -89,6 +89,8 @@ pub struct DaemonState {
     pub sessions: Arc<Mutex<HashMap<String, SessionData>>>,
     /// Rules engine state — registered rules with runtime tracking (#83)
     pub rules: Arc<Mutex<RuleEngine>>,
+    /// Active portal screencast process (GStreamer pipeline)
+    pub screencast_process: Arc<Mutex<Option<daemon::portal::ActiveScreencast>>>,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -141,6 +143,7 @@ impl DaemonState {
             database: Arc::new(Mutex::new(database)),
             sessions: Arc::new(Mutex::new(sessions)),
             rules: Arc::new(Mutex::new(RuleEngine::new())),
+            screencast_process: Arc::new(Mutex::new(None)),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),

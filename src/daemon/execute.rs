@@ -171,7 +171,7 @@ pub async fn execute_action(
         }
 
         PortalScreenshot { .. } | PortalScreencastStart { .. } | PortalScreencastStop => {
-            execute_portal(action).await?
+            execute_portal(action, state).await?
         }
 
         SystemInfo
@@ -231,14 +231,16 @@ pub async fn execute_action(
     })
 }
 
-async fn execute_portal(action: Action) -> anyhow::Result<serde_json::Value> {
+async fn execute_portal(action: Action, state: &DaemonState) -> anyhow::Result<serde_json::Value> {
     use Action::*;
     Ok(match action {
         PortalScreenshot { interactive } => super::portal::portal_screenshot(interactive).await?,
         PortalScreencastStart { output_path } => {
-            super::portal::portal_screencast_start(&output_path).await?
+            super::portal::portal_screencast_start(&output_path, &state.screencast_process).await?
         }
-        PortalScreencastStop => super::portal::portal_screencast_stop().await?,
+        PortalScreencastStop => {
+            super::portal::portal_screencast_stop(&state.screencast_process).await?
+        }
         _ => unreachable!("not a portal action"),
     })
 }
