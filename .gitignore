@@ -17,3 +17,4 @@ build/
 MCP_INTEGRATION.md/
 /scripts/deploy-site.sh
 .tuck-state.md
+dist/

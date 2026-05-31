@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v0.10.0)
+# Deskbrid Desktop Control (v0.11.1)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v0.7.0 highlights (79 commits, +31.6K / −6.5K lines):** COSMIC backend shipped, AT-SPI2 rebuild + MCP server (85 tools across 18 categories), uinput AbsPointer, browser CDP control, file operations, MPRIS media, color picker, app catalog, clipboard history, screenshot OCR + diffing, terminal PTY sessions, systemd/polkit controls, layout profiles, activate-or-launch, monitor controls, process management, notifications, hotkeys, 8-file refactor.
+**v0.11.1 highlights:** Self-updater (GitHub releases, checksum verification, daemon restart), live dashboard with SSE (11 cards, real-time system stats), portal screencast (wf-recorder + GStreamer PipeWire), 9 compositor backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server (85+ tools across 18 categories), AT-SPI2 accessibility tree, browser CDP control, keyboard layout management, file operations, MPRIS media, systemd/polkit, terminal PTY sessions, notification system, clipboard history, macro engine, rules engine, schedule system.
 
 ## Installation
 

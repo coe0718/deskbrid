@@ -33,7 +33,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/coe0718/deskbrid/main/site/i
 #   X11:      xdotool wmctrl xclip imagemagick
 
 # Download binary
-curl -LO https://github.com/coe0718/deskbrid/releases/download/v0.10.0/deskbrid
+curl -LO https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid
 chmod +x deskbrid
 sudo mv deskbrid /usr/local/bin/
 
