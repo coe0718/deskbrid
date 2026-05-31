@@ -48,8 +48,15 @@ jobs:
           cd target/${{ matrix.target }}/release
           tar czf "deskbrid-${{ matrix.target }}.tar.gz" deskbrid cosmic-helper labwc-helper
 
+      - name: Generate SHA256 checksums
+        run: |
+          cd target/${{ matrix.target }}/release
+          for f in deskbrid-*.tar.gz; do
+            sha256sum "$f" > "${f}.sha256"
+          done
+
       - name: Upload tarball to release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/${{ matrix.target }}/release/deskbrid-*.tar.gz
+          files: target/${{ matrix.target }}/release/deskbrid-*
           generate_release_notes: true
