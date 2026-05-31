@@ -8,6 +8,7 @@ use anyhow::Context;
 use serde_json::Value;
 
 /// Check if an action is a network-related action.
+#[allow(dead_code)]
 pub(crate) fn is_network_action(action: &Action) -> bool {
     matches!(
         action,
