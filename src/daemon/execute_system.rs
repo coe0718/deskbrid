@@ -4,8 +4,8 @@ use crate::protocol::Action;
 use serde_json::Value;
 
 use super::{
-    backlight_get, backlight_set, build_system_health, cpu_frequency, cpu_governor,
-    cpu_set_governor, normalize_coords, thermal_get,
+    build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, normalize_coords,
+    thermal_get,
 };
 
 pub(crate) async fn execute_system(
@@ -25,11 +25,14 @@ pub(crate) async fn execute_system(
             serde_json::json!({"power": action})
         }
         SystemBattery => serde_json::json!(backend.battery_status().await?),
-        SystemBacklightGet { ref device } => backlight_get(device.as_deref()).await?,
+        SystemBacklightList => serde_json::json!(backend.backlight_list().await?),
+        SystemBacklightGet { ref device } => {
+            serde_json::json!(backend.backlight_get(device.as_deref()).await?)
+        }
         SystemBacklightSet {
-            percent,
             ref device,
-        } => backlight_set(percent, device.as_deref()).await?,
+            ref value,
+        } => serde_json::json!(backend.backlight_set(device.as_deref(), value).await?),
         SystemThermalGet => thermal_get().await?,
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,

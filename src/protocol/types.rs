@@ -88,6 +88,14 @@ pub struct BatteryInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BacklightInfo {
+    pub device: String,
+    pub max_brightness: u32,
+    pub brightness: u32,
+    pub percentage: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct LayoutProfile {
     pub schema_version: u32,

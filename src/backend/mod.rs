@@ -1,3 +1,4 @@
+pub(crate) mod backlight;
 pub mod cosmic;
 pub mod gnome;
 pub(crate) mod gsettings_desktop;
@@ -348,5 +349,22 @@ pub trait DesktopBackend: Send + Sync {
     /// List available setting schemas.
     async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
         anyhow::bail!("desktop settings not supported by this backend")
+    }
+
+    /// List backlight devices (sysfs — works everywhere).
+    async fn backlight_list(&self) -> anyhow::Result<Vec<protocol::BacklightInfo>> {
+        backlight::backlight_list()
+    }
+    /// Get brightness for a device.
+    async fn backlight_get(&self, device: Option<&str>) -> anyhow::Result<protocol::BacklightInfo> {
+        backlight::backlight_get(device)
+    }
+    /// Set brightness (absolute or "50%").
+    async fn backlight_set(
+        &self,
+        device: Option<&str>,
+        value: &str,
+    ) -> anyhow::Result<protocol::BacklightInfo> {
+        backlight::backlight_set(device, value)
     }
 }

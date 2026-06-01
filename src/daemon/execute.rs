@@ -180,6 +180,7 @@ pub async fn execute_action(
         | SystemNormalizeCoords { .. }
         | SystemPower { .. }
         | SystemBattery
+        | SystemBacklightList
         | SystemBacklightGet { .. }
         | SystemBacklightSet { .. }
         | SystemThermalGet

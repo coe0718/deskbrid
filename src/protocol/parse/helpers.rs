@@ -164,14 +164,6 @@ pub(super) fn required_number(raw: &serde_json::Value, field: &str) -> anyhow::R
     Ok(value)
 }
 
-pub(super) fn required_percentage(raw: &serde_json::Value, field: &str) -> anyhow::Result<f64> {
-    let value = required_number(raw, field)?;
-    if !(0.0..=100.0).contains(&value) {
-        anyhow::bail!("'{}' must be between 0 and 100", field);
-    }
-    Ok(value)
-}
-
 pub(super) fn optional_positive_f64(
     raw: &serde_json::Value,
     field: &str,

@@ -93,9 +93,7 @@ pub(crate) use mpris::{execute_mpris_action, is_mpris_action};
 pub(crate) use rate_limit::{
     RateBucket, RateLimitConfig, check_rate_limit, rate_limit_from_env, rate_limited_response,
 };
-pub(crate) use sysfs::{
-    backlight_get, backlight_set, cpu_frequency, cpu_governor, cpu_set_governor, thermal_get,
-};
+pub(crate) use sysfs::{cpu_frequency, cpu_governor, cpu_set_governor, thermal_get};
 pub use system::{execute_system_control_action, is_system_control_action};
 pub use terminal::{execute_terminal_action, is_terminal_action};
 pub use wait::wait_for_condition;

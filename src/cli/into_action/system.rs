@@ -33,9 +33,10 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             SystemCmd::Idle => Action::SystemIdle,
             SystemCmd::Power { action } => Action::SystemPower { action },
             SystemCmd::Battery => Action::SystemBattery,
+            SystemCmd::BacklightList => Action::SystemBacklightList,
             SystemCmd::BacklightGet { device } => Action::SystemBacklightGet { device },
-            SystemCmd::BacklightSet { percent, device } => {
-                Action::SystemBacklightSet { percent, device }
+            SystemCmd::BacklightSet { value, device } => {
+                Action::SystemBacklightSet { device, value }
             }
             SystemCmd::Thermal => Action::SystemThermalGet,
             SystemCmd::CpuFrequency => Action::SystemCpuFrequency,

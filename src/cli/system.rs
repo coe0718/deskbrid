@@ -10,11 +10,13 @@ pub enum SystemCmd {
     Power { action: String },
     /// Battery status
     Battery,
+    /// List all backlight devices
+    BacklightList,
     /// Read backlight brightness from /sys/class/backlight
     BacklightGet { device: Option<String> },
-    /// Set backlight brightness percentage
+    /// Set backlight brightness (absolute value or "50%")
     BacklightSet {
-        percent: f64,
+        value: String,
         #[arg(long)]
         device: Option<String>,
     },

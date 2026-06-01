@@ -110,6 +110,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemIdle
         | Action::SystemPower { .. }
         | Action::SystemBattery
+        | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }
         | Action::SystemBacklightSet { .. }
         | Action::SystemThermalGet

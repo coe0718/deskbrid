@@ -35,12 +35,13 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             action: raw["action"].as_str().unwrap_or("").into(),
         },
         "system.battery" => Action::SystemBattery,
-        "system.backlight.get" => Action::SystemBacklightGet {
-            device: optional_non_empty_string(raw, "device")?,
+        "system.backlight_list" => Action::SystemBacklightList,
+        "system.backlight_get" => Action::SystemBacklightGet {
+            device: raw["device"].as_str().map(String::from),
         },
-        "system.backlight.set" => Action::SystemBacklightSet {
-            percent: required_percentage(raw, "percent")?,
-            device: optional_non_empty_string(raw, "device")?,
+        "system.backlight_set" => Action::SystemBacklightSet {
+            device: raw["device"].as_str().map(String::from),
+            value: raw["value"].as_str().unwrap_or("").into(),
         },
         "system.thermal" => Action::SystemThermalGet,
         "system.cpu.frequency" => Action::SystemCpuFrequency,
