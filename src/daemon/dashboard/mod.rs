@@ -56,6 +56,50 @@ pub(super) fn render_system(info: &Option<crate::protocol::SystemInfo>) -> Strin
     rows
 }
 
+pub(super) async fn render_desktop_settings(
+    backend: &Option<Box<dyn crate::backend::DesktopBackend>>,
+) -> String {
+    let Some(backend) = backend else {
+        return r#"<div class="empty">No backend</div>"#.into();
+    };
+    match backend.desktop_list_schemas().await {
+        Ok(schemas) => {
+            if schemas.is_empty() {
+                return r#"<div class="empty">No schemas</div>"#.into();
+            }
+            let mut rows = String::new();
+            for s in schemas.iter().take(8) {
+                rows.push_str(&kv(s, ""));
+            }
+            if schemas.len() > 8 {
+                rows.push_str(&format!(
+                    r#"<div class="empty">… and {} more</div>"#,
+                    schemas.len() - 8
+                ));
+            }
+            rows
+        }
+        Err(_) => r#"<div class="empty">Not supported</div>"#.into(),
+    }
+}
+
+pub(super) fn render_backlight(info: &Option<crate::protocol::BacklightInfo>) -> String {
+    let Some(info) = info else {
+        return r#"<div class="empty">No backlight</div>"#.into();
+    };
+    let bar = volume_bar(info.percentage);
+    let mut rows = String::new();
+    rows.push_str(&kv("Device", &info.device));
+    rows.push_str(&kv(
+        "Brightness",
+        &format!(
+            "{} {}% ({}/{})",
+            bar, info.percentage, info.brightness, info.max_brightness
+        ),
+    ));
+    rows
+}
+
 pub(super) fn render_monitors(info: &Option<crate::protocol::SystemInfo>) -> String {
     let Some(info) = info else {
         return r#"<div class="empty">No backend</div>"#.into();

@@ -2,9 +2,9 @@ use crate::DaemonState;
 use std::sync::Arc;
 
 use super::{
-    base64_encode, error_box_html, render_audio, render_audit, render_clipboard, render_macros,
-    render_monitors, render_network, render_notifications, render_rules, render_sessions,
-    render_system, render_windows,
+    base64_encode, error_box_html, render_audio, render_audit, render_backlight, render_clipboard,
+    render_desktop_settings, render_macros, render_monitors, render_network, render_notifications,
+    render_rules, render_sessions, render_system, render_windows,
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
@@ -51,6 +51,18 @@ pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> St
     page = page.replace("__RULES__", &render_rules(state).await);
     page = page.replace("__NOTIFICATIONS__", &render_notifications(state).await);
     page = page.replace("__MACROS__", &render_macros().await);
+
+    let backlight_info = if let Some(ref backend) = *backend_guard {
+        backend.backlight_get(None).await.ok()
+    } else {
+        None
+    };
+    page = page.replace("__BACKLIGHT__", &render_backlight(&backlight_info));
+
+    page = page.replace(
+        "__DESKTOP_SETTINGS__",
+        &render_desktop_settings(&backend_guard).await,
+    );
 
     if show_screenshot && let Some(ref backend) = *backend_guard {
         match backend.screenshot(None, None, None).await {
@@ -134,6 +146,19 @@ async fn sse_card_html(card: &str, state: &DaemonState) -> String {
         "rules" => render_rules(state).await,
         "notifications" => render_notifications(state).await,
         "macros" => render_macros().await,
+        "desktop-settings" => {
+            let backend = state.backend.read().await;
+            render_desktop_settings(&backend).await
+        }
+        "backlight" => {
+            let backend = state.backend.read().await;
+            let info = if let Some(ref b) = *backend {
+                b.backlight_get(None).await.ok()
+            } else {
+                None
+            };
+            render_backlight(&info)
+        }
         _ => r#"<div class="empty">Unknown card</div>"#.into(),
     }
 }
@@ -179,6 +204,8 @@ pub(crate) async fn handle_request(
             "rules",
             "notifications",
             "macros",
+            "desktop-settings",
+            "backlight",
         ];
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
