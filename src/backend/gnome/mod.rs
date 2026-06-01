@@ -7,6 +7,7 @@ pub(crate) mod audio;
 pub(crate) mod bluetooth;
 pub(crate) mod clipboard;
 pub(crate) mod core;
+pub(crate) mod desktop_settings;
 pub(crate) mod files;
 pub(crate) mod init;
 pub(crate) mod inner;

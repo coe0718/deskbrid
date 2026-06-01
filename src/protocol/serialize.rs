@@ -273,6 +273,13 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::BlackboardGet { .. }
         | Action::BlackboardDelete { .. }
         | Action::BlackboardList { .. } => blackboard::serialize_blackboard(action, &id),
+
+        // Desktop Settings
+        Action::DesktopGetSetting { .. }
+        | Action::DesktopSetSetting { .. }
+        | Action::DesktopListSchemas => {
+            serde_json::json!({ "type": action_type(action), "id": id })
+        }
     };
 
     Ok(serde_json::to_string(&envelope)?)

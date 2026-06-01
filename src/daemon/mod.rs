@@ -25,6 +25,7 @@ mod execute_capabilities;
 mod execute_clipboard;
 mod execute_color;
 mod execute_delegated;
+mod execute_desktop;
 mod execute_files;
 mod execute_hotkeys;
 mod execute_input;

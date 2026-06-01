@@ -9,6 +9,7 @@ use super::execute_capabilities;
 use super::execute_clipboard;
 use super::execute_color;
 use super::execute_delegated;
+use super::execute_desktop;
 use super::execute_files;
 use super::execute_hotkeys;
 use super::execute_input;
@@ -170,6 +171,10 @@ pub async fn execute_action(
         | UiElementClick { .. }
         | UiElementSetText { .. }
         | Ping => execute_stubs::execute_stubs(action, backend, state).await?,
+
+        DesktopGetSetting { .. } | DesktopSetSetting { .. } | DesktopListSchemas => {
+            execute_desktop::execute_desktop(action, backend, state).await?
+        }
 
         SystemHealth
         | SystemNormalizeCoords { .. }

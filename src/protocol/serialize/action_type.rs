@@ -206,5 +206,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::BlackboardGet { .. } => "blackboard.get",
         Action::BlackboardDelete { .. } => "blackboard.delete",
         Action::BlackboardList { .. } => "blackboard.list",
+        Action::DesktopGetSetting { .. } => "desktop.get_setting",
+        Action::DesktopSetSetting { .. } => "desktop.set_setting",
+        Action::DesktopListSchemas => "desktop.list_schemas",
     }
 }

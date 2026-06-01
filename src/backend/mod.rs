@@ -329,4 +329,23 @@ pub trait DesktopBackend: Send + Sync {
     async fn stop_screencast(&self) -> anyhow::Result<()> {
         anyhow::bail!("screencast is not supported by this backend")
     }
+
+    // ─── Desktop Settings ──────────────────────────────
+    /// Read a desktop environment setting by schema and key.
+    async fn desktop_get_setting(&self, _schema: &str, _key: &str) -> anyhow::Result<String> {
+        anyhow::bail!("desktop settings not supported by this backend")
+    }
+    /// Write a desktop environment setting.
+    async fn desktop_set_setting(
+        &self,
+        _schema: &str,
+        _key: &str,
+        _value: &str,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("desktop settings not supported by this backend")
+    }
+    /// List available setting schemas.
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        anyhow::bail!("desktop settings not supported by this backend")
+    }
 }

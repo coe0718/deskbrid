@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use tokio::process::Command;
 use tokio::sync::broadcast;
 
+mod desktop_settings;
 pub(crate) mod helpers;
 mod io;
 mod keyboard_layout;

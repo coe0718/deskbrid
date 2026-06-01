@@ -513,6 +513,18 @@ pub enum Action {
         object_ref: String,
     },
 
+    // Desktop Settings
+    DesktopGetSetting {
+        schema: String,
+        key: String,
+    },
+    DesktopSetSetting {
+        schema: String,
+        key: String,
+        value: String,
+    },
+    DesktopListSchemas,
+
     // Process
     ProcessList,
     ProcessStart {
@@ -873,6 +885,9 @@ impl Action {
             "a11y.doctor",
             "a11y.setup_accessibility",
             "a11y.click_element_by_ref",
+            "desktop.get_setting",
+            "desktop.set_setting",
+            "desktop.list_schemas",
             "process.list",
             "process.start",
             "process.stop",

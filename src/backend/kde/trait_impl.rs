@@ -206,4 +206,19 @@ impl DesktopBackend for KdeBackend {
     async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
         io::monitor_set_enabled(self, output, enabled).await
     }
+
+    async fn desktop_get_setting(&self, schema: &str, key: &str) -> anyhow::Result<String> {
+        KdeBackend::desktop_get_setting(self, schema, key).await
+    }
+    async fn desktop_set_setting(
+        &self,
+        schema: &str,
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        KdeBackend::desktop_set_setting(self, schema, key, value).await
+    }
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        KdeBackend::desktop_list_schemas(self).await
+    }
 }

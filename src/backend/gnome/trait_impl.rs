@@ -224,4 +224,19 @@ impl crate::backend::DesktopBackend for GnomeBackend {
     async fn stop_screencast(&self) -> anyhow::Result<()> {
         self.stop_screencast().await
     }
+
+    async fn desktop_get_setting(&self, schema: &str, key: &str) -> anyhow::Result<String> {
+        GnomeBackend::desktop_get_setting(self, schema, key).await
+    }
+    async fn desktop_set_setting(
+        &self,
+        schema: &str,
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        GnomeBackend::desktop_set_setting(self, schema, key, value).await
+    }
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        GnomeBackend::desktop_list_schemas(self).await
+    }
 }
