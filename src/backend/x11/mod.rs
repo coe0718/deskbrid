@@ -8,6 +8,7 @@ use tokio::sync::broadcast;
 
 mod audio;
 mod bluetooth;
+mod desktop_settings;
 mod files;
 pub(crate) mod helpers;
 mod keyboard_layout;

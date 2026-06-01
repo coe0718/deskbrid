@@ -208,4 +208,19 @@ impl DesktopBackend for X11Backend {
     async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
         monitor::monitor_set_enabled(self, output, enabled).await
     }
+
+    async fn desktop_get_setting(&self, schema: &str, key: &str) -> anyhow::Result<String> {
+        desktop_settings::desktop_get_setting(schema, key).await
+    }
+    async fn desktop_set_setting(
+        &self,
+        schema: &str,
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        desktop_settings::desktop_set_setting(schema, key, value).await
+    }
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        desktop_settings::desktop_list_schemas().await
+    }
 }

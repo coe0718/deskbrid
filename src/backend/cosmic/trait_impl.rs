@@ -207,4 +207,19 @@ impl DesktopBackend for CosmicBackend {
     async fn monitor_set_enabled(&self, output: &str, enabled: bool) -> anyhow::Result<()> {
         monitor::monitor_set_enabled(self, output, enabled).await
     }
+
+    async fn desktop_get_setting(&self, schema: &str, key: &str) -> anyhow::Result<String> {
+        crate::backend::gsettings_desktop::desktop_get_setting(schema, key).await
+    }
+    async fn desktop_set_setting(
+        &self,
+        schema: &str,
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        crate::backend::gsettings_desktop::desktop_set_setting(schema, key, value).await
+    }
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        crate::backend::gsettings_desktop::desktop_list_schemas().await
+    }
 }

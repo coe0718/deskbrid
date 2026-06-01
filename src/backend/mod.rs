@@ -1,5 +1,6 @@
 pub mod cosmic;
 pub mod gnome;
+pub(crate) mod gsettings_desktop;
 pub mod hyprland;
 pub mod kde;
 pub mod labwc;

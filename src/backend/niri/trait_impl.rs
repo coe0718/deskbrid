@@ -208,4 +208,19 @@ impl DesktopBackend for NiriBackend {
     async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
         NiriBackend::keyboard_layout_remove(self, index).await
     }
+
+    async fn desktop_get_setting(&self, schema: &str, key: &str) -> anyhow::Result<String> {
+        crate::backend::gsettings_desktop::desktop_get_setting(schema, key).await
+    }
+    async fn desktop_set_setting(
+        &self,
+        schema: &str,
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        crate::backend::gsettings_desktop::desktop_set_setting(schema, key, value).await
+    }
+    async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
+        crate::backend::gsettings_desktop::desktop_list_schemas().await
+    }
 }

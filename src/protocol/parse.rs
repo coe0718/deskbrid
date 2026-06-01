@@ -10,6 +10,7 @@ mod bluetooth;
 mod browser;
 mod clipboard;
 mod color_pick;
+mod desktop;
 mod files;
 mod helpers;
 mod hotkeys;
@@ -159,6 +160,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Accessibility
         s if s.starts_with("a11y.") => a11y::parse_a11y(&raw, &id, s)?,
+
+        // Desktop Settings
+        s if s.starts_with("desktop.") => desktop::parse_desktop(&raw, &id, s)?,
 
         // Process / Terminal
         s if s.starts_with("process.") || s.starts_with("terminal.") => {
