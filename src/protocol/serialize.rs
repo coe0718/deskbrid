@@ -12,6 +12,7 @@ mod blackboard;
 mod bluetooth;
 mod color_pick;
 mod connection;
+mod desktop;
 mod files;
 mod input;
 mod macro_cmd;
@@ -277,9 +278,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         // Desktop Settings
         Action::DesktopGetSetting { .. }
         | Action::DesktopSetSetting { .. }
-        | Action::DesktopListSchemas => {
-            serde_json::json!({ "type": action_type(action), "id": id })
-        }
+        | Action::DesktopListSchemas => desktop::serialize_desktop(action, &id),
     };
 
     Ok(serde_json::to_string(&envelope)?)
