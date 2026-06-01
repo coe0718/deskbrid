@@ -29,59 +29,6 @@ pub(crate) async fn execute_stubs(
             serde_json::json!(get_location().await)
         }
 
-        // ─── AT-SPI: core (existing protocol) ────────
-        A11yTree { depth } => crate::a11y::tree(depth).await?,
-        A11yGetElement {
-            role,
-            ref name,
-            index,
-        } => crate::a11y::get_element(role.as_deref(), name.as_deref(), index).await?,
-        A11yClickElement {
-            role,
-            ref name,
-            index,
-        } => crate::a11y::click_element(role.as_deref(), name.as_deref(), index).await?,
-        A11yGetText {
-            role,
-            ref name,
-            index,
-        } => crate::a11y::get_text(role.as_deref(), name.as_deref(), index).await?,
-
-        // ─── AT-SPI: expanded (computer-use-linux compat) ──
-        A11ySnapshotTree {
-            app_name,
-            pid,
-            max_nodes,
-            max_depth,
-        } => {
-            crate::a11y::tree::snapshot_tree(app_name.as_deref(), pid, max_nodes, max_depth).await?
-        }
-        A11yPerformAction {
-            ref object_ref,
-            action_name,
-        } => crate::a11y::actions::perform_action(object_ref, action_name.as_deref()).await?,
-        A11ySetValue {
-            ref object_ref,
-            ref value,
-        } => crate::a11y::value::set_element_value(object_ref, value).await?,
-        A11yGetElementText {
-            ref object_ref,
-            max_chars,
-        } => crate::a11y::value::get_element_text(object_ref, max_chars).await?,
-        A11yListApps { limit } => {
-            serde_json::json!(crate::a11y::list_apps(limit).await?)
-        }
-        A11yDoctor => crate::a11y::setup::doctor_report().await,
-        A11ySetupAccessibility => {
-            let ok = crate::a11y::setup::enable_accessibility()
-                .await
-                .unwrap_or(false);
-            serde_json::json!({"ok": ok, "note": if ok { "accessibility enabled" } else { "may need logout/login" }})
-        }
-        A11yClickElementByRef { ref object_ref } => {
-            crate::a11y::actions::click_element(object_ref).await?
-        }
-
         // ─── UI automation (browser-side — not AT-SPI) ──
         UiTreeGet => {
             // AT-SPI tree via a11y module (for desktop UI, not browser DOM)
