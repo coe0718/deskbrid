@@ -278,6 +278,20 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
+    // A11y actions are backend-free — they talk directly to AT-SPI2 over D-Bus.
+    if is_a11y_action(&action) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            super::execute_a11y::execute_a11y(action.clone(), state),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+
     let backend = state.backend.read().await;
     let backend = match backend.as_ref() {
         Some(b) => b,
@@ -345,5 +359,25 @@ fn is_network_action_backend_free(action: &Action) -> bool {
             | Action::NetworkDnsReset
             | Action::NetworkVpnConnect { .. }
             | Action::NetworkVpnDisconnect
+    )
+}
+
+/// Check if an action is an AT-SPI2 accessibility action.
+/// A11y actions talk directly to the AT-SPI bus over D-Bus — no desktop backend needed.
+fn is_a11y_action(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::A11yTree { .. }
+            | Action::A11yGetElement { .. }
+            | Action::A11yClickElement { .. }
+            | Action::A11yGetText { .. }
+            | Action::A11ySnapshotTree { .. }
+            | Action::A11yPerformAction { .. }
+            | Action::A11ySetValue { .. }
+            | Action::A11yGetElementText { .. }
+            | Action::A11yListApps { .. }
+            | Action::A11yDoctor
+            | Action::A11ySetupAccessibility
+            | Action::A11yClickElementByRef { .. }
     )
 }

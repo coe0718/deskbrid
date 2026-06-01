@@ -1,7 +1,6 @@
 use crate::DaemonState;
 use crate::protocol::Action;
 
-use super::execute_a11y;
 use super::execute_audio;
 use super::execute_audit;
 use super::execute_bluetooth;
@@ -32,19 +31,6 @@ pub async fn execute_action(
     use Action::*;
 
     Ok(match action {
-        A11yTree { .. }
-        | A11yGetText { .. }
-        | A11ySnapshotTree { .. }
-        | A11yPerformAction { .. }
-        | A11ySetValue { .. }
-        | A11yGetElementText { .. }
-        | A11yListApps { .. }
-        | A11yDoctor
-        | A11ySetupAccessibility
-        | A11yClickElementByRef { .. } => {
-            execute_a11y::execute_a11y(action, backend, state).await?
-        }
-
         AudioListSinks
         | AudioSetSinkVolume { .. }
         | AudioListSources
@@ -179,8 +165,6 @@ pub async fn execute_action(
         | SystemConfinement
         | SystemIdle
         | SystemRemediate { .. }
-        | A11yGetElement { .. }
-        | A11yClickElement { .. }
         | LocationGet
         | UiTreeGet
         | UiElementClick { .. }
