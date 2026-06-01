@@ -234,6 +234,23 @@ if [[ "$DE" == "hyprland" || "$DE" == "kde" ]]; then
   fi
 fi
 
+# ── Backlight permissions (sysfs) ──
+if [[ -d /sys/class/backlight ]] && [[ -n "$(ls -A /sys/class/backlight 2>/dev/null)" ]]; then
+  BACKLIGHT_BRIGHTNESS=$(ls /sys/class/backlight/*/brightness 2>/dev/null | head -1)
+  if [[ -n "$BACKLIGHT_BRIGHTNESS" ]] && [[ ! -w "$BACKLIGHT_BRIGHTNESS" ]]; then
+    echo
+    info "Setting up backlight permissions (video group)..."
+    sudocmd bash -c 'echo "SUBSYSTEM==\"backlight\", RUN+=\"/bin/chgrp video /sys/class/backlight/%k/brightness\", RUN+=\"/bin/chmod g+w /sys/class/backlight/%k/brightness\"" > /etc/udev/rules.d/99-backlight.rules'
+    sudocmd udevadm control --reload-rules
+    sudocmd udevadm trigger
+    sudocmd usermod -aG video "$USER"
+    warn "You may need to log out/back in for the 'video' group to take effect."
+    ok "Backlight udev rule created!"
+  else
+    ok "Backlight brightness is accessible"
+  fi
+fi
+
 # ── download deskbrid binary ──
 BIN_PATH="/usr/local/bin/deskbrid"
 if command -v deskbrid &>/dev/null; then
