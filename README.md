@@ -17,6 +17,8 @@
   <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
 </p>
 
+mcp-name: io.github.coe0718/deskbrid
+
 **[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md)**
 
 ---
