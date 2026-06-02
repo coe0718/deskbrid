@@ -18,6 +18,8 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+LABEL io.modelcontextprotocol.server.name="io.github.coe0718/deskbrid"
+
 COPY --from=builder /app/target/release/deskbrid /usr/local/bin/deskbrid
 COPY --from=builder /app/src/mcp /opt/deskbrid/src/mcp
 

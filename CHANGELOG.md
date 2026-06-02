@@ -1,3 +1,11 @@
+## v0.12.3 — OCI Docker + MCP Registry
+
+**Tuck · Dockerfile label + ghcr.io push + OCI package**
+
+Switch from MCPB (broken async verification) to OCI. Docker image pushed
+to ghcr.io with `io.modelcontextprotocol.server.name` label for ownership
+verification. Release workflow builds and pushes Docker on every tag.
+
 ## v0.12.2 — MCP Registry Publishing
 
 **Tuck · 1 commit · 3 files · server.json + publish workflow**
