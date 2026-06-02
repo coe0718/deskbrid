@@ -1,3 +1,10 @@
+## v0.12.2 — MCP Registry Publishing
+
+**Tuck · 1 commit · 3 files · server.json + publish workflow**
+
+Publish Deskbrid to the official MCP Registry. Rename release tarballs to include
+"mcp" for MCPB allowlist compatibility. Auto-compute SHA-256 in publish workflow.
+
 ## v0.12.1 — Async Safety + Path Sandbox
 
 **2 commits (content) · 24 files changed · 205 insertions · 137 deletions**
