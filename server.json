@@ -7,8 +7,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "registryBaseUrl": "https://ghcr.io",
-      "identifier": "coe0718/deskbrid",
+      "identifier": "ghcr.io/coe0718/deskbrid:0.12.3",
       "version": "0.12.3",
       "transport": {
         "type": "stdio"
