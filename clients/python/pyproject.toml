@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deskbrid"
-version = "0.12.0"
+version = "0.12.1"
 description = "Python client for the Deskbrid JSON socket protocol"
 requires-python = ">=3.9"
 authors = [{ name = "Deskbrid" }]
