@@ -1,21 +1,22 @@
 use crate::protocol::BacklightInfo;
 
 /// Scan /sys/class/backlight/ for devices.
-pub fn backlight_list() -> anyhow::Result<Vec<BacklightInfo>> {
+pub async fn backlight_list() -> anyhow::Result<Vec<BacklightInfo>> {
     let mut devices = Vec::new();
-    let dir = match std::fs::read_dir("/sys/class/backlight") {
+    let mut dir = match tokio::fs::read_dir("/sys/class/backlight").await {
         Ok(d) => d,
         Err(_) => anyhow::bail!("no backlight devices found"),
     };
-    for entry in dir {
-        let entry = entry?;
+    while let Some(entry) = dir.next_entry().await? {
         let device = entry.file_name().to_string_lossy().to_string();
         let base = entry.path();
-        let max = std::fs::read_to_string(base.join("max_brightness"))
+        let max = tokio::fs::read_to_string(base.join("max_brightness"))
+            .await
             .ok()
             .and_then(|s| s.trim().parse::<u32>().ok())
             .unwrap_or(0);
-        let cur = std::fs::read_to_string(base.join("brightness"))
+        let cur = tokio::fs::read_to_string(base.join("brightness"))
+            .await
             .ok()
             .and_then(|s| s.trim().parse::<u32>().ok())
             .unwrap_or(0);
@@ -38,8 +39,8 @@ pub fn backlight_list() -> anyhow::Result<Vec<BacklightInfo>> {
 }
 
 /// Get brightness for a specific device (or first available if empty).
-pub fn backlight_get(device: Option<&str>) -> anyhow::Result<BacklightInfo> {
-    let devices = backlight_list()?;
+pub async fn backlight_get(device: Option<&str>) -> anyhow::Result<BacklightInfo> {
+    let devices = backlight_list().await?;
     if let Some(name) = device {
         devices
             .into_iter()
@@ -54,8 +55,8 @@ pub fn backlight_get(device: Option<&str>) -> anyhow::Result<BacklightInfo> {
 }
 
 /// Set brightness. Accepts absolute value (0..max) or percentage string ("50%").
-pub fn backlight_set(device: Option<&str>, value: &str) -> anyhow::Result<BacklightInfo> {
-    let info = backlight_get(device)?;
+pub async fn backlight_set(device: Option<&str>, value: &str) -> anyhow::Result<BacklightInfo> {
+    let info = backlight_get(device).await?;
     let new_val: u32 = if let Some(pct) = value.strip_suffix('%') {
         let p: f64 = pct
             .parse()
@@ -71,7 +72,7 @@ pub fn backlight_set(device: Option<&str>, value: &str) -> anyhow::Result<Backli
     };
 
     let path = format!("/sys/class/backlight/{}/brightness", info.device);
-    std::fs::write(&path, new_val.to_string())?;
+    tokio::fs::write(&path, new_val.to_string()).await?;
 
-    backlight_get(Some(&info.device))
+    backlight_get(Some(&info.device)).await
 }

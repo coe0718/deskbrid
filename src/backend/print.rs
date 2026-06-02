@@ -4,17 +4,22 @@
 use crate::protocol::{PrintJob, PrintPrinter};
 
 /// List all printers (lpstat -v + lpstat -d).
-pub fn print_list() -> anyhow::Result<Vec<PrintPrinter>> {
-    let output = match std::process::Command::new("lpstat").args(["-v"]).output() {
+pub async fn print_list() -> anyhow::Result<Vec<PrintPrinter>> {
+    let output = match tokio::process::Command::new("lpstat")
+        .args(["-v"])
+        .output()
+        .await
+    {
         Ok(o) => o,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(e.into()),
     };
     let printers_raw = String::from_utf8_lossy(&output.stdout);
 
-    let default_output = std::process::Command::new("lpstat")
+    let default_output = tokio::process::Command::new("lpstat")
         .args(["-d"])
         .output()
+        .await
         .ok();
     let default_raw = default_output
         .as_ref()
@@ -42,7 +47,7 @@ pub fn print_list() -> anyhow::Result<Vec<PrintPrinter>> {
         };
 
         // Get printer status
-        let status = get_printer_status(&name);
+        let status = get_printer_status(&name).await;
 
         printers.push(PrintPrinter {
             is_default: default_name.as_ref() == Some(&name),
@@ -55,10 +60,11 @@ pub fn print_list() -> anyhow::Result<Vec<PrintPrinter>> {
     Ok(printers)
 }
 
-fn get_printer_status(name: &str) -> String {
-    let output = std::process::Command::new("lpstat")
+async fn get_printer_status(name: &str) -> String {
+    let output = tokio::process::Command::new("lpstat")
         .args(["-p", name])
         .output()
+        .await
         .ok();
     if let Some(out) = output {
         let s = String::from_utf8_lossy(&out.stdout);
@@ -81,19 +87,23 @@ fn get_printer_status(name: &str) -> String {
 }
 
 /// Get or set default printer.
-pub fn print_default(printer: Option<&str>) -> anyhow::Result<PrintPrinter> {
+pub async fn print_default(printer: Option<&str>) -> anyhow::Result<PrintPrinter> {
     if let Some(name) = printer {
         // Set default printer
-        let status = std::process::Command::new("lpadmin")
+        let status = tokio::process::Command::new("lpadmin")
             .args(["-d", name])
-            .status()?;
+            .status()
+            .await?;
         if !status.success() {
             anyhow::bail!("lpadmin -d {name} failed");
         }
     }
 
     // Get current default
-    let output = std::process::Command::new("lpstat").args(["-d"]).output()?;
+    let output = tokio::process::Command::new("lpstat")
+        .args(["-d"])
+        .output()
+        .await?;
     let raw = String::from_utf8_lossy(&output.stdout);
     let default_name = raw
         .strip_prefix("system default destination: ")
@@ -101,7 +111,7 @@ pub fn print_default(printer: Option<&str>) -> anyhow::Result<PrintPrinter> {
         .trim()
         .to_string();
 
-    let printers = print_list()?;
+    let printers = print_list().await?;
     printers
         .into_iter()
         .find(|p| p.name == default_name)
@@ -111,8 +121,11 @@ pub fn print_default(printer: Option<&str>) -> anyhow::Result<PrintPrinter> {
 }
 
 /// List all print jobs (lpstat -o).
-pub fn print_jobs() -> anyhow::Result<Vec<PrintJob>> {
-    let output = std::process::Command::new("lpstat").args(["-o"]).output()?;
+pub async fn print_jobs() -> anyhow::Result<Vec<PrintJob>> {
+    let output = tokio::process::Command::new("lpstat")
+        .args(["-o"])
+        .output()
+        .await?;
     let raw = String::from_utf8_lossy(&output.stdout);
 
     let mut jobs = Vec::new();
@@ -154,8 +167,11 @@ pub fn print_jobs() -> anyhow::Result<Vec<PrintJob>> {
 }
 
 /// Cancel a print job.
-pub fn print_job_cancel(job_id: &str) -> anyhow::Result<()> {
-    let status = std::process::Command::new("cancel").arg(job_id).status()?;
+pub async fn print_job_cancel(job_id: &str) -> anyhow::Result<()> {
+    let status = tokio::process::Command::new("cancel")
+        .arg(job_id)
+        .status()
+        .await?;
     if !status.success() {
         anyhow::bail!("cancel {job_id} failed");
     }
@@ -163,10 +179,11 @@ pub fn print_job_cancel(job_id: &str) -> anyhow::Result<()> {
 }
 
 /// Pause a print job.
-pub fn print_job_pause(job_id: &str) -> anyhow::Result<()> {
-    let status = std::process::Command::new("lp")
+pub async fn print_job_pause(job_id: &str) -> anyhow::Result<()> {
+    let status = tokio::process::Command::new("lp")
         .args(["-i", job_id, "-H", "hold"])
-        .status()?;
+        .status()
+        .await?;
     if !status.success() {
         anyhow::bail!("lp -i {job_id} -H hold failed");
     }
@@ -174,10 +191,11 @@ pub fn print_job_pause(job_id: &str) -> anyhow::Result<()> {
 }
 
 /// Resume a print job.
-pub fn print_job_resume(job_id: &str) -> anyhow::Result<()> {
-    let status = std::process::Command::new("lp")
+pub async fn print_job_resume(job_id: &str) -> anyhow::Result<()> {
+    let status = tokio::process::Command::new("lp")
         .args(["-i", job_id, "-H", "resume"])
-        .status()?;
+        .status()
+        .await?;
     if !status.success() {
         anyhow::bail!("lp -i {job_id} -H resume failed");
     }
@@ -185,10 +203,12 @@ pub fn print_job_resume(job_id: &str) -> anyhow::Result<()> {
 }
 
 /// Send a file to a printer (lp -d <printer> <path>).
-pub fn print_file(printer: &str, path: &str) -> anyhow::Result<PrintJob> {
-    let output = std::process::Command::new("lp")
+/// Caller is responsible for path sandboxing before calling this function.
+pub async fn print_file(printer: &str, path: &str) -> anyhow::Result<PrintJob> {
+    let output = tokio::process::Command::new("lp")
         .args(["-d", printer, path])
-        .output()?;
+        .output()
+        .await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("lp -d {printer} {path} failed: {stderr}");

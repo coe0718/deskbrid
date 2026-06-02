@@ -354,11 +354,11 @@ pub trait DesktopBackend: Send + Sync {
 
     /// List backlight devices (sysfs — works everywhere).
     async fn backlight_list(&self) -> anyhow::Result<Vec<protocol::BacklightInfo>> {
-        backlight::backlight_list()
+        backlight::backlight_list().await
     }
     /// Get brightness for a device.
     async fn backlight_get(&self, device: Option<&str>) -> anyhow::Result<protocol::BacklightInfo> {
-        backlight::backlight_get(device)
+        backlight::backlight_get(device).await
     }
     /// Set brightness (absolute or "50%").
     async fn backlight_set(
@@ -366,35 +366,35 @@ pub trait DesktopBackend: Send + Sync {
         device: Option<&str>,
         value: &str,
     ) -> anyhow::Result<protocol::BacklightInfo> {
-        backlight::backlight_set(device, value)
+        backlight::backlight_set(device, value).await
     }
 
     /// List printers via lpstat.
     async fn print_list(&self) -> anyhow::Result<Vec<protocol::PrintPrinter>> {
-        print::print_list()
+        print::print_list().await
     }
     /// Get or set default printer.
     async fn print_default(&self, printer: Option<&str>) -> anyhow::Result<protocol::PrintPrinter> {
-        print::print_default(printer)
+        print::print_default(printer).await
     }
     /// List print jobs.
     async fn print_jobs(&self) -> anyhow::Result<Vec<protocol::PrintJob>> {
-        print::print_jobs()
+        print::print_jobs().await
     }
     /// Cancel a print job.
     async fn print_job_cancel(&self, job_id: &str) -> anyhow::Result<()> {
-        print::print_job_cancel(job_id)
+        print::print_job_cancel(job_id).await
     }
     /// Pause a print job.
     async fn print_job_pause(&self, job_id: &str) -> anyhow::Result<()> {
-        print::print_job_pause(job_id)
+        print::print_job_pause(job_id).await
     }
     /// Resume a print job.
     async fn print_job_resume(&self, job_id: &str) -> anyhow::Result<()> {
-        print::print_job_resume(job_id)
+        print::print_job_resume(job_id).await
     }
     /// Send a file to a printer.
     async fn print_file(&self, printer: &str, path: &str) -> anyhow::Result<protocol::PrintJob> {
-        print::print_file(printer, path)
+        print::print_file(printer, path).await
     }
 }

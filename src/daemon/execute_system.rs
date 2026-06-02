@@ -4,8 +4,8 @@ use crate::protocol::Action;
 use serde_json::Value;
 
 use super::{
-    build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, normalize_coords,
-    thermal_get,
+    build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, expand_path,
+    normalize_coords, thermal_get,
 };
 
 pub(crate) async fn execute_system(
@@ -41,7 +41,12 @@ pub(crate) async fn execute_system(
             ref printer,
             ref path,
         } => {
-            serde_json::json!(backend.print_file(printer, path).await?)
+            let safe_path = expand_path(path)?;
+            serde_json::json!(
+                backend
+                    .print_file(printer, &safe_path.to_string_lossy())
+                    .await?
+            )
         }
         SystemPrintJobList => serde_json::json!(backend.print_jobs().await?),
         SystemPrintJobCancel { ref job_id } => {
