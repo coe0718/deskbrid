@@ -8,7 +8,6 @@
     {
       "registryType": "oci",
       "identifier": "ghcr.io/coe0718/deskbrid:0.12.3",
-      "version": "0.12.3",
       "transport": {
         "type": "stdio"
       }
