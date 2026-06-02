@@ -1,14 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.coe0718/deskbrid",
-  "description": "Multi-DE Linux desktop automation for AI agents. 92+ MCP tools across 9 desktop environments — window management, keyboard/mouse input, screenshots, clipboard, system info, accessibility tree, printing, and more. GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, Cinnamon, MATE, X11.",
+  "description": "Multi-DE Linux desktop automation. 92+ MCP tools across 9 DEs — windows, input, screenshots, clipboard, print, AT-SPI.",
   "version": "0.12.1",
   "website": "https://deskbrid.patchhive.dev",
   "packages": [
     {
-      "registry_type": "pypi",
+      "registryType": "pypi",
       "identifier": "deskbrid",
-      "version": "0.12.1"
+      "version": "0.12.1",
+      "transport": {
+        "type": "stdio"
+      }
     }
   ]
 }
