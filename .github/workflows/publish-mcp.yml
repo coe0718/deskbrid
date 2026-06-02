@@ -1,9 +1,6 @@
 name: Publish to MCP Registry
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -15,6 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Get version and compute SHA-256
+        id: prep
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('server.json'))['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          ARCH="x86_64-unknown-linux-gnu"
+          TARBALL="deskbrid-mcp-${ARCH}.tar.gz"
+          URL="https://github.com/coe0718/deskbrid/releases/download/v${VERSION}/${TARBALL}"
+          echo "Downloading ${URL}..."
+          curl -fsSL "$URL" -o "/tmp/${TARBALL}"
+          SHA256=$(sha256sum "/tmp/${TARBALL}" | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "Got SHA-256: $SHA256"
+
+          # Patch server.json with correct values
+          python3 -c "
+          import json
+          with open('server.json') as f:
+              d = json.load(f)
+          d['packages'][0]['fileSha256'] = '$SHA256'
+          d['packages'][0]['identifier'] = '$URL'
+          d['packages'][0]['version'] = '$VERSION'
+          d['version'] = '$VERSION'
+          with open('server.json', 'w') as f:
+              json.dump(d, f, indent=2)
+              f.write('\n')
+          "
 
       - name: Install mcp-publisher
         run: |

@@ -7,9 +7,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://deskbrid.patchhive.dev/mcp/deskbrid-linux-x86_64.tar.gz",
+      "identifier": "https://github.com/coe0718/deskbrid/releases/download/v0.12.2/deskbrid-mcp-x86_64-unknown-linux-gnu.tar.gz",
       "version": "0.12.1",
-      "fileSha256": "d7eca1cdf71acffc049c9d6b8ebc5cb2766d7905ef24ec59060933ce12103aff",
+      "fileSha256": "",
       "transport": {
         "type": "stdio"
       }
