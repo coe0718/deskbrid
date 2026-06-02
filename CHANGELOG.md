@@ -1,3 +1,36 @@
+## v0.12.1 — Async Safety + Path Sandbox
+
+**2 commits (content) · 24 files changed · 205 insertions · 137 deletions**
+
+Bugfix release. All blocking `std::fs` and `std::process::Command` calls in async
+execution paths converted to `tokio::fs`/`tokio::process::Command`. Path sandbox
+applied to print-file. Claude code review catch — three issues found in v0.12.0.
+
+### 🔒 Security
+- **c77a266** — `print_file` path sandbox: apply `expand_path()` before CUPS call.
+  Prevents agents from printing any file on the system (`/etc/shadow`, SSH keys, etc.).
+  One-line fix — the sandbox was already built, just needed to be hooked up.
+
+### ⚡ Async Safety (30+ blocking calls eliminated)
+- **c77a266** — `print.rs`: 10 `std::process::Command` → `tokio::process::Command`.
+  All CUPS CLI wrappers now properly async.
+- **c77a266** — `backlight.rs`: `std::fs::read_dir`/`read_to_string`/`write` → `tokio::fs`.
+- **0eeac95** — `macro_engine.rs`: load/save/delete all async (4 I/O calls + 6 fn signatures
+  cascaded to async)
+- **0eeac95** — `schedule.rs`: `Schedule::load()`/`save()` async (3 calls)
+- **0eeac95** — `labwc/keyboard.rs`: `read_env_file()`/`write_env_file()` async (4 calls +
+  10 call sites)
+- **0eeac95** — `kde/helpers.rs` + `gnome/inner.rs`: `probe_drm_monitors` → tokio fs (4 calls)
+- **0eeac95** — `kde/desktop_settings.rs`: `desktop_list_schemas` → tokio fs
+- **0eeac95** — `dashboard/server.rs`: screenshot reads → tokio fs (2 calls)
+- **0eeac95** — `execute_screenshot.rs`: file copy → tokio fs
+- **0eeac95** — `hyprland/free_functions.rs` + `gnome/screenshot/crop.rs` + `capture.rs`:
+  `get_png_dimensions` async conversion (3 calls across 3 files)
+
+`expand_path` (3 `std::fs::canonicalize` calls, 24 call sites) left as follow-up.
+
+---
+
 ## v0.12.0 — Print, Desktop Settings, Backlight & Dashboard
 
 **17 commits since v0.11.3 · 63 files changed · 1,990 insertions · 227 deletions**
