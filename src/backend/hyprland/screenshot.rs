@@ -47,7 +47,7 @@ pub(super) async fn screenshot(
     } else {
         backend.sh("grim", &[&path]).await?;
     }
-    let dims = get_png_dimensions(&path)?;
+    let dims = get_png_dimensions(&path).await?;
     Ok(protocol::ScreenshotResult {
         path,
         width: dims.0,

@@ -64,24 +64,24 @@ fn parse_active_index(content: &str) -> u32 {
 
 impl LabwcBackend {
     /// Read the current environment file content.
-    fn read_env_file(&self) -> anyhow::Result<String> {
+    async fn read_env_file(&self) -> anyhow::Result<String> {
         let path = env_file();
         if path.exists() {
-            Ok(std::fs::read_to_string(&path)?)
+            Ok(tokio::fs::read_to_string(&path).await?)
         } else {
             Ok(String::new())
         }
     }
 
     /// Write environment file, preserving non-layout lines.
-    fn write_env_file(
+    async fn write_env_file(
         &self,
         layouts: &[KeyboardLayout],
         options: Option<&str>,
     ) -> anyhow::Result<()> {
         let path = env_file();
         let existing = if path.exists() {
-            std::fs::read_to_string(&path).unwrap_or_default()
+            tokio::fs::read_to_string(&path).await.unwrap_or_default()
         } else {
             String::new()
         };
@@ -124,19 +124,19 @@ impl LabwcBackend {
 
         // Ensure parent directory
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
-        std::fs::write(&path, lines.join("\n") + "\n")?;
+        tokio::fs::write(&path, lines.join("\n") + "\n").await?;
         Ok(())
     }
 
     pub(super) async fn keyboard_layout_list(&self) -> anyhow::Result<Vec<KeyboardLayout>> {
-        let content = self.read_env_file()?;
+        let content = self.read_env_file().await?;
         Ok(parse_layouts(&content))
     }
 
     pub(super) async fn keyboard_layout_get(&self) -> anyhow::Result<KeyboardLayout> {
-        let content = self.read_env_file()?;
+        let content = self.read_env_file().await?;
         let layouts = parse_layouts(&content);
         let active = parse_active_index(&content);
         layouts
@@ -160,7 +160,7 @@ impl LabwcBackend {
         name: Option<&str>,
         variant: Option<&str>,
     ) -> anyhow::Result<()> {
-        let content = self.read_env_file()?;
+        let content = self.read_env_file().await?;
         let mut layouts = parse_layouts(&content);
 
         if let Some(idx) = index {
@@ -200,7 +200,7 @@ impl LabwcBackend {
 
         // Preserve existing options
         let options = parse_options(&content);
-        self.write_env_file(&layouts, options.as_deref())?;
+        self.write_env_file(&layouts, options.as_deref()).await?;
 
         tracing::info!(
             "Keyboard layouts updated. Restart labwc ('labwc -e' then re-login) to apply."
@@ -213,7 +213,7 @@ impl LabwcBackend {
         name: &str,
         variant: Option<&str>,
     ) -> anyhow::Result<()> {
-        let content = self.read_env_file()?;
+        let content = self.read_env_file().await?;
         let mut layouts = parse_layouts(&content);
 
         // Don't add duplicates
@@ -233,13 +233,13 @@ impl LabwcBackend {
         });
 
         let options = parse_options(&content);
-        self.write_env_file(&layouts, options.as_deref())?;
+        self.write_env_file(&layouts, options.as_deref()).await?;
         tracing::info!("Keyboard layout added. Restart labwc to apply.");
         Ok(())
     }
 
     pub(super) async fn keyboard_layout_remove(&self, index: u32) -> anyhow::Result<()> {
-        let content = self.read_env_file()?;
+        let content = self.read_env_file().await?;
         let mut layouts = parse_layouts(&content);
 
         if index as usize >= layouts.len() {
@@ -261,7 +261,7 @@ impl LabwcBackend {
         }
 
         let options = parse_options(&content);
-        self.write_env_file(&layouts, options.as_deref())?;
+        self.write_env_file(&layouts, options.as_deref()).await?;
         tracing::info!("Keyboard layout removed. Restart labwc to apply.");
         Ok(())
     }

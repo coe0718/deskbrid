@@ -45,7 +45,7 @@ pub async fn execute_macro_action(
             )))
         }
         Action::MacroRecordStop => {
-            let summary = macro_engine::stop_recording(state)?;
+            let summary = macro_engine::stop_recording(state).await?;
             Ok(Some(ok_data(
                 request_id,
                 seq,
@@ -88,11 +88,11 @@ pub async fn execute_macro_action(
             )))
         }
         Action::MacroGet { name } => {
-            let mf = macro_engine::get_macro(name)?;
+            let mf = macro_engine::get_macro(name).await?;
             Ok(Some(ok_data(request_id, seq, serde_json::to_value(mf)?)))
         }
         Action::MacroDelete { name } => {
-            macro_engine::delete_macro(name)?;
+            macro_engine::delete_macro(name).await?;
             Ok(Some(ok_data(
                 request_id,
                 seq,
@@ -100,7 +100,7 @@ pub async fn execute_macro_action(
             )))
         }
         Action::MacroExport { name } => {
-            let exported = macro_engine::export_macro(name)?;
+            let exported = macro_engine::export_macro(name).await?;
             Ok(Some(ok_data(
                 request_id,
                 seq,
@@ -108,7 +108,7 @@ pub async fn execute_macro_action(
             )))
         }
         Action::MacroImport { name, data } => {
-            let summary = macro_engine::import_macro(name, data)?;
+            let summary = macro_engine::import_macro(name, data).await?;
             Ok(Some(ok_data(
                 request_id,
                 seq,

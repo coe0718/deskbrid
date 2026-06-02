@@ -47,9 +47,9 @@ impl Schedule {
             .join("schedule.json")
     }
 
-    pub fn load() -> Self {
+    pub async fn load() -> Self {
         let path = Self::path();
-        match std::fs::read_to_string(&path) {
+        match tokio::fs::read_to_string(&path).await {
             Ok(contents) => serde_json::from_str(&contents).unwrap_or_else(|e| {
                 warn!("Failed to parse schedule file: {e}. Starting with empty schedule.");
                 Schedule::default()
@@ -65,13 +65,13 @@ impl Schedule {
         }
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
+    pub async fn save(&self) -> anyhow::Result<()> {
         let path = Self::path();
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
         let json = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, json)?;
+        tokio::fs::write(&path, json).await?;
         Ok(())
     }
 
@@ -92,7 +92,7 @@ pub struct ScheduleState {
 impl ScheduleState {
     pub fn new() -> Self {
         Self {
-            schedule: Mutex::new(Schedule::load()),
+            schedule: Mutex::new(Schedule::default()),
         }
     }
 }
@@ -110,7 +110,7 @@ pub fn spawn_schedule_engine(schedule_state: Arc<ScheduleState>, daemon_state: A
             // without requiring a daemon restart.
             {
                 let mut sched = schedule_state.schedule.lock().await;
-                *sched = Schedule::load();
+                *sched = Schedule::load().await;
             }
 
             let now = std::time::SystemTime::now()
@@ -170,7 +170,7 @@ pub fn spawn_schedule_engine(schedule_state: Arc<ScheduleState>, daemon_state: A
                 if let Some(existing) = sched.entries.iter_mut().find(|e| e.name == entry.name) {
                     existing.last_run = now;
                 }
-                if let Err(e) = sched.save() {
+                if let Err(e) = sched.save().await {
                     error!("Failed to save schedule: {e}");
                 }
             }

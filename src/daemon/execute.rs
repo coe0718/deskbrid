@@ -266,7 +266,7 @@ async fn execute_schedule(
                 last_run: 0,
             };
             sched.entries.push(entry);
-            sched.save()?;
+            sched.save().await?;
             Ok(serde_json::json!({ "added": name }))
         }
         Action::ScheduleRemove { name } => {
@@ -275,7 +275,7 @@ async fn execute_schedule(
             if sched.entries.len() == len_before {
                 anyhow::bail!("schedule entry '{}' not found", name);
             }
-            sched.save()?;
+            sched.save().await?;
             Ok(serde_json::json!({ "removed": name }))
         }
         _ => unreachable!(),

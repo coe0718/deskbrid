@@ -19,7 +19,7 @@ async fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
         }
         let connector = name.split_once('-').map(|x| x.1).unwrap_or(&name);
         let status_path = entry.path().join("status");
-        let status = match std::fs::read_to_string(&status_path) {
+        let status = match tokio::fs::read_to_string(&status_path).await {
             Ok(s) => s.trim().to_string(),
             Err(_) => continue,
         };
@@ -29,7 +29,7 @@ async fn probe_drm_monitors() -> Vec<protocol::MonitorInfo> {
         let modes_path = entry.path().join("modes");
         let mut width = 1920u32;
         let mut height = 1080u32;
-        if let Ok(modes) = std::fs::read_to_string(&modes_path)
+        if let Ok(modes) = tokio::fs::read_to_string(&modes_path).await
             && let Some(first_mode) = modes.lines().next()
             && let Some(x_pos) = first_mode.find('x')
             && let (Ok(w), Ok(h)) = (

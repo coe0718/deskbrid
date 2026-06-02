@@ -68,7 +68,7 @@ pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> St
 
     if show_screenshot && let Some(ref backend) = *backend_guard {
         match backend.screenshot(None, None, None).await {
-            Ok(result) => match std::fs::read(&result.path) {
+            Ok(result) => match tokio::fs::read(&result.path).await {
                 Ok(bytes) => {
                     let b64 = base64_encode(&bytes);
                     screenshot_html = format!(
@@ -236,7 +236,7 @@ pub(crate) async fn handle_request(
         let backend_guard = state.backend.read().await;
         if let Some(ref backend) = *backend_guard {
             match backend.screenshot(None, None, None).await {
-                Ok(result) => match std::fs::read(&result.path) {
+                Ok(result) => match tokio::fs::read(&result.path).await {
                     Ok(bytes) => {
                         drop(backend_guard);
                         write_half

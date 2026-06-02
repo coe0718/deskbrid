@@ -20,7 +20,7 @@ pub(crate) async fn execute_screenshot(
                 .screenshot(monitor, region.clone(), window_id.clone())
                 .await?;
             if let Some(out_path) = output {
-                std::fs::copy(&result.path, out_path)?;
+                tokio::fs::copy(&result.path, out_path).await?;
             }
             serde_json::json!(result)
         }

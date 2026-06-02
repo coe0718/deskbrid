@@ -24,11 +24,11 @@ impl CropRect {
     }
 }
 
-pub(crate) fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
-    use std::io::Read;
-    let mut file = std::fs::File::open(path)?;
+pub(crate) async fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
+    use tokio::io::AsyncReadExt;
+    let mut file = tokio::fs::File::open(path).await?;
     let mut header = [0u8; 24];
-    file.read_exact(&mut header)?;
+    file.read_exact(&mut header).await?;
     let width = u32::from_be_bytes([header[16], header[17], header[18], header[19]]);
     let height = u32::from_be_bytes([header[20], header[21], header[22], header[23]]);
     Ok((width, height))
@@ -102,7 +102,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(get_png_dimensions(&path).unwrap(), (2, 1));
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        assert_eq!(rt.block_on(get_png_dimensions(&path)).unwrap(), (2, 1));
         let cropped = image::open(&path).unwrap().to_rgba8();
         assert_eq!(cropped.get_pixel(0, 0).0, [1, 1, 0, 255]);
         assert_eq!(cropped.get_pixel(1, 0).0, [2, 1, 0, 255]);

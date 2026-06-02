@@ -54,19 +54,16 @@ impl KdeBackend {
     }
 
     pub(super) async fn desktop_list_schemas(&self) -> anyhow::Result<Vec<String>> {
-        let glob = std::fs::read_dir(format!(
-            "{}/.config",
-            std::env::var("HOME").unwrap_or_default()
-        ))?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_name().to_string_lossy().ends_with("rc"))
-        .map(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .trim_end_matches("rc")
-                .to_string()
-        })
-        .collect();
-        Ok(glob)
+        let home = std::env::var("HOME").unwrap_or_default();
+        let config_dir = format!("{}/.config", home);
+        let mut dir = tokio::fs::read_dir(&config_dir).await?;
+        let mut schemas = Vec::new();
+        while let Some(entry) = dir.next_entry().await? {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.ends_with("rc") {
+                schemas.push(name.trim_end_matches("rc").to_string());
+            }
+        }
+        Ok(schemas)
     }
 }

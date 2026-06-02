@@ -123,8 +123,8 @@ pub(super) fn ydotool_key_name(key: &str) -> String {
 }
 
 /// Simple PNG header parser for dimensions.
-pub(super) fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
-    let data = std::fs::read(path)?;
+pub(super) async fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
+    let data = tokio::fs::read(path).await?;
     if data.len() < 24 || &data[1..4] != b"PNG" {
         anyhow::bail!("not a PNG file");
     }

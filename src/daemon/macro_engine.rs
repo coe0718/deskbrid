@@ -103,7 +103,7 @@ pub fn start_recording(
 }
 
 /// Stop recording and save the macro to disk. Returns the summary.
-pub fn stop_recording(state: &DaemonState) -> anyhow::Result<MacroSummary> {
+pub async fn stop_recording(state: &DaemonState) -> anyhow::Result<MacroSummary> {
     let mut guard = state
         .recording
         .try_lock()
@@ -122,7 +122,7 @@ pub fn stop_recording(state: &DaemonState) -> anyhow::Result<MacroSummary> {
         actions: recording.actions,
     };
 
-    save_macro(&macro_file)?;
+    save_macro(&macro_file).await?;
     info!(
         "Stopped recording '{}': {} actions, {}ms total",
         recording.name, action_count, total_duration_ms
@@ -157,7 +157,7 @@ pub async fn replay_macro(
     stop_on_error: bool,
     peer_uid: u32,
 ) -> anyhow::Result<Vec<serde_json::Value>> {
-    let macro_file = load_macro(name)?;
+    let macro_file = load_macro(name).await?;
     let mut results = Vec::new();
 
     for _ in 0..loop_count {
@@ -229,7 +229,7 @@ pub async fn list_macros() -> anyhow::Result<Vec<MacroSummary>> {
         if path.extension().is_none_or(|e| e != "json") {
             continue;
         }
-        match load_macro_file(&path) {
+        match load_macro_file(&path).await {
             Ok(mf) => {
                 let total_duration_ms: u64 = mf.actions.iter().map(|a| a.elapsed_ms).sum();
                 summaries.push(MacroSummary {
@@ -249,25 +249,25 @@ pub async fn list_macros() -> anyhow::Result<Vec<MacroSummary>> {
     Ok(summaries)
 }
 
-pub fn get_macro(name: &str) -> anyhow::Result<MacroFile> {
-    load_macro(name)
+pub async fn get_macro(name: &str) -> anyhow::Result<MacroFile> {
+    load_macro(name).await
 }
 
-pub fn delete_macro(name: &str) -> anyhow::Result<()> {
+pub async fn delete_macro(name: &str) -> anyhow::Result<()> {
     let path = macro_path(name);
     if path.exists() {
-        std::fs::remove_file(&path)?;
+        tokio::fs::remove_file(&path).await?;
         info!("Deleted macro '{}'", name);
     }
     Ok(())
 }
 
-pub fn export_macro(name: &str) -> anyhow::Result<String> {
-    let mf = load_macro(name)?;
+pub async fn export_macro(name: &str) -> anyhow::Result<String> {
+    let mf = load_macro(name).await?;
     serde_json::to_string_pretty(&mf).map_err(Into::into)
 }
 
-pub fn import_macro(name: &str, data: &str) -> anyhow::Result<MacroSummary> {
+pub async fn import_macro(name: &str, data: &str) -> anyhow::Result<MacroSummary> {
     let mf: MacroFile = serde_json::from_str(data)?;
     let total_duration_ms: u64 = mf.actions.iter().map(|a| a.elapsed_ms).sum();
     let summary = MacroSummary {
@@ -282,29 +282,28 @@ pub fn import_macro(name: &str, data: &str) -> anyhow::Result<MacroSummary> {
         name: name.to_string(),
         ..mf
     };
-    save_macro(&renamed)?;
+    save_macro(&renamed).await?;
     Ok(summary)
 }
 
 // ─── File I/O ─────────────────────────────────────────
 
-fn load_macro(name: &str) -> anyhow::Result<MacroFile> {
-    let path = macro_path(name);
-    load_macro_file(&path)
+async fn load_macro(name: &str) -> anyhow::Result<MacroFile> {
+    load_macro_file(&macro_path(name)).await
 }
 
-fn load_macro_file(path: &std::path::Path) -> anyhow::Result<MacroFile> {
-    let data = std::fs::read_to_string(path)?;
+async fn load_macro_file(path: &std::path::Path) -> anyhow::Result<MacroFile> {
+    let data = tokio::fs::read_to_string(path).await?;
     let mf: MacroFile = serde_json::from_str(&data)?;
     Ok(mf)
 }
 
-fn save_macro(mf: &MacroFile) -> anyhow::Result<()> {
+async fn save_macro(mf: &MacroFile) -> anyhow::Result<()> {
     let dir = macro_dir();
-    std::fs::create_dir_all(&dir)?;
+    tokio::fs::create_dir_all(&dir).await?;
     let path = macro_path(&mf.name);
     let json = serde_json::to_string_pretty(mf)?;
-    std::fs::write(&path, json)?;
+    tokio::fs::write(&path, json).await?;
     debug!("Saved macro '{}' to {}", mf.name, path.display());
     Ok(())
 }

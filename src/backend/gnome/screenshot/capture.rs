@@ -24,7 +24,7 @@ impl GnomeBackend {
             && self.sc_pw_node > 0
             && self.screenshot_via_pipewire(&path).await.is_ok()
         {
-            let dims = get_png_dimensions(&path)?;
+            let dims = get_png_dimensions(&path).await?;
             return Ok(protocol::ScreenshotResult {
                 path,
                 width: dims.0,
@@ -87,7 +87,7 @@ impl GnomeBackend {
             }
         }
 
-        let dims = get_png_dimensions(&path)?;
+        let dims = get_png_dimensions(&path).await?;
         Ok(protocol::ScreenshotResult {
             path,
             width: dims.0,
