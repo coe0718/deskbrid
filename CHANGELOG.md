@@ -1,3 +1,48 @@
+## v0.12.0 — Print, Desktop Settings, Backlight & Dashboard
+
+**17 commits since v0.11.3 · 63 files changed · 1,990 insertions · 227 deletions**
+
+Major feature release. CUPS printing pipeline, desktop settings read/write across
+all 9 backends, backlight control via sysfs, and three new live dashboard cards.
+
+### 🖨️ CUPS Printing (`system.print`)
+- **bec4e2b** — `system.print_file` action: send any file to a CUPS printer.
+  Full stack: protocol parse/serialize, backend trait, CUPS CLI impl, MCP tool,
+  CLI subcommand, execute dispatch, stubs. The command literally didn't exist before.
+- **996b8ee** — CLI: `deskbrid system print-list`, `print-file`, `print-cancel`,
+  `print-pause`, `print-resume`, `print-set-default`. Graceful fallback when CUPS absent.
+- **c7592aa** — Dashboard: Printers card with SSE live updates (name, status, jobs, default marker)
+
+### ⚙️ Desktop Settings (`system.desktop_settings`)
+- **6987545** — `desktop_settings.get/set/list` across all 9 backends:
+  GNOME (gsettings), KDE (kreadconfig5/kwriteconfig5), Hyprland/Sway/Niri/Wayfire (config files),
+  COSMIC (gsettings), Labwc (config files), X11 (xsettings)
+- **5474174** — Fix serialization: proper `schema/key/value` field structure
+- **9814003** — Clippy: drop needless borrow in KDE desktop_settings
+
+### 💡 Backlight (`system.backlight`)
+- **5c637c4** — `backlight.list/get/set` via sysfs `/sys/class/backlight/*`
+- **6b0b645** — Install script: udev rule adds user to `video` group for sysfs access
+- **1f5219b** — Dashboard: Backlight card with brightness slider
+
+### ⌨️ Keyboard Layouts
+- **96a611d** — Add layout support for Niri and Wayfire backends (completing coverage)
+
+### 📊 Dashboard
+- **1f5219b** — Desktop Settings card: view/edit DE configuration live
+- **1f5219b** — Backlight card: per-display brightness with percentage bars
+- **c7592aa** — Printers card: printer status, default badge, active job count
+- All cards follow same pattern: render fn → SSE dispatch → volatile_cards → HTML template
+
+### ♿ Accessibility
+- **014d869** — AT-SPI2: wire all 12 action variants (was 8). Bypasses backend check so
+  AT-SPI2 actions work regardless of detected DE.
+
+### 🔧 Housekeeping
+- **d212070** — CI: `cleanup-runs` targets all workflows via explicit token+repo
+- **6008d23** — Remove duplicate a11y impl from execute_stubs
+- **18563c0** — Checklist sweep: MCP docs + Hermes plugin for new features
+
 ## v0.11.3 — Async Safety & Code Quality
 
 **17 commits since v0.11.2 · 15 files changed · 646 insertions · 619 deletions**
