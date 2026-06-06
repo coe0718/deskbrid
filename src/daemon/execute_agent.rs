@@ -47,9 +47,7 @@ impl AgentMailboxStore {
     pub async fn get_for(&self, session: &str) -> Vec<StoredMessage> {
         let msgs = self.messages.lock().await;
         msgs.iter()
-            .filter(|m| {
-                m.to_session.as_deref() == Some(session) || m.to_session.is_none()
-            })
+            .filter(|m| m.to_session.as_deref() == Some(session) || m.to_session.is_none())
             .cloned()
             .collect()
     }
@@ -103,7 +101,9 @@ pub async fn execute_agent(
                 ttl_ms: None,
             };
             let id = state.agent_mailbox.store(msg).await;
-            Ok(json!({"status": "broadcast", "id": id, "exclude_self": exclude_self.unwrap_or(false)}))
+            Ok(
+                json!({"status": "broadcast", "id": id, "exclude_self": exclude_self.unwrap_or(false)}),
+            )
         }
         Action::AgentMailbox => {
             let messages = state.agent_mailbox.get_for(session_id).await;

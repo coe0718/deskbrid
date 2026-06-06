@@ -1,16 +1,15 @@
 use crate::DaemonState;
 use crate::protocol::Action;
 
-use super::execute_audio;
 use super::execute_agent;
+use super::execute_audio;
 use super::execute_audit;
-use super::execute_confirmation;
-use super::execute_search;
 use super::execute_bluetooth;
 use super::execute_browser;
 use super::execute_capabilities;
 use super::execute_clipboard;
 use super::execute_color;
+use super::execute_confirmation;
 use super::execute_delegated;
 use super::execute_desktop;
 use super::execute_files;
@@ -21,6 +20,7 @@ use super::execute_network;
 use super::execute_notification;
 use super::execute_process;
 use super::execute_screenshot;
+use super::execute_search;
 use super::execute_stubs;
 use super::execute_system;
 use super::execute_system::execute_dbus_call;

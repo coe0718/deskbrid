@@ -51,7 +51,11 @@ impl SearchIndex {
                         results.push(FileHit {
                             path: format!("{}/{}", dir, entry.file_name().to_string_lossy()),
                             size,
-                            score: if name.starts_with(&query_lower) { 100 } else { 50 },
+                            score: if name.starts_with(&query_lower) {
+                                100
+                            } else {
+                                50
+                            },
                         });
                         if results.len() >= limit {
                             break;

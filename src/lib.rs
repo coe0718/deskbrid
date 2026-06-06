@@ -91,9 +91,8 @@ pub struct DaemonState {
     pub rules: Arc<Mutex<RuleEngine>>,
     /// Active portal screencast process (GStreamer pipeline)
     pub screencast_process: Arc<Mutex<Option<daemon::portal::ActiveScreencast>>>,
-    pub pending_confirmations: Arc<
-        Mutex<HashMap<String, daemon::execute_confirmation::PendingConfirmation>>,
-    >,
+    pub pending_confirmations:
+        Arc<Mutex<HashMap<String, daemon::execute_confirmation::PendingConfirmation>>>,
     pub agent_mailbox: Arc<daemon::execute_agent::AgentMailboxStore>,
     pub search_index: Arc<daemon::search::SearchIndex>,
     next_confirmation_id: AtomicU64,

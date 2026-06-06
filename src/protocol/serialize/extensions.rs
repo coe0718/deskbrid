@@ -1,5 +1,5 @@
-use serde_json::{Value, json};
 use crate::protocol::Action;
+use serde_json::{Value, json};
 
 pub fn serialize_confirmation(action: &Action, id: &str) -> Value {
     match action {

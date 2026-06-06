@@ -152,9 +152,7 @@ pub async fn execute_search(
                         }
                     }
                     "files" => {
-                        if let Ok(files) =
-                            state.search_index.search_files(&query, limit).await
-                        {
+                        if let Ok(files) = state.search_index.search_files(&query, limit).await {
                             for f in files {
                                 results.push(json!({
                                     "category": "files",

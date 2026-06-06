@@ -13,10 +13,7 @@ pub async fn execute_confirmation(
                 let backend = state.backend.read().await;
                 let backend_ref = backend.as_ref().map(|b| b.as_ref());
                 let result = match backend_ref {
-                    Some(b) => crate::daemon::execute::execute_action(
-                        entry.action, b, state,
-                    )
-                    .await,
+                    Some(b) => crate::daemon::execute::execute_action(entry.action, b, state).await,
                     None => Ok(serde_json::json!({
                         "error": "no desktop backend available",
                         "headless": true,
@@ -27,7 +24,9 @@ pub async fn execute_confirmation(
                     Err(e) => Ok(json!({"status": "confirmed", "id": id, "error": e.to_string()})),
                 }
             } else {
-                Ok(json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}))
+                Ok(
+                    json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}),
+                )
             }
         }
         Action::DenyAction { id } => {
@@ -35,7 +34,9 @@ pub async fn execute_confirmation(
             if pending.remove(&id).is_some() {
                 Ok(json!({"status": "denied", "id": id}))
             } else {
-                Ok(json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}))
+                Ok(
+                    json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}),
+                )
             }
         }
         Action::ConfirmationList => {
