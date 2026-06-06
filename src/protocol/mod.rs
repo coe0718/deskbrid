@@ -770,6 +770,38 @@ pub enum Action {
     BlackboardList {
         namespace: Option<String>,
     },
+
+    // ─── Action Confirmation (#37) ───────────────────────
+    ConfirmAction {
+        id: String,
+    },
+    DenyAction {
+        id: String,
+    },
+    ConfirmationList,
+
+    // ─── Agent-to-Agent Messaging (#44) ──────────────────
+    AgentMessage {
+        to_session: String,
+        subject: String,
+        body: serde_json::Value,
+        ttl_ms: Option<u64>,
+        reply_to: Option<String>,
+    },
+    AgentBroadcast {
+        subject: String,
+        body: serde_json::Value,
+        exclude_self: Option<bool>,
+    },
+    AgentMailbox,
+
+    // ─── Unified Search (#80) ────────────────────────────
+    UnifiedSearch {
+        query: String,
+        categories: Option<Vec<String>>,
+        limit: Option<usize>,
+    },
+    UnifiedIndex,
 }
 
 impl Action {

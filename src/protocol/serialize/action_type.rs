@@ -217,5 +217,13 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::DesktopGetSetting { .. } => "desktop.get_setting",
         Action::DesktopSetSetting { .. } => "desktop.set_setting",
         Action::DesktopListSchemas => "desktop.list_schemas",
+        Action::ConfirmAction { .. } => "confirmation.confirm",
+        Action::DenyAction { .. } => "confirmation.deny",
+        Action::ConfirmationList => "confirmation.list",
+        Action::AgentMessage { .. } => "agent.message",
+        Action::AgentBroadcast { .. } => "agent.broadcast",
+        Action::AgentMailbox => "agent.mailbox",
+        Action::UnifiedSearch { .. } => "search.query",
+        Action::UnifiedIndex => "search.index",
     }
 }

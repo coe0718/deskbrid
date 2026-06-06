@@ -91,6 +91,12 @@ pub struct DaemonState {
     pub rules: Arc<Mutex<RuleEngine>>,
     /// Active portal screencast process (GStreamer pipeline)
     pub screencast_process: Arc<Mutex<Option<daemon::portal::ActiveScreencast>>>,
+    pub pending_confirmations: Arc<
+        Mutex<HashMap<String, daemon::execute_confirmation::PendingConfirmation>>,
+    >,
+    pub agent_mailbox: Arc<daemon::execute_agent::AgentMailboxStore>,
+    pub search_index: Arc<daemon::search::SearchIndex>,
+    next_confirmation_id: AtomicU64,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
@@ -144,6 +150,10 @@ impl DaemonState {
             sessions: Arc::new(Mutex::new(sessions)),
             rules: Arc::new(Mutex::new(RuleEngine::new())),
             screencast_process: Arc::new(Mutex::new(None)),
+            pending_confirmations: Arc::new(Mutex::new(HashMap::new())),
+            agent_mailbox: Arc::new(daemon::execute_agent::AgentMailboxStore::new()),
+            search_index: Arc::new(daemon::search::SearchIndex::new()),
+            next_confirmation_id: AtomicU64::new(1),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),
@@ -169,6 +179,13 @@ impl DaemonState {
     pub fn next_clipboard_history_id(&self) -> u64 {
         self.next_clipboard_history_id
             .fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub fn next_confirmation_id(&self) -> String {
+        format!(
+            "confirm-{}",
+            self.next_confirmation_id.fetch_add(1, Ordering::Relaxed)
+        )
     }
 }
 

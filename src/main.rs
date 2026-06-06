@@ -41,6 +41,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
     let request_options = deskbrid::protocol::RequestOptions {
         dry_run: args.dry_run,
         timeout_ms: args.timeout_ms,
+        require_confirmation: None,
     };
 
     match args.command {

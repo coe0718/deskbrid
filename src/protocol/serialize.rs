@@ -13,6 +13,7 @@ mod bluetooth;
 mod color_pick;
 mod connection;
 mod desktop;
+mod extensions;
 mod files;
 mod input;
 mod macro_cmd;
@@ -287,6 +288,25 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         Action::DesktopGetSetting { .. }
         | Action::DesktopSetSetting { .. }
         | Action::DesktopListSchemas => desktop::serialize_desktop(action, &id),
+
+        // Extension actions (confirmation, agent messaging, search)
+        Action::ConfirmAction { .. }
+        | Action::DenyAction { .. }
+        | Action::ConfirmationList
+        | Action::AgentMessage { .. }
+        | Action::AgentBroadcast { .. }
+        | Action::AgentMailbox
+        | Action::UnifiedSearch { .. }
+        | Action::UnifiedIndex => {
+            let at = action.action_type();
+            if at.starts_with("agent.") {
+                extensions::serialize_agent(action, &id)
+            } else if at.starts_with("search.") {
+                extensions::serialize_search(action, &id)
+            } else {
+                extensions::serialize_confirmation(action, &id)
+            }
+        }
     };
 
     Ok(serde_json::to_string(&envelope)?)

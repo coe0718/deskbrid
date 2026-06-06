@@ -2,6 +2,7 @@ use super::Action;
 use super::types::RequestOptions;
 
 mod a11y;
+mod agent;
 mod apps;
 mod audio;
 mod audit;
@@ -10,6 +11,7 @@ mod bluetooth;
 mod browser;
 mod clipboard;
 mod color_pick;
+mod confirmation;
 mod desktop;
 mod files;
 mod helpers;
@@ -24,6 +26,7 @@ mod notifications;
 mod process;
 mod rules;
 mod screenshot;
+mod search;
 mod sessions;
 mod system;
 mod windows;
@@ -44,6 +47,7 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
     let options = RequestOptions {
         dry_run: raw["dry_run"].as_bool().unwrap_or(false),
         timeout_ms: raw["timeout_ms"].as_u64(),
+        require_confirmation: raw["require_confirmation"].as_bool(),
     };
 
     let action = match msg_type.as_str() {
@@ -197,6 +201,15 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Blackboard
         s if s.starts_with("blackboard.") => blackboard::parse_blackboard(&raw, &id, s)?,
+
+        // Confirmation
+        s if s.starts_with("confirmation.") => confirmation::parse_confirmation(&raw, &id, s)?,
+
+        // Agent messaging
+        s if s.starts_with("agent.") => agent::parse_agent(&raw, &id, s)?,
+
+        // Unified search
+        s if s.starts_with("search.") => search::parse_search(&raw, &id, s)?,
 
         // D-Bus raw call — escape hatch, doesn't fit a prefix group
         "dbus.call" => system::parse_system(&raw, &id, msg_type.as_str())?,

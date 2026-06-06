@@ -227,6 +227,7 @@ pub struct Envelope {
 pub struct RequestOptions {
     pub dry_run: bool,
     pub timeout_ms: Option<u64>,
+    pub require_confirmation: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

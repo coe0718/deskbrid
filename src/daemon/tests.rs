@@ -150,6 +150,7 @@ async fn dry_run_validates_permissions_without_backend() {
         crate::protocol::RequestOptions {
             dry_run: true,
             timeout_ms: Some(250),
+            require_confirmation: None,
         },
         "default",
     )

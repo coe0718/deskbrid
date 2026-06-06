@@ -103,7 +103,7 @@ fn filter_apps(
         .collect()
 }
 
-async fn load_apps() -> anyhow::Result<Vec<AppCatalogEntry>> {
+pub(crate) async fn load_apps() -> anyhow::Result<Vec<AppCatalogEntry>> {
     let mut entries = Vec::new();
     for dir in app_dirs() {
         collect_desktop_entries(&dir, &mut entries).await?;

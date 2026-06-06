@@ -120,6 +120,48 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
+    // Handle confirmation gate (#37)
+    if options.require_confirmation == Some(true) {
+        let confirm_id = state.next_confirmation_id();
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let entry = crate::daemon::execute_confirmation::PendingConfirmation {
+            request_id: request_id.to_string(),
+            action: action.clone(),
+            options: options.clone(),
+            peer_uid,
+            seq,
+            session_id: session_id.to_string(),
+            created_at: now_ms,
+        };
+        state
+            .pending_confirmations
+            .lock()
+            .await
+            .insert(confirm_id.clone(), entry);
+        let response = serde_json::json!({
+            "type": "response",
+            "id": request_id,
+            "seq": seq,
+            "status": "action_requires_confirmation",
+            "confirmation_id": confirm_id,
+            "action_type": action.action_type(),
+        });
+        audit_response(
+            state,
+            &action,
+            peer_uid,
+            seq,
+            &response,
+            started,
+            Some(true),
+        )
+        .await;
+        return response;
+    }
+
     // Macro actions handled by their own executor
     if is_macro_action(&action) {
         return match execute_macro_action(&action, state, request_id, seq, peer_uid).await {

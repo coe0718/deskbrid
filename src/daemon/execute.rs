@@ -2,7 +2,10 @@ use crate::DaemonState;
 use crate::protocol::Action;
 
 use super::execute_audio;
+use super::execute_agent;
 use super::execute_audit;
+use super::execute_confirmation;
+use super::execute_search;
 use super::execute_bluetooth;
 use super::execute_browser;
 use super::execute_capabilities;
@@ -221,6 +224,17 @@ pub async fn execute_action(
         | LayoutProfileDelete { .. }
         | LayoutProfileRestore { .. } => {
             execute_workspace::execute_workspace(action, backend, state).await?
+        }
+
+        // New features (#37, #44, #80)
+        ConfirmAction { .. } | DenyAction { .. } | ConfirmationList => {
+            Box::pin(execute_confirmation::execute_confirmation(action, state)).await?
+        }
+        AgentMessage { .. } | AgentBroadcast { .. } | AgentMailbox => {
+            execute_agent::execute_agent(action, state, "default").await?
+        }
+        UnifiedSearch { .. } | UnifiedIndex => {
+            execute_search::execute_search(action, state, backend).await?
         }
 
         _ => execute_stubs::execute_stubs(action, backend, state).await?,
