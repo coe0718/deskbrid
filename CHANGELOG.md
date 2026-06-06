@@ -1,3 +1,30 @@
+## v0.13.0 — Action Confirmation, Agent Messaging, Unified Search
+
+**Tuck · 8 commits · 32 files · +1197 −20**
+
+Three major features: destructive-action gating, inter-agent communication, and cross-surface search — all with live dashboard cards, MCP tools, and background TTL sweeping.
+
+### 🛡️ Action Confirmation Mode (#37)
+- **b98e37e** — Protocol core: 9 new action variants (`confirmation.*`, `agent.*`, `search.*`), parse modules, execute handlers, dispatch gating. Pending confirmations queue in `DaemonState` with `require_confirmation` flag on destructive actions.
+- **096ce65** — MCP tools: `confirm`, `deny`, `list` (confirmation); `send`, `broadcast`, `mailbox` (agent); `search`, `index` (search). 8 new tools wired via `block_state` and $crate macros.
+- **1a091e2** — Dashboard: three new SSE cards — confirmation queue, agent mailbox, search index.
+- **216f58c** — Background sweeper: `spawn_confirmation_sweeper()` runs every 30s, purges confirmations older than 5min. Wired at daemon startup.
+
+### 📬 Agent-to-Agent Messaging (#44)
+- **b98e37e** — In-process `HashMap<SessionId, Vec<AgentMessage>>` mailbox with TTL-based expiry.
+- **0544142** — TTL cleanup: `is_expired()` prunes on store and `get_for()`. Messages expire after configurable TTL.
+- **096ce65** — MCP: `agent.send`, `agent.broadcast`, `agent.mailbox` tools for inter-session messaging.
+
+### 🔍 Unified Search (#80)
+- **b98e37e** — `SearchIndex` struct in `DaemonState` indexing windows, apps, files, clipboard, and audit log with relevance scoring.
+- **0544142** — Async safety: `std::fs::read_dir` → `tokio::fs::read_dir` with async iteration. Scope documented as v1 (4 directories).
+- **8f8b203** — Protocol fix: MCP tools used wrong prefix `unified.*` → corrected to `search.*` (wire format from `action_type.rs`).
+
+### 🧹 Fixes
+- **0544142** — Claude review: blocking `read_dir` eliminated, TTL sweepers added for both confirmation queue and agent mailbox.
+- **87b84c8** — Leftover `cargo fmt` from protocol core commit (7 files missed in original add).
+- **07e4aa9** — Agent file refresh: AGENTS.md, CLAUDE.md, hermes skill updated for new features.
+
 ## v0.12.3 — OCI Docker + MCP Registry
 
 **Tuck · Dockerfile label + ghcr.io push + OCI package**
