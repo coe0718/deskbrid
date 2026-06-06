@@ -43,10 +43,13 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **Backlight** — list, get, set brightness via sysfs (all backends)
 - **Print** — list printers, set default, list/cancel/pause/resume jobs, send files to printer (CUPS)
 - **Self-update** — `deskbrid update` pulls latest from GitHub releases
+- **Confirmation Mode** — require explicit approval for destructive actions before execution
+- **Agent Messaging** — inter-agent mailbox for message passing between sessions
+- **Unified Search** — cross-surface search (windows, apps, files, clipboard, audit log) with relevance scoring
 
 ## Dashboard
 
-Built-in web dashboard at `localhost:20129` — system info, monitors, windows, network, audio, clipboard, audit log, all live via SSE.
+Built-in web dashboard at `localhost:20129` — system info, monitors, windows, network, audio, clipboard, audit log, confirmations, agent mailbox, search index — all live via SSE.
 
 **[🔴 Live Demo →](https://deskbrid.patchhive.dev/live)**
 
@@ -56,7 +59,7 @@ Built-in web dashboard at `localhost:20129` — system info, monitors, windows, 
 deskbrid mcp   # MCP stdio server for AI coding tools
 ```
 
-92+ tools across 19 categories: window management, accessibility tree, keyboard, mouse, clipboard, screenshots, system info, print, and more. Claude Desktop, Codex, Cursor — any MCP client.
+100+ tools across 22 categories: window management, accessibility tree, keyboard, mouse, clipboard, screenshots, system info, print, confirmation, agent messaging, unified search, and more. Claude Desktop, Codex, Cursor — any MCP client.
 
 ## Python Client
 

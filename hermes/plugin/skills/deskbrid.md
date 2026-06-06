@@ -1,10 +1,11 @@
 ---
 name: deskbrid
 description: >
-  Full Linux desktop control for Hermes agents — 92 tools across windows,
+  Full Linux desktop control for Hermes agents — 100+ tools across windows,
   keyboard/mouse input, AT-SPI UI inspection, clipboard, screenshots,
   audio, system, files, terminals, browser automation, process management,
-  monitor configuration, media playback, notifications, hotkeys, and more.
+  monitor configuration, media playback, notifications, hotkeys,
+  confirmation, agent messaging, unified search, and more.
   Use these tools to automate desktop tasks, interact with GUI apps,
   inspect UI state, and manage the machine.
 tools: [list_windows, focused_window, list_workspaces, list_apps,
@@ -35,12 +36,15 @@ tools: [list_windows, focused_window, list_workspaces, list_apps,
   register_hotkey, unregister_hotkey,
   list_schemas, get_setting, set_setting,
   backlight_list, backlight_get, backlight_set,
-  print_list, print_default, print_file, print_jobs, print_job_cancel, print_job_pause, print_job_resume]
+  print_list, print_default, print_file, print_jobs, print_job_cancel, print_job_pause, print_job_resume,
+  confirm_action, deny_action, list_confirmations,
+  send_message, broadcast, check_mailbox,
+  unified_search, search_index_status]
 ---
 
 # Deskbrid — Linux Desktop Control
 
-You have full control over the Linux desktop through 91 Deskbrid tools.
+You have full control over the Linux desktop through 100+ Deskbrid tools.
 
 ## Core Workflow
 
