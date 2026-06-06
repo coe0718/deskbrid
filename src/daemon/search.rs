@@ -36,6 +36,10 @@ impl SearchIndex {
         Self
     }
 
+    /// Search user-facing directories for files matching the query.
+    /// Scope is intentionally limited to ~/{Downloads,Documents,Desktop,Pictures}
+    /// — v1 covers the most common agent file interaction surface. Expand to
+    /// configurable paths or full-home recursion in a future iteration.
     pub async fn search_files(&self, query: &str, limit: usize) -> anyhow::Result<Vec<FileHit>> {
         let query_lower = query.to_lowercase();
         let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());

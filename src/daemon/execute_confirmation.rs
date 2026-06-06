@@ -4,14 +4,14 @@ use serde_json::{Value, json};
 /// Default TTL for pending confirmations: 5 minutes.
 const CONFIRMATION_TTL_MS: u64 = 300_000;
 
+/// Sweep interval for the background task: 30 seconds.
+const SWEEP_INTERVAL_SECS: u64 = 30;
+
 /// Execute confirmation actions.
 pub async fn execute_confirmation(
     action: Action,
     state: &crate::DaemonState,
 ) -> anyhow::Result<Value> {
-    // Sweep expired entries before any operation
-    sweep_expired(state).await;
-
     match action {
         Action::ConfirmAction { id } => {
             let mut pending = state.pending_confirmations.lock().await;
@@ -64,14 +64,30 @@ pub async fn execute_confirmation(
     }
 }
 
-/// Purge confirmations older than CONFIRMATION_TTL_MS.
-async fn sweep_expired(state: &crate::DaemonState) {
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64;
-    let mut pending = state.pending_confirmations.lock().await;
-    pending.retain(|_, entry| now_ms.saturating_sub(entry.created_at) < CONFIRMATION_TTL_MS);
+/// Spawn a background task that sweeps expired pending confirmations.
+/// Runs every SWEEP_INTERVAL_SECS, purging entries older than CONFIRMATION_TTL_MS.
+pub fn spawn_confirmation_sweeper(state: std::sync::Arc<crate::DaemonState>) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(SWEEP_INTERVAL_SECS)).await;
+            let mut pending = state.pending_confirmations.lock().await;
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let before = pending.len();
+            pending
+                .retain(|_, entry| now_ms.saturating_sub(entry.created_at) < CONFIRMATION_TTL_MS);
+            if pending.len() != before {
+                tracing::debug!(
+                    "Confirmation sweep: {} → {} (removed {} expired)",
+                    before,
+                    pending.len(),
+                    before - pending.len(),
+                );
+            }
+        }
+    });
 }
 
 pub struct PendingConfirmation {

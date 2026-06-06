@@ -172,6 +172,9 @@ pub async fn run(
     // Start periodic update checker — polls GitHub for new releases
     update_check::spawn_update_checker(Arc::clone(&state));
 
+    // Start confirmation TTL sweeper — purges expired pending confirmations
+    execute_confirmation::spawn_confirmation_sweeper(Arc::clone(&state));
+
     // Start schedule engine — runs configured actions on a timer
     schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));
 
