@@ -14,10 +14,12 @@ pub mod server;
 
 // Tool group macros (used by server.rs via #[macro_export])
 mod tools_a11y;
+mod tools_agent;
 mod tools_audio;
 mod tools_bluetooth;
 mod tools_browser;
 mod tools_clipboard;
+mod tools_confirmation;
 mod tools_desktop;
 mod tools_files;
 mod tools_input;
@@ -29,6 +31,7 @@ mod tools_notifications;
 mod tools_portal;
 mod tools_screencast;
 mod tools_screenshot;
+mod tools_search;
 mod tools_services;
 mod tools_system;
 mod tools_terminal;

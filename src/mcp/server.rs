@@ -13,11 +13,15 @@ use super::helpers::*;
 use super::types::*;
 use crate::DaemonState;
 use crate::{
-    tools_a11y, tools_audio, tools_bluetooth, tools_browser, tools_clipboard, tools_desktop,
-    tools_files, tools_input, tools_media, tools_misc, tools_monitors, tools_network,
-    tools_notifications, tools_portal, tools_screencast, tools_screenshot, tools_services,
-    tools_system, tools_terminal, tools_windows,
+    tools_a11y, tools_agent, tools_audio, tools_bluetooth, tools_browser, tools_clipboard,
+    tools_confirmation, tools_desktop, tools_files, tools_input, tools_media, tools_misc,
+    tools_monitors, tools_network, tools_notifications, tools_portal, tools_screencast,
+    tools_screenshot, tools_search, tools_services, tools_system, tools_terminal, tools_windows,
 };
+// Types used by macro expansions (defined in tool modules, used in #[tool] signatures)
+use crate::mcp::tools_agent::{BroadcastArgs, SendMessageArgs};
+use crate::mcp::tools_confirmation::ConfirmActionArgs;
+use crate::mcp::tools_search::SearchArgs;
 use anyhow::Context;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
@@ -47,6 +51,27 @@ fn block<F: std::future::Future<Output = anyhow::Result<Value>>>(rt: &Handle, f:
         tokio::task::block_in_place(|| rt.block_on(f))
             .unwrap_or_else(|e| json!({"error": e.to_string()})),
     )
+}
+
+/// Like `block` but doesn't require a desktop backend — for state-only actions
+/// (confirmation, agent messaging, etc.) that only need DaemonState.
+fn block_state<F>(
+    rt: &Handle,
+    state: &Arc<DaemonState>,
+    f: impl FnOnce(Arc<DaemonState>) -> F,
+) -> Json<Value>
+where
+    F: std::future::Future<Output = anyhow::Result<Value>> + Send + 'static,
+{
+    let state = state.clone();
+    let rt = rt.clone();
+    Json(tokio::task::block_in_place(move || {
+        rt.block_on(async {
+            f(state)
+                .await
+                .unwrap_or_else(|e| json!({"error": e.to_string()}))
+        })
+    }))
 }
 
 fn execute(state: Arc<DaemonState>, rt: &Handle, action: &str, args: Value) -> Json<Value> {
@@ -87,6 +112,9 @@ impl McpServer {
     tools_misc!();
     tools_portal!();
     tools_desktop!();
+    tools_confirmation!();
+    tools_agent!();
+    tools_search!();
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).
