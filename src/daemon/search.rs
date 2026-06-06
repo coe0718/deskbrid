@@ -43,11 +43,11 @@ impl SearchIndex {
 
         for dir in &["Downloads", "Documents", "Desktop", "Pictures"] {
             let path = format!("{}/{}", home, dir);
-            if let Ok(entries) = std::fs::read_dir(&path) {
-                for entry in entries.flatten() {
+            if let Ok(mut entries) = tokio::fs::read_dir(&path).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
                     let name = entry.file_name().to_string_lossy().to_lowercase();
                     if name.contains(&query_lower) {
-                        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                        let size = entry.metadata().await.map(|m| m.len()).unwrap_or(0);
                         results.push(FileHit {
                             path: format!("{}/{}", dir, entry.file_name().to_string_lossy()),
                             size,

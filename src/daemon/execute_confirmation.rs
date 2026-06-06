@@ -1,11 +1,17 @@
 use crate::protocol::Action;
 use serde_json::{Value, json};
 
+/// Default TTL for pending confirmations: 5 minutes.
+const CONFIRMATION_TTL_MS: u64 = 300_000;
+
 /// Execute confirmation actions.
 pub async fn execute_confirmation(
     action: Action,
     state: &crate::DaemonState,
 ) -> anyhow::Result<Value> {
+    // Sweep expired entries before any operation
+    sweep_expired(state).await;
+
     match action {
         Action::ConfirmAction { id } => {
             let mut pending = state.pending_confirmations.lock().await;
@@ -56,6 +62,16 @@ pub async fn execute_confirmation(
         }
         _ => unreachable!("not a confirmation action"),
     }
+}
+
+/// Purge confirmations older than CONFIRMATION_TTL_MS.
+async fn sweep_expired(state: &crate::DaemonState) {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let mut pending = state.pending_confirmations.lock().await;
+    pending.retain(|_, entry| now_ms.saturating_sub(entry.created_at) < CONFIRMATION_TTL_MS);
 }
 
 pub struct PendingConfirmation {

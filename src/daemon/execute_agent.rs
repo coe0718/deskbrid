@@ -36,6 +36,9 @@ impl AgentMailboxStore {
             id
         };
         let mut msgs = self.messages.lock().await;
+        // Prune expired before push
+        let now_ms = now_ms();
+        msgs.retain(|m| !is_expired(m, now_ms));
         msgs.push(StoredMessage { id, ..msg });
         let len = msgs.len();
         if len > 1000 {
@@ -45,11 +48,28 @@ impl AgentMailboxStore {
     }
 
     pub async fn get_for(&self, session: &str) -> Vec<StoredMessage> {
-        let msgs = self.messages.lock().await;
+        let mut msgs = self.messages.lock().await;
+        let now_ms = now_ms();
+        // Purge expired first
+        msgs.retain(|m| !is_expired(m, now_ms));
         msgs.iter()
             .filter(|m| m.to_session.as_deref() == Some(session) || m.to_session.is_none())
             .cloned()
             .collect()
+    }
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn is_expired(msg: &StoredMessage, now: u64) -> bool {
+    match msg.ttl_ms {
+        Some(ttl) => now.saturating_sub(msg.received_at) >= ttl,
+        None => false,
     }
 }
 
@@ -59,10 +79,7 @@ pub async fn execute_agent(
     state: &crate::DaemonState,
     session_id: &str,
 ) -> anyhow::Result<Value> {
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64;
+    let now_ms = now_ms();
 
     match action {
         Action::AgentMessage {
