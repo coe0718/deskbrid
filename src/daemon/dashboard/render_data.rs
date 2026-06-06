@@ -142,3 +142,65 @@ pub(super) async fn render_macros() -> String {
         Err(_) => r#"<div class="empty">Macro engine unavailable</div>"#.into(),
     }
 }
+
+pub(super) async fn render_confirmations(state: &DaemonState) -> String {
+    let pending = state.pending_confirmations.lock().await;
+    if pending.is_empty() {
+        return r#"<div class="empty">No pending confirmations</div>"#.into();
+    }
+    let mut rows = String::new();
+    for (id, entry) in pending.iter().take(10) {
+        let truncated_id: String = id.chars().take(12).collect();
+        rows.push_str(&super::kv(
+            &format!("⚠ {}", entry.action.action_type()),
+            &truncated_id,
+        ));
+    }
+    if pending.len() > 10 {
+        rows.push_str(&format!(
+            r#"<div class="empty">… and {} more</div>"#,
+            pending.len() - 10
+        ));
+    }
+    rows
+}
+
+pub(super) async fn render_agent_mailbox(state: &DaemonState) -> String {
+    let messages = state.agent_mailbox.get_for("dashboard").await;
+    if messages.is_empty() {
+        return r#"<div class="empty">No messages</div>"#.into();
+    }
+    let mut rows = String::new();
+    for m in messages.iter().rev().take(8) {
+        let prefix = if m.to_session.is_some() {
+            "📩"
+        } else {
+            "📢"
+        };
+        let body_preview: String = m.body.as_str().unwrap_or("?").chars().take(40).collect();
+        rows.push_str(&super::kv(
+            &format!("{} {}", prefix, m.subject),
+            &format!("#{} {}", m.id, body_preview),
+        ));
+    }
+    rows
+}
+
+pub(super) async fn render_search(state: &DaemonState) -> String {
+    let stats = state.search_index.stats().await;
+    let surfaces: Vec<String> = stats["surfaces"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let max_results = stats["max_results"].as_u64().unwrap_or(0);
+    let mut rows = super::kv(
+        "Surfaces",
+        &format!("{} ({})", surfaces.join(", "), surfaces.len()),
+    );
+    rows.push_str(&super::kv("Max Results", &max_results.to_string()));
+    rows
+}
