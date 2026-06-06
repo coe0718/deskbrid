@@ -18,7 +18,7 @@ macro_rules! tools_search {
         execute(
             self.state.clone(),
             &self.rt,
-            "unified.search",
+            "search.query",
             serde_json::json!({
                 "query": args.query,
                 "categories": args.categories,
@@ -41,7 +41,7 @@ macro_rules! tools_search {
         execute(
             self.state.clone(),
             &self.rt,
-            "unified.index",
+            "search.index",
             serde_json::json!({}),
         )
     }
