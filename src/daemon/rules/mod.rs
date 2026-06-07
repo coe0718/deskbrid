@@ -12,7 +12,7 @@ use tracing::{debug, error};
 
 /// Per-rule runtime state: tracks fire count and last-fire timestamp.
 #[derive(Debug, Default)]
-struct RuleRuntime {
+pub(super) struct RuleRuntime {
     fire_count: u32,
     last_fire_ms: u64,
 }

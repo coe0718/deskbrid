@@ -3,7 +3,6 @@ use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
 use crate::DaemonState;
-use crate::daemon::execute::execute_action;
 use crate::protocol::{Action, DeskbridEvent, EventTrigger, Rule, RuleCondition};
 
 /// Check whether a given EventTrigger matches a DeskbridEvent.
