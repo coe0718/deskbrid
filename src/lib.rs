@@ -186,6 +186,13 @@ impl DaemonState {
             self.next_confirmation_id.fetch_add(1, Ordering::Relaxed)
         )
     }
+
+    /// Load persistent state from the SQLite database on daemon startup.
+    /// Populates in-memory audit log and clipboard history caches.
+    pub async fn load_persistent_state(&self) {
+        daemon::audit::load_audit_from_db(self).await;
+        daemon::clipboard::load_clipboard_from_db(self).await;
+    }
 }
 
 impl Default for DaemonState {

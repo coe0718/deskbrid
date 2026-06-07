@@ -100,6 +100,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
         cli::Command::Mcp => {
             let event_tx = tokio::sync::broadcast::channel(256).0;
             let state = std::sync::Arc::new(deskbrid::DaemonState::new());
+            state.load_persistent_state().await;
             match deskbrid::backend::create_backend(event_tx).await {
                 Ok(backend) => *state.backend.write().await = Some(backend),
                 Err(e) => tracing::warn!(

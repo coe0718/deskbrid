@@ -104,6 +104,8 @@ fn gnome_x11_keeps_primary_monitor_capability_supported() {
 #[tokio::test]
 async fn audit_actions_work_without_desktop_backend() {
     let state = crate::DaemonState::new();
+    // Clear stale on-disk entries from previous test runs.
+    state.database.lock().await.clear_audit().unwrap();
 
     let first = dispatch_action(
         "test",
@@ -140,6 +142,8 @@ async fn audit_actions_work_without_desktop_backend() {
 #[tokio::test]
 async fn dry_run_validates_permissions_without_backend() {
     let state = crate::DaemonState::new();
+    // Clear stale on-disk entries from previous test runs.
+    state.database.lock().await.clear_audit().unwrap();
 
     let response = dispatch::dispatch_action_with_options(
         "test",

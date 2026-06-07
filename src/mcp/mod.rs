@@ -48,6 +48,7 @@ use crate::DaemonState;
 pub async fn run_mcp_server() -> anyhow::Result<()> {
     let event_tx = tokio::sync::broadcast::channel(256).0;
     let state = Arc::new(DaemonState::new());
+    state.load_persistent_state().await;
     let backend = crate::backend::create_backend(event_tx)
         .await
         .context("no desktop backend detected")?;
@@ -62,6 +63,7 @@ pub async fn run_mcp_tcp(port: u16) -> anyhow::Result<()> {
     use tokio::net::TcpListener;
     let event_tx = tokio::sync::broadcast::channel(256).0;
     let state = Arc::new(DaemonState::new());
+    state.load_persistent_state().await;
     let backend = crate::backend::create_backend(event_tx)
         .await
         .context("no desktop backend detected")?;

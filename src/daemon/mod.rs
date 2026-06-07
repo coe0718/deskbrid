@@ -7,10 +7,10 @@ use tracing::{debug, error, info, warn};
 
 pub(crate) mod apps;
 pub(crate) mod apps_parse;
-mod audit;
+pub(crate) mod audit;
 mod capabilities;
 mod client;
-mod clipboard;
+pub(crate) mod clipboard;
 mod dashboard;
 mod dispatch;
 mod dispatch_helpers;
@@ -139,6 +139,7 @@ pub async fn run(
     info!("Deskbrid daemon listening on {}", sock);
 
     let state = Arc::new(DaemonState::new());
+    state.load_persistent_state().await;
 
     // Start the web dashboard (runs regardless of backend status)
     if !no_dashboard {

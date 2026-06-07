@@ -35,6 +35,24 @@ pub(crate) fn action_timeout_from_env() -> Option<u64> {
         .unwrap_or(Some(DEFAULT_ACTION_TIMEOUT_MS))
 }
 
+/// Load recent audit entries from the DB into the in-memory buffer at startup.
+pub(crate) async fn load_audit_from_db(state: &DaemonState) {
+    let db = state.database.lock().await;
+    match db.get_audit_log(state.audit_capacity, None, None) {
+        Ok(entries) => {
+            let mut log = state.audit_log.lock().await;
+            log.clear();
+            for entry in entries.into_iter().rev() {
+                log.push_back(entry);
+            }
+            tracing::info!("Loaded {} audit entries from database", log.len());
+        }
+        Err(e) => {
+            tracing::warn!("Failed to load audit log from database: {e}");
+        }
+    }
+}
+
 pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord) {
     let entry = AuditEntry {
         id: state.next_audit_id(),
@@ -53,6 +71,7 @@ pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord)
     while entries.len() > state.audit_capacity {
         entries.pop_front();
     }
+    drop(entries);
 
     // Persist to SQLite — fire-and-forget, don't slow down the hot path.
     let db = state.database.clone();
@@ -77,23 +96,37 @@ pub(crate) async fn execute_audit_action(
             status,
         } => {
             let limit = limit.unwrap_or(DEFAULT_AUDIT_LIMIT).min(MAX_AUDIT_LIMIT);
-            let entries = state.audit_log.lock().await;
-            let mut filtered: Vec<AuditEntry> = entries
+            // Read from the in-memory buffer (synchronous, always up-to-date)
+            // rather than the DB (fire-and-forget writes may not have landed).
+            let log = state.audit_log.lock().await;
+            let mut entries: Vec<serde_json::Value> = log
                 .iter()
-                .rev()
-                .filter(|entry| {
-                    action_type
-                        .as_ref()
-                        .is_none_or(|filter| &entry.action_type == filter)
+                .rev() // newest first, so iterate in reverse
+                .filter(|e| {
+                    action_type.as_ref().is_none_or(|at| &e.action_type == at)
+                        && status.as_ref().is_none_or(|s| &e.status == s)
                 })
-                .filter(|entry| status.as_ref().is_none_or(|filter| &entry.status == filter))
                 .take(limit)
-                .cloned()
+                .map(|e| {
+                    serde_json::json!({
+                        "id": e.id,
+                        "seq": e.seq,
+                        "peer_uid": e.peer_uid,
+                        "action_type": e.action_type,
+                        "status": e.status,
+                        "duration_ms": e.duration_ms,
+                        "error": e.error,
+                        "dry_run": e.dry_run,
+                        "timestamp": e.timestamp,
+                    })
+                })
                 .collect();
-            filtered.reverse();
+            // Reverse so newest-matching appears last (chronological order).
+            entries.reverse();
+            drop(log);
             Ok(serde_json::json!({
-                "entries": filtered,
-                "count": filtered.len(),
+                "entries": entries,
+                "count": entries.len(),
                 "capacity": state.audit_capacity
             }))
         }
@@ -101,7 +134,11 @@ pub(crate) async fn execute_audit_action(
             let mut entries = state.audit_log.lock().await;
             let cleared = entries.len();
             entries.clear();
+            drop(entries);
             state.next_audit_id.store(1, Ordering::Relaxed);
+
+            let db = state.database.lock().await;
+            db.clear_audit()?;
             Ok(serde_json::json!({"cleared": cleared}))
         }
         _ => anyhow::bail!("not an audit action"),
@@ -115,6 +152,8 @@ mod tests {
     #[tokio::test]
     async fn audit_log_filters_newest_entries_then_returns_chronological_order() {
         let state = DaemonState::new();
+        // Clear stale on-disk entries from previous test runs.
+        state.database.lock().await.clear_audit().unwrap();
         for seq in 1..=3 {
             record_audit_entry(
                 &state,
@@ -134,6 +173,9 @@ mod tests {
             )
             .await;
         }
+
+        // Give the fire-and-forget DB writes a moment to land.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let response = execute_audit_action(
             Action::AuditLog {
