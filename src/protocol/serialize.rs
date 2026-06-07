@@ -121,6 +121,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemPrintJobCancel { .. }
         | Action::SystemPrintJobPause { .. }
         | Action::SystemPrintJobResume { .. }
+        | Action::SystemPressure
         | Action::SystemThermalGet
         | Action::SystemCpuFrequency
         | Action::SystemCpuGovernor

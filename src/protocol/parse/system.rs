@@ -61,6 +61,7 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
         "system.print_job_resume" => Action::SystemPrintJobResume {
             job_id: required_non_empty_string(raw, "job_id")?,
         },
+        "system.pressure" => Action::SystemPressure,
         "system.thermal" => Action::SystemThermalGet,
         "system.cpu.frequency" => Action::SystemCpuFrequency,
         "system.cpu.governor" => Action::SystemCpuGovernor,

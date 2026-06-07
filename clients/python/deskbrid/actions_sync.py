@@ -292,6 +292,10 @@ class SyncActionsMixin:
     def thermal(self) -> dict[str, Any]:
         return self._loop.submit(self._client.thermal()).result()
 
+    def pressure(self) -> dict[str, Any]:
+        """Read Linux Pressure Stall Information (PSI) — CPU, memory, IO pressure."""
+        return self._loop.submit(self._client.pressure()).result()
+
     def cpu_frequency(self) -> dict[str, Any]:
         return self._loop.submit(self._client.cpu_frequency()).result()
 

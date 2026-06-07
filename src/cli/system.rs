@@ -37,6 +37,8 @@ pub enum SystemCmd {
     PrintJobPause { job_id: String },
     /// Resume a paused print job
     PrintJobResume { job_id: String },
+    /// Read system pressure (PSI) — CPU, memory, IO
+    Pressure,
     /// Read thermal zones from /sys/class/thermal
     Thermal,
     /// Read CPU frequency details

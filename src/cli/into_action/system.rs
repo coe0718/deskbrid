@@ -45,6 +45,7 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             SystemCmd::PrintJobCancel { job_id } => Action::SystemPrintJobCancel { job_id },
             SystemCmd::PrintJobPause { job_id } => Action::SystemPrintJobPause { job_id },
             SystemCmd::PrintJobResume { job_id } => Action::SystemPrintJobResume { job_id },
+            SystemCmd::Pressure => Action::SystemPressure,
             SystemCmd::Thermal => Action::SystemThermalGet,
             SystemCmd::CpuFrequency => Action::SystemCpuFrequency,
             SystemCmd::CpuGovernor => Action::SystemCpuGovernor,

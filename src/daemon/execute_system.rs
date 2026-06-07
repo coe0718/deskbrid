@@ -61,6 +61,7 @@ pub(crate) async fn execute_system(
             backend.print_job_resume(job_id).await?;
             serde_json::json!({"resumed": job_id})
         }
+        SystemPressure => system_pressure().await?,
         SystemThermalGet => thermal_get().await?,
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,
@@ -149,4 +150,85 @@ fn dbus_send_arg(value: &serde_json::Value) -> String {
         }
         _ => format!("string:{}", value),
     }
+}
+
+/// Read Linux Pressure Stall Information (PSI) from /proc/pressure/.
+/// Requires kernel ≥4.20 with CONFIG_PSI. Returns CPU, memory, and IO pressure stats.
+async fn system_pressure() -> anyhow::Result<Value> {
+    #[derive(serde::Serialize)]
+    struct PressureStats {
+        avg10: f64,
+        avg60: f64,
+        avg300: f64,
+        total: u64,
+    }
+
+    #[derive(serde::Serialize)]
+    struct ResourcePressure {
+        some: PressureStats,
+        full: Option<PressureStats>,
+    }
+
+    fn parse_pressure(content: &str) -> anyhow::Result<ResourcePressure> {
+        let mut some = None;
+        let mut full = None;
+        for line in content.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
+            let stats = PressureStats {
+                avg10: parts
+                    .iter()
+                    .find(|p| p.starts_with("avg10="))
+                    .and_then(|p| p.strip_prefix("avg10=")?.parse().ok())
+                    .unwrap_or(0.0),
+                avg60: parts
+                    .iter()
+                    .find(|p| p.starts_with("avg60="))
+                    .and_then(|p| p.strip_prefix("avg60=")?.parse().ok())
+                    .unwrap_or(0.0),
+                avg300: parts
+                    .iter()
+                    .find(|p| p.starts_with("avg300="))
+                    .and_then(|p| p.strip_prefix("avg300=")?.parse().ok())
+                    .unwrap_or(0.0),
+                total: parts
+                    .iter()
+                    .find(|p| p.starts_with("total="))
+                    .and_then(|p| p.strip_prefix("total=")?.parse().ok())
+                    .unwrap_or(0),
+            };
+            match parts.first().copied() {
+                Some("some") => some = Some(stats),
+                Some("full") => full = Some(stats),
+                _ => {}
+            }
+        }
+        Ok(ResourcePressure {
+            some: some.unwrap_or(PressureStats {
+                avg10: 0.0,
+                avg60: 0.0,
+                avg300: 0.0,
+                total: 0,
+            }),
+            full,
+        })
+    }
+
+    let cpu = tokio::fs::read_to_string("/proc/pressure/cpu")
+        .await
+        .unwrap_or_default();
+    let memory = tokio::fs::read_to_string("/proc/pressure/memory")
+        .await
+        .unwrap_or_default();
+    let io = tokio::fs::read_to_string("/proc/pressure/io")
+        .await
+        .unwrap_or_default();
+
+    Ok(serde_json::json!({
+        "cpu": parse_pressure(&cpu)?,
+        "memory": parse_pressure(&memory)?,
+        "io": parse_pressure(&io)?,
+    }))
 }

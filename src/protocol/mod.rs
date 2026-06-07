@@ -274,6 +274,7 @@ pub enum Action {
     SystemPrintJobResume {
         job_id: String,
     },
+    SystemPressure,
     SystemThermalGet,
     SystemCpuFrequency,
     SystemCpuGovernor,
@@ -879,6 +880,7 @@ impl Action {
             "system.print_job_cancel",
             "system.print_job_pause",
             "system.print_job_resume",
+            "system.pressure",
             "system.thermal",
             "system.cpu.frequency",
             "system.cpu.governor",

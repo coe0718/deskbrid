@@ -192,6 +192,7 @@ pub async fn execute_action(
         | SystemPrintJobCancel { .. }
         | SystemPrintJobPause { .. }
         | SystemPrintJobResume { .. }
+        | SystemPressure
         | SystemThermalGet
         | SystemCpuFrequency
         | SystemCpuGovernor

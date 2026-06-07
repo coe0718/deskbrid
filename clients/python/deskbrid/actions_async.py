@@ -399,6 +399,10 @@ class AsyncActionsMixin:
     async def thermal(self) -> dict[str, Any]:
         return await self._request("system.thermal")
 
+    async def pressure(self) -> dict[str, Any]:
+        """Read Linux Pressure Stall Information (PSI) — CPU, memory, IO pressure."""
+        return await self._request("system.pressure")
+
     async def cpu_frequency(self) -> dict[str, Any]:
         return await self._request("system.cpu.frequency")
 

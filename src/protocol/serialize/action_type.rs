@@ -77,6 +77,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemPrintJobCancel { .. } => "system.print_job_cancel",
         Action::SystemPrintJobPause { .. } => "system.print_job_pause",
         Action::SystemPrintJobResume { .. } => "system.print_job_resume",
+        Action::SystemPressure => "system.pressure",
         Action::SystemThermalGet => "system.thermal",
         Action::SystemCpuFrequency => "system.cpu.frequency",
         Action::SystemCpuGovernor => "system.cpu.governor",

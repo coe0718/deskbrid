@@ -62,6 +62,7 @@ it to the completed table below.
 || [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
 || [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
 || [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
+|| [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
 
 ### Already Built (not covered here)
 
@@ -4960,6 +4961,8 @@ storage.events.subscribe → "warning" at 90%, "critical" at 95%
 ---
 
 ## 96. System Pressure / PSI
+
+**Status:** ✅ Done (v0.13.0)
 
 ### system.pressure
 

@@ -71,6 +71,7 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
         Action::SystemPrintJobResume { job_id } => {
             json!({"type": "system.print_job_resume", "id": id, "job_id": job_id})
         }
+        Action::SystemPressure => json!({"type": "system.pressure", "id": id}),
         Action::SystemThermalGet => json!({"type": "system.thermal", "id": id}),
         Action::SystemCpuFrequency => json!({"type": "system.cpu.frequency", "id": id}),
         Action::SystemCpuGovernor => json!({"type": "system.cpu.governor", "id": id}),

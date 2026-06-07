@@ -427,5 +427,19 @@ macro_rules! tools_system {
             json!({"job_id": job_id}),
         )
     }
+
+    #[tool(
+        name = "pressure",
+        description = "Read Linux Pressure Stall Information (PSI) — CPU, memory, and IO pressure stats. Agents use this to decide whether to proceed, back off, or retry.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    fn pressure(&self) -> Json<Value> {
+        block(&self.rt, do_execute(&self.state, "system.pressure", json!({})))
+    }
     };
 }
