@@ -202,3 +202,48 @@ fn notification_insert_and_query() {
     assert_eq!(filtered.len(), 1);
     assert_eq!(filtered[0]["app_name"], "TestApp");
 }
+
+#[test]
+fn schema_migration_sets_version() {
+    let db = Database::memory().unwrap();
+    let version: i64 = db
+        .conn
+        .pragma_query_value(None, "user_version", |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        version, 1,
+        "in-memory DB should be at current schema version"
+    );
+}
+
+#[test]
+fn schema_migration_on_disk_idempotent() {
+    // Use a temp file to simulate real-world open → reopen cycle
+    let tmp = std::env::temp_dir().join(format!("deskbrid-test-{}.db", std::process::id()));
+    let _ = std::fs::remove_file(&tmp);
+
+    // First open: creates schema v1
+    {
+        let conn = rusqlite::Connection::open(&tmp).unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL;").unwrap();
+        let db = Database { conn };
+        db.init_db().unwrap();
+        db.run_migrations().unwrap();
+    }
+
+    // Reopen: migrations should be a no-op (already at v1)
+    {
+        let conn = rusqlite::Connection::open(&tmp).unwrap();
+        let db = Database { conn };
+        db.init_db().unwrap();
+        db.run_migrations().unwrap(); // must not panic or bail
+
+        let version: i64 = db
+            .conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
+    }
+
+    let _ = std::fs::remove_file(&tmp);
+}

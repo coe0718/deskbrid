@@ -1,13 +1,17 @@
 use anyhow::Context;
 use rusqlite::Connection;
 
+/// Current database schema version. Increment when adding/altering tables.
+/// Migrations are applied sequentially from the stored version up to this number.
+const CURRENT_SCHEMA_VERSION: i64 = 1;
+
 pub struct Database {
     pub(crate) conn: Connection,
 }
 
 impl Database {
     /// Open (or create) the SQLite database at ~/.local/share/deskbrid/deskbrid.db.
-    /// Enables WAL mode and runs schema initialization.
+    /// Enables WAL mode, runs schema initialization, and applies any pending migrations.
     pub fn open() -> anyhow::Result<Self> {
         let data_dir = dirs::data_dir()
             .context("could not determine XDG data directory")?
@@ -22,6 +26,7 @@ impl Database {
 
         let db = Self { conn };
         db.init_db()?;
+        db.run_migrations()?;
 
         Ok(db)
     }
@@ -31,6 +36,9 @@ impl Database {
         let conn = Connection::open_in_memory().context("failed to open in-memory database")?;
         let db = Self { conn };
         db.init_db()?;
+        // In-memory DBs always start fresh — set version directly.
+        db.conn
+            .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;
         Ok(db)
     }
 
@@ -94,6 +102,33 @@ impl Database {
                 cooldown_ms INTEGER
             );",
         )?;
+        Ok(())
+    }
+
+    /// Run any pending schema migrations from the stored version up to
+    /// CURRENT_SCHEMA_VERSION. Each step is a match arm keyed by the
+    /// version being migrated *from*.
+    fn run_migrations(&self) -> anyhow::Result<()> {
+        let stored: i64 = self
+            .conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .context("failed to read schema version")?;
+
+        for v in stored..CURRENT_SCHEMA_VERSION {
+            match v {
+                // v0 → v1: initial schema (CREATE TABLE IF NOT EXISTS handled by init_db)
+                0 => { /* no DDL needed; tables created by init_db above */ }
+                // Future migrations go here:
+                // 1 => {
+                //     self.conn.execute_batch("ALTER TABLE ... ADD COLUMN ...")?;
+                // }
+                other => anyhow::bail!("unknown schema version {other}"),
+            }
+            self.conn
+                .pragma_update(None, "user_version", v + 1)
+                .context(format!("failed to update schema version to {}", v + 1))?;
+            tracing::info!("Migrated database schema v{v} → v{}", v + 1);
+        }
         Ok(())
     }
 }
