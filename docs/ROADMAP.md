@@ -59,6 +59,10 @@ it to the completed table below.
 || [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
 || [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | nmcli-backed: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
 
+|| [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
+|| [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
+|| [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
+
 ### Already Built (not covered here)
 
 These features exist in the codebase already for reference:
@@ -2358,6 +2362,8 @@ Named sessions (section 31) reference a profile on creation:
 
 ## 37. Action Confirmation Mode
 
+**Status:** ✅ Done (v0.13.0)
+
 **What's Missing:** Destructive actions (file delete, system power, process kill)
 execute immediately. No "are you sure?" guard for high-cost operations.
 
@@ -2616,6 +2622,8 @@ DeskbridEvent::TextMatched {
 ---
 
 ## 44. Agent-to-Agent Messaging
+
+**Status:** ✅ Done (v0.13.0)
 
 **What's Missing:** Two agents connected to the same daemon can't communicate.
 Each only talks to the daemon. If agent-alpha discovers something agent-beta needs,
@@ -4225,6 +4233,8 @@ DaemonPersistenceEnable {
 ---
 
 ## 80. Unified Search
+
+**Status:** ✅ Done (v0.13.0)
 
 **What's Missing:** Agents must query multiple endpoints to find something:
 - `windows.list` to find a window
