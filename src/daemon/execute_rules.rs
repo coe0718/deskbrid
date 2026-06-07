@@ -32,7 +32,7 @@ pub(crate) async fn execute_rules_action(
             };
 
             {
-                let db = state.database.lock().await;
+                let db = state.database.lock().unwrap();
                 if let Err(e) = db.upsert_rule(&rule) {
                     warn!("Failed to persist rule '{}' to DB: {}", rule.name, e);
                 }
@@ -99,7 +99,7 @@ pub(crate) async fn execute_rules_action(
             };
 
             if removed.is_some() {
-                let db = state.database.lock().await;
+                let db = state.database.lock().unwrap();
                 let _ = db.delete_rule(&rule_id);
                 info!("Rule '{}' deleted", rule_id);
                 Ok(serde_json::json!({"ok": true, "deleted": rule_id}))
@@ -117,7 +117,7 @@ pub(crate) async fn execute_rules_action(
             };
 
             if found {
-                let db = state.database.lock().await;
+                let db = state.database.lock().unwrap();
                 let _ = db.set_rule_enabled(&rule_id, false);
                 info!("Rule '{}' paused", rule_id);
                 Ok(serde_json::json!({"ok": true, "paused": rule_id}))
@@ -135,7 +135,7 @@ pub(crate) async fn execute_rules_action(
             };
 
             if found {
-                let db = state.database.lock().await;
+                let db = state.database.lock().unwrap();
                 let _ = db.set_rule_enabled(&rule_id, true);
                 info!("Rule '{}' resumed", rule_id);
                 Ok(serde_json::json!({"ok": true, "resumed": rule_id}))

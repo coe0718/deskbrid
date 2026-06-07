@@ -22,20 +22,20 @@ pub(crate) fn is_clipboard_history_action(action: &Action) -> bool {
 
 /// Load recent clipboard entries from the DB into the in-memory buffer at startup.
 pub(crate) async fn load_clipboard_from_db(state: &DaemonState) {
-    let db = state.database.lock().await;
-    match db.get_clipboard_history(state.clipboard_history_capacity, None) {
-        Ok(entries) => {
-            let mut history = state.clipboard_history.lock().await;
-            history.clear();
-            for entry in entries.into_iter().rev() {
-                history.push_back(entry);
-            }
-            tracing::info!("Loaded {} clipboard entries from database", history.len());
-        }
-        Err(e) => {
-            tracing::warn!("Failed to load clipboard history from database: {e}");
-        }
+    let entries = {
+        let db = state.database.lock().unwrap();
+        db.get_clipboard_history(state.clipboard_history_capacity, None)
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to load clipboard history from database: {e}");
+                Vec::new()
+            })
+    };
+    let mut history = state.clipboard_history.lock().await;
+    history.clear();
+    for entry in entries.into_iter().rev() {
+        history.push_back(entry);
     }
+    tracing::info!("Loaded {} clipboard entries from database", history.len());
 }
 
 pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, source: &str) {
@@ -57,7 +57,7 @@ pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, sourc
     drop(history);
 
     // Persist to SQLite synchronously — DB is the source of truth.
-    let db = state.database.lock().await;
+    let db = state.database.lock().unwrap();
     let _ = db.insert_clipboard(text, Some(source));
 }
 
@@ -71,7 +71,7 @@ pub(crate) async fn execute_clipboard_history_action(
                 .unwrap_or(DEFAULT_CLIPBOARD_HISTORY_LIMIT)
                 .min(MAX_CLIPBOARD_HISTORY_LIMIT);
             let query_str = query.as_deref();
-            let db = state.database.lock().await;
+            let db = state.database.lock().unwrap();
             let mut entries = db.get_clipboard_history(limit, query_str)?;
             entries.reverse(); // DB returns newest-first; return chronological
             Ok(serde_json::json!({
@@ -86,7 +86,7 @@ pub(crate) async fn execute_clipboard_history_action(
             history.clear();
             drop(history);
 
-            let db = state.database.lock().await;
+            let db = state.database.lock().unwrap();
             db.clear_clipboard()?;
             Ok(serde_json::json!({"cleared": cleared}))
         }
@@ -102,7 +102,7 @@ mod tests {
     async fn clipboard_history_dedupes_consecutive_entries() {
         let state = DaemonState::new();
         // Clear stale on-disk entries from previous test runs.
-        state.database.lock().await.clear_clipboard().unwrap();
+        state.database.lock().unwrap().clear_clipboard().unwrap();
         record_clipboard_text(&state, "hello", "write").await;
         record_clipboard_text(&state, "hello", "read").await;
 

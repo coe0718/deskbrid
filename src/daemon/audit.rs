@@ -37,20 +37,20 @@ pub(crate) fn action_timeout_from_env() -> Option<u64> {
 
 /// Load recent audit entries from the DB into the in-memory buffer at startup.
 pub(crate) async fn load_audit_from_db(state: &DaemonState) {
-    let db = state.database.lock().await;
-    match db.get_audit_log(state.audit_capacity, None, None) {
-        Ok(entries) => {
-            let mut log = state.audit_log.lock().await;
-            log.clear();
-            for entry in entries.into_iter().rev() {
-                log.push_back(entry);
-            }
-            tracing::info!("Loaded {} audit entries from database", log.len());
-        }
-        Err(e) => {
-            tracing::warn!("Failed to load audit log from database: {e}");
-        }
+    let entries = {
+        let db = state.database.lock().unwrap();
+        db.get_audit_log(state.audit_capacity, None, None)
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to load audit log from database: {e}");
+                Vec::new()
+            })
+    };
+    let mut log = state.audit_log.lock().await;
+    log.clear();
+    for entry in entries.into_iter().rev() {
+        log.push_back(entry);
     }
+    tracing::info!("Loaded {} audit entries from database", log.len());
 }
 
 pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord) {
@@ -74,7 +74,7 @@ pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord)
     drop(entries);
 
     // Persist to SQLite synchronously — DB is the source of truth.
-    let db = state.database.lock().await;
+    let db = state.database.lock().unwrap();
     let _ = db.insert_audit(&entry);
 }
 
@@ -93,7 +93,7 @@ pub(crate) async fn execute_audit_action(
             status,
         } => {
             let limit = limit.unwrap_or(DEFAULT_AUDIT_LIMIT).min(MAX_AUDIT_LIMIT);
-            let db = state.database.lock().await;
+            let db = state.database.lock().unwrap();
             let mut entries = db.get_audit_log(limit, action_type.as_deref(), status.as_deref())?;
             entries.reverse(); // DB returns newest-first; return chronological
             Ok(serde_json::json!({
@@ -109,7 +109,7 @@ pub(crate) async fn execute_audit_action(
             drop(entries);
             state.next_audit_id.store(1, Ordering::Relaxed);
 
-            let db = state.database.lock().await;
+            let db = state.database.lock().unwrap();
             db.clear_audit()?;
             Ok(serde_json::json!({"cleared": cleared}))
         }
@@ -125,7 +125,7 @@ mod tests {
     async fn audit_log_filters_newest_entries_then_returns_chronological_order() {
         let state = DaemonState::new();
         // Clear stale on-disk entries from previous test runs.
-        state.database.lock().await.clear_audit().unwrap();
+        state.database.lock().unwrap().clear_audit().unwrap();
         for seq in 1..=3 {
             record_audit_entry(
                 &state,

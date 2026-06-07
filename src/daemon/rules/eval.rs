@@ -90,17 +90,16 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
 
         // Load persisted rules into engine
         {
-            let db = state.database.lock().await;
-            match db.load_rules() {
-                Ok(persisted) => {
-                    let mut engine = state.rules.lock().await;
-                    engine.load_persisted(persisted);
-                    info!("Loaded {} persisted rules", engine.list().len());
-                }
-                Err(e) => {
+            let persisted = {
+                let db = state.database.lock().unwrap();
+                db.load_rules().unwrap_or_else(|e| {
                     warn!("Failed to load persisted rules: {}", e);
-                }
-            }
+                    Vec::new()
+                })
+            };
+            let mut engine = state.rules.lock().await;
+            engine.load_persisted(persisted);
+            info!("Loaded {} persisted rules", engine.list().len());
         }
 
         loop {
