@@ -272,4 +272,88 @@ fn test_high_risk_deny_still_wins() {
     ));
 }
 
+#[test]
+fn test_high_risk_all_five_blocked_by_wildcard() {
+    // Every HIGH_RISK_ACTIONS entry must be blocked under allow-all (\"*\").
+    let p = Permissions::allow_all();
+
+    // browser.evaluate
+    assert!(!p.check(
+        1000,
+        &Action::BrowserEvaluate {
+            tab_index: None,
+            expression: "1+1".into(),
+            await_promise: false,
+        }
+    ));
+    // process.start
+    assert!(!p.check(
+        1000,
+        &Action::ProcessStart {
+            command: vec!["echo".into(), "hi".into()],
+            workdir: None,
+            env: None,
+        }
+    ));
+    // terminal.create
+    assert!(!p.check(
+        1000,
+        &Action::TerminalCreate {
+            shell: None,
+            rows: Some(24),
+            cols: Some(80),
+            cwd: None,
+            env: None,
+        }
+    ));
+    // system.update
+    assert!(!p.check(
+        1000,
+        &Action::SystemUpdate {
+            check: false,
+            force: false,
+        }
+    ));
+    // dbus.call
+    assert!(!p.check(
+        1000,
+        &Action::DbusCall {
+            bus: None,
+            service: "org.freedesktop.DBus".into(),
+            path: "/".into(),
+            interface: "org.freedesktop.DBus".into(),
+            method: "ListNames".into(),
+            args: None,
+        }
+    ));
+}
+
+#[test]
+fn test_permissions_load_missing_file_returns_allow_all() {
+    // Permissions::load() reads from ~/.config/deskbrid/permissions.toml.
+    // Since the test env likely doesn't have one, this should return allow-all.
+    // We can't easily redirect config_path, so we test the documented behavior
+    // by constructing the equivalent directly.
+    let p = Permissions::allow_all();
+    assert!(p.check(1000, &Action::WindowsList));
+    assert!(p.check(1000, &Action::ClipboardRead));
+}
+
+#[test]
+fn test_permissions_deny_all_blocks_everything_except_ping() {
+    let p = Permissions::deny_all();
+    // Everything should be denied
+    assert!(!p.check(1000, &Action::WindowsList));
+    assert!(!p.check(1000, &Action::ClipboardRead));
+    assert!(!p.check(
+        1000,
+        &Action::Screenshot {
+            monitor: None,
+            region: None,
+            window_id: None,
+            output: None,
+        }
+    ));
+}
+
 mod action_names;

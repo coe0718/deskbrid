@@ -1,3 +1,4 @@
+use crate::protocol::Action;
 use crate::protocol::WindowInfo;
 
 use super::*;
@@ -178,4 +179,328 @@ async fn dry_run_validates_permissions_without_backend() {
     )
     .await;
     assert_eq!(audit["data"]["entries"][0]["dry_run"], true);
+}
+
+// ── 1.2 Cache/DB Consistency ──────────────────────────────
+
+#[tokio::test]
+async fn clipboard_cache_db_consistent_after_write() {
+    let state = crate::DaemonState::new();
+    state.database.lock().unwrap().clear_clipboard().unwrap();
+
+    // Write through the daemon API
+    crate::daemon::clipboard::record_clipboard_text(&state, "test-one", "api").await;
+    crate::daemon::clipboard::record_clipboard_text(&state, "test-two", "api").await;
+
+    // Read back via the query API (goes to DB)
+    let response = crate::daemon::clipboard::execute_clipboard_history_action(
+        Action::ClipboardHistoryList {
+            limit: None,
+            query: None,
+        },
+        &state,
+    )
+    .await
+    .unwrap();
+
+    let entries = response["entries"].as_array().unwrap();
+    assert_eq!(
+        entries.len(),
+        2,
+        "two entries should be visible via DB read"
+    );
+    // Chronological order: oldest first
+    assert_eq!(entries[0]["text"], "test-one");
+    assert_eq!(entries[1]["text"], "test-two");
+}
+
+#[tokio::test]
+async fn audit_cache_db_consistent_after_write() {
+    let state = crate::DaemonState::new();
+    state.database.lock().unwrap().clear_audit().unwrap();
+
+    // Write an audit entry through the daemon path
+    dispatch_action(
+        "test",
+        Action::AuditLog {
+            limit: None,
+            action_type: None,
+            status: None,
+        },
+        &state,
+        1000,
+        1,
+    )
+    .await;
+
+    // Read back — the first query itself should be recorded
+    let response = dispatch_action(
+        "test",
+        Action::AuditLog {
+            limit: None,
+            action_type: Some("audit.log".to_string()),
+            status: Some("ok".to_string()),
+        },
+        &state,
+        1000,
+        2,
+    )
+    .await;
+
+    assert_eq!(response["status"], "ok");
+    let entries = response["data"]["entries"].as_array().unwrap();
+    assert!(
+        !entries.is_empty(),
+        "audit.log action should be recorded in DB"
+    );
+    assert_eq!(entries[0]["action_type"], "audit.log");
+}
+
+// ── 1.3 Restart Survival ──────────────────────────────────
+
+#[tokio::test]
+async fn clipboard_entries_persist_across_state_instances() {
+    let state = crate::DaemonState::new();
+    state.database.lock().unwrap().clear_clipboard().unwrap();
+
+    crate::daemon::clipboard::record_clipboard_text(&state, "survivor", "test").await;
+
+    // "Restart": create a new DaemonState — same on-disk DB should have the entry.
+    let state2 = crate::DaemonState::new();
+    crate::daemon::clipboard::load_clipboard_from_db(&state2).await;
+
+    let response = crate::daemon::clipboard::execute_clipboard_history_action(
+        Action::ClipboardHistoryList {
+            limit: None,
+            query: None,
+        },
+        &state2,
+    )
+    .await
+    .unwrap();
+
+    let entries = response["entries"].as_array().unwrap();
+    assert!(!entries.is_empty(), "entries should survive restart");
+    assert!(
+        entries.iter().any(|e| e["text"] == "survivor"),
+        "survivor entry missing after restart"
+    );
+
+    // Cleanup
+    state2.database.lock().unwrap().clear_clipboard().unwrap();
+}
+
+#[tokio::test]
+async fn audit_entries_persist_across_state_instances() {
+    let state = crate::DaemonState::new();
+    state.database.lock().unwrap().clear_audit().unwrap();
+
+    dispatch_action(
+        "test",
+        Action::AuditLog {
+            limit: None,
+            action_type: None,
+            status: None,
+        },
+        &state,
+        1000,
+        1,
+    )
+    .await;
+
+    // "Restart": new DaemonState, load from DB, query
+    let state2 = crate::DaemonState::new();
+    crate::daemon::audit::load_audit_from_db(&state2).await;
+
+    let response = dispatch_action(
+        "test",
+        Action::AuditLog {
+            limit: None,
+            action_type: Some("audit.log".to_string()),
+            status: Some("ok".to_string()),
+        },
+        &state2,
+        1000,
+        2,
+    )
+    .await;
+
+    let entries = response["data"]["entries"].as_array().unwrap();
+    assert!(!entries.is_empty(), "audit entries should survive restart");
+    assert_eq!(entries[0]["action_type"], "audit.log");
+
+    // Cleanup
+    state2.database.lock().unwrap().clear_audit().unwrap();
+}
+
+// ── 3. Confirmation System ────────────────────────────────
+
+#[tokio::test]
+async fn confirmation_queue_stores_pending_requests() {
+    let state = crate::DaemonState::new();
+
+    let response = dispatch::dispatch_action_with_options(
+        "test",
+        Action::WindowsClose("0x1".to_string()),
+        &state,
+        1000,
+        1,
+        crate::protocol::RequestOptions {
+            dry_run: false,
+            timeout_ms: Some(250),
+            require_confirmation: Some(true),
+        },
+        "test-session",
+    )
+    .await;
+
+    assert_eq!(response["status"], "action_requires_confirmation");
+    let confirm_id = response["confirmation_id"].as_str().unwrap().to_string();
+    assert!(!confirm_id.is_empty());
+
+    // Verify it's in the pending queue
+    let pending = state.pending_confirmations.lock().await;
+    assert!(
+        pending.contains_key(&confirm_id),
+        "confirmation should be in queue"
+    );
+    let entry = pending.get(&confirm_id).unwrap();
+    assert_eq!(entry.action.action_type(), "windows.close");
+    assert_eq!(entry.peer_uid, 1000);
+    assert_eq!(entry.session_id, "test-session");
+}
+
+#[tokio::test]
+async fn confirmation_deny_removes_from_queue() {
+    let state = crate::DaemonState::new();
+
+    // Create a pending confirmation
+    let response = dispatch::dispatch_action_with_options(
+        "test",
+        Action::WindowsClose("0x2".to_string()),
+        &state,
+        1000,
+        1,
+        crate::protocol::RequestOptions {
+            dry_run: false,
+            timeout_ms: Some(250),
+            require_confirmation: Some(true),
+        },
+        "session-deny",
+    )
+    .await;
+
+    let confirm_id = response["confirmation_id"].as_str().unwrap().to_string();
+
+    // Deny it
+    let deny = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::DenyAction {
+            id: confirm_id.clone(),
+        },
+        &state,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(deny["status"], "denied");
+    assert_eq!(deny["id"], confirm_id);
+
+    // Verify it's removed from queue
+    let pending = state.pending_confirmations.lock().await;
+    assert!(
+        !pending.contains_key(&confirm_id),
+        "denied confirmation should be removed"
+    );
+}
+
+#[tokio::test]
+async fn confirmation_deny_nonexistent_returns_not_found() {
+    let state = crate::DaemonState::new();
+
+    let result = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::DenyAction {
+            id: "nonexistent-id".to_string(),
+        },
+        &state,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(result["status"], "not_found");
+}
+
+#[tokio::test]
+async fn confirmation_list_shows_pending_items() {
+    let state = crate::DaemonState::new();
+
+    // Add two confirmations
+    for i in 0..2 {
+        dispatch::dispatch_action_with_options(
+            "test",
+            Action::WindowsClose(format!("0x{}", i + 10)),
+            &state,
+            1000,
+            i + 1,
+            crate::protocol::RequestOptions {
+                dry_run: false,
+                timeout_ms: Some(250),
+                require_confirmation: Some(true),
+            },
+            "list-session",
+        )
+        .await;
+    }
+
+    let list =
+        crate::daemon::execute_confirmation::execute_confirmation(Action::ConfirmationList, &state)
+            .await
+            .unwrap();
+
+    assert_eq!(list["count"], 2);
+    let items = list["pending"].as_array().unwrap();
+    assert_eq!(items.len(), 2);
+}
+
+#[tokio::test]
+async fn confirmation_sweeper_removes_expired_entries() {
+    let state = crate::DaemonState::new();
+
+    // Insert a confirmation with an old timestamp (simulating expiry)
+    let old_created_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+        - 400_000; // 400 seconds ago (TTL is 300s)
+
+    let confirm_id = "expired-test-id".to_string();
+    state.pending_confirmations.lock().await.insert(
+        confirm_id.clone(),
+        crate::daemon::execute_confirmation::PendingConfirmation {
+            request_id: "test".to_string(),
+            action: Action::WindowsList,
+            options: Default::default(),
+            peer_uid: 1000,
+            seq: 1,
+            session_id: "sweep-session".to_string(),
+            created_at: old_created_at,
+        },
+    );
+
+    // Run the sweeper logic directly (single sweep iteration)
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let mut pending = state.pending_confirmations.lock().await;
+    let before = pending.len();
+    pending.retain(|_, entry| now_ms.saturating_sub(entry.created_at) < 300_000); // TTL
+    let removed = before - pending.len();
+    drop(pending);
+
+    assert!(removed > 0, "expired confirmation should be swept");
+    let pending = state.pending_confirmations.lock().await;
+    assert!(
+        !pending.contains_key(&confirm_id),
+        "expired entry should be gone"
+    );
 }

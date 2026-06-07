@@ -247,3 +247,54 @@ fn schema_migration_on_disk_idempotent() {
 
     let _ = std::fs::remove_file(&tmp);
 }
+
+#[test]
+fn schema_migration_rejects_unknown_version() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.pragma_update(None, "user_version", 5).unwrap();
+    // Create tables so init_db doesn't fail, then run_migrations should bail
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS clipboard_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL, source TEXT, copied_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY, seq INTEGER NOT NULL, uid INTEGER NOT NULL,
+            action TEXT NOT NULL, params TEXT, status TEXT NOT NULL,
+            duration_ms INTEGER, timestamp INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY, app_name TEXT NOT NULL, title TEXT NOT NULL,
+            body TEXT, urgency TEXT DEFAULT 'normal', actions TEXT, timestamp INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS macros (
+            name TEXT PRIMARY KEY, actions_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS blackboard (
+            key TEXT NOT NULL, namespace TEXT NOT NULL DEFAULT 'default',
+            value_json TEXT NOT NULL, ttl INTEGER, created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL, PRIMARY KEY (key, namespace)
+        );
+        CREATE TABLE IF NOT EXISTS sessions (
+            name TEXT PRIMARY KEY, data_json TEXT NOT NULL DEFAULT '{}',
+            created_at INTEGER NOT NULL, last_active INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS rules (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, trigger_json TEXT NOT NULL,
+            condition_json TEXT, action_type TEXT NOT NULL, action_params TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1, max_fires INTEGER, cooldown_ms INTEGER
+        );",
+    )
+    .unwrap();
+
+    let db = Database { conn };
+    let result = db.run_migrations();
+    assert!(result.is_err(), "unknown version 5 should be rejected");
+
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("newer than this binary") || msg.contains("Downgrade"),
+        "error should mention version mismatch, got: {msg}"
+    );
+}

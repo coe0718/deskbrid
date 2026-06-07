@@ -114,6 +114,13 @@ impl Database {
             .pragma_query_value(None, "user_version", |r| r.get(0))
             .context("failed to read schema version")?;
 
+        if stored > CURRENT_SCHEMA_VERSION {
+            anyhow::bail!(
+                "database schema version {stored} is newer than this binary (max {CURRENT_SCHEMA_VERSION}). \
+                 Downgrade is not supported.",
+            );
+        }
+
         for v in stored..CURRENT_SCHEMA_VERSION {
             match v {
                 // v0 → v1: initial schema (CREATE TABLE IF NOT EXISTS handled by init_db)

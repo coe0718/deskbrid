@@ -205,3 +205,95 @@ pub fn permission_denied_response(
         "error": { "code": "PERMISSION_DENIED", "message": format!("action not permitted: {action_type} requires explicit permission — add '{action_type}' to your permissions.toml") }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expand_path_allows_home_dir() {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let result = expand_path(&format!("{}/.bashrc", home));
+        assert!(
+            result.is_ok(),
+            "path in HOME should be allowed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn expand_path_allows_tmp() {
+        let result = expand_path("/tmp/test-file");
+        assert!(result.is_ok(), "/tmp should be allowed: {:?}", result.err());
+    }
+
+    #[test]
+    fn expand_path_blocks_etc_passwd() {
+        let result = expand_path("/etc/passwd");
+        assert!(result.is_err(), "/etc/passwd should be blocked");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("outside allowed directories"),
+            "error should mention sandbox, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn expand_path_blocks_traversal_into_etc() {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let traversal = format!("{}/../../../etc/passwd", home);
+        let result = expand_path(&traversal);
+        assert!(
+            result.is_err(),
+            "../../../etc/passwd traversal should be blocked"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("outside allowed directories"),
+            "traversal should hit sandbox, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn expand_path_blocks_traversal_into_root() {
+        let traversal = "/tmp/../../../etc/shadow";
+        let result = expand_path(&traversal);
+        assert!(
+            result.is_err(),
+            "/etc/shadow via traversal should be blocked"
+        );
+    }
+
+    #[test]
+    fn expand_path_tilde_expands_to_home() {
+        let result = expand_path("~/.bashrc");
+        assert!(
+            result.is_ok(),
+            "~ expansion should work: {:?}",
+            result.err()
+        );
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        assert!(result.unwrap().starts_with(&home));
+    }
+
+    #[test]
+    fn expand_path_tilde_traversal_blocked() {
+        let result = expand_path("~/../../../etc/passwd");
+        assert!(result.is_err(), "~/../../../etc/passwd should be blocked");
+    }
+
+    #[test]
+    fn expand_path_allows_existing_files_in_home() {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        // .bashrc typically exists
+        let path = format!("{}/.bashrc", home);
+        if std::path::Path::new(&path).exists() {
+            let result = expand_path(&path);
+            assert!(
+                result.is_ok(),
+                "existing .bashrc should be allowed: {:?}",
+                result.err()
+            );
+        }
+    }
+}
