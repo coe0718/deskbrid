@@ -4,31 +4,23 @@
 //! registered rules. When a rule's trigger matches the event (and any
 //! optional condition holds), the associated action is dispatched.
 
+use crate::DaemonState;
 use crate::protocol::Action;
 use crate::protocol::{DeskbridEvent, Rule};
 use std::collections::HashMap;
 use tracing::{debug, error};
 
 /// Per-rule runtime state: tracks fire count and last-fire timestamp.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RuleRuntime {
     fire_count: u32,
     last_fire_ms: u64,
 }
 
-impl RuleRuntime {
-    fn new() -> Self {
-        Self {
-            fire_count: 0,
-            last_fire_ms: 0,
-        }
-    }
-}
-
 /// The in-memory rules engine — holds registered rules plus runtime state.
 pub struct RuleEngine {
     rules: Vec<Rule>,
-    runtime: HashMap<String, RuleRuntime>,
+    pub(super) runtime: HashMap<String, RuleRuntime>,
 }
 
 impl RuleEngine {
@@ -41,7 +33,6 @@ impl RuleEngine {
 
     /// Register (or replace) a rule.
     pub fn register(&mut self, rule: Rule) {
-        // Remove old version if exists
         self.rules.retain(|r| r.id != rule.id);
         self.rules.push(rule);
     }
@@ -76,14 +67,18 @@ impl RuleEngine {
     /// Load persisted rules into the engine.
     pub fn load_persisted(&mut self, rules: Vec<Rule>) {
         self.rules = rules;
-        // Clear runtime for any stale entries
         let active_ids: Vec<String> = self.rules.iter().map(|r| r.id.clone()).collect();
         self.runtime.retain(|k, _| active_ids.contains(k));
     }
 
     /// Evaluate an event against all enabled rules and return the list
-    /// of actions to dispatch.
-    pub fn evaluate(&mut self, event: &DeskbridEvent, now_ms: u64) -> Vec<(Rule, Action)> {
+    /// of actions to dispatch. Conditions are checked against `state`.
+    pub fn evaluate(
+        &mut self,
+        event: &DeskbridEvent,
+        now_ms: u64,
+        state: &DaemonState,
+    ) -> Vec<(Rule, Action)> {
         let mut actions: Vec<(Rule, Action)> = Vec::new();
 
         for rule in &self.rules {
@@ -92,6 +87,12 @@ impl RuleEngine {
             }
 
             if !eval::trigger_matches_event(&rule.trigger, event) {
+                continue;
+            }
+
+            // Check condition (VarEquals, VarExists)
+            if !eval::condition_matches(&rule.condition, state, event) {
+                debug!("Rule '{}' condition not met", rule.name);
                 continue;
             }
 
@@ -136,10 +137,7 @@ impl RuleEngine {
             match Action::from_json(&action_str) {
                 Ok((_request_id, action)) => {
                     // Update runtime
-                    let rt = self
-                        .runtime
-                        .entry(rule.id.clone())
-                        .or_insert_with(RuleRuntime::new);
+                    let rt = self.runtime.entry(rule.id.clone()).or_default();
                     rt.fire_count += 1;
                     rt.last_fire_ms = now_ms;
 
@@ -230,15 +228,85 @@ mod tests {
         rule.enabled = false;
         engine.register(rule);
 
+        let state = DaemonState::new();
         let results = engine.evaluate(
             &crate::protocol::DeskbridEvent::WindowFocused {
                 window_id: "x".into(),
                 timestamp: 0,
             },
             1000,
+            &state,
         );
         assert!(results.is_empty());
     }
+
+    #[test]
+    fn window_opened_trigger_matches_no_filter() {
+        let mut engine = RuleEngine::new();
+        engine.register({
+            let mut r = make_rule(
+                "r1",
+                "AnyWindow",
+                EventTrigger::WindowOpened { app_id: None },
+            );
+            r.action_type = "system.info".into();
+            r
+        });
+
+        let state = DaemonState::new();
+        let results = engine.evaluate(
+            &DeskbridEvent::WindowOpened {
+                window_id: "w1".into(),
+                app_id: Some("code".into()),
+                timestamp: 1000,
+            },
+            1000,
+            &state,
+        );
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn window_opened_trigger_filters_by_app_id() {
+        let mut engine = RuleEngine::new();
+        engine.register({
+            let mut r = make_rule(
+                "r1",
+                "CodeOnly",
+                EventTrigger::WindowOpened {
+                    app_id: Some("code".into()),
+                },
+            );
+            r.action_type = "system.info".into();
+            r
+        });
+
+        let state = DaemonState::new();
+        // Matching app_id
+        let results = engine.evaluate(
+            &DeskbridEvent::WindowOpened {
+                window_id: "w1".into(),
+                app_id: Some("code".into()),
+                timestamp: 1000,
+            },
+            1000,
+            &state,
+        );
+        assert_eq!(results.len(), 1);
+
+        // Non-matching app_id
+        let results = engine.evaluate(
+            &DeskbridEvent::WindowOpened {
+                window_id: "w2".into(),
+                app_id: Some("firefox".into()),
+                timestamp: 2000,
+            },
+            2000,
+            &state,
+        );
+        assert_eq!(results.len(), 0);
+    }
 }
+
 mod eval;
-pub use eval::spawn_rules_engine;
+pub use eval::{spawn_rules_engine, spawn_timerange_evaluator};

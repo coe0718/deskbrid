@@ -79,6 +79,18 @@ pub enum DeskbridEvent {
     },
     #[serde(rename = "window.focused")]
     WindowFocused { window_id: String, timestamp: u64 },
+    #[serde(rename = "window.opened")]
+    WindowOpened {
+        window_id: String,
+        app_id: Option<String>,
+        timestamp: u64,
+    },
+    #[serde(rename = "window.closed")]
+    WindowClosed {
+        window_id: String,
+        app_id: Option<String>,
+        timestamp: u64,
+    },
     #[serde(rename = "workspace.changed")]
     WorkspaceChanged { workspace_id: u32, timestamp: u64 },
     #[serde(rename = "workspace.window_moved")]

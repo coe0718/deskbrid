@@ -183,6 +183,8 @@ pub async fn run(
 
     // Start rules engine — evaluates event-driven rules (#83)
     rules::spawn_rules_engine(Arc::clone(&state));
+    // Start TimeRange rules evaluator — checks TimeRange triggers on a 60s timer
+    rules::spawn_timerange_evaluator(Arc::clone(&state));
 
     // Start TCP listener if configured
     if let Some(bind) = tcp_bind {
