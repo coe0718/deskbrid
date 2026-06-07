@@ -37,14 +37,17 @@ pub(crate) fn action_timeout_from_env() -> Option<u64> {
 
 /// Load recent audit entries from the DB into the in-memory buffer at startup.
 pub(crate) async fn load_audit_from_db(state: &DaemonState) {
-    let entries = {
-        let db = state.database.lock().unwrap();
-        db.get_audit_log(state.audit_capacity, None, None)
-            .unwrap_or_else(|e| {
-                tracing::warn!("Failed to load audit log from database: {e}");
-                Vec::new()
-            })
-    };
+    let db_arc = state.database.clone();
+    let cap = state.audit_capacity;
+    let entries = tokio::task::spawn_blocking(move || {
+        let db = db_arc.lock().unwrap();
+        db.get_audit_log(cap, None, None).unwrap_or_else(|e| {
+            tracing::warn!("Failed to load audit log from database: {e}");
+            Vec::new()
+        })
+    })
+    .await
+    .unwrap();
     let mut log = state.audit_log.lock().await;
     log.clear();
     for entry in entries.into_iter().rev() {
@@ -93,8 +96,13 @@ pub(crate) async fn execute_audit_action(
             status,
         } => {
             let limit = limit.unwrap_or(DEFAULT_AUDIT_LIMIT).min(MAX_AUDIT_LIMIT);
-            let db = state.database.lock().unwrap();
-            let mut entries = db.get_audit_log(limit, action_type.as_deref(), status.as_deref())?;
+            let db_arc = state.database.clone();
+            let mut entries = tokio::task::spawn_blocking(move || {
+                let db = db_arc.lock().unwrap();
+                db.get_audit_log(limit, action_type.as_deref(), status.as_deref())
+            })
+            .await
+            .unwrap()?;
             entries.reverse(); // DB returns newest-first; return chronological
             Ok(serde_json::json!({
                 "entries": entries,

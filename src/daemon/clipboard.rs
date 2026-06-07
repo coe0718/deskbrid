@@ -22,14 +22,17 @@ pub(crate) fn is_clipboard_history_action(action: &Action) -> bool {
 
 /// Load recent clipboard entries from the DB into the in-memory buffer at startup.
 pub(crate) async fn load_clipboard_from_db(state: &DaemonState) {
-    let entries = {
-        let db = state.database.lock().unwrap();
-        db.get_clipboard_history(state.clipboard_history_capacity, None)
-            .unwrap_or_else(|e| {
-                tracing::warn!("Failed to load clipboard history from database: {e}");
-                Vec::new()
-            })
-    };
+    let db_arc = state.database.clone();
+    let cap = state.clipboard_history_capacity;
+    let entries = tokio::task::spawn_blocking(move || {
+        let db = db_arc.lock().unwrap();
+        db.get_clipboard_history(cap, None).unwrap_or_else(|e| {
+            tracing::warn!("Failed to load clipboard history from database: {e}");
+            Vec::new()
+        })
+    })
+    .await
+    .unwrap();
     let mut history = state.clipboard_history.lock().await;
     history.clear();
     for entry in entries.into_iter().rev() {
@@ -70,9 +73,13 @@ pub(crate) async fn execute_clipboard_history_action(
             let limit = limit
                 .unwrap_or(DEFAULT_CLIPBOARD_HISTORY_LIMIT)
                 .min(MAX_CLIPBOARD_HISTORY_LIMIT);
-            let query_str = query.as_deref();
-            let db = state.database.lock().unwrap();
-            let mut entries = db.get_clipboard_history(limit, query_str)?;
+            let db_arc = state.database.clone();
+            let mut entries = tokio::task::spawn_blocking(move || {
+                let db = db_arc.lock().unwrap();
+                db.get_clipboard_history(limit, query.as_deref())
+            })
+            .await
+            .unwrap()?;
             entries.reverse(); // DB returns newest-first; return chronological
             Ok(serde_json::json!({
                 "entries": entries,
