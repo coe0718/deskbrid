@@ -73,12 +73,9 @@ pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord)
     }
     drop(entries);
 
-    // Persist to SQLite — fire-and-forget, don't slow down the hot path.
-    let db = state.database.clone();
-    tokio::spawn(async move {
-        let db = db.lock().await;
-        let _ = db.insert_audit(&entry);
-    });
+    // Persist to SQLite synchronously — DB is the source of truth.
+    let db = state.database.lock().await;
+    let _ = db.insert_audit(&entry);
 }
 
 pub(crate) fn is_audit_action(action: &Action) -> bool {
@@ -96,34 +93,9 @@ pub(crate) async fn execute_audit_action(
             status,
         } => {
             let limit = limit.unwrap_or(DEFAULT_AUDIT_LIMIT).min(MAX_AUDIT_LIMIT);
-            // Read from the in-memory buffer (synchronous, always up-to-date)
-            // rather than the DB (fire-and-forget writes may not have landed).
-            let log = state.audit_log.lock().await;
-            let mut entries: Vec<serde_json::Value> = log
-                .iter()
-                .rev() // newest first, so iterate in reverse
-                .filter(|e| {
-                    action_type.as_ref().is_none_or(|at| &e.action_type == at)
-                        && status.as_ref().is_none_or(|s| &e.status == s)
-                })
-                .take(limit)
-                .map(|e| {
-                    serde_json::json!({
-                        "id": e.id,
-                        "seq": e.seq,
-                        "peer_uid": e.peer_uid,
-                        "action_type": e.action_type,
-                        "status": e.status,
-                        "duration_ms": e.duration_ms,
-                        "error": e.error,
-                        "dry_run": e.dry_run,
-                        "timestamp": e.timestamp,
-                    })
-                })
-                .collect();
-            // Reverse so newest-matching appears last (chronological order).
-            entries.reverse();
-            drop(log);
+            let db = state.database.lock().await;
+            let mut entries = db.get_audit_log(limit, action_type.as_deref(), status.as_deref())?;
+            entries.reverse(); // DB returns newest-first; return chronological
             Ok(serde_json::json!({
                 "entries": entries,
                 "count": entries.len(),
@@ -173,9 +145,6 @@ mod tests {
             )
             .await;
         }
-
-        // Give the fire-and-forget DB writes a moment to land.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let response = execute_audit_action(
             Action::AuditLog {

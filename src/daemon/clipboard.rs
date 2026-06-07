@@ -56,14 +56,9 @@ pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, sourc
     }
     drop(history);
 
-    // Persist to SQLite in the background — don't block on DB errors.
-    let db = state.database.clone();
-    let text_owned = text.to_string();
-    let source_owned = source.to_string();
-    tokio::spawn(async move {
-        let db = db.lock().await;
-        let _ = db.insert_clipboard(&text_owned, Some(&source_owned));
-    });
+    // Persist to SQLite synchronously — DB is the source of truth.
+    let db = state.database.lock().await;
+    let _ = db.insert_clipboard(text, Some(source));
 }
 
 pub(crate) async fn execute_clipboard_history_action(
@@ -110,9 +105,6 @@ mod tests {
         state.database.lock().await.clear_clipboard().unwrap();
         record_clipboard_text(&state, "hello", "write").await;
         record_clipboard_text(&state, "hello", "read").await;
-
-        // Give the fire-and-forget DB writes a moment to land.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let response = execute_clipboard_history_action(
             Action::ClipboardHistoryList {
