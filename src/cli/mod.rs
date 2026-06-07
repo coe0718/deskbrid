@@ -59,6 +59,7 @@ pub enum ScreencastCmd {
     version = env!("CARGO_PKG_VERSION"),
     disable_version_flag = true
 )]
+#[allow(clippy::manual_non_exhaustive)]
 pub struct Args {
     /// Print version information.
     #[arg(short = 'v', short_alias = 'V', long = "version", action = clap::ArgAction::Version)]
