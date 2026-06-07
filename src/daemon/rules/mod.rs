@@ -232,6 +232,7 @@ mod tests {
         let results = engine.evaluate(
             &crate::protocol::DeskbridEvent::WindowFocused {
                 window_id: "x".into(),
+                app_id: None,
                 timestamp: 0,
             },
             1000,

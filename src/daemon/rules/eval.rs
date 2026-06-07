@@ -5,6 +5,69 @@ use tracing::{debug, error, info, warn};
 use crate::DaemonState;
 use crate::protocol::{Action, DeskbridEvent, EventTrigger, Rule, RuleCondition};
 
+/// Resolve the app_id for an event by looking up the window via `windows_list()`.
+/// This fills in the gap for backends that don't include app_id in their event payloads.
+async fn resolve_event_app_id(mut event: DeskbridEvent, state: &DaemonState) -> DeskbridEvent {
+    let window_id = match &event {
+        DeskbridEvent::WindowFocused {
+            window_id,
+            app_id: None,
+            ..
+        } => Some(window_id.clone()),
+        DeskbridEvent::WindowOpened {
+            window_id,
+            app_id: None,
+            ..
+        } => Some(window_id.clone()),
+        DeskbridEvent::WindowClosed {
+            window_id,
+            app_id: None,
+            ..
+        } => Some(window_id.clone()),
+        _ => None,
+    };
+
+    let Some(wid) = window_id else {
+        return event; // already has app_id, or not a window event
+    };
+
+    // Resolve app_id from backend if available
+    let app_id = {
+        let backend_guard = state.backend.read().await;
+        if let Some(ref backend) = *backend_guard {
+            match backend.windows_list().await {
+                Ok(windows) => windows
+                    .iter()
+                    .find(|w| w.id == wid)
+                    .map(|w| w.app_id.clone()),
+                Err(e) => {
+                    debug!("resolve_event_app_id: windows_list() failed: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    };
+
+    match &mut event {
+        DeskbridEvent::WindowFocused { app_id: a, .. }
+        | DeskbridEvent::WindowOpened { app_id: a, .. }
+        | DeskbridEvent::WindowClosed { app_id: a, .. }
+            if a.is_none() && app_id.is_some() =>
+        {
+            *a = app_id;
+            debug!(
+                "resolve_event_app_id: resolved app_id={:?} for window {}",
+                a, wid
+            );
+        }
+        _ => {}
+    }
+
+    event
+}
+
 /// Check whether a given EventTrigger matches a DeskbridEvent.
 pub(super) fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEvent) -> bool {
     match trigger {
@@ -21,13 +84,12 @@ pub(super) fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEven
             } = event
             {
                 match (filter, event_app_id) {
-                    (None, _) => true,            // trigger has no filter — match any
-                    (Some(f), Some(e)) => f == e, // both have app_id — compare
+                    (None, _) => true,
+                    (Some(f), Some(e)) => f == e,
                     (Some(_), None) => {
-                        // trigger wants a specific app but event doesn't carry it yet.
-                        // TODO: resolve app_id from window_id when backend supports it.
                         debug!(
-                            "WindowOpened: trigger has app_id filter but event lacks app_id — no match"
+                            "WindowOpened: trigger has app_id filter but event lacks app_id \
+                             (backend doesn't emit it) — no match"
                         );
                         false
                     }
@@ -48,7 +110,8 @@ pub(super) fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEven
                     (Some(f), Some(e)) => f == e,
                     (Some(_), None) => {
                         debug!(
-                            "WindowClosed: trigger has app_id filter but event lacks app_id — no match"
+                            "WindowClosed: trigger has app_id filter but event lacks app_id \
+                             (backend doesn't emit it) — no match"
                         );
                         false
                     }
@@ -60,15 +123,21 @@ pub(super) fn trigger_matches_event(trigger: &EventTrigger, event: &DeskbridEven
         EventTrigger::WindowFocused { app_id: filter } => {
             if let DeskbridEvent::WindowFocused {
                 window_id: _,
+                app_id: event_app_id,
                 timestamp: _,
             } = event
             {
-                if let Some(_filter) = filter {
-                    // TODO: resolve app_id from window_id via backend.
-                    // For now, filtered WindowFocused triggers never fire.
-                    return false;
+                match (filter, event_app_id) {
+                    (None, _) => true,
+                    (Some(f), Some(e)) => f == e,
+                    (Some(_), None) => {
+                        debug!(
+                            "WindowFocused: trigger has app_id filter but event lacks app_id \
+                             (backend doesn't provide it) — no match"
+                        );
+                        false
+                    }
                 }
-                true
             } else {
                 false
             }
@@ -323,6 +392,11 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
         loop {
             match event_rx.recv().await {
                 Ok(event) => {
+                    // Resolve app_id for window events where backends don't provide it.
+                    // This lets WindowFocused/WindowOpened/WindowClosed triggers with
+                    // app_id filters actually match even when the event payload is sparse.
+                    let event = resolve_event_app_id(event, &state).await;
+
                     let now_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()

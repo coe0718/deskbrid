@@ -147,6 +147,7 @@ pub(crate) fn emit_action_event(state: &DaemonState, action: &Action, data: &ser
                 .to_string();
             Some(crate::protocol::DeskbridEvent::WindowFocused {
                 window_id,
+                app_id: None, // resolved later in rules engine via windows_list()
                 timestamp: now,
             })
         }
