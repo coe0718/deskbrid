@@ -96,3 +96,48 @@ pub fn serialize_search(action: &Action, id: &str) -> Value {
         _ => unreachable!("not a search action"),
     }
 }
+
+pub fn serialize_secrets(action: &Action, id: &str) -> Value {
+    match action {
+        Action::SecretsListCollections => json!({
+            "type": "secrets.list_collections",
+            "id": id,
+        }),
+        Action::SecretsGetSecret { attributes } => {
+            let attrs: serde_json::Map<String, Value> = attributes
+                .iter()
+                .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                .collect();
+            json!({
+                "type": "secrets.get_secret",
+                "id": id,
+                "attributes": attrs,
+            })
+        }
+        Action::SecretsStoreSecret {
+            attributes,
+            secret,
+            label,
+            collection,
+        } => {
+            let attrs: serde_json::Map<String, Value> = attributes
+                .iter()
+                .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                .collect();
+            let mut msg = json!({
+                "type": "secrets.store_secret",
+                "id": id,
+                "attributes": attrs,
+                "secret": secret,
+            });
+            if let Some(l) = label {
+                msg["label"] = json!(l);
+            }
+            if let Some(c) = collection {
+                msg["collection"] = json!(c);
+            }
+            msg
+        }
+        _ => unreachable!("not a secrets action"),
+    }
+}

@@ -27,6 +27,7 @@ mod process;
 mod rules;
 mod screenshot;
 mod search;
+mod secrets;
 mod sessions;
 mod system;
 mod windows;
@@ -210,6 +211,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Unified search
         s if s.starts_with("search.") => search::parse_search(&raw, &id, s)?,
+
+        // Secrets/keyring
+        s if s.starts_with("secrets.") => secrets::parse_secrets(&raw, &id, s)?,
 
         // D-Bus raw call — escape hatch, doesn't fit a prefix group
         "dbus.call" => system::parse_system(&raw, &id, msg_type.as_str())?,

@@ -772,6 +772,18 @@ pub enum Action {
         namespace: Option<String>,
     },
 
+    // ─── Secret/Keyring Access (#29) ──────────────────────
+    SecretsListCollections,
+    SecretsGetSecret {
+        attributes: std::collections::HashMap<String, String>,
+    },
+    SecretsStoreSecret {
+        attributes: std::collections::HashMap<String, String>,
+        secret: String,
+        label: Option<String>,
+        collection: Option<String>,
+    },
+
     // ─── Action Confirmation (#37) ───────────────────────
     ConfirmAction {
         id: String,
@@ -1007,6 +1019,9 @@ impl Action {
             "blackboard.get",
             "blackboard.delete",
             "blackboard.list",
+            "secrets.list_collections",
+            "secrets.get_secret",
+            "secrets.store_secret",
         ]
     }
 

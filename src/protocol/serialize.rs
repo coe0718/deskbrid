@@ -298,12 +298,17 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::AgentBroadcast { .. }
         | Action::AgentMailbox
         | Action::UnifiedSearch { .. }
-        | Action::UnifiedIndex => {
+        | Action::UnifiedIndex
+        | Action::SecretsListCollections
+        | Action::SecretsGetSecret { .. }
+        | Action::SecretsStoreSecret { .. } => {
             let at = action.action_type();
             if at.starts_with("agent.") {
                 extensions::serialize_agent(action, &id)
             } else if at.starts_with("search.") {
                 extensions::serialize_search(action, &id)
+            } else if at.starts_with("secrets.") {
+                extensions::serialize_secrets(action, &id)
             } else {
                 extensions::serialize_confirmation(action, &id)
             }

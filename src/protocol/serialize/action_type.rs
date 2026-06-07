@@ -226,5 +226,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::AgentMailbox => "agent.mailbox",
         Action::UnifiedSearch { .. } => "search.query",
         Action::UnifiedIndex => "search.index",
+        Action::SecretsListCollections => "secrets.list_collections",
+        Action::SecretsGetSecret { .. } => "secrets.get_secret",
+        Action::SecretsStoreSecret { .. } => "secrets.store_secret",
     }
 }

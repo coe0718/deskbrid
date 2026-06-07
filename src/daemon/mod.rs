@@ -39,6 +39,7 @@ mod execute_process;
 mod execute_rules;
 mod execute_screenshot;
 mod execute_search;
+mod execute_secrets;
 mod execute_sessions;
 mod execute_stubs;
 mod execute_system;

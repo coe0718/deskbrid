@@ -6,6 +6,7 @@ use super::execute::execute_action;
 use super::execute_blackboard::{execute_blackboard_action, is_blackboard_action};
 use super::execute_macro::{execute_macro_action, is_macro_action};
 use super::execute_rules::{execute_rules_action, is_rules_action};
+use super::execute_secrets::{execute_secrets_action, is_secrets_action};
 use super::execute_sessions::{execute_session_action, is_session_action};
 use super::helpers::{not_supported_response, permission_denied_response};
 use super::rate_limited_response;
@@ -284,6 +285,35 @@ pub async fn dispatch_action_with_options(
             &action,
             action_timeout_ms,
             execute_session_action(action.clone(), state, &sid),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+    if is_secrets_action(&action) {
+        // Secrets reads and writes always require confirmation
+        if !matches!(&action, Action::SecretsListCollections)
+            && options.require_confirmation != Some(true)
+        {
+            let response = serde_json::json!({
+                "type": "response",
+                "id": request_id,
+                "seq": seq,
+                "status": "error",
+                "error": {
+                    "code": "CONFIRMATION_REQUIRED",
+                    "message": "secrets.get_secret and secrets.store_secret require confirmation"
+                }
+            });
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
+        }
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_secrets_action(action.clone(), state),
         )
         .await;
         return action_response(
