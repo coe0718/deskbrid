@@ -4,8 +4,8 @@ use std::sync::Arc;
 use super::{
     base64_encode, error_box_html, render_agent_mailbox, render_audio, render_audit,
     render_backlight, render_clipboard, render_confirmations, render_desktop_settings,
-    render_macros, render_monitors, render_network, render_notifications, render_printers,
-    render_rules, render_search, render_sessions, render_system, render_windows,
+    render_macros, render_monitors, render_network, render_notifications, render_pressure,
+    render_printers, render_rules, render_search, render_sessions, render_system, render_windows,
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
@@ -69,6 +69,7 @@ pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> St
     page = page.replace("__CONFIRMATIONS__", &render_confirmations(state).await);
     page = page.replace("__AGENT_MAILBOX__", &render_agent_mailbox(state).await);
     page = page.replace("__SEARCH__", &render_search(state).await);
+    page = page.replace("__PRESSURE__", &render_pressure().await);
 
     if show_screenshot && let Some(ref backend) = *backend_guard {
         match backend.screenshot(None, None, None).await {
@@ -172,6 +173,7 @@ async fn sse_card_html(card: &str, state: &DaemonState) -> String {
         "confirmations" => render_confirmations(state).await,
         "agent-mailbox" => render_agent_mailbox(state).await,
         "search" => render_search(state).await,
+        "pressure" => render_pressure().await,
         _ => r#"<div class="empty">Unknown card</div>"#.into(),
     }
 }
@@ -223,6 +225,7 @@ pub(crate) async fn handle_request(
             "confirmations",
             "agent-mailbox",
             "search",
+            "pressure",
         ];
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;

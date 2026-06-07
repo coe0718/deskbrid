@@ -322,3 +322,66 @@ fn base64_encode(data: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(data)
 }
+
+pub(super) async fn render_pressure() -> String {
+    async fn read_avg10(path: &str) -> f64 {
+        tokio::fs::read_to_string(path)
+            .await
+            .ok()
+            .and_then(|s| {
+                s.lines().find(|l| l.starts_with("some")).and_then(|l| {
+                    l.split_whitespace()
+                        .find(|p| p.starts_with("avg10="))
+                        .and_then(|p| p.strip_prefix("avg10=")?.parse().ok())
+                })
+            })
+            .unwrap_or(0.0)
+    }
+
+    let cpu = read_avg10("/proc/pressure/cpu").await;
+    let mem = read_avg10("/proc/pressure/memory").await;
+    let io = read_avg10("/proc/pressure/io").await;
+
+    fn bar(val: f64) -> String {
+        let pct = (val * 100.0).min(100.0) as u8;
+        let color = if pct > 50 {
+            "danger"
+        } else if pct > 10 {
+            "warn"
+        } else {
+            "ok"
+        };
+        let blocks = (pct / 5) as usize;
+        let filled = "█".repeat(blocks);
+        let empty = "░".repeat(20 - blocks);
+        format!(
+            "<span class=\"{}\">{} {:.1}%</span> <span class=\"bar\">{}{}</span>",
+            color,
+            if pct > 50 {
+                "🔴"
+            } else if pct > 10 {
+                "🟡"
+            } else {
+                "🟢"
+            },
+            val * 100.0,
+            filled,
+            empty
+        )
+    }
+
+    let mut rows = String::new();
+    rows.push_str(&format!(
+        "<div class=\"kv\"><span class=\"key\">CPU</span>{}</div>",
+        bar(cpu)
+    ));
+    rows.push_str(&format!(
+        "<div class=\"kv\"><span class=\"key\">Memory</span>{}</div>",
+        bar(mem)
+    ));
+    rows.push_str(&format!(
+        "<div class=\"kv\"><span class=\"key\">IO</span>{}</div>",
+        bar(io)
+    ));
+    rows
+}

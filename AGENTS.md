@@ -31,7 +31,7 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **Input** — keyboard typing, key combos, mouse control
 - **Clipboard** — read/write with history
 - **Screenshots** — capture, OCR, diffing
-- **System** — info, battery, idle, power management
+- **System** — info, battery, idle, power management, pressure (PSI)
 - **Audio** — volume, mute, sink management
 - **Network & Bluetooth** — WiFi, device pairing
 - **MPRIS** — media player control

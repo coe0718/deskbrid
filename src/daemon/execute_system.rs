@@ -152,70 +152,72 @@ fn dbus_send_arg(value: &serde_json::Value) -> String {
     }
 }
 
+// ── Pressure Stall Information (PSI) ───────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct PressureStats {
+    avg10: f64,
+    avg60: f64,
+    avg300: f64,
+    total: u64,
+}
+
+#[derive(serde::Serialize)]
+struct ResourcePressure {
+    some: PressureStats,
+    full: Option<PressureStats>,
+}
+
+fn parse_pressure(content: &str) -> anyhow::Result<ResourcePressure> {
+    let mut some = None;
+    let mut full = None;
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.is_empty() {
+            continue;
+        }
+        let stats = PressureStats {
+            avg10: parts
+                .iter()
+                .find(|p| p.starts_with("avg10="))
+                .and_then(|p| p.strip_prefix("avg10=")?.parse().ok())
+                .unwrap_or(0.0),
+            avg60: parts
+                .iter()
+                .find(|p| p.starts_with("avg60="))
+                .and_then(|p| p.strip_prefix("avg60=")?.parse().ok())
+                .unwrap_or(0.0),
+            avg300: parts
+                .iter()
+                .find(|p| p.starts_with("avg300="))
+                .and_then(|p| p.strip_prefix("avg300=")?.parse().ok())
+                .unwrap_or(0.0),
+            total: parts
+                .iter()
+                .find(|p| p.starts_with("total="))
+                .and_then(|p| p.strip_prefix("total=")?.parse().ok())
+                .unwrap_or(0),
+        };
+        match parts.first().copied() {
+            Some("some") => some = Some(stats),
+            Some("full") => full = Some(stats),
+            _ => {}
+        }
+    }
+    Ok(ResourcePressure {
+        some: some.unwrap_or(PressureStats {
+            avg10: 0.0,
+            avg60: 0.0,
+            avg300: 0.0,
+            total: 0,
+        }),
+        full,
+    })
+}
+
 /// Read Linux Pressure Stall Information (PSI) from /proc/pressure/.
 /// Requires kernel ≥4.20 with CONFIG_PSI. Returns CPU, memory, and IO pressure stats.
 async fn system_pressure() -> anyhow::Result<Value> {
-    #[derive(serde::Serialize)]
-    struct PressureStats {
-        avg10: f64,
-        avg60: f64,
-        avg300: f64,
-        total: u64,
-    }
-
-    #[derive(serde::Serialize)]
-    struct ResourcePressure {
-        some: PressureStats,
-        full: Option<PressureStats>,
-    }
-
-    fn parse_pressure(content: &str) -> anyhow::Result<ResourcePressure> {
-        let mut some = None;
-        let mut full = None;
-        for line in content.lines() {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.is_empty() {
-                continue;
-            }
-            let stats = PressureStats {
-                avg10: parts
-                    .iter()
-                    .find(|p| p.starts_with("avg10="))
-                    .and_then(|p| p.strip_prefix("avg10=")?.parse().ok())
-                    .unwrap_or(0.0),
-                avg60: parts
-                    .iter()
-                    .find(|p| p.starts_with("avg60="))
-                    .and_then(|p| p.strip_prefix("avg60=")?.parse().ok())
-                    .unwrap_or(0.0),
-                avg300: parts
-                    .iter()
-                    .find(|p| p.starts_with("avg300="))
-                    .and_then(|p| p.strip_prefix("avg300=")?.parse().ok())
-                    .unwrap_or(0.0),
-                total: parts
-                    .iter()
-                    .find(|p| p.starts_with("total="))
-                    .and_then(|p| p.strip_prefix("total=")?.parse().ok())
-                    .unwrap_or(0),
-            };
-            match parts.first().copied() {
-                Some("some") => some = Some(stats),
-                Some("full") => full = Some(stats),
-                _ => {}
-            }
-        }
-        Ok(ResourcePressure {
-            some: some.unwrap_or(PressureStats {
-                avg10: 0.0,
-                avg60: 0.0,
-                avg300: 0.0,
-                total: 0,
-            }),
-            full,
-        })
-    }
-
     let cpu = tokio::fs::read_to_string("/proc/pressure/cpu")
         .await
         .unwrap_or_default();
@@ -231,4 +233,30 @@ async fn system_pressure() -> anyhow::Result<Value> {
         "memory": parse_pressure(&memory)?,
         "io": parse_pressure(&io)?,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_pressure_valid() {
+        let input = "some avg10=0.45 avg60=0.30 avg300=0.20 total=123456\nfull avg10=0.10 avg60=0.05 avg300=0.02 total=45678\n";
+        let result = parse_pressure(input).unwrap();
+        assert!((result.some.avg10 - 0.45).abs() < 0.001);
+        assert!((result.some.avg60 - 0.30).abs() < 0.001);
+        assert!((result.some.avg300 - 0.20).abs() < 0.001);
+        assert_eq!(result.some.total, 123456);
+        let full = result.full.unwrap();
+        assert!((full.avg10 - 0.10).abs() < 0.001);
+        assert_eq!(full.total, 45678);
+    }
+
+    #[test]
+    fn parse_pressure_full_optional() {
+        let input = "some avg10=2.19 avg60=3.46 avg300=3.64 total=92534018857\n";
+        let result = parse_pressure(input).unwrap();
+        assert!((result.some.avg10 - 2.19).abs() < 0.001);
+        assert!(result.full.is_none());
+    }
 }

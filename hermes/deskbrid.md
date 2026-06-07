@@ -376,6 +376,7 @@ Three actions for display backlight management via sysfs (`/sys/class/backlight/
 | `SystemBacklightList` | `system.backlight_list` | List all backlight devices with max/current brightness |
 | `SystemBacklightGet` | `system.backlight_get` | Get brightness for a device (or default) |
 | `SystemBacklightSet` | `system.backlight_set` | Set brightness by percentage ("50%") or raw value ("469") |
+| `SystemPressure` | `system.pressure` | Read Linux PSI — CPU, memory, and IO pressure stats |
 
 **Works on ALL backends** — pure sysfs, no per-DE code. Requires `video` group access to `/sys/class/backlight/*/brightness` (udev rule included in setup).
 
