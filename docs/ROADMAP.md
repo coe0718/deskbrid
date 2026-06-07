@@ -113,7 +113,7 @@ These features exist in the codebase already for reference:
 26. [✅ Wait-for Conditions](#26-wait-for-conditions)
 27. [✅ Cron / Scheduled Actions](#27-cron--scheduled-actions)
 28. [✅ D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch)
-29. [Secret / Keyring Access](#29-secret--keyring-access)
+29. [✅ Secret / Keyring Access](#29-secret--keyring-access)
 30. [TCP Mode (Network)](#30-tcp-mode-network-control)
 31. [Named Sessions](#31-named-sessions-multi-agent-isolation)
 32. [Remote Screenshot Streaming](#32-remote-screenshot-streaming)
@@ -2076,36 +2076,47 @@ DbusListServices { bus },
 
 ---
 
-## 29. Secret / Keyring Access
+## 29. ✅ Secret / Keyring Access
 
-### What's Missing
+**Status:** ✅ Done (`8a65917`, `1e8d910`)
 
-Agents need credentials (API keys, passwords, tokens). Currently must hardcode or
-pass over the wire. Integrate with the system keyring.
+### What Was Built
 
-### Implementation
+System keyring integration via `secret-tool` CLI (libsecret/Secret Service API):
 
-**GNOME Keyring** via `secret-service` crate (freedesktop Secret Service API).  
-**KDE KWallet** via DBus `org.kde.KWallet`.  
-**Fallback:** AES-256-GCM encrypted file at `~/.config/deskbrid/keyring.json.aes`.
+| Feature | Details |
+|---|---|
+| **Backend** | `secret-tool` (GNOME Keyring, KDE KWallet — any Secret Service) |
+| **Collections** | `secrets.list-collections` — enumerate available keyring collections |
+| **Lookup** | `secrets.get-secret` — lookup by attribute pairs, confirmation-gated |
+| **Store** | `secrets.store-secret` — store with attributes, label, optional collection |
+| **Confirmation** | Reads AND writes require explicit approval via confirmation pipeline |
+| **Memory safety** | `zeroize` crate — `#[derive(Zeroize, ZeroizeOnDrop)]` on secret strings |
+| **Audit** | Attributes logged, secrets NEVER — `Debug` impl returns `<redacted>` |
+| **Rate limiting** | Global token bucket (30/sec) — shared with all actions |
 
 ### Protocol Actions
 
 ```rust
-SecretStore { service, key, value, attributes },
-SecretGet { service, key },
-SecretSearch { service, attributes },
-SecretDelete { service, key },
-SecretBackends,
+SecretsListCollections,
+SecretsGetSecret { attributes },
+SecretsStoreSecret { attributes, secret, label, collection },
 ```
 
-### Dependencies
+### Files
 
-`secret-service` crate (Rust Secret Service bindings). Fallback: `aes-gcm` + `argon2`.
+| Surface | Files |
+|---|---|
+| Protocol | `src/protocol/mod.rs`, `src/protocol/parse.rs`, `src/protocol/serialize.rs` |
+| Executor | `src/daemon/execute_secrets.rs` |
+| Dispatch | `src/daemon/dispatch.rs` (confirmation + rate limit gating) |
+| MCP | `src/mcp/tools_secrets.rs` (3 tools) |
+| CLI | `src/cli/secrets.rs` (`deskbrid secrets {list,lookup,store}`) |
+| Dashboard | `src/daemon/dashboard/render_data.rs` + `template.html` (🔐 Keyring card) |
 
 ### Effort
 
-~300 lines.
+~365 lines core (8a65917) + ~236 lines surfaces (1e8d910) = ~601 lines total.
 
 ---
 
