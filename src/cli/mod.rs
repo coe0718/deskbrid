@@ -56,9 +56,14 @@ pub enum ScreencastCmd {
 #[command(
     name = "deskbrid",
     about = "The HAL your Linux desktop agents are missing",
-    version = env!("CARGO_PKG_VERSION")
+    version = env!("CARGO_PKG_VERSION"),
+    disable_version_flag = true
 )]
 pub struct Args {
+    /// Print version information.
+    #[arg(short = 'v', short_alias = 'V', long = "version", action = clap::ArgAction::Version)]
+    version: (),
+
     /// Validate permissions and show what would happen without executing the action.
     #[arg(long, global = true)]
     pub dry_run: bool,
