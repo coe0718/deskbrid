@@ -170,3 +170,28 @@ pub(crate) fn emit_action_event(state: &DaemonState, action: &Action, data: &ser
     }
     let _ = data;
 }
+
+/// Rate-limited response with namespace info (#129).
+pub(crate) fn namespace_rate_limited_response(
+    action: &Action,
+    seq: u64,
+    hit: &crate::daemon::RateLimitHit,
+) -> serde_json::Value {
+    let namespace = crate::daemon::action_namespace(action);
+    serde_json::json!({
+        "type": "response",
+        "id": "action",
+        "seq": seq,
+        "status": "error",
+        "error": {
+            "code": "RATE_LIMITED",
+            "message": format!(
+                "rate limit exceeded for action '{}'; retry after {} ms",
+                action.action_type(),
+                hit.retry_after_ms
+            ),
+            "retry_after_ms": hit.retry_after_ms,
+            "namespace": namespace
+        }
+    })
+}

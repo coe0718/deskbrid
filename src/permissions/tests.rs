@@ -87,6 +87,7 @@ fn test_permissions_deny_screenshot() {
             deny: vec!["screenshot".into()],
         },
         permissions: HashMap::new(),
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -129,6 +130,7 @@ fn test_permissions_per_uid() {
             deny: vec!["*".into()],
         },
         permissions: per_uid,
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -174,6 +176,7 @@ fn test_permissions_ping_always_allowed_in_default_deny() {
             deny: vec!["*".into()],
         },
         permissions: HashMap::new(),
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -203,6 +206,7 @@ fn test_high_risk_denied_by_category_wildcard() {
             deny: vec![],
         },
         permissions: HashMap::new(),
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -234,6 +238,7 @@ fn test_high_risk_explicitly_allowed() {
             deny: vec![],
         },
         permissions: HashMap::new(),
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -257,6 +262,7 @@ fn test_high_risk_deny_still_wins() {
             deny: vec!["browser.evaluate".into()],
         },
         permissions: HashMap::new(),
+        rate_limits: HashMap::new(),
     };
     let p = Permissions {
         inner: Arc::new(inner),

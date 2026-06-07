@@ -50,6 +50,13 @@ pub async fn dispatch_action_with_options(
     let started = std::time::Instant::now();
     let action_timeout_ms = effective_timeout_ms(&action, state, &options);
 
+    // Per-namespace rate limit check (#129) — runs before global check
+    if let Some(hit) = state.rate_limit_store.check(peer_uid, &action) {
+        let response = namespace_rate_limited_response(&action, seq, &hit);
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
+
     if let Some(hit) = check_rate_limit(state, peer_uid).await {
         let response = rate_limited_response(seq, hit);
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;

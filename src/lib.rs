@@ -80,6 +80,8 @@ pub struct DaemonState {
     pub action_timeout_ms: Option<u64>,
     pub(crate) rate_limits: Arc<Mutex<HashMap<u32, daemon::RateBucket>>>,
     pub(crate) rate_limit: Option<daemon::RateLimitConfig>,
+    /// Per-namespace, per-UID rate limiting (#129)
+    pub rate_limit_store: Arc<daemon::RateLimitStore>,
     pub clipboard_history: Arc<Mutex<VecDeque<protocol::ClipboardHistoryEntry>>>,
     pub clipboard_history_capacity: usize,
     pub schedule: Arc<daemon::schedule::ScheduleState>,
@@ -130,10 +132,16 @@ impl DaemonState {
             map
         };
 
+        let permissions = Permissions::load();
+
+        // Initialize rate limit store with hardcoded defaults, then override from permissions.toml
+        let mut rate_limit_store = daemon::RateLimitStore::new();
+        rate_limit_store.load_overrides(permissions.rate_limits());
+
         Self {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
-            permissions: Permissions::load(),
+            permissions,
             inhibitors: Arc::new(Mutex::new(HashMap::new())),
             terminals: Arc::new(Mutex::new(HashMap::new())),
             audit_log: Arc::new(Mutex::new(VecDeque::new())),
@@ -141,6 +149,7 @@ impl DaemonState {
             action_timeout_ms: daemon::action_timeout_from_env(),
             rate_limits: Arc::new(Mutex::new(HashMap::new())),
             rate_limit: daemon::rate_limit_from_env(),
+            rate_limit_store: Arc::new(rate_limit_store),
             clipboard_history: Arc::new(Mutex::new(VecDeque::new())),
             clipboard_history_capacity: daemon::clipboard_history_capacity_from_env(),
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),

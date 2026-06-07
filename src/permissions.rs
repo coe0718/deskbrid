@@ -18,6 +18,9 @@ struct PermissionsInner {
     /// Keyed by "uid:N" — e.g. "uid:1000"
     #[serde(default)]
     permissions: HashMap<String, PermissionEntry>,
+    /// Rate limit overrides from permissions.toml [rate_limits]
+    #[serde(default)]
+    rate_limits: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -29,6 +32,12 @@ struct PermissionEntry {
 }
 
 impl Permissions {
+    /// Rate limit overrides from permissions.toml [rate_limits] section.
+    /// Keys are namespace prefixes (e.g. "secrets."), values are limit strings (e.g. "5/m").
+    pub fn rate_limits(&self) -> &HashMap<String, String> {
+        &self.inner.rate_limits
+    }
+
     /// Load from config file, or return allow-all if no file exists.
     /// On read/parse error, returns deny-all to prevent accidental over-permission.
     pub fn load() -> Self {
@@ -80,6 +89,7 @@ impl Permissions {
                     deny: vec![],
                 },
                 permissions: HashMap::new(),
+                rate_limits: HashMap::new(),
             }),
         }
     }
@@ -93,6 +103,7 @@ impl Permissions {
                     deny: vec!["*".to_string()],
                 },
                 permissions: HashMap::new(),
+                rate_limits: HashMap::new(),
             }),
         }
     }

@@ -46,6 +46,8 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **Confirmation Mode** — require explicit approval for destructive actions before execution
 - **Agent Messaging** — inter-agent mailbox for message passing between sessions
 - **Unified Search** — cross-surface search (windows, apps, files, clipboard, audit log) with relevance scoring
+- **Keyring Access** — Secret Service integration for secure credential storage and retrieval
+- **Rate Limiting** — per-namespace, per-agent token bucket limits (configurable via permissions.toml)
 
 ## Dashboard
 
