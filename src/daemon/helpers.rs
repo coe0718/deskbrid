@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn expand_path_blocks_traversal_into_root() {
         let traversal = "/tmp/../../../etc/shadow";
-        let result = expand_path(&traversal);
+        let result = expand_path(traversal);
         assert!(
             result.is_err(),
             "/etc/shadow via traversal should be blocked"

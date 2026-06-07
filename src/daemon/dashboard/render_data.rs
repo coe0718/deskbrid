@@ -4,6 +4,39 @@ use super::html_escape;
 
 // ── State-backed card renderers ──────────────────────────
 
+async fn execute_secrets_collections(state: &DaemonState) -> anyhow::Result<String> {
+    let result = crate::daemon::execute_secrets::execute_secrets_action(
+        crate::protocol::Action::SecretsListCollections,
+        state,
+    )
+    .await?;
+    let collections = result["collections"].as_array();
+    match collections {
+        Some(list) if !list.is_empty() => {
+            let mut rows = String::new();
+            for col in list.iter().take(10) {
+                let path = col["path"].as_str().unwrap_or("?");
+                let label = col["label"].as_str().unwrap_or(path);
+                let locked = col["locked"].as_bool();
+                let lock_icon = match locked {
+                    Some(true) => "🔒",
+                    Some(false) => "🔓",
+                    None => "❓",
+                };
+                rows.push_str(&super::kv(&format!("{} {}", lock_icon, label), path));
+            }
+            if list.len() > 10 {
+                rows.push_str(&format!(
+                    r#"<div class="empty">… and {} more</div>"#,
+                    list.len() - 10
+                ));
+            }
+            Ok(rows)
+        }
+        _ => Ok(r#"<div class="empty">No collections found</div>"#.into()),
+    }
+}
+
 pub(super) async fn render_clipboard(state: &DaemonState) -> String {
     let db = state.database.lock().unwrap();
     match db.get_clipboard_history(10, None) {
@@ -163,6 +196,13 @@ pub(super) async fn render_confirmations(state: &DaemonState) -> String {
         ));
     }
     rows
+}
+
+pub(super) async fn render_secrets(state: &DaemonState) -> String {
+    match execute_secrets_collections(state).await {
+        Ok(html) => html,
+        Err(_) => r#"<div class="empty">Secrets DB unavailable</div>"#.into(),
+    }
 }
 
 pub(super) async fn render_agent_mailbox(state: &DaemonState) -> String {

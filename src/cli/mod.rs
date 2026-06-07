@@ -15,6 +15,7 @@ mod mpris;
 mod network;
 mod notify;
 mod portal;
+mod secrets;
 mod sessions;
 mod system;
 mod terminal;
@@ -35,6 +36,7 @@ use mpris::MprisCmd;
 use network::{NetworkCmd, WifiCmd};
 use notify::NotifyCmd;
 use portal::PortalCmd;
+use secrets::SecretsCmd;
 use sessions::SessionCmd;
 use system::{JournalCmd, ServiceCmd, SystemCmd, TimerCmd};
 use terminal::TerminalCmd;
@@ -426,6 +428,13 @@ pub enum Command {
     Macro {
         #[command(subcommand)]
         cmd: MacroCmd,
+    },
+
+    // ─── Secrets / Keyring ───────────────────────────────
+    #[command(name = "secrets")]
+    Secrets {
+        #[command(subcommand)]
+        cmd: SecretsCmd,
     },
 
     // ─── Sessions ────────────────────────────────────────

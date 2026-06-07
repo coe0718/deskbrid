@@ -16,12 +16,14 @@ use crate::{
     tools_a11y, tools_agent, tools_audio, tools_bluetooth, tools_browser, tools_clipboard,
     tools_confirmation, tools_desktop, tools_files, tools_input, tools_media, tools_misc,
     tools_monitors, tools_network, tools_notifications, tools_portal, tools_screencast,
-    tools_screenshot, tools_search, tools_services, tools_system, tools_terminal, tools_windows,
+    tools_screenshot, tools_search, tools_secrets, tools_services, tools_system, tools_terminal,
+    tools_windows,
 };
 // Types used by macro expansions (defined in tool modules, used in #[tool] signatures)
 use crate::mcp::tools_agent::{BroadcastArgs, SendMessageArgs};
 use crate::mcp::tools_confirmation::ConfirmActionArgs;
 use crate::mcp::tools_search::SearchArgs;
+use crate::mcp::tools_secrets::{SecretsGetArgs, SecretsStoreArgs};
 use anyhow::Context;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
@@ -115,6 +117,7 @@ impl McpServer {
     tools_confirmation!();
     tools_agent!();
     tools_search!();
+    tools_secrets!();
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).

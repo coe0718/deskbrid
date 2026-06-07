@@ -2,6 +2,48 @@ use super::*;
 use crate::cli::sessions::{SessionCmd, VarCmd};
 use crate::protocol;
 
+fn into_secrets_action(cmd: &Command) -> protocol::Action {
+    match cmd {
+        Command::Secrets {
+            cmd: SecretsCmd::List,
+        } => protocol::Action::SecretsListCollections,
+        Command::Secrets {
+            cmd: SecretsCmd::Lookup { attributes },
+        } => {
+            let mut attrs = std::collections::HashMap::new();
+            for pair in attributes {
+                if let Some((k, v)) = pair.split_once('=') {
+                    attrs.insert(k.to_string(), v.to_string());
+                }
+            }
+            protocol::Action::SecretsGetSecret { attributes: attrs }
+        }
+        Command::Secrets {
+            cmd:
+                SecretsCmd::Store {
+                    attributes,
+                    secret,
+                    label,
+                    collection,
+                },
+        } => {
+            let mut attrs = std::collections::HashMap::new();
+            for pair in attributes {
+                if let Some((k, v)) = pair.split_once('=') {
+                    attrs.insert(k.to_string(), v.to_string());
+                }
+            }
+            protocol::Action::SecretsStoreSecret {
+                attributes: attrs,
+                secret: secret.clone(),
+                label: label.clone(),
+                collection: collection.clone(),
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
 mod apps;
 mod desktop;
 mod helpers;
@@ -67,6 +109,8 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
                 VarCmd::List => protocol::Action::SessionVarList,
             },
         }),
+
+        Command::Secrets { .. } => Ok(into_secrets_action(&cmd)),
 
         _ => bail!(
             "unexpected command in client mode: {:?}",

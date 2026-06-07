@@ -32,6 +32,7 @@ mod tools_portal;
 mod tools_screencast;
 mod tools_screenshot;
 mod tools_search;
+mod tools_secrets;
 mod tools_services;
 mod tools_system;
 mod tools_terminal;

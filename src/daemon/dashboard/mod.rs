@@ -9,7 +9,7 @@ mod server;
 
 use render_data::{
     render_agent_mailbox, render_audit, render_clipboard, render_confirmations, render_macros,
-    render_notifications, render_rules, render_search, render_sessions,
+    render_notifications, render_rules, render_search, render_secrets, render_sessions,
 };
 
 pub async fn start(state: Arc<DaemonState>) {
