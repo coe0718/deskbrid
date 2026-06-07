@@ -308,24 +308,23 @@ async fn audit_entries_persist_across_state_instances() {
     )
     .await;
 
-    // "Restart": new DaemonState, load from DB, query
+    // "Restart": new DaemonState, load from DB, query directly
     let state2 = crate::DaemonState::new();
     crate::daemon::audit::load_audit_from_db(&state2).await;
 
-    let response = dispatch_action(
-        "test",
+    // Query via execute_audit_action directly — no new writes, no ID collision
+    let response = crate::daemon::audit::execute_audit_action(
         Action::AuditLog {
             limit: None,
             action_type: Some("audit.log".to_string()),
             status: Some("ok".to_string()),
         },
         &state2,
-        1000,
-        2,
     )
-    .await;
+    .await
+    .unwrap();
 
-    let entries = response["data"]["entries"].as_array().unwrap();
+    let entries = response["entries"].as_array().unwrap();
     assert!(!entries.is_empty(), "audit entries should survive restart");
     assert_eq!(entries[0]["action_type"], "audit.log");
 
