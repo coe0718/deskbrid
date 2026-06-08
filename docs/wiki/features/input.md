@@ -1,156 +1,63 @@
 # Input Control
 
-Simulate keyboard and mouse input.
+Simulate keyboard and mouse input. Deskbrid v1.0.0 dispatches input actions
+directly over the socket (`input.keyboard`, `input.mouse`) and falls back to
+visible-mode injection on desktop environments that block invisible input.
 
 ## Keyboard
 
-### Type Text
+Type text:
 
 ```bash
-deskbrid input keyboard type "Hello, world!"
+deskbrid input.keyboard { action: "type", text: "Hello, world!" }
 ```
 
-Protocol:
-```json
-{"type": "input.keyboard", "action": "type", "text": "Hello, world!"}
-```
-
-### Press a Single Key
+Press a single key:
 
 ```bash
-deskbrid input keyboard key Return
-deskbrid input keyboard key Escape
-deskbrid input keyboard key F5
+deskbrid input.keyboard { action: "key", key: "Return" }
 ```
 
-Protocol:
-```json
-{"type": "input.keyboard", "action": "key", "key": "Return"}
-```
-
-### Send Key Combinations
+Send a combination:
 
 ```bash
-deskbrid combo Ctrl_L+c          # Copy
-deskbrid combo Ctrl_L+v          # Paste
-deskbrid combo Super_L+Tab       # Alt-tab
-deskbrid combo Ctrl_L+Shift_L+Left  # Select word left
+deskbrid input.keyboard { action: "combo", keys: ["Ctrl_L", "c"] }
 ```
 
-Protocol:
-```json
-{"type": "input.keyboard", "action": "combo", "keys": ["Ctrl_L", "c"]}
-```
-
-### Available Key Names
-
-Common keys:
-- `Return`, `Enter` - Enter/Return
-- `Escape`, `Esc` - Escape
-- `Space` - Spacebar
-- `Tab` - Tab
-- `BackSpace` - Backspace
-- `Delete` - Delete
-- `Insert` - Insert
-- `Home`, `End`, `Page_Up`, `Page_Down`
-- `F1` through `F12`
-- `Shift_L`, `Shift_R` - Shift
-- `Control_L`, `Control_R` - Ctrl
-- `Alt_L`, `Alt_R` - Alt
-- `Super_L`, `Super_R` - Windows key
+Common keys: `Return`, `Escape`, `Space`, `Tab`, `BackSpace`, `Delete`, `F1`-
+`F12`, `Shift_L`, `Control_L`, `Alt_L`, `Super_L`.
 
 ## Mouse
 
-### Click
+Click:
 
 ```bash
-deskbrid mouse click --button left
-deskbrid mouse click --button right
-deskbrid mouse click --button middle
-deskbrid mouse click --x 100 --y 200
+deskbrid input.mouse { action: "click", x: 100, y: 200, button: "left" }
 ```
 
-Protocol:
-```json
-{"type": "input.mouse", "action": "click", "x": 100, "y": 200, "button": "left"}
-```
-
-### Move Mouse
+Move:
 
 ```bash
-deskbrid mouse move --x 500 --y 300
+deskbrid input.mouse { action: "move", x: 500, y: 300 }
 ```
 
-Protocol:
-```json
-{"type": "input.mouse", "action": "move", "x": 500, "y": 300}
-```
-
-### Scroll
+Scroll:
 
 ```bash
-deskbrid mouse scroll --dy 3       # Scroll up 3 lines
-deskbrid mouse scroll --dx -5      # Scroll left
-deskbrid mouse scroll --dy 10      # Scroll down 10 lines
+deskbrid input.mouse { action: "scroll", dx: 0, dy: 3 }
 ```
 
-Protocol:
-```json
-{"type": "input.mouse", "action": "scroll", "dx": 0, "dy": 3}
-```
+Visible input mode is covered in the safer path docs. On Wayland, this mode
+uses `ydotoold` under the hood.
 
-## Desktop-Specific Notes
-
-### Wayland (GNOME, KDE, Hyprland)
-
-Under Wayland, input simulation requires:
-
-1. **ydotoold** for keyboard/mouse (X11-style injection)
-2. **graceful fallback** - Deskbrid tries ydotool first, falls back to virtual input
-
-Setup:
-```bash
-# Arch
-sudo pacman -S ydotool
-sudo systemctl enable --now ydotoold
-
-# Debian (may need to build from source)
-sudo apt install ydotool
-```
-
-### X11 (Cinnamon, MATE, XFCE)
-
-Uses `xdotool` directly:
-
-```bash
-sudo apt install xdotool  # Debian
-sudo pacman -S xdotool    # Arch
-```
-
-## Python Example
+## Python example
 
 ```python
 from deskbrid import Deskbrid
-
 client = Deskbrid()
 
-# Navigate in a terminal
-client.type_text("cd /home/user/project\n")
-client.combo(["Ctrl_L", "c"])  # Copy
-
-# Click a button at coordinates
-client.mouse_click(x=500, y=300, button="left")
-
-# Scroll down
-client.mouse_scroll(dy=5)
-```
-
-## AI Agent Example
-
-```json
-→ {"type": "input.keyboard", "action": "type", "text": "npm test\n"}
-← {"type": "response", "status": "ok"}
-
-→ {"type": "input.keyboard", "action": "combo", "keys": ["Alt_L", "F4"]}
-← {"type": "response", "status": "ok"}
+client.input_keyboard_type("cd /home/user/project\\n")
+client.input_keyboard_combo(keys=["Ctrl_L", "c"])
+client.input_mouse_click(x=500, y=300, button="left")
+client.input_mouse_scroll(dx=0, dy=5)
 ```

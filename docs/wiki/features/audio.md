@@ -1,17 +1,36 @@
 # Audio
 
-Control audio sinks and volumes (Linux PulseAudio/PipeWire).
+List audio sinks and set sink volume via the unified backend protocol.
 
-## List Audio Sinks
+This page covers the current v1.0.0 audio surface. Older docs in this repo may refer to audio as a separate `services.audio` module; audio is now exposed through unified backend actions and MCP tooling.
+
+## Requirements
+
+- PulseAudio or PipeWire must be active.
+- Most GNOME, KDE, Hyprland, and X11 sessions ship with the required `pactl` or PipeWire utilities by default.
+
+## Actions
+
+- `audio.list_sinks`
+- `audio.set_sink_volume`
+
+## Usage
+
+### List sinks
+
+Request the current sinks from the daemon. The daemon returns the sink names and status reported by the active backend. If the backend does not expose audio sinks, the response is empty.
 
 ```bash
-deskbrid audio sinks
+deskbrid audio list_sinks
 ```
 
-Response:
+Example response:
+
 ```json
 {
   "type": "response",
+  "id": "audio-1",
+  "seq": 1,
   "status": "ok",
   "data": [
     {
@@ -25,137 +44,37 @@ Response:
 }
 ```
 
-## List Audio Sources
+### Set sink volume
+
+Set the volume for a named sink.
 
 ```bash
-deskbrid audio sources
+deskbrid audio set_sink_volume --sink alsa_output.pci-0000_00_1f.3.analog-stereo --volume 50
 ```
 
-Response:
+Expected response:
+
 ```json
 {
   "type": "response",
-  "status": "ok",
-  "data": [
-    {
-      "name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
-      "description": "Built-in Audio Analog Stereo",
-      "volume": 100,
-      "muted": false,
-      "default": true
-    }
-  ]
-}
-```
-
-## Set Volume
-
-```bash
-deskbrid audio volume 50          # Set to 50%
-deskbrid audio volume +10         # Increase by 10%
-deskbrid audio volume -5          # Decrease by 5%
-deskbrid audio volume 100 --sink alsa_output.pci-0000_00_1f.3.analog-stereo
-```
-
-Protocol:
-```json
-{"type": "audio.set_volume", "volume": 50, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
-```
-
-## Get Volume
-
-```bash
-deskbrid audio volume --sink alsa_output.pci-0000_00_1f.3.analog-stereo
-```
-
-Response:
-```json
-{
-  "type": "response",
+  "id": "audio-2",
+  "seq": 2,
   "status": "ok",
   "data": {
-    "volume": 75,
-    "muted": false
+    "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo",
+    "volume": 50
   }
 }
 ```
 
-## Mute Toggle
+If the requested sink name is not found, the action returns `NOT_FOUND`.
 
-```bash
-deskbrid audio mute           # Toggle mute on default sink
-deskbrid audio mute --sink alsa_output.pci-0000_00_1f.3.analog-stereo
-```
+## MCP
 
-Protocol:
-```json
-{"type": "audio.set_mute", "muted": true, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
-```
+The MCP server exposes audio sink listing and control through tools derived from `audio.list_sinks` and `audio.set_sink_volume`. See `docs/PROTOCOL.md` and `docs/API.md` for the protocol forms used by the server.
 
-## Unmute
+## Notes
 
-```bash
-deskbrid audio unmute
-deskbrid audio unmute --sink alsa_output.pci-0000_00_1f.3.analog-stereo
-```
-
-Protocol:
-```json
-{"type": "audio.set_mute", "muted": false, "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo"}
-```
-
-## Set Default Sink
-
-```bash
-deskbrid audio set-default --sink alsa_output.usb-headphones.analog-stereo
-```
-
-Protocol:
-```json
-{"type": "audio.set_default_sink", "sink": "alsa_output.usb-headphones.analog-stereo"}
-```
-
-## Get Default Sink
-
-```bash
-deskbrid audio get-default
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
-    "description": "Built-in Audio Analog Stereo"
-  }
-}
-```
-
-## Python Example
-
-```python
-from deskbrid import Deskbrid
-
-client = Deskbrid()
-
-# List sinks
-sinks = client.audio_sinks()
-for sink in sinks:
-    print(f"{sink['description']}: {sink['volume']}%")
-
-# List sources
-sources = client.audio_sources()
-for source in sources:
-    print(f"{source['description']}: {source['volume']}%")
-
-# Muting
-client.audio_set_mute(True, sink="alsa_output.pci-0000_00_1f.3.analog-stereo")
-
-# Setting volume
-client.audio_set_volume(50, sink="alsa_output.pci-0000_00_1f.3.analog-stereo")
-
-# Setting default sink
-client.audio_set_default_sink("alsa_output.usb-headphones.analog-stereo")
-```
+- Sink identifiers are backend-reported and can change between desktop sessions or device reboots. Re-run `audio.list_sinks` before volume changes if you are scripting around a fixed sink name.
+- Desktop panels may briefly lag after a sink volume change, especially on GNOME.
+- Some backend targets do not implement this action. Confirm action availability with `system.capabilities` on your desktop.

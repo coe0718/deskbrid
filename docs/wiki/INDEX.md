@@ -6,127 +6,106 @@ Deskbrid is a single Rust binary that auto-detects your desktop environment and 
 
 ## Quick Links
 
-- **[Installation](Installation)** - Install Deskbrid on your system
-- **[Quick Start](Quick-Start)** - Get running in 5 minutes
-- **[Protocol Overview](Protocol-Overview)** - JSON protocol specification
-- **[Python Client](Integrations-Python)** - Python integration guide
+- **[Installation](docs/wiki/installation.md)** — install Deskbrid and configure desktop dependencies
+- **[Quick Start](docs/wiki/quick-start.md)** — get running in a few minutes
+- **[Protocol Overview](docs/wiki/protocol/overview.md)** — JSON protocol fundamentals
+- **[v1.0.0 Release Notes](docs/deskbrid-v1.0.0.md)** — stable release notes, breaking changes, migration
+- **[Product Profile](docs/products/deskbrid.md)** — role, workflow, integration points
 
 ## Features
 
 ### Core Features
 
-| Feature | Description | Documentation |
-|---------|-------------|---------------|
-| **Windows & Workspaces** | List, focus, move, resize, and tile windows; manage workspaces | [docs](Features-Windows-Workspaces) |
-| **Input Control** | Keyboard typing, key combos, mouse movement, clicks, scroll | [docs](Features-Input) |
-| **Clipboard** | Read/write, history, monitoring | [docs](Features-Clipboard) |
-| **Screenshots** | Capture, OCR, diff comparison | [docs](Features-Screenshots) |
+- Windows & workspaces
+- Clipboard
+- Input control
+- Screenshots
+- Screen recording
 
 ### System Features
 
-| Feature | Description | Documentation |
-|---------|-------------|---------------|
-| **System Info** | Desktop info, battery, idle, power actions | [docs](Features-System) |
-| **Media Control** | MPRIS player integration | [docs](Features-Media) |
-| **Audio** | Sink listing and volume control | [docs](Features-Audio) |
-| **Network** | WiFi status and connections | [docs](Features-Network) |
-| **Bluetooth** | Device discovery and pairing | [docs](Features-Bluetooth) |
-| **Services** | systemd unit management | [docs](Features-Services) |
-| **Terminals** | Interactive PTY sessions | [docs](Features-Terminals) |
-| **Monitors** | Display configuration | [docs](Features-Monitors) |
-| **Screen Recording** | PipeWire-based capture, web dashboard | [docs](Features-Screen-Recording) |
-| **Self-Update** | Automatic binary updates from GitHub | [docs](Features-Self-Update) |
-| **System Tray** | Tray icon with update notifications and quick actions | [docs](Features-System-Tray) |
+- System information, health, power
+- Notifications
+- Monitors
+- Layout profiles
+- Services and timers
 
 ### Advanced Features
 
-| Feature | Description | Documentation |
-|---------|-------------|---------------|
-| **Notifications** | Desktop notification API | [docs](Features-Notifications) |
-| **Files** | File search and watching | [docs](Features-Files) |
-| **Layout Profiles** | Save and restore workspace layouts | [docs](Features-Layout-Profiles) |
-| **Accessibility** | AT-SPI tree inspection | [docs](Features-Accessibility) |
-| **Persistence** | SQLite-backed clipboard history, audit log, blackboard, rules, sessions | [docs](Features-Persistence) |
-| **Rules Engine** | Event-driven automation with cooldown and max_fires | [docs](Features-Rules) |
-| **Sessions** | Named sessions with isolated variable namespaces | [docs](Features-Sessions) |
-| **Blackboard** | Namespace-scoped KV store for multi-agent coordination | [docs](Features-Blackboard) |
-| **Macros** | Record and replay action sequences | [docs](Features-Macros) |
-| **Cron** | Schedule actions at intervals | [docs](Features-Cron) |
+- Rules engine
+- Blackboard
+- Sessions
+- Macros
+- Cron scheduling
+- Secrets
 
 ## Protocol
 
-| Document | Description |
-|----------|-------------|
-| [Overview](Protocol-Overview) | JSON protocol fundamentals |
-| [Events](Protocol-Events) | Real-time event subscription |
-| [MCP Integration](Protocol-Mcp) | Model Context Protocol server |
+- **[Overview](docs/wiki/protocol/overview.md)** — JSON protocol fundamentals
+- **[Events](docs/wiki/protocol/events.md)** — real-time event subscription
+- **[MCP Integration](docs/wiki/protocol/mcp.md)** — Model Context Protocol server
 
 ## Integrations
 
-| Integration | Description |
-|-------------|-------------|
-| [Python Client](Integrations-Python) | Python library usage |
-| [AI Agents](Integrations-Agents) | Claude Code, Cursor, etc. |
+- **[Python Client](docs/wiki/integrations/python.md)** — Python library usage
+- **[AI Agents](docs/wiki/integrations/agents.md)** — Claude Code, Cursor, etc.
 
 ## Development
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](Development-Architecture) | System design deep dive |
+| [Architecture](docs/ARCHITECTURE.md) | System design deep dive |
 
 ## Supported Desktops
 
-| Desktop | Status | Notes |
-|---------|--------|-------|
-| GNOME 46-50 | ✅ Full | Requires Shell extension |
-| Hyprland | ✅ Full | Requires ydotool |
-| KDE Plasma | ✅ Full | Requires ydotoold |
-| Sway | ✅ Full | Requires ydotool |
-| Niri | ✅ Partial | Geometry degraded |
-| Wayfire | ✅ Partial | No move/resize |
-| Labwc | ✅ Partial | No move/resize |
-| COSMIC | ⚠️ Partial | Some limitations |
-| Cinnamon / MATE | ✅ Full | X11 shared backend |
+| Desktop | Session | Status | Backend |
+|---------|---------|--------|---------|
+| GNOME 46–50 | Wayland/X11 | Supported | MPRIS/Shell RemoteDesktop + Shell Extension |
+| Hyprland | Wayland | Supported | hyprctl + ydotool + grim + wlr-randr |
+| KDE Plasma | Wayland | Supported | KWin D-Bus + ydotool + spectacle |
+| Sway | Wayland | Supported | swaymsg + ydotool + grim + wlr-randr |
+| Niri | Wayland | Partial | niri IPC + ydotool + grim |
+| Wayfire | Wayland | Partial | wf-ipc + ydotool + grim + wlr-randr |
+| Labwc | Wayland | Supported | wlrctl + wdotool + grim + wlr-randr |
+| COSMIC | Wayland | Partial | cosmic-helper + cosmic-randr + ydotool + grim |
+| Cinnamon / MATE / XFCE | X11 | Supported | xdotool + wmctrl + xclip + import |
 
-## Example Usage
+## API Reference
 
-### CLI
+| Document | Description |
+|----------|-------------|
+| [API.md](docs/API.md) | All actions and parameters |
+| [Protocol.md](docs/PROTOCOL.md) | Protocol implementation |
+| [Backends.md](docs/BACKENDS.md) | Backend provider details |
 
-```bash
-# List windows
-deskbrid windows list
+## Auth / Permission Rules
 
-# Focus a window
-deskbrid windows focus --app code
+- Elevated/system-mutating `system.*` actions require authorization through the Dashboard / confirmation UI by default.
+- Safer path is via `confirm.challenge` / `confirm.resolve` rather than bypassing confirmation on the socket.
+- Safe path = follow dashboard/confirm flow first.
 
-# Type text
-deskbrid input keyboard type "Hello, world!\n"
+## Quick Links
 
-# Take screenshot
-deskbrid screenshot --output ./screenshot.png
-```
+- Installation: `docs/wiki/installation.md`
+- Quick Start: `docs/wiki/quick-start.md`
+- Protocol Overview: `docs/wiki/protocol/overview.md`
+- Events: `docs/wiki/protocol/events.md`
+- MCP: `docs/wiki/protocol/mcp.md`
+- Python Client: `docs/wiki/integrations/python.md`
+- AI Agents: `docs/wiki/integrations/agents.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- API Reference: `docs/API.md`
+- Backends: `docs/BACKENDS.md`
+- v1.0.0 Release Notes: `docs/deskbrid-v1.0.0.md`
+- Product Profile: `docs/products/deskbrid.md`
 
-### Python
+## Web Dashboard
 
-```python
-from deskbrid import Deskbrid
+Access the dashboard at `http://localhost:20129`. It provides live system information and interaction surface for the agentic loop.
 
-client = Deskbrid()
-windows = client.windows_list()
-client.focus_window(app_id='code')
-client.type_text("Fixed the bug!\n")
-```
+## Repository
 
-### MCP (AI Agents)
-
-```json
-// In your AI coding tool's MCP config
-{
-  "mcpServers": {
-    "deskbrid": {
-      "command": "deskbrid",
-      "args": ["mcp"]
-    }
-  }
-}
-```
+- Source: `src/`
+- CI: `.github/workflows/`
+- Install script: `install.sh`
+- Distributions: Docker images for Debian 13 / Bookworm and Ubuntu 25.04.

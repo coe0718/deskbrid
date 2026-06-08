@@ -19,7 +19,7 @@
 
 mcp-name: io.github.coe0718/deskbrid
 
-**[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md)**
+**[📖 Documentation](docs/wiki/INDEX.md) | [API Reference](docs/API.md) | [Architecture](docs/ARCHITECTURE.md) | [v1.0.0 Release Notes](docs/deskbrid-v1.0.0.md)**
 
 ---
 

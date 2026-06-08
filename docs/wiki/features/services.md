@@ -1,122 +1,43 @@
 # Services
 
-Manage systemd services.
+Deskbrid v1.0.0 exposes service and timer control through `service.*` and
+`timer.*` actions. Journal access uses `journal.query`.
 
-## List Services
-
-```bash
-deskbrid services list
-deskbrid services list --type running
-deskbrid services list --type enabled
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": [
-    {
-      "name": "nginx.service",
-      "status": "active",
-      "enabled": true,
-      "type": "service"
-    }
-  ]
-}
-```
-
-Protocol:
-```json
-{"type": "service.list", "unit_type": "service"}
-```
-
-Unit types:
-- `service` - Regular services
-- `socket` - Socket-activated services
-- `timer` - Scheduled timers
-- `all` - All unit types
-
-## Service Status
+## Service management
 
 ```bash
-deskbrid services status nginx
-```
-
-Protocol:
-```json
-{"type": "service.status", "name": "nginx.service"}
-```
-
-## Start/Stop/Restart
-
-```bash
-deskbrid services start nginx
-deskbrid services stop nginx
-deskbrid services restart nginx
-```
-
-Protocol:
-```json
-{"type": "service.start", "name": "nginx.service"}
-```
-
-## Enable/Disable
-
-```bash
-deskbrid services enable nginx
-deskbrid services disable nginx
-deskbrid services enable --runtime nginx  # Only for this boot
-```
-
-Protocol:
-```json
-{"type": "service.enable", "name": "nginx.service", "runtime": false}
+deskbrid service.list {}
+deskbrid service.status { name: "nginx.service" }
+deskbrid service.start { name: "nginx.service" }
+deskbrid service.stop { name: "nginx.service" }
+deskbrid service.restart { name: "nginx.service" }
+deskbrid service.enable { name: "nginx.service", runtime: false }
+deskbrid service.disable { name: "nginx.service" }
 ```
 
 ## Timers
 
 ```bash
-deskbrid services timers                    # List all timers
-deskbrid services timer start daily-apt     # Start a timer
-deskbrid services timer stop daily-apt      # Stop a timer
+deskbrid timer.list {}
+deskbrid timer.start { name: "daily-apt.timer" }
+deskbrid timer.stop { name: "daily-apt.timer" }
 ```
 
-Protocol:
-```json
-{"type": "timer.start", "name": "daily-apt.timer"}
-```
-
-## Journal Query
+## Journal
 
 ```bash
-deskbrid journal query --since 1h --unit nginx --tail 100
-deskbrid journal query --since 2024-01-01 --priority 3  # Errors only
-```
-
-Protocol:
-```json
-{
-  "type": "journal.query",
-  "since": 3600,
-  "unit": "nginx.service",
-  "tail": 100
+deskbrid journal.query {
+  since: 3600,
+  unit: "nginx.service",
+  tail: 100
 }
 ```
 
-## Python Example
+## Python example
 
 ```python
 from deskbrid import Deskbrid
-
 client = Deskbrid()
-
-# Check nginx status
 status = client.service_status("nginx")
-print(f"nginx: {status['status']}")
-
-# Get recent logs
-logs = client.journal_query(unit="nginx", tail=50)
-for line in logs:
-    print(line)
+print(status["status"])
 ```

@@ -1,151 +1,50 @@
 # Clipboard
 
-Read and write clipboard content, plus clipboard history.
+Read and write clipboard contents across GNOME, Hyprland, KDE, and X11. Clipboard
+history is a separate queue and does not overwrite the current clipboard.
 
-## Read Clipboard
+## Actions
 
-```bash
-deskbrid clipboard read
+- `clipboard.read`
+- `clipboard.write`
+- `clipboard.history`
+- `clipboard.history.clear`
+
+## Requirements
+
+- Wayland: `wl-clipboard`
+- X11: shared X11 clipboard access (no extra dependency)
+- GNOME remote clipboard requires the Shell extension
+
+If `clipboard.read` returns empty, run `deskbrid system health` and check the
+clipboard subsystem status.
+
+## Rate limits
+
+Clipboard reads are subject to per-namespace token-bucket rate limits configured
+in `permissions.toml`:
+
+```toml
+[rate_limits.clipboard]
+rpm = 120
+burst = 20
 ```
 
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "type": "text",
-    "text": "Hello, world!"
-  }
-}
-```
+Exceeding the bucket returns a `RATE_LIMITED` response with `retry_after_ms`.
 
-Protocol:
-```json
-{"type": "clipboard.read"}
-```
+## Python example
 
-Python:
 ```python
 from deskbrid import Deskbrid
-
 client = Deskbrid()
-content = client.clipboard_read()
-print(content.text)  # "Hello, world!"
+
+text = client.clipboard_read()
+client.clipboard_write(text)
+history = client.clipboard_history()
+client.clipboard_history_clear()
 ```
 
-## Write Clipboard
+## Notes
 
-```bash
-deskbrid clipboard write "Hello from Deskbrid"
-```
-
-Protocol:
-```json
-{"type": "clipboard.write", "text": "Hello from Deskbrid"}
-```
-
-Python:
-```python
-client.clipboard_write("New clipboard content")
-```
-
-## Clipboard History
-
-Keep track of clipboard changes over time.
-
-**Note:** History requires the GNOME Shell extension or Hyprland autostart hook and is persisted in an SQLite database at `~/.local/share/deskbrid/deskbrid.db`.
-
-### List History
-
-```bash
-deskbrid clipboard history
-deskbrid clipboard history --limit 10
-deskbrid clipboard history --query "error"
-```
-
-Protocol:
-```json
-{"type": "clipboard.history", "limit": 10, "query": "error"}
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "entries": [
-      {
-        "id": 1,
-        "text": "fixed the bug",
-        "timestamp": "2024-01-15T10:30:00Z",
-        "source": "terminal"
-      },
-      {
-        "id": 2,
-        "text": "git commit -m 'fix'",
-        "timestamp": "2024-01-15T10:25:00Z",
-        "source": "browser"
-      }
-    ]
-  }
-}
-```
-
-### Clear History
-
-```bash
-deskbrid clipboard history clear
-```
-
-Protocol:
-```json
-{"type": "clipboard.history.clear"}
-```
-
-Python:
-```python
-# Get recent history
-entries = client.clipboard_history(limit=20)
-
-# Search history
-error_entries = client.clipboard_history(query="error")
-
-# Clear history
-result = client.clipboard_history_clear()
-```
-
-## Desktop-Specific Setup
-
-### GNOME
-
-Clipboard history requires the GNOME Shell extension:
-
-```bash
-deskbrid setup  # Enables the extension automatically
-```
-
-### Hyprland
-
-Add to your Hyprland config:
-
-```ini
-exec-once = systemctl --user start deskbrid-history
-```
-
-Or enable clipboard history listener:
-
-```bash
-systemctl --user enable --now deskbrid-history.service
-```
-
-## AI Agent Example
-
-```json
-→ {"type": "clipboard.read"}
-← {"type": "response", "status": "ok", "data": {"text": "def hello():"}}
-
-→ {"type": "clipboard.write", "text": "def hello():\\n    print('world')"}
-← {"type": "response", "status": "ok"}
-```
+- History is persisted in SQLite across restarts.
+- Some Wayland compositors restrict clipboard access between sandboxed apps.

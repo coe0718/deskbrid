@@ -1,48 +1,34 @@
 # Rules Engine
 
-Deskbrid's rules engine allows you to define event-driven automation that triggers on desktop events like window focus, clipboard changes, or workspace switches.
+Deskbrid v1.0.0 provides a persistent, event-driven rules engine. Rules live in
+SQLite and survive daemon restarts. They react to desktop events using the same
+action strings the daemon dispatches over the socket.
 
 ## Overview
 
-Rules are persistent and stored in the SQLite database. Each rule has:
-- A unique ID (auto-generated)
-- A name for identification
-- A trigger event pattern
-- An action type and parameters
-- Optional cooldown and max_fires to prevent runaway loops
-- An enabled/disabled state
+Rules are managed through the `rules.list`, `rules.create`, `rules.get`,
+`rules.update`, `rules.patch`, `rules.trigger`, `rules.pause`, `rules.resume`,
+and `rules.delete` actions. Each rule covers:
 
-## Creating a Rule
+- `id` — auto-generated stable ID (`rules_<...>`) used for follow-up actions
+- `name` — human-readable label
+- `trigger` — event pattern (`window.focused`, `clipboard.changed`, `monitor.added`, ...)
+- `action_type` — dispatch target (`input.keyboard`, `notification.send`, ...)
+- `action_params` — optional JSON parameters for the action
+- `enabled` — boolean, `true` means the rule can fire
+- `cooldown_ms` — minimum interval between executions
+- `max_fires` — optional cap on total executions
+- `fires` — read-only execution counter
+- `last_fired` — read-only timestamp of most recent execution
 
-```bash
-deskbrid rule.create { 
-  name: "focus-terminal", 
-  trigger: "window.focused", 
-  action_type: "input.keyboard", 
-  action_params: { text: "alacritty\\n" }, 
-  enabled: true, 
-  cooldown_ms: 1000, 
-  max_fires: 5 
-}
-```
-
-### Parameters
-
-- `name`: Human-readable identifier for the rule
-- `trigger`: Event pattern to listen for (see [Event Patterns](#event-patterns))
-- `action_type`: The action to execute when triggered (see [Protocol Overview](Protocol-Overview))
-- `action_params`: Parameters for the action (JSON object)
-- `enabled`: Boolean to enable/disable the rule (default: true)
-- `cooldown_ms`: Minimum time between executions in milliseconds (default: 0)
-- `max_fires`: Maximum number of times the rule can fire (default: unlimited)
-
-## Listing Rules
+## Listing rules
 
 ```bash
-deskbrid rule.list
+deskbrid rules.list
 ```
 
 Response:
+
 ```json
 {
   "type": "response",
@@ -50,11 +36,11 @@ Response:
   "data": {
     "rules": [
       {
-        "id": "rule_123",
+        "id": "rules_123",
         "name": "focus-terminal",
         "trigger": "window.focused",
         "action_type": "input.keyboard",
-        "action_params": { "text": "alacritty\n" },
+        "action_params": {"text": "alacritty\\n"},
         "enabled": true,
         "cooldown_ms": 1000,
         "max_fires": 5,
@@ -66,103 +52,97 @@ Response:
 }
 ```
 
-## Getting a Specific Rule
+## Creating a rule
 
 ```bash
-deskbrid rule.get { rule_id: "rule_123" }
+deskbrid rules.create {
+  name: "focus-terminal",
+  trigger: "window.focused",
+  action_type: "input.keyboard",
+  action_params: { text: "alacritty\\n" },
+  enabled: true,
+  cooldown_ms: 1000,
+  max_fires: 5
+}
 ```
 
-## Deleting a Rule
+## Inspecting, pausing, resuming, and deleting
 
 ```bash
-deskbrid rule.delete { rule_id: "rule_123" }
+deskbrid rules.get { rule_id: "rules_123" }
+deskbrid rules.patch { rule_id: "rules_123", enabled: true }
+deskbrid rules.pause { rule_id: "rules_123" }
+deskbrid rules.resume { rule_id: "rules_123" }
+deskbrid rules.delete { rule_id: "rules_123" }
 ```
 
-## Pausing and Resuming Rules
+Use `patch` for partial updates (available in v1.0.0). Read-only fields (`fires`,
+`last_fired`) are not accepted on create.
+
+## Triggering manually
 
 ```bash
-# Pause a rule
-deskbrid rule.pause { rule_id: "rule_123" }
-
-# Resume a rule
-deskbrid rule.resume { rule_id: "rule_123" }
+deskbrid rules.trigger { rule_id: "rules_123" }
 ```
 
-## Event Patterns
+Force a rule to execute once regardless of schedule/cooldown. Useful for
+debugging or ad-hoc automation.
 
-Rules can listen for various desktop events:
+## Event patterns
 
-### Window Events
-- `window.focused` - When a window gains focus
-- `window.created` - When a new window appears
-- `window.closed` - When a window is closed
-- `window.*` - All window events
+| pattern | meaning |
+|---|---|
+| `window.focused` | window gained focus |
+| `window.created` | new window appeared |
+| `window.closed` | window closed |
+| `window.moved` | position changed |
+| `window.resized` | size changed |
+| `input.keyboard` | key pressed |
+| `input.mouse` | mouse movement/clicks |
+| `clipboard.changed` | clipboard content changed |
+| `monitor.added` | display connected |
+| `monitor.removed` | display disconnected |
+| `monitor.changed` | display settings changed |
+| `workspace.changed` | active workspace changed |
+| `*` | everything |
 
-### Input Events
-- `input.keyboard` - Keyboard input
-- `input.mouse` - Mouse movement/clicks
-- `input.*` - All input events
-
-### Clipboard Events
-- `clipboard.changed` - When clipboard content changes
-- `clipboard.*` - All clipboard events
-
-### Monitor Events
-- `monitor.added` - When a display is connected
-- `monitor.removed` - When a display is disconnected
-- `monitor.changed` - When display properties change
-- `monitor.*` - All monitor events
-
-### Workspace Events (where supported)
-- `workspace.changed` - When active workspace changes
-- `workspace.*` - All workspace events
-
-### System Events
-- `system.info` - System information queries
-- `update.available` - When a deskbrid update is available
-- `system.*` - All system events
+Wildcards are supported, e.g. `window.*`.
 
 ## Examples
 
-### Launch Terminal on Window Focus
-
-Launch a terminal whenever a web browser window gains focus:
+### Launch terminal on browser focus
 
 ```bash
-deskbrid rule.create {
+deskbrid rules.create {
   name: "browser-terminal",
   trigger: "window.focused",
   action_type: "input.keyboard",
-  action_params: { text: "alacritty\n" },
+  action_params: { text: "alacritty\\n" },
   enabled: true,
   cooldown_ms: 5000
 }
 ```
 
-### Clipboard Monitoring with Cooldown
-
-Send a notification when clipboard contains a URL, but limit to once per minute:
+### Clipboard URL detector with rate limit
 
 ```bash
-deskbrid rule.create {
+deskbrid rules.create {
   name: "url-notify",
   trigger: "clipboard.changed",
   action_type: "notification.send",
-  action_params: { 
-    title: "URL Detected", 
-    body: "Clipboard contains a URL" 
+  action_params: {
+    title: "URL Detected",
+    body: "Clipboard contains a URL"
   },
   enabled: true,
   cooldown_ms: 60000
 }
 ```
 
-### Workspace Switching Automation
-
-Automatically launch applications when switching to a specific workspace:
+### Workspace-based auto-launch
 
 ```bash
-deskbrid rule.create {
+deskbrid rules.create {
   name: "work-launch",
   trigger: "workspace.changed",
   action_type: "windows.activate_or_launch",
@@ -171,38 +151,28 @@ deskbrid rule.create {
 }
 ```
 
-## Python Example
+## Python example
 
 ```python
 from deskbrid import Deskbrid
 
 client = Deskbrid()
 
-# Create a rule
-rule_id = client.rule_create(
+rule_id = client.rules_create(
     name="focus-notify",
     trigger="window.focused",
     action_type="notification.send",
     action_params={"title": "Window Focused", "body": "A window gained focus"},
     enabled=True,
-    cooldown_ms=1000
+    cooldown_ms=1000,
 )
 
-# List rules
-rules = client.rule_list()
-for rule in rules['rules']:
-    print(f"{rule['name']}: {rule['trigger']} -> {rule['action_type']}")
+rules = client.rules_list()
+for rule in rules["rules"]:
+    print(rule["name"], "->", rule["action_type"])
 
-# Get a specific rule
-rule = client.rule_get(rule_id=rule_id)
-print(rule)
-
-# Pause the rule
-client.rule_pause(rule_id=rule_id)
-
-# Resume the rule
-client.rule_resume(rule_id=rule_id)
-
-# Delete the rule
-client.rule_delete(rule_id=rule_id)
+client.rules_pause(rule_id=rule_id)
+client.rules_trigger(rule_id=rule_id)
+client.rules_resume(rule_id=rule_id)
+client.rules_delete(rule_id=rule_id)
 ```

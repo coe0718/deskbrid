@@ -1,41 +1,32 @@
 # AI Agents
 
-Using Deskbrid with AI coding tools and agents.
+Deskbrid v1.0.0 exposes desktop control to AI coding agents through the MCP
+server, or directly by sending actions over the daemon socket. The daemon is
+the source of truth for available actions; see `docs/api-docs.md` for the
+canonical action map.
 
-## How It Works
+## MCP server
 
-AI agents (Claude Code, Cursor, Windsurf, etc.) can control your desktop through Deskbrid's MCP server. The agent:
-
-1. Calls tools like `deskbrid_list_windows` or `deskbrid_focus_window`
-2. Deskbrid executes the action on the desktop
-3. The agent observes results and continues
-
-## Setup for AI Agents
-
-### Claude Code
-
-Add to your MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "deskbrid": {
-      "command": "deskbrid",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Start Deskbrid daemon first:
+### Stdio mode (AI tools)
 
 ```bash
-deskbrid daemon &
+deskbrid daemon
+deskbrid mcp
 ```
 
-### Cursor
+Clients connect over stdin/stdout.
 
-Add `.cursor/mcp.json`:
+### TCP mode
+
+```bash
+deskbrid daemon --mcp-port 20129
+```
+
+Clients connect to `tcp://localhost:20129`.
+
+## Client configs
+
+Claude Desktop:
 
 ```json
 {
@@ -48,152 +39,33 @@ Add `.cursor/mcp.json`:
 }
 ```
 
-### Other MCP-Compatible Agents
+Cursor:
 
-Most AI coding agents support MCP. Check your tool's documentation for adding MCP servers.
-
-## Agent Capabilities
-
-With Deskbrid, AI agents can:
-
-### Debug Applications
-
-```text
-Agent: Let me see the error in your terminal.
-→ deskbrid_screenshot_ocr()
-← {"text": "Error: Connection refused"}
-→ deskbrid_type_text("netstat -tlnp\n")
+```json
+{
+  "mcpServers": {
+    "deskbrid": {
+      "command": "deskbrid",
+      "args": ["mcp"]
+    }
+  }
+}
 ```
 
-### Test UI Interactions
+## Agent safety
 
-```text
-Agent: Testing the save dialog...
-→ deskbrid_type_text("Ctrl+Shift+S")
-→ deskbrid_type_text("test-file.txt")
-→ deskbrid_type_text("Enter")
-```
+- Elevated or sensitive actions flow through the dashboard challenge /
+  confirmation UI unless explicitly allowed by policy.
+- Use the `require_confirmation` / confirmation flow to review uncertain agent
+  actions before dispatch.
+- Policy enforcement mirrors socket authentication; the safer path is via
+  `confirm.challenge` / `confirm.resolve`, not by passing extra permissions over
+  the wire.
 
-### Automate Repetitive Tasks
+## Audit trail
 
-```text
-Agent: Organizing your windows...
-→ deskbrid_tile_window(window_id, preset="left")
-→ deskbrid_tile_window(other_id, preset="right")
-```
-
-### Read and Write Code
-
-```text
-Agent: Opening the file and checking syntax...
-→ deskbrid_type_text("code src/main.rs")
-→ deskbrid_screenshot_ocr()
-```
-
-## Safety Considerations
-
-### Before You Start
-
-1. **Review the code** - Understand what actions the agent will take
-2. **Close sensitive apps** - Don't have password managers or banking open
-3. **Watch the screen** - Observe actions as they happen
-4. **Start simple** - Begin with read-only operations
-
-### Permission Model
-
-Deskbrid respects system permissions:
-
-- No elevated privileges needed for basic operations
-- Power actions require authorization
-- System modifications may prompt for confirmation
-
-### Audit Log
-
-Check what actions were taken:
+Review agent actions via the dashboard or audit log:
 
 ```bash
 deskbrid audit_log
 ```
-
-## Common Agent Workflows
-
-### Web Testing
-
-```
-1. Agent opens browser to test URL
-2. Takes screenshot with OCR
-3. Reads error messages
-4. Types fixes
-5. Verifies fixes
-```
-
-### Development Assistance
-
-```
-1. Agent lists open files in editor
-2. Reads code via screenshot if needed
-3. Types corrections
-4. Runs tests
-5. Checks results
-```
-
-### System Administration
-
-```
-1. Agent lists running services
-2. Checks logs via journal query
-3. Starts/stops services
-4. Monitors system status
-```
-
-## Best Practices
-
-### For Users
-
-1. **Explicit commands** - Be specific about what you want the agent to do
-2. **Watch the screen** - Confirm actions are correct
-3. **Interrupt if needed** - Ctrl+C stops most agent operations
-4. **Use dry runs** - Ask "what would you do?" first
-
-### For Agent Developers
-
-1. **Prefer high-level actions** - `tile_window` over raw mouse movements
-2. **Read before write** - Screenshot before typing
-3. **Handle errors gracefully** - Windows might not exist
-4. **Use events** - Subscribe to window focus for context
-
-### Example Safe Interaction
-
-```text
-User: Can you help me organize my windows?
-
-Agent: I'll list your windows first to see what's open.
-→ deskbrid_list_windows()
-← 3 windows: Terminal, Firefox, VS Code
-
-Agent: I can tile these for you. Ready?
-User: Yes
-Agent: Tiling left/right...
-→ deskbrid_tile_window(terminal_id, preset="left")
-→ deskbrid_tile_window(firefox_id, preset="right")
-```
-
-## Troubleshooting
-
-### Agent Can't Connect
-
-1. Verify Deskbrid daemon is running: `deskbrid status`
-2. Check socket exists: `ls /run/user/$UID/deskbrid.sock`
-3. Restart daemon: `deskbrid daemon --verbose`
-
-### Actions Don't Work
-
-1. Verify desktop dependencies are installed
-2. Check the backend supports the action
-3. Look at daemon logs for errors
-
-### Permissions Issues
-
-1. On Wayland, ensure ydotoold is running
-2. On X11, check xdotool is installed
-3. Verify you're in the input group (ydotool)

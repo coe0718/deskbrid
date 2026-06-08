@@ -1,182 +1,91 @@
 # Protocol Overview
 
-Deskbrid uses a simple JSON-over-Unix-socket protocol for communicating with the daemon.
+## Transport
 
-## Connection
+Deskbrid communicates over a Unix domain socket:
 
-The daemon listens on a Unix socket at `/run/user/$UID/deskbrid.sock`.
-
-```bash
-# Default socket path
-/run/user/1000/deskbrid.sock
+```
+/run/user/<UID>/deskbrid.sock
 ```
 
-## Message Format
+Clients send JSON commands terminated by newline, then read newline-delimited JSON responses.
 
-All messages are JSON objects terminated by a newline character.
-
-### Request
+### Raw socket shape
 
 ```json
-{"type": "windows.list"}
+{"type":"<action>", "<extra fields vary by action>"}
 ```
 
-With parameters:
+All successful responses share the envelope:
 
 ```json
-{
-  "type": "input.keyboard",
-  "action": "type",
-  "text": "Hello!"
-}
+{"type":"response","request_id":"...","status":"ok","data":{...}}
 ```
 
-### Response
-
-Success:
+Error responses use:
 
 ```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": [...]
-}
+{"type":"response","request_id":"...","status":"error","error":{"code":"<code>","message":"<human text>"}}
 ```
 
-Error:
+> The project uses **dot-notation action strings** for runtime subscription and reply `type` fields, but the daemon does **not** semantically dispatch `event.subscribe` UI actions through the same path.
+
+## Dispatch rules
+
+- **socket domain** — actions like `windows.list`, `clipboard.read`, `system.info`
+- **UI/Auth domain** — `confirm.challenge`, `confirm.resolve`, `auth.elevate`
+- **event subscription** — `event.subscribe`, `event.unsubscribe`
+
+### UI action flow (v1.0.0)
+
+1. Send `confirm.challenge` with a challenge ID / prompt.
+2. Present the challenge in the Dashboard / desktop UI.
+3. Send `confirm.resolve` with approval or rejection.
+4. For elevated actions, send `auth.elevate` with the action ID, reason, and confirmation.
+
+### Auth rule (v1.0.0)
+
+System-level `system.*` actions that mutate system state require authorization by default. The safer route is via the UI/`confirm.challenge` flow rather than by passing secrets over the socket.
+
+## Error codes
+
+| code | when |
+|---|---|
+| `invalid_params` | missing or invalid parameters |
+| `not_found` | window / session / record missing |
+| `permission_denied` | policy or auth check failed |
+| `not_supported` | backend/desktop doesn’t support it |
+| `backend_error` | compositor/backend error |
+| `internal_error` | daemon error |
+
+## Event subscription
+
+Subscribe with wildcard patterns:
 
 ```json
-{
-  "type": "response",
-  "status": "error",
-  "error": {
-    "code": "not_found",
-    "message": "Window not found"
-  }
-}
+{"type":"event.subscribe","events":["window.*"]}
 ```
 
-### Event
+Unsubscribe:
 
 ```json
-{
-  "type": "event",
-  "event": "window.focused",
-  "data": {
-    "window_id": "12345678"
-  }
-}
+{"type":"event.unsubscribe","events":["window.*"]}
 ```
 
-## Actions
-
-The protocol supports over 90 actions organized by domain:
-
-### System
-- `system.info` - Get system information
-- `system.capabilities` - List supported features
-- `system.health` - Check system health
-- `system.power` - Power actions (suspend, reboot, shutdown)
-- `system.battery` - Battery status
-- `system.idle` - Idle detection
-
-### Windows
-- `windows.list` - List all windows
-- `windows.focus` - Focus a window
-- `windows.get` - Get window details
-- `windows.close` - Close a window
-- `windows.tile` - Tile window to preset position
-- `windows.activate_or_launch` - Find or start an app
-
-### Input
-- `input.keyboard` - Type text or send key combinations
-- `input.mouse` - Move, click, scroll
-
-### Clipboard
-- `clipboard.read` - Read clipboard
-- `clipboard.write` - Write to clipboard
-- `clipboard.history` - Get clipboard history
-
-### Screenshot
-- `screenshot` - Capture screen
-- `screenshot.ocr` - Capture with OCR
-- `screenshot.diff` - Compare screenshots
-
-### Notifications
-- `notification.send` - Send desktop notification
-- `notification.close` - Close notification
-
-### Services
-- `service.list` - List systemd services
-- `service.start` - Start a service
-- `service.stop` - Stop a service
-
-### Terminals
-- `terminal.create` - Create PTY session
-- `terminal.write` - Write to terminal
-- `terminal.read` - Read from terminal
-
-See [full action list](../protocol/actions.md) for all available actions.
-
-## Event Subscription
-
-Subscribe to real-time events:
+Events are newline-delimited JSON messages from the daemon:
 
 ```json
-{"type": "events.subscribe", "events": ["window.*", "input.*"]}
+{"type":"event","event":"window.focused","data":{"window_id":"...","app_id":"org.gnome.Terminal"},"timestamp":"..."}
 ```
 
-Available event patterns:
-- `window.*` - Window events (focus, close, open)
-- `input.*` - Input events
-- `clipboard.*` - Clipboard changes
-- `monitor.*` - Display changes
-
-Events are streamed continuously until you unsubscribe or close the connection.
-
-## Python Example
+## Python example
 
 ```python
-import socket
-import json
+import socket, json
 
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 sock.connect("/run/user/1000/deskbrid.sock")
 
-# Send request
-sock.send(b'{"type": "windows.list"}\n')
-
-# Read response
-response = sock.recv(4096)
-data = json.loads(response)
-print(data)
-```
-
-## Error Codes
-
-| Code | Description |
-|------|-------------|
-| `invalid_params` | Invalid or missing parameters |
-| `not_found` | Resource not found |
-| `permission_denied` | Insufficient permissions |
-| `not_supported` | Feature not supported on this system |
-| `backend_error` | Backend-specific error |
-| `internal_error` | Internal daemon error |
-
-## Async Protocol
-
-For long-running operations, the protocol returns immediately with a request ID:
-
-```json
-{"type": "terminal.create"}
-```
-
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": {"terminal_id": "term_123"},
-  "request_id": "abc123"
-}
+sock.send(b'{"type":"windows.list"}\n')
+sock.send(b'{"type":"event.subscribe","events":["window.*"]}\n')
 ```

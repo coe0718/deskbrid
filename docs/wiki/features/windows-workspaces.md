@@ -1,20 +1,18 @@
 # Windows & Workspaces
 
-Manage windows and virtual desktops programmatically.
+Deskbrid v1.0.0 manages windows and virtual desktops through dot-notation
+actions routed over the daemon socket.
 
 ## Windows
 
-### List Windows
+### List windows
 
 ```bash
-deskbrid windows list
-```
-
-```json
-{"type": "windows.list"}
+deskbrid windows.list
 ```
 
 Response:
+
 ```json
 {
   "type": "response",
@@ -22,205 +20,115 @@ Response:
   "data": [
     {
       "id": "12345678",
-      "title": "deskbrid – ~/projects/deskbrid/docs/wiki",
-      "app_id": "org.gnome.Terminal",
+      "title": "VS Code",
+      "app_id": "code",
       "workspace": 1,
-      "x": 100,
-      "y": 50,
+      "x": 0,
+      "y": 0,
       "width": 1280,
       "height": 720,
-      "focused": false,
+      "focused": true,
       "minimized": false
     }
   ]
 }
 ```
 
-### Focus Window
+### Focus a window
 
 ```bash
-deskbrid windows focus --app code
-deskbrid windows focus --window 12345678
-deskbrid windows focus --title "VS Code" --exact
+deskbrid windows.focus { window_id: "12345678" }
+deskbrid windows.focus { app_id: "code" }
+deskbrid windows.focus { title: "VS Code", exact: true }
 ```
 
-Protocol:
-```json
-{"type": "windows.focus", "window_id": "code"}
-```
-
-### Get Window Details
+### Get window details
 
 ```bash
-deskbrid windows get 12345678
+deskbrid windows.get { window_id: "12345678" }
 ```
 
-Protocol:
-```json
-{"type": "windows.get", "window_id": "12345678"}
-```
-
-### Close Window
+### Close window
 
 ```bash
-deskbrid windows close --app code
+deskbrid windows.close { window_id: "12345678" }
 ```
 
-Protocol:
-```json
-{"type": "windows.close", "window_id": "code"}
-```
-
-### Minimize/Maximize
+### Minimize / maximize
 
 ```bash
-deskbrid windows minimize 12345678
-deskbrid windows maximize 12345678
+deskbrid windows.minimize { window_id: "12345678" }
+deskbrid windows.maximize { window_id: "12345678" }
 ```
 
-Protocol:
-```json
-{"type": "windows.minimize", "window_id": "12345678"}
-{"type": "windows.maximize", "window_id": "12345678"}
-```
-
-### Move and Resize
+### Move and resize
 
 ```bash
-deskbrid windows move-resize 12345678 --x 100 --y 100 --width 800 --height 600
-```
-
-Protocol:
-```json
-{
-  "type": "windows.move_resize",
-  "window_id": "12345678",
-  "x": 100,
-  "y": 100,
-  "width": 800,
-  "height": 600
+deskbrid windows.move_resize {
+  window_id: "12345678",
+  x: 100,
+  y: 100,
+  width: 800,
+  height: 600
 }
 ```
 
-### Tile Window
+### Tile window
 
 ```bash
-deskbrid windows tile 12345678 --preset left
-deskbrid windows tile 12345678 --preset right --padding 10
-```
-
-Presets:
-- `left` - Left half
-- `right` - Right half
-- `max` - Maximize
-- `center` - Center on screen
-- `top-left`, `top-right`, `bottom-left`, `bottom-right`
-
-Protocol:
-```json
-{
-  "type": "windows.tile",
-  "window_id": "12345678",
-  "preset": "left",
-  "monitor": 0,
-  "padding": 10
+deskbrid windows.tile {
+  window_id: "12345678",
+  preset: "left",
+  monitor: 0,
+  padding: 10
 }
 ```
 
-### Activate or Launch
+Presets: `left`, `right`, `top`, `bottom`, `center`, `max`.
+
+### Activate or launch
 
 ```bash
-deskbrid windows activate-or-launch code
-deskbrid windows activate-or-launch firefox --command ["firefox", "--new-window"]
-```
-
-Protocol:
-```json
-{
-  "type": "windows.activate_or_launch",
-  "app_id": "code",
-  "command": ["code", "--new-window"],
-  "workdir": "/home/user/projects"
+deskbrid windows.activate_or_launch {
+  app_id: "code",
+  command: ["code", "--new-window"],
+  workdir: "/home/user/projects"
 }
 ```
 
 ## Workspaces
 
-### List Workspaces
+### List workspaces
 
 ```bash
-deskbrid workspaces list
+deskbrid workspaces.list
 ```
 
-Protocol:
-```json
-{"type": "workspaces.list"}
+### Switch workspace
+
+```bash
+deskbrid workspaces.switch { workspace_id: 2 }
 ```
 
-Response:
-```json
-{
-  "type": "response",
-  "status": "ok",
-  "data": [
-    {"id": 1, "name": "1", "focused": true},
-    {"id": 2, "name": "2", "focused": false},
-    {"id": 3, "name": "3", "focused": false}
-  ]
+### Move window between workspaces
+
+```bash
+deskbrid workspaces.move_window {
+  window_id: "12345678",
+  workspace_id: 3,
+  follow: true
 }
 ```
 
-### Switch Workspace
-
-```bash
-deskbrid workspaces switch 2
-```
-
-Protocol:
-```json
-{"type": "workspaces.switch", "workspace_id": 2}
-```
-
-### Move Window to Workspace
-
-```bash
-deskbrid workspaces move-window 12345678 --workspace 3
-deskbrid workspaces move-window 12345678 --workspace 3 --follow
-```
-
-Protocol:
-```json
-{
-  "type": "workspaces.move_window",
-  "window_id": "12345678",
-  "workspace_id": 3,
-  "follow": true
-}
-```
-
-## Python Example
+## Python example
 
 ```python
 from deskbrid import Deskbrid
 
 client = Deskbrid()
+windows = client.windows_list()
+for w in windows:
+    print(w["id"], w["title"], w["app_id"])
 
-# List and focus VS Code
-windows = client.list_windows()
-code_window = next((w for w in windows if w.app_id == 'code'), None)
-if code_window:
-    client.focus_window(app_id='code')
-    client.type_text("Fixed the issue!\n")
-```
-
-## AI Agent Example
-
-```json
-→ {"type": "windows.list"}
-← [{"id": "abc123", "title": "VS Code", "app_id": "code", ...}]
-
-→ {"type": "windows.focus", "window_id": "abc123"}
-← {"type": "response", "status": "ok"}
-
-→ {"type": "input.keyboard", "action": "type", "text": "git status\n"}
+client.windows_focus(window_id=windows[0]["id"])
 ```

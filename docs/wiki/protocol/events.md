@@ -1,14 +1,16 @@
-# Event Subscription
+# Events
 
-Subscribe to real-time events from the desktop.
+Subscribe to real-time desktop events using `event.subscribe` and
+`event.unsubscribe`.
 
-## Subscribe to Events
+## Subscribe
 
 ```json
-{"type": "events.subscribe", "events": ["window.*", "clipboard.*"]}
+{"type":"event.subscribe","events":["window.*","clipboard.*"]}
 ```
 
 Response:
+
 ```json
 {
   "type": "response",
@@ -22,10 +24,10 @@ Response:
 ## Unsubscribe
 
 ```json
-{"type": "events.unsubscribe", "events": ["window.*"]}
+{"type":"event.unsubscribe","events":["window.*"]}
 ```
 
-## Event Format
+## Event format
 
 ```json
 {
@@ -39,93 +41,59 @@ Response:
 }
 ```
 
-## Available Events
+## Available events
 
-### Window Events
+| Event | Data |
+|---|---|
+| `window.focused` | `window_id`, `app_id` |
+| `window.unfocused` | `window_id`, `app_id` |
+| `window.opened` | `window_id`, `title`, `app_id` |
+| `window.closed` | `window_id`, `app_id` |
+| `window.moved` | `window_id`, `x`, `y` |
+| `window.resized` | `window_id`, `width`, `height` |
+| `clipboard.changed` | `content_type`, preview |
+| `clipboard.history.added` | `entry_id`, `text` |
+| `input.keyboard` | `key`, `combo` |
+| `input.mouse.click` | `x`, `y`, `button` |
+| `input.mouse.scroll` | `dx`, `dy` |
+| `monitor.connected` | `output`, `width`, `height` |
+| `monitor.disconnected` | `output` |
+| `monitor.changed` | `output`, `scale`, `rotation` |
 
-| Event | Description | Data |
-|-------|-------------|------|
-| `window.focused` | Window gained focus | `window_id`, `app_id` |
-| `window.unfocused` | Window lost focus | `window_id`, `app_id` |
-| `window.opened` | New window opened | `window_id`, `title`, `app_id` |
-| `window.closed` | Window closed | `window_id`, `app_id` |
-| `window.moved` | Window moved | `window_id`, `x`, `y` |
-| `window.resized` | Window resized | `window_id`, `width`, `height` |
-
-### Clipboard Events
-
-| Event | Description | Data |
-|-------|-------------|------|
-| `clipboard.changed` | Clipboard content changed | `content_type`, preview |
-| `clipboard.history.added` | History entry added | `entry_id`, `text` |
-
-### Input Events
-
-| Event | Description | Data |
-|-------|-------------|------|
-| `input.keyboard` | Key pressed | `key`, `combo` |
-| `input.mouse.click` | Mouse clicked | `x`, `y`, `button` |
-| `input.mouse.scroll` | Mouse scrolled | `dx`, `dy` |
-
-### Monitor Events
-
-| Event | Description | Data |
-|-------|-------------|------|
-| `monitor.connected` | Display connected | `output`, `width`, `height` |
-| `monitor.disconnected` | Display disconnected | `output` |
-| `monitor.changed` | Display settings changed | `output`, `scale`, `rotation` |
-
-## Pattern Matching
-
-Use wildcards to subscribe to multiple events:
+## Pattern matching
 
 ```json
-{"type": "events.subscribe", "events": ["window.*", "monitor.*"]}
+{"type":"event.subscribe","events":["window.*","monitor.*"]}
+{"type":"event.subscribe","events":["*"]}
 ```
 
-Subscribe to all events:
-
-```json
-{"type": "events.subscribe", "events": ["*"]}
-```
-
-## Python Example
+## Python example
 
 ```python
-import socket
-import json
+import socket, json
 
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 sock.connect("/run/user/1000/deskbrid.sock")
 
-# Subscribe to events
-sock.send(b'{"type": "events.subscribe", "events": ["window.*"]}\n')
+sock.send(b'{"type":"event.subscribe","events":["window.*"]}\n')
 
-# Read events
 while True:
-    data = sock.recv(4096)
-    for line in data.decode().strip().split('\n'):
-        event = json.loads(line)
-        if event.get("type") == "event":
-            print(f"{event['event']}: {event['data']}")
+    data = b""
+    while b"\n" not in data:
+        data += sock.recv(4096)
+    line = data.split(b"\n")[0]
+    event = json.loads(line)
+    if event.get("type") == "event":
+        print(event["event"], event["data"])
 ```
 
-## Integration with Async Python
+## Asyncio example
 
 ```python
-import asyncio
-import json
-
-async def watch_events(client, patterns):
-    """Watch for events matching patterns."""
-    await client.send({"type": "events.subscribe", "events": patterns})
-    
+async def watch(client, patterns):
+    await client.send({"type": "event.subscribe", "events": patterns})
     while True:
         event = await client.recv()
         if event.get("type") == "event":
             yield event["event"], event["data"]
-
-# Usage
-async for event_type, data in watch_events(client, ["window.*"]):
-    print(f"Event: {event_type}")
 ```
