@@ -95,7 +95,6 @@ pub fn screenshot_temp_path() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::*;
 
     #[test]
     fn expand_path_allows_home_dir() {
