@@ -21,9 +21,9 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 | Severity | Count | Fixed |
 |----------|-------|-------|
 | 🔴 CRITICAL | 4 | 4 |
-| 🟡 WARNING | 29 | 6 |
+| 🟡 WARNING | 29 | 7 |
 | 🔵 SUGGESTION | 7 | 0 |
-| **Total** | **40** | **10** |
+| **Total** | **40** | **11** |
 
 ### Fixed
 - ✅ **C1** — Dashboard binds 127.0.0.1 by default, `--dashboard-bind` flag (commit `2233902`)
@@ -37,6 +37,7 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 - ✅ **W9** — Confirmation ops routed through backend-free code path (commit `4c891f8`)
 - ✅ **W10** — TCP auth bounded reads + constant-time token compare (commit `f44befb`)
 - ✅ **W11** — Dashboard bounded reads + connection semaphore (commit `f44befb`)
+- ✅ **W12** — std::sync::Mutex → tokio::sync::Mutex for Database (commit `26aef22`)
 - ✅ **W14** — Release artifact naming: `deskbrid-mcp-` → `deskbrid-` (commit `bcdc197`)
 
 ---
@@ -245,7 +246,7 @@ Request-line and header parsing use unbounded `read_line` with no byte cap and n
 
 ---
 
-### W12. `std::sync::Mutex<Database>` held across SQLite I/O on async runtime
+### W12. `std::sync::Mutex<Database>` held across SQLite I/O on async runtime ✅ FIXED
 
 **File:** `src/lib.rs:89`, `src/daemon/execute_rules.rs:35`
 
