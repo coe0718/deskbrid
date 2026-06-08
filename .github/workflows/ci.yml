@@ -40,7 +40,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install Python client
-        run: pip install ./clients/python/
+        run: pip install ./clients/python/[test]
 
-      - name: Validate Python client import
-        run: python -c "from deskbrid import Deskbrid; print('ok')"
+      - name: Run Python tests
+        run: pytest clients/python/tests/ -v

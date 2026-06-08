@@ -42,7 +42,10 @@ pub(crate) async fn load_clipboard_from_db(state: &DaemonState) {
         })
     })
     .await
-    .unwrap();
+    .unwrap_or_else(|e| {
+        tracing::error!("clipboard DB load panicked: {e}");
+        Vec::new()
+    });
     let mut history = state.clipboard_history.lock().await;
     history.clear();
     for entry in entries.into_iter().rev() {

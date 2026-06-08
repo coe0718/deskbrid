@@ -1,6 +1,6 @@
 # Self-Update
 
-Deskbrid v1.0.0 can update itself from GitHub releases. Update checks run in the
+Deskbrid v0.13.0 can update itself from GitHub releases. Update checks run in the
 background by default (every 6 hours) and emit `update.available` events.
 
 ## Manual update check

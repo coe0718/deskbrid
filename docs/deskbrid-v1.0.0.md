@@ -1,7 +1,7 @@
-# Deskbrid v1.0.0 — Stable Release Documentation
+# Deskbrid v0.13.0 — Release Documentation
 
-> **Scope:** End-to-end product reference for Deskbrid v1.0.0 — architecture, protocol, API, MCP tooling, Python client, deployment, security model, troubleshooting, and v1.0.0-specific release notes.
-> **Audience:** Integrators, agent developers, operators, and contributors working with the v1.0.0 release line.
+> **Scope:** End-to-end product reference for Deskbrid v0.13.0 — architecture, protocol, API, MCP tooling, Python client, deployment, security model, troubleshooting, and release notes.
+> **Audience:** Integrators, agent developers, operators, and contributors working with the v0.13.0 release line.
 
 ---
 
@@ -14,7 +14,7 @@
 5. [Client SDKs](#client-sdks)
 6. [MCP Integration](#mcp-integration)
 7. [Security Model](#security-model)
-8. [v1.0.0 What's New](#v100-whats-new)
+8. [v0.13.0 What's New](#v0130-whats-new)
 9. [Configuration](#configuration)
 10. [Monitoring & Observability](#monitoring--observability)
 11. [Deployment & Operations](#deployment--operations)
@@ -33,7 +33,7 @@
 
 **Releases:**
 - v0.x: prototype/proof-of-concept with per-compositor backends.
-- **v1.0.0 (stable):** hardened security, persistent SQLite state, rules engine, per-UID rate limiting, confirmation system, secret/keyring access, agent mailbox, unified search.
+- **v0.13.0:** hardened security, persistent SQLite state, rules engine, per-UID rate limiting, confirmation system, secret/keyring access, agent mailbox, unified search.
 
 **License:** MIT
 
@@ -71,7 +71,7 @@
 
 ## Protocol Reference
 
-This section covers the NDJSON contract for v1.0.0.
+This section covers the NDJSON contract for v0.13.0.
 
 ### Message Layout
 
@@ -107,7 +107,7 @@ Each connection can declare a named session via the `session` field. Session sta
 
 ## API Reference
 
-This section documents the v1.0.0 actions organized by domain.
+This section documents the v0.13.0 actions organized by domain.
 
 ### Windows
 
@@ -370,7 +370,7 @@ Subscribe/unsubscribe to file events.
 {"type":"agent.mailbox.send","id":"32","to":"agent-b","subject":"deploy-ready","body":"v1.0.0 verified"}
 ```
 
-### Rules Engine (v1.0.0)
+### Rules Engine (v0.13.0)
 
 #### `rules.list`
 ```json
@@ -382,7 +382,7 @@ Subscribe/unsubscribe to file events.
 {"type":"rules.trigger","id":"34","rule_id":"rule-1","payload":{"source":"ci"}}
 ```
 
-### Search (v1.0.0)
+### Search (v0.13.0)
 
 #### `search.query`
 ```json
@@ -446,7 +446,7 @@ MCP exposes window management, accessibility tree, keyboard/mouse, clipboard, sc
 
 ## Security Model
 
-Deskbrid v1.0.0 uses layered controls:
+Deskbrid v0.13.0 uses layered controls:
 
 1. **Unix socket + SO_PEERCRED**: peer UID/PID authenticated by the kernel.
 2. **Permissions file** (`~/.config/deskbrid/permissions.toml`): per-UID allow/deny, glob matching.
@@ -474,7 +474,7 @@ deny = ["screenshot"]
 
 ---
 
-## v1.0.0 What's New
+## v0.13.0 What's New
 
 **Persistent SQLite state** — the source of truth for audit log, clipboard history, sessions, schedules, rules, macros, and mail.
 
@@ -597,7 +597,7 @@ Installs `grim`, `wl-clipboard`, `python3-gi`, `gstreamer1.0-tools`, `gstreamer1
 
 ## Current Status & Roadmap
 
-**Current release:** v1.0.0-stable
+**Current release:** v0.13.0
 
 **Key subsystems in this release:**
 - Desktop backends: GNOME, KDE, Hyprland, Sway, Niri, Wayfire, Labwc, X11.

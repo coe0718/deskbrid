@@ -237,13 +237,23 @@ where
 }
 
 /// Read a line from a buffered reader with a 10MB cap to prevent memory exhaustion.
+/// If the line exceeds MAX_BYTES without a newline, returns an error rather than
+/// silently delivering partial chunks.
 async fn read_line_limited<R: AsyncRead + Unpin>(
     reader: &mut BufReader<R>,
     buf: &mut String,
 ) -> std::io::Result<usize> {
     const MAX_BYTES: u64 = 10 * 1024 * 1024;
     let mut limited = reader.take(MAX_BYTES);
-    limited.read_line(buf).await
+    let n = limited.read_line(buf).await?;
+    // If we read exactly MAX_BYTES and don't end with a newline, the line was truncated
+    if n as u64 == MAX_BYTES && !buf.ends_with('\n') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("line exceeds {MAX_BYTES} byte limit"),
+        ));
+    }
+    Ok(n)
 }
 
 /// Check if an event type matches any subscription glob pattern.

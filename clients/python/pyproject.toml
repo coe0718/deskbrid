@@ -9,6 +9,12 @@ description = "Python client for the Deskbrid JSON socket protocol"
 requires-python = ">=3.9"
 authors = [{ name = "Deskbrid" }]
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools]
 include-package-data = false
 

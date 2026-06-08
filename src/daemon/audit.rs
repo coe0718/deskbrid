@@ -48,7 +48,10 @@ pub(crate) async fn load_audit_from_db(state: &DaemonState) {
         })
     })
     .await
-    .unwrap();
+    .unwrap_or_else(|e| {
+        tracing::error!("audit DB load panicked: {e}");
+        Vec::new()
+    });
     let mut log = state.audit_log.lock().await;
     log.clear();
     for entry in entries.into_iter().rev() {
