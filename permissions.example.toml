@@ -1,0 +1,398 @@
+# Deskbrid Permissions — Example Configuration
+# 
+# Place at: ~/.config/deskbrid/permissions.toml
+#
+# This file controls which actions each peer (identified by Unix UID) can execute.
+# The daemon reads this on startup — changes require a restart.
+#
+# ============================================================
+# How permissions work
+# ============================================================
+#
+# 1. [default] section — applied to any peer not explicitly listed.
+# 2. [peer.<uid>] — per-UID overrides (use output of `id -u`).
+# 3. DENY list is checked FIRST — explicit denies always win.
+# 4. ALLOW list grants access if a pattern matches.
+# 5. HIGH-RISK actions require EXACT naming — wildcards don't work.
+#    E.g. "screenshot.*" won't unlock screenshot. You must write "screenshot".
+# 6. Everything else defaults to DENY.
+#
+# ============================================================
+# Wildcards
+# ============================================================
+#
+#   "*"         = every action (safe + high-risk alike — BE CAREFUL)
+#   "windows.*" = everything under windows (windows.list, windows.focus, …)
+#   "*.list"    = every "list" action across all categories
+#   "input.*"   = input.keyboard, input.mouse, input.mouse.drag, input.layouts.*
+#   "clipboard.history" = exact match (no wildcard needed)
+#
+# ============================================================
+# Quick-Start Presets
+# ============================================================
+#
+# === Read-Only Agent (safe for untrusted callers) ===
+# [default]
+# allow = [
+#     "ping",
+#     "system.info",
+#     "system.capabilities",
+#     "system.health",
+#     "windows.list",
+#     "workspaces.list",
+#     "monitor.list",
+#     "audio.list_sinks",
+#     "audio.list_sources",
+#     "audio.get_volume",
+#     "clipboard.read",
+# ]
+#
+# === Full Desktop Control (trusted agent — YOU) ===
+# [default]
+# allow = [
+#     "*",
+#     "browser.evaluate",
+#     "process.start",
+#     "process.stop",
+#     "process.signal",
+#     "terminal.create",
+#     "system.update",
+#     "system.power",
+#     "dbus.call",
+#     "files.write",
+#     "files.delete",
+#     "files.move",
+#     "clipboard.read",
+#     "clipboard.history",
+#     "screenshot",
+#     "screenshot.ocr",
+#     "screenshot.diff",
+#     "input.keyboard",
+#     "input.mouse",
+#     "input.mouse.drag",
+#     "secrets.get_secret",
+#     "secrets.store_secret",
+# ]
+# deny = []
+
+# ============================================================
+# Complete Action Reference
+# ============================================================
+# ★ = high-risk (requires exact name, wildcards skipped)
+# All others support wildcard patterns.
+
+[default]
+allow = [
+    # --- Meta ---
+    "ping",
+
+    # --- Windows & Workspaces ---
+    "windows.list",
+    "windows.focus",        # ★ input.keyboard covers this
+    "windows.get",
+    "windows.close",         # ★
+    "windows.minimize",
+    "windows.maximize",
+    "windows.move_resize",
+    "windows.tile",
+    "windows.activate_or_launch",
+    "workspaces.list",
+    "workspaces.switch",
+    "workspaces.move_window",
+
+    # --- Layout Profiles ---
+    "layout_profiles.list",
+    "layout_profiles.get",
+    "layout_profiles.save",
+    "layout_profiles.delete",
+    "layout_profiles.restore",
+
+    # --- Input ---
+    "input.keyboard",        # ★ keyboard typing, key, combos
+    "input.mouse",           # ★ mouse move, click, scroll
+    "input.mouse.drag",      # ★ click-and-drag
+    "input.layouts.list",
+    "input.layout.get",
+    "input.layout.set",
+    "input.layout.add",
+    "input.layout.remove",
+
+    # --- Clipboard ---
+    "clipboard.read",        # ★
+    "clipboard.write",
+    "clipboard.history",     # ★ list/search history
+    "clipboard.history.clear",
+
+    # --- Apps ---
+    "apps.list",
+    "apps.search",
+    "apps.get",
+
+    # --- MPRIS (media players) ---
+    "mpris.list",
+    "mpris.get",
+    "mpris.control",
+
+    # --- Color Picker ---
+    "color.pick",
+
+    # --- Screenshots & Capture ---
+    "screenshot",            # ★
+    "screenshot.ocr",        # ★
+    "screenshot.diff",       # ★
+    "screencast.start",
+    "screencast.stop",
+    "portal.screenshot",
+    "portal.screencast_start",
+    "portal.screencast_stop",
+
+    # --- Audit ---
+    "audit.log",
+    "audit.clear",
+
+    # --- Notifications ---
+    "notification.send",
+    "notification.close",
+    "notification.history",
+    "notification.action",
+    "notification.clear_history",
+    "notification.watch",
+
+    # --- System ---
+    "system.info",
+    "system.capabilities",
+    "system.health",
+    "system.confinement",
+    "system.remediate",
+    "system.normalize_coords",
+    "system.idle",
+    "system.power",           # ★ shutdown, reboot, suspend, hibernate
+    "system.battery",
+    "system.backlight_list",
+    "system.backlight_get",
+    "system.backlight_set",
+    "system.print_list",
+    "system.print_default",
+    "system.print_file",
+    "system.print_jobs",
+    "system.print_job_cancel",
+    "system.print_job_pause",
+    "system.print_job_resume",
+    "system.pressure",
+    "system.thermal",
+    "system.cpu.frequency",
+    "system.cpu.governor",
+    "system.cpu.set_governor",
+    "system.inhibit",
+    "system.release_inhibit",
+    "system.sessions",
+    "system.lock_session",
+    "system.switch_user",
+    "system.check_auth",
+    "system.elevate",
+    "system.update",          # ★ self-update from GitHub releases
+
+    # --- Wait ---
+    "wait.for",
+
+    # --- D-Bus ---
+    "dbus.call",              # ★ raw D-Bus method calls
+
+    # --- Schedule / Services / Journal / Timers ---
+    "schedule.list",
+    "schedule.add",
+    "schedule.remove",
+    "service.status",
+    "service.start",
+    "service.stop",
+    "service.restart",
+    "service.enable",
+    "service.disable",
+    "service.list",
+    "journal.query",
+    "timer.list",
+    "timer.start",
+    "timer.stop",
+
+    # --- Network ---
+    "network.status",
+    "network.interfaces",
+    "network.wifi.scan",
+    "network.wifi.connect",
+    "network.wifi.enable",
+    "network.connections.list",
+    "network.connections.profiles",
+    "network.hotspot.start",
+    "network.hotspot.stop",
+    "network.wwan.enable",
+    "network.dns.set",
+    "network.dns.reset",
+    "network.vpn.connect",
+    "network.vpn.disconnect",
+
+    # --- Bluetooth ---
+    "bluetooth.list",
+    "bluetooth.scan",
+    "bluetooth.scan_stop",
+    "bluetooth.connect",
+    "bluetooth.disconnect",
+    "bluetooth.pair",
+    "bluetooth.forget",
+
+    # --- Files ---
+    "files.watch",
+    "files.unwatch",
+    "files.search",
+    "files.read",
+    "files.write",           # ★
+    "files.copy",
+    "files.move",            # ★
+    "files.delete",          # ★
+    "files.mkdir",
+    "files.list",
+
+    # --- Browser (requires browser extension) ---
+    "browser.list_tabs",
+    "browser.navigate",
+    "browser.evaluate",      # ★ execute JS in browser
+    "browser.screenshot_tab",
+    "browser.click",
+
+    # --- Accessibility Tree ---
+    "a11y.tree",
+    "a11y.get_element",
+    "a11y.click_element",
+    "a11y.get_text",
+    "a11y.snapshot_tree",
+    "a11y.perform_action",
+    "a11y.set_value",
+    "a11y.get_element_text",
+    "a11y.list_apps",
+    "a11y.doctor",
+    "a11y.setup_accessibility",
+    "a11y.click_element_by_ref",
+
+    # --- Process ---
+    "process.list",
+    "process.start",         # ★
+    "process.stop",          # ★
+    "process.signal",        # ★
+    "process.exists",
+    "process.wait",
+
+    # --- Terminal (PTY sessions) ---
+    "terminal.create",       # ★
+    "terminal.write",
+    "terminal.read",
+    "terminal.resize",
+    "terminal.list",
+    "terminal.kill",
+
+    # --- Capabilities ---
+    "capabilities.list",
+
+    # --- Hotkeys ---
+    "hotkeys.register",
+    "hotkeys.unregister",
+
+    # --- Audio ---
+    "audio.list_sinks",
+    "audio.set_sink_volume",
+    "audio.list_sources",
+    "audio.get_volume",
+    "audio.set_volume",
+    "audio.mute",
+    "audio.set_default",
+
+    # --- Monitor ---
+    "monitor.list",
+    "monitor.set_primary",
+    "monitor.set_resolution",
+    "monitor.set_scale",
+    "monitor.set_rotation",
+    "monitor.enable",
+    "monitor.disable",
+
+    # --- Location ---
+    "location.get",
+
+    # --- UI Inspection ---
+    "ui.tree.get",
+    "ui.element.click",
+    "ui.element.set_text",
+
+    # --- Macros ---
+    "macro.record.start",
+    "macro.record.stop",
+    "macro.replay",
+    "macro.list",
+    "macro.get",
+    "macro.delete",
+    "macro.export",
+    "macro.import",
+
+    # --- Sessions ---
+    "session.create",
+    "session.destroy",
+    "session.list",
+    "session.switch",
+    "session.var.set",
+    "session.var.get",
+    "session.var.list",
+
+    # --- Rules Engine ---
+    "rule.create",
+    "rule.list",
+    "rule.get",
+    "rule.delete",
+    "rule.pause",
+    "rule.resume",
+
+    # --- Blackboard (shared key-value store) ---
+    "blackboard.set",
+    "blackboard.get",
+    "blackboard.delete",
+    "blackboard.list",
+
+    # --- Desktop Settings ---
+    "desktop.get_setting",
+    "desktop.set_setting",
+    "desktop.list_schemas",
+
+    # --- Confirmation System ---
+    "confirmation.confirm",
+    "confirmation.deny",
+    "confirmation.list",
+
+    # --- Agent Messaging ---
+    "agent.message",
+    "agent.broadcast",
+    "agent.mailbox",
+
+    # --- Unified Search ---
+    "search.query",
+    "search.index",
+
+    # --- Secret Service (keyring) ---
+    "secrets.list_collections",
+    "secrets.get_secret",    # ★
+    "secrets.store_secret",  # ★
+
+    # --- Subscriptions / Client Management ---
+    "subscribe",
+    "unsubscribe",
+    "disconnect",
+    "clients.list",
+]
+deny = []
+
+# --- Per-UID overrides ---
+# Example: UID 1001 gets read-only access
+# [peer.1001]
+# allow = ["windows.list", "system.info", "system.health"]
+# deny = ["*"]
+
+# Example: UID 1002 has everything except destructive system control
+# [peer.1002]
+# allow = ["*"]
+# deny = ["system.power", "system.update", "process.start", "terminal.create"]
