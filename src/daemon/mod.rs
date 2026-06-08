@@ -1,4 +1,5 @@
 use crate::DaemonState;
+use crate::daemon::helpers::home_dir;
 use anyhow::Context;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
@@ -116,7 +117,14 @@ pub(crate) const MONITOR_CONTROL_ACTIONS: &[&str] = &[
 pub(crate) fn socket_path() -> String {
     std::env::var("XDG_RUNTIME_DIR")
         .map(|d| format!("{}/deskbrid.sock", d))
-        .expect("XDG_RUNTIME_DIR must be set — cannot determine socket path")
+        .unwrap_or_else(|_| {
+            let fallback = format!("{}/.deskbrid.sock", home_dir().display());
+            tracing::warn!(
+                "XDG_RUNTIME_DIR not set — using fallback socket path: {}",
+                fallback
+            );
+            fallback
+        })
 }
 
 /// Start the Unix socket daemon and accept connections.

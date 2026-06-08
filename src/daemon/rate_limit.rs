@@ -256,10 +256,23 @@ impl RateLimitStore {
         bucket.take(config)
     }
 
-    #[allow(dead_code)]
+    /// Remove all buckets for a disconnected peer. Call from the client
+    /// disconnect handler to prevent unbounded growth of the bucket map.
     pub fn remove_peer(&self, peer_uid: u32) {
         let mut buckets = self.buckets.lock().unwrap();
         buckets.remove(&peer_uid);
+    }
+
+    /// Sweep peers that haven't been seen in `max_age` seconds.
+    /// Call periodically (e.g., every 10 minutes) to keep the bucket map bounded.
+    pub fn sweep_stale(&self, max_age: std::time::Duration) {
+        let now = std::time::Instant::now();
+        let mut buckets = self.buckets.lock().unwrap();
+        buckets.retain(|_, ns_map| {
+            ns_map
+                .values()
+                .any(|b| now.duration_since(b.last_refill) < max_age)
+        });
     }
 }
 
