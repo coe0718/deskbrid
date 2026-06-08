@@ -79,7 +79,10 @@ pub(crate) async fn verify_checksum_if_available(
 
     let checksum_name = format!("{}.sha256", asset.name);
     let Some(checksum_asset) = release.assets.iter().find(|a| a.name == checksum_name) else {
-        return Ok("no checksum asset published; skipped".to_string());
+        return Err(anyhow::anyhow!(
+            "no checksum asset ({}) published — release is not verified",
+            checksum_name
+        ));
     };
 
     // Download the checksum file

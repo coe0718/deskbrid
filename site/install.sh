@@ -257,7 +257,6 @@ if command -v deskbrid &>/dev/null; then
   ok "deskbrid already installed at $(which deskbrid)"
 else
   echo
-  info "Downloading deskbrid v${VER}..."
   ARCH="$(uname -m)"
   case "$ARCH" in
     x86_64)  ARCH="x86_64-unknown-linux-gnu" ;;
@@ -266,9 +265,22 @@ else
   esac
 
   URL="${REPO}/releases/download/v${VER}/deskbrid-${ARCH}.tar.gz"
+  SHA256_URL="${URL}.sha256"
   TMPDIR="$(mktemp -d)"
 
-  curl -fsSL "$URL" -o "$TMPDIR/deskbrid.tar.gz"
+  info "Downloading deskbrid v${VER}..."
+  curl -fsSL "$URL" -o "$TMPDIR/deskbrid.tar.gz" || fail "download failed: $URL"
+  curl -fsSL "$SHA256_URL" -o "$TMPDIR/deskbrid.tar.gz.sha256" || fail "checksum download failed: $SHA256_URL"
+
+  # Verify checksum before extracting
+  EXPECTED=$(awk '{print $1}' "$TMPDIR/deskbrid.tar.gz.sha256")
+  ACTUAL=$(sha256sum "$TMPDIR/deskbrid.tar.gz" | awk '{print $1}')
+  [ "$EXPECTED" = "$ACTUAL" ] || fail "checksum mismatch
+
+Expected: $EXPECTED
+Got:      $ACTUAL"
+  ok "Checksum verified — ${EXPECTED:0:16}..."
+
   tar -xzf "$TMPDIR/deskbrid.tar.gz" -C "$TMPDIR"
 
   sudocmd mv "$TMPDIR/deskbrid" "$BIN_PATH"
