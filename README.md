@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://deskbrid.patchhive.dev"><strong>deskbrid.patchhive.dev</strong></a>
+  <a href="https://github.com/coe0718/deskbrid/tree/main/docs/wiki"><strong>📖 Docs</strong></a>
 </p>
 
 mcp-name: io.github.coe0718/deskbrid

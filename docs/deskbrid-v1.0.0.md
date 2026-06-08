@@ -624,7 +624,7 @@ For detailed item tracking, see `ROADMAP.md`.
 
 ## Links
 
-- **Docs site:** <https://deskbrid.patchhive.dev>
+- **Docs:** <https://github.com/coe0718/deskbrid/tree/main/docs/wiki>
 - **Repository:** <https://github.com/coe0718/deskbrid>
 - **Live dashboard demo:** <https://deskbrid.patchhive.dev/live>
 - **Install script:** <https://deskbrid.patchhive.dev/install.sh>
