@@ -113,12 +113,26 @@ async fn nm_wifi_scan() -> anyhow::Result<Value> {
 }
 
 async fn nm_wifi_connect(ssid: &str, password: Option<&str>) -> anyhow::Result<Value> {
-    let mut args = vec!["device", "wifi", "connect", ssid];
+    // Use --ask to avoid exposing password in /proc/<pid>/cmdline
     if let Some(pw) = password {
-        args.push("password");
-        args.push(pw);
+        let mut child = tokio::process::Command::new("nmcli")
+            .args(["device", "wifi", "connect", ssid, "--ask"])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()?;
+        if let Some(mut stdin) = child.stdin.take() {
+            use tokio::io::AsyncWriteExt;
+            stdin.write_all(format!("{}\n", pw).as_bytes()).await?;
+        }
+        let output = child.wait_with_output().await?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("nmcli wifi connect failed: {}", stderr.trim());
+        }
+    } else {
+        run_nmcli(&["device", "wifi", "connect", ssid]).await?;
     }
-    run_nmcli(&args).await?;
     Ok(serde_json::json!({"connected": ssid}))
 }
 

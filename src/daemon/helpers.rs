@@ -59,7 +59,7 @@ pub async fn spawn_detached_process(
         .ok_or_else(|| anyhow::anyhow!("command must not be empty"))?;
 
     // Validate against command allowlist (env-configured, colon-separated)
-    // If DESKBRID_ALLOWED_COMMANDS is unset, only allow known-safe starters
+    // If DESKBRID_ALLOWED_COMMANDS is unset, any command is allowed — set it to restrict.
     let allowed_cmds = std::env::var("DESKBRID_ALLOWED_COMMANDS").unwrap_or_default();
     if !allowed_cmds.is_empty() {
         let allowed: Vec<&str> = allowed_cmds.split(':').collect();

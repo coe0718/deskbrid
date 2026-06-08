@@ -146,6 +146,11 @@ fn dbus_send_arg(value: &serde_json::Value) -> String {
         }
         serde_json::Value::Bool(b) => format!("boolean:{}", *b),
         serde_json::Value::Array(arr) => {
+            // dbus-send expects array args as space-separated typed values.
+            // Nesting arrays isn't supported — flattening would produce malformed args.
+            if arr.iter().any(|v| matches!(v, serde_json::Value::Array(_))) {
+                return "string:<nested-array-unsupported>".to_string();
+            }
             arr.iter().map(dbus_send_arg).collect::<Vec<_>>().join(" ")
         }
         _ => format!("string:{}", value),
