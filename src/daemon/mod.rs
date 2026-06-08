@@ -122,6 +122,7 @@ pub(crate) fn socket_path() -> String {
 /// Start the Unix socket daemon and accept connections.
 pub async fn run(
     no_dashboard: bool,
+    dashboard_bind: String,
     tcp_bind: Option<String>,
     tcp_token: Option<String>,
 ) -> anyhow::Result<()> {
@@ -147,7 +148,7 @@ pub async fn run(
     if !no_dashboard {
         let dash_state = Arc::clone(&state);
         tokio::spawn(async move {
-            dashboard::start(dash_state).await;
+            dashboard::start(dash_state, dashboard_bind).await;
         });
     }
 

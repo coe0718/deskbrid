@@ -93,6 +93,10 @@ pub enum Command {
         #[arg(long)]
         no_dashboard: bool,
 
+        /// Dashboard bind address (default: 127.0.0.1 — use 0.0.0.0 for LAN access)
+        #[arg(long, default_value = "127.0.0.1")]
+        dashboard_bind: String,
+
         /// TCP bind address for network access (e.g. 0.0.0.0:7890)
         #[arg(long)]
         tcp_port: Option<String>,

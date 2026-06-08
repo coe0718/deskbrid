@@ -12,8 +12,8 @@ use render_data::{
     render_notifications, render_rules, render_search, render_secrets, render_sessions,
 };
 
-pub async fn start(state: Arc<DaemonState>) {
-    let addr = format!("0.0.0.0:{}", DASHBOARD_PORT);
+pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
+    let addr = format!("{}:{}", bind_ip, DASHBOARD_PORT);
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
