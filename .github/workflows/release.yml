@@ -47,7 +47,7 @@ jobs:
       - name: Package tarball
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf "deskbrid-mcp-${{ matrix.target }}.tar.gz" deskbrid cosmic-helper labwc-helper
+          tar czf "deskbrid-${{ matrix.target }}.tar.gz" deskbrid cosmic-helper labwc-helper
 
       - name: Generate SHA256 checksums
         run: |

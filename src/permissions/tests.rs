@@ -40,7 +40,12 @@ fn test_glob_match_prefix_not_segment() {
 fn test_permissions_allow_all() {
     let p = Permissions::allow_all();
     // Normal actions work under allow-all
-    assert!(p.check(
+    assert!(p.check(1000, &Action::WindowsList));
+    assert!(p.check(1000, &Action::SystemInfo));
+    // High-risk actions require explicit naming — wildcard "*" doesn't authorize them.
+    // Screenshot and ClipboardRead are high-risk now (expanded list),
+    // so they're denied under allow-all's "*" wildcard.
+    assert!(!p.check(
         1000,
         &Action::Screenshot {
             monitor: None,
@@ -49,8 +54,7 @@ fn test_permissions_allow_all() {
             output: None,
         }
     ));
-    assert!(p.check(1000, &Action::ClipboardRead));
-    // High-risk actions require explicit naming — wildcard "*" doesn't authorize them
+    assert!(!p.check(1000, &Action::ClipboardRead));
     assert!(!p.check(
         2000,
         &Action::ProcessStart {
@@ -102,7 +106,7 @@ fn test_permissions_deny_screenshot() {
             output: None,
         }
     ));
-    assert!(p.check(1000, &Action::ClipboardRead));
+    assert!(p.check(1000, &Action::SystemInfo));
     assert!(p.check(1000, &Action::WindowsList));
 }
 
@@ -112,7 +116,7 @@ fn test_permissions_per_uid() {
     per_uid.insert(
         "uid:1000".into(),
         PermissionEntry {
-            allow: vec!["*".into()],
+            allow: vec!["*".into(), "screenshot".into()],
             deny: vec![],
         },
     );
@@ -279,8 +283,8 @@ fn test_high_risk_deny_still_wins() {
 }
 
 #[test]
-fn test_high_risk_all_five_blocked_by_wildcard() {
-    // Every HIGH_RISK_ACTIONS entry must be blocked under allow-all (\"*\").
+fn test_high_risk_all_blocked_by_wildcard() {
+    // Every HIGH_RISK_ACTIONS entry must be blocked under allow-all ("*").
     let p = Permissions::allow_all();
 
     // browser.evaluate
@@ -299,6 +303,22 @@ fn test_high_risk_all_five_blocked_by_wildcard() {
             command: vec!["echo".into(), "hi".into()],
             workdir: None,
             env: None,
+        }
+    ));
+    // process.stop
+    assert!(!p.check(
+        1000,
+        &Action::ProcessStop {
+            pid: 1,
+            signal: None,
+        }
+    ));
+    // process.signal
+    assert!(!p.check(
+        1000,
+        &Action::ProcessSignal {
+            pid: 1,
+            signal: "SIGTERM".into(),
         }
     ));
     // terminal.create
@@ -320,6 +340,13 @@ fn test_high_risk_all_five_blocked_by_wildcard() {
             force: false,
         }
     ));
+    // system.power
+    assert!(!p.check(
+        1000,
+        &Action::SystemPower {
+            action: "suspend".into(),
+        }
+    ));
     // dbus.call
     assert!(!p.check(
         1000,
@@ -332,17 +359,137 @@ fn test_high_risk_all_five_blocked_by_wildcard() {
             args: None,
         }
     ));
+    // files.write
+    assert!(!p.check(
+        1000,
+        &Action::FilesWrite {
+            path: "/tmp/test".into(),
+            content: "data".into(),
+            append: false,
+        }
+    ));
+    // files.delete
+    assert!(!p.check(
+        1000,
+        &Action::FilesDelete {
+            path: "/tmp/test".into(),
+            recursive: false,
+        }
+    ));
+    // files.move
+    assert!(!p.check(
+        1000,
+        &Action::FilesMove {
+            source: "/tmp/a".into(),
+            destination: "/tmp/b".into(),
+        }
+    ));
+    // clipboard.read
+    assert!(!p.check(1000, &Action::ClipboardRead));
+    // clipboard.history
+    assert!(!p.check(
+        1000,
+        &Action::ClipboardHistoryList {
+            limit: None,
+            query: None,
+        }
+    ));
+    // screenshot
+    assert!(!p.check(
+        1000,
+        &Action::Screenshot {
+            monitor: None,
+            region: None,
+            window_id: None,
+            output: None,
+        }
+    ));
+    // screenshot.ocr
+    assert!(!p.check(
+        1000,
+        &Action::ScreenshotOcr {
+            path: None,
+            language: None,
+            psm: None,
+            bounding_boxes: false,
+            monitor: None,
+            region: None,
+            window_id: None,
+        }
+    ));
+    // screenshot.diff
+    assert!(!p.check(
+        1000,
+        &Action::ScreenshotDiff {
+            before_path: "a.png".into(),
+            after_path: None,
+            tolerance: None,
+            diff_path: None,
+            save_diff: false,
+            monitor: None,
+            region: None,
+            window_id: None,
+        }
+    ));
+    // input.keyboard
+    assert!(!p.check(
+        1000,
+        &Action::InputKeyboardType {
+            text: "hello".into(),
+        }
+    ));
+    // input.mouse
+    assert!(!p.check(
+        1000,
+        &Action::InputMouse {
+            action: "move".into(),
+            x: Some(100.0),
+            y: Some(200.0),
+            button: None,
+            dx: None,
+            dy: None,
+        }
+    ));
+    // input.mouse.drag
+    assert!(!p.check(
+        1000,
+        &Action::InputMouseDrag {
+            from_x: 0.0,
+            from_y: 0.0,
+            to_x: 100.0,
+            to_y: 100.0,
+            button: None,
+            duration_ms: None,
+        }
+    ));
+    // secrets.get_secret
+    assert!(!p.check(
+        1000,
+        &Action::SecretsGetSecret {
+            attributes: std::collections::HashMap::new(),
+        }
+    ));
+    // secrets.store_secret
+    assert!(!p.check(
+        1000,
+        &Action::SecretsStoreSecret {
+            attributes: std::collections::HashMap::new(),
+            secret: "s3cret".into(),
+            label: None,
+            collection: None,
+        }
+    ));
 }
 
 #[test]
-fn test_permissions_load_missing_file_returns_allow_all() {
-    // Permissions::load() reads from ~/.config/deskbrid/permissions.toml.
-    // Since the test env likely doesn't have one, this should return allow-all.
-    // We can't easily redirect config_path, so we test the documented behavior
-    // by constructing the equivalent directly.
+fn test_permissions_allow_all_function() {
+    // Permissions::allow_all() uses "*" — safe actions pass, high-risk actions don't.
+    // We test the function directly (not through load() which now returns default_safe).
     let p = Permissions::allow_all();
     assert!(p.check(1000, &Action::WindowsList));
-    assert!(p.check(1000, &Action::ClipboardRead));
+    assert!(p.check(1000, &Action::SystemInfo));
+    // High-risk actions are denied under "*" wildcard
+    assert!(!p.check(1000, &Action::ClipboardRead));
 }
 
 #[test]

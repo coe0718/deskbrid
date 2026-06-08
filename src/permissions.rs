@@ -38,16 +38,16 @@ impl Permissions {
         &self.inner.rate_limits
     }
 
-    /// Load from config file, or return allow-all if no file exists.
+    /// Load from config file, or return safe defaults if no file exists.
     /// On read/parse error, returns deny-all to prevent accidental over-permission.
     pub fn load() -> Self {
         let path = config_path();
         if !path.exists() {
             info!(
-                "No permissions file at {}, defaulting to allow-all",
+                "No permissions file at {}, using safe defaults. Create this file to customize.",
                 path.display()
             );
-            return Self::allow_all();
+            return Self::default_safe();
         }
 
         let content = match std::fs::read_to_string(&path) {
@@ -108,6 +108,58 @@ impl Permissions {
         }
     }
 
+    /// Safe defaults for fresh installs — allows core automation primitives,
+    /// denies destructive or sensitive actions. High-risk actions (process.start,
+    /// secrets.*, files.write/delete, etc.) require explicit opt-in.
+    /// Users can edit ~/.config/deskbrid/permissions.toml to customize.
+    pub fn default_safe() -> Self {
+        Self {
+            inner: Arc::new(PermissionsInner {
+                default: PermissionEntry {
+                    allow: vec![
+                        "windows.*".to_string(),
+                        "workspaces.*".to_string(),
+                        "system.*".to_string(),
+                        "audio.*".to_string(),
+                        "mpris.*".to_string(),
+                        "network.*".to_string(),
+                        "bluetooth.*".to_string(),
+                        "input.layouts.*".to_string(),
+                        "notification.*".to_string(),
+                        "monitor.*".to_string(),
+                        "search.*".to_string(),
+                        "agent.*".to_string(),
+                        "macro.*".to_string(),
+                        "process.*".to_string(),
+                        "audit.*".to_string(),
+                        "apps.*".to_string(),
+                        "capabilities.*".to_string(),
+                        "desktop.*".to_string(),
+                        "color.*".to_string(),
+                        "blackboard.*".to_string(),
+                        "confirmation.*".to_string(),
+                        "rule.*".to_string(),
+                        "session.*".to_string(),
+                        "schedule.*".to_string(),
+                        "a11y.*".to_string(),
+                        "hotkeys.*".to_string(),
+                        // Explicit — require exact naming because they're in HIGH_RISK_ACTIONS
+                        "screenshot".to_string(),
+                        "screenshot.ocr".to_string(),
+                        "screenshot.diff".to_string(),
+                        "clipboard.read".to_string(),
+                        "input.keyboard".to_string(),
+                        "input.mouse".to_string(),
+                        "input.mouse.drag".to_string(),
+                    ],
+                    deny: vec![],
+                },
+                permissions: HashMap::new(),
+                rate_limits: HashMap::new(),
+            }),
+        }
+    }
+
     /// Check if an action is permitted for the given UID.
     /// Returns true if allowed, false if denied.
     pub fn check(&self, uid: u32, action: &Action) -> bool {
@@ -156,13 +208,29 @@ fn config_path() -> PathBuf {
 }
 
 /// Actions that are never authorized by wildcard patterns.
-/// These require explicit naming in the allow list — `"*"` or `"browser.*"` won't cut it.
+/// These require explicit naming in the allow list — `"*"` or `"process.*"` won't cut it.
 const HIGH_RISK_ACTIONS: &[&str] = &[
     "browser.evaluate",
     "process.start",
+    "process.stop",
+    "process.signal",
     "terminal.create",
     "system.update",
+    "system.power",
     "dbus.call",
+    "files.write",
+    "files.delete",
+    "files.move",
+    "clipboard.read",
+    "clipboard.history",
+    "screenshot",
+    "screenshot.ocr",
+    "screenshot.diff",
+    "input.keyboard",
+    "input.mouse",
+    "input.mouse.drag",
+    "secrets.get_secret",
+    "secrets.store_secret",
 ];
 
 fn is_high_risk(action_name: &str) -> bool {
