@@ -265,6 +265,9 @@ async fn clipboard_entries_persist_across_state_instances() {
 
     crate::daemon::clipboard::record_clipboard_text(&state, "survivor", "test").await;
 
+    // Drop state so WAL is checkpointed before state2 opens
+    drop(state);
+
     // "Restart": create a new DaemonState — same on-disk DB should have the entry.
     let state2 = crate::DaemonState::new();
     crate::daemon::clipboard::load_clipboard_from_db(&state2).await;
@@ -307,6 +310,9 @@ async fn audit_entries_persist_across_state_instances() {
         1,
     )
     .await;
+
+    // Drop state so WAL is checkpointed before state2 opens
+    drop(state);
 
     // "Restart": new DaemonState, load from DB, query directly
     let state2 = crate::DaemonState::new();
