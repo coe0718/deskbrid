@@ -126,8 +126,7 @@ mod tests {
 
     #[test]
     fn expand_path_blocks_traversal_into_etc() {
-        let home = home_dir().to_string_lossy().to_string();
-        let traversal = format!("{}/../../../etc/passwd", home);
+        let traversal = "/tmp/../../../etc/passwd";
         let result = expand_path(&traversal);
         assert!(
             result.is_err(),
