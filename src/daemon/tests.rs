@@ -397,6 +397,7 @@ async fn confirmation_deny_removes_from_queue() {
             id: confirm_id.clone(),
         },
         &state,
+        1000,
     )
     .await
     .unwrap();
@@ -421,6 +422,7 @@ async fn confirmation_deny_nonexistent_returns_not_found() {
             id: "nonexistent-id".to_string(),
         },
         &state,
+        0,
     )
     .await
     .unwrap();
@@ -450,10 +452,13 @@ async fn confirmation_list_shows_pending_items() {
         .await;
     }
 
-    let list =
-        crate::daemon::execute_confirmation::execute_confirmation(Action::ConfirmationList, &state)
-            .await
-            .unwrap();
+    let list = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::ConfirmationList,
+        &state,
+        0,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(list["count"], 2);
     let items = list["pending"].as_array().unwrap();
@@ -502,4 +507,74 @@ async fn confirmation_sweeper_removes_expired_entries() {
         !pending.contains_key(&confirm_id),
         "expired entry should be gone"
     );
+}
+
+#[tokio::test]
+async fn confirmation_rejects_wrong_peer_uid() {
+    let state = crate::DaemonState::new();
+
+    // Queue a pending confirmation owned by peer_uid 100
+    let confirm_id = "ownership-test".to_string();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let entry = crate::daemon::execute_confirmation::PendingConfirmation {
+        request_id: "req-1".into(),
+        action: Action::SystemInfo,
+        options: Default::default(),
+        peer_uid: 100,
+        seq: 1,
+        session_id: "default".into(),
+        created_at: now_ms,
+    };
+    state
+        .pending_confirmations
+        .lock()
+        .await
+        .insert(confirm_id.clone(), entry);
+
+    // Peer 200 tries to deny — should be rejected
+    let deny = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::DenyAction {
+            id: confirm_id.clone(),
+        },
+        &state,
+        200, // wrong peer_uid
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(deny["status"], "denied");
+    assert!(
+        deny["error"]
+            .as_str()
+            .unwrap()
+            .contains("ownership mismatch")
+    );
+
+    // Original entry should still be in queue
+    let pending = state.pending_confirmations.lock().await;
+    assert!(
+        pending.contains_key(&confirm_id),
+        "entry owned by peer 100 should not be removable by peer 200"
+    );
+    drop(pending);
+
+    // Peer 100 can deny it
+    let deny = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::DenyAction {
+            id: confirm_id.clone(),
+        },
+        &state,
+        100, // correct peer_uid
+    )
+    .await
+    .unwrap();
+    assert_eq!(deny["status"], "denied");
+    assert!(!deny.as_object().unwrap().contains_key("error"));
+
+    // Now it's gone
+    let pending = state.pending_confirmations.lock().await;
+    assert!(!pending.contains_key(&confirm_id));
 }

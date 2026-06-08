@@ -59,8 +59,9 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
                 let dash_bind = dashboard_bind;
                 let tcp_bind = tcp_port;
                 let tcp_tok = tcp_token;
-                let daemon_handle =
-                    tokio::spawn(async move { daemon::run(no_dash, dash_bind, tcp_bind, tcp_tok).await });
+                let daemon_handle = tokio::spawn(async move {
+                    daemon::run(no_dash, dash_bind, tcp_bind, tcp_tok).await
+                });
                 let mcp_handle =
                     tokio::spawn(
                         async move { deskbrid::mcp::server::run_mcp_tcp_on_port(port).await },

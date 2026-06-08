@@ -9,7 +9,6 @@ use super::execute_browser;
 use super::execute_capabilities;
 use super::execute_clipboard;
 use super::execute_color;
-use super::execute_confirmation;
 use super::execute_delegated;
 use super::execute_desktop;
 use super::execute_files;
@@ -227,9 +226,10 @@ pub async fn execute_action(
             execute_workspace::execute_workspace(action, backend, state).await?
         }
 
-        // New features (#37, #44, #80)
+        // Confirmation / agent / search actions are now dispatched directly
+        // from dispatch_action_with_options before reaching execute_action.
         ConfirmAction { .. } | DenyAction { .. } | ConfirmationList => {
-            Box::pin(execute_confirmation::execute_confirmation(action, state)).await?
+            unreachable!("confirmation actions are handled in dispatch")
         }
         AgentMessage { .. } | AgentBroadcast { .. } | AgentMailbox => {
             execute_agent::execute_agent(action, state, "default").await?

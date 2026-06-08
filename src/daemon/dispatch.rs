@@ -274,6 +274,23 @@ pub async fn dispatch_action_with_options(
         )
         .await;
     }
+    if crate::daemon::execute_confirmation::is_confirmation_action(&action) {
+        let caller = peer_uid;
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            crate::daemon::execute_confirmation::execute_confirmation(
+                action.clone(),
+                state,
+                caller,
+            ),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
     if is_rules_action(&action) {
         let result = with_action_timeout(
             &action,

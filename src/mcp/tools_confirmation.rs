@@ -19,7 +19,7 @@ macro_rules! tools_confirmation {
         block_state(&self.rt, &self.state, move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::ConfirmAction { id };
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state).await
+                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
         })
     }
@@ -42,7 +42,7 @@ macro_rules! tools_confirmation {
         block_state(&self.rt, &self.state, move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::DenyAction { id };
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state).await
+                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
         })
     }
@@ -61,7 +61,7 @@ macro_rules! tools_confirmation {
         block_state(&self.rt, &self.state, |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::ConfirmationList;
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state).await
+                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
         })
     }

@@ -7,14 +7,32 @@ const CONFIRMATION_TTL_MS: u64 = 300_000;
 /// Sweep interval for the background task: 30 seconds.
 const SWEEP_INTERVAL_SECS: u64 = 30;
 
+/// Returns true if the action is a confirmation management action.
+/// These are backend-free: they operate on the in-memory confirmation queue.
+pub fn is_confirmation_action(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::ConfirmAction { .. } | Action::DenyAction { .. } | Action::ConfirmationList
+    )
+}
+
 /// Execute confirmation actions.
 pub async fn execute_confirmation(
     action: Action,
     state: &crate::DaemonState,
+    caller_uid: u32,
 ) -> anyhow::Result<Value> {
     match action {
         Action::ConfirmAction { id } => {
             let mut pending = state.pending_confirmations.lock().await;
+            // Ownership check BEFORE removal — wrong peer must not consume the entry.
+            if let Some(entry) = pending.get(&id)
+                && entry.peer_uid != caller_uid
+            {
+                return Ok(
+                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                );
+            }
             if let Some(entry) = pending.remove(&id) {
                 let backend = state.backend.read().await;
                 let backend_ref = backend.as_ref().map(|b| b.as_ref());
@@ -37,7 +55,16 @@ pub async fn execute_confirmation(
         }
         Action::DenyAction { id } => {
             let mut pending = state.pending_confirmations.lock().await;
-            if pending.remove(&id).is_some() {
+            // Ownership check BEFORE removal — wrong peer must not consume the entry.
+            if let Some(entry) = pending.get(&id)
+                && entry.peer_uid != caller_uid
+            {
+                return Ok(
+                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                );
+            }
+            if let Some(entry) = pending.remove(&id) {
+                let _ = entry;
                 Ok(json!({"status": "denied", "id": id}))
             } else {
                 Ok(
