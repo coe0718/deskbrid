@@ -594,7 +594,7 @@ Installs `grim`, `wl-clipboard`, `python3-gi`, `gstreamer1.0-tools`, `gstreamer1
 
 ## Related Products & Ecosystem
 
-- **PatchHive** — parent ecosystem positioning Deskbrid as desktop bridge.
+- **[PatchHive](https://github.com/coe0718/patchhive)** — parent ecosystem positioning Deskbrid as desktop bridge.
 - **GNOME Shell Extension** — enables window/workspace control via D-Bus for GNOME backend.
 - **Python Client** — synchronous/async SDK for agent scripts.
 - **XDG Desktop Portal helpers** — fallback screenshot and capture helpers for restrictive desktops.
