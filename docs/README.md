@@ -33,3 +33,17 @@ Reference material, design specs, and historical records. Not the primary docume
 ## Wiki
 
 The [`wiki/`](wiki/) directory contains the source for [docs.deskbrid.patchhive.dev](https://docs.deskbrid.patchhive.dev) — architecture, protocol, features, integrations, and installation guides.
+
+## Archive
+
+Early design docs recovered from git history. Historical interest — may not reflect current implementation.
+
+| File | Description |
+|------|-------------|
+| [`archive/MCP_ATSPI_DESIGN.md`](archive/MCP_ATSPI_DESIGN.md) | MCP server mode + native AT-SPI accessibility design (572 lines) |
+| [`archive/TESTING_NEEDED.md`](archive/TESTING_NEEDED.md) | Untested features tracker from early development (166 lines) |
+| [`archive/HERMES_PLUGIN.md`](archive/HERMES_PLUGIN.md) | Hermes Agent plugin integration design (1,069 lines) |
+| [`archive/MCP_INTEGRATION.md`](archive/MCP_INTEGRATION.md) | MCP integration following computer-use-linux pattern (747 lines) |
+| [`archive/LINUX_CONTROL.md`](archive/LINUX_CONTROL.md) | Linux control expansion catalog — every mechanism for deeper system control (6,081 lines) |
+| [`archive/v2-build-plan.md`](archive/v2-build-plan.md) | v2 build plan — GNOME 46+ only constraint (232 lines) |
+| [`archive/v2-protocol-spec.md`](archive/v2-protocol-spec.md) | v2 agent-native Linux desktop HAL protocol design (1,209 lines) |
