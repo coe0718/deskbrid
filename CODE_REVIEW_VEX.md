@@ -18,18 +18,28 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 
 ## Severity Summary
 
-| Severity | Count |
-|----------|-------|
-| 🔴 CRITICAL | 4 |
-| 🟡 WARNING | 29 |
-| 🔵 SUGGESTION | 7 |
-| **Total** | **40** |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| 🔴 CRITICAL | 4 | 4 |
+| 🟡 WARNING | 29 | 4 |
+| 🔵 SUGGESTION | 7 | 0 |
+| **Total** | **40** | **8** |
+
+### Fixed
+- ✅ **C1** — Dashboard binds 127.0.0.1 by default, `--dashboard-bind` flag (commit `2233902`)
+- ✅ **C2** — Screenshot endpoint auth-gated (resolved by C1)
+- ✅ **C3** — Confirmation ownership check + route through dispatch (commit `4c891f8`)
+- ✅ **C4** — Macro recording skips secrets.*, clipboard.*, process.* (commit `3c05555`)
+- ✅ **W1** — `default_safe()` replaces allow-all on fresh install (commit `bcdc197`)
+- ✅ **W2** — HIGH_RISK_ACTIONS expanded from 5 → 21 entries (commit `bcdc197`)
+- ✅ **W9** — Confirmation ops routed through backend-free code path (commit `4c891f8`)
+- ✅ **W14** — Release artifact naming: `deskbrid-mcp-` → `deskbrid-` (commit `bcdc197`)
 
 ---
 
 ## 🔴 CRITICAL Findings
 
-### C1. Dashboard binds `0.0.0.0:20129` with no authentication
+### C1. Dashboard binds `0.0.0.0:20129` with no authentication ✅ FIXED
 
 **File:** `src/daemon/dashboard/mod.rs:16`
 
@@ -43,7 +53,7 @@ The dashboard exposes the full desktop state — system info, monitors, windows,
 
 ---
 
-### C2. Unauthenticated `/screenshot` endpoint on `0.0.0.0`
+### C2. Unauthenticated `/screenshot` endpoint on `0.0.0.0` ✅ FIXED
 
 **File:** `src/daemon/dashboard/server.rs:252`
 
@@ -58,7 +68,7 @@ On the current `0.0.0.0` bind, any network peer can trigger a screenshot and rec
 
 ---
 
-### C3. Confirmation action bypasses ownership check and permission re-check
+### C3. Confirmation action bypasses ownership check and permission re-check ✅ FIXED
 
 **File:** `src/daemon/execute_confirmation.rs:16-31`
 
@@ -80,7 +90,7 @@ Two compounding flaws:
 
 ---
 
-### C4. Macro recording captures secrets plaintext to disk
+### C4. Macro recording captures secrets plaintext to disk ✅ FIXED
 
 **Files:** `src/daemon/dispatch.rs:99-108`, `src/protocol/serialize/extensions.rs:117-140`
 
@@ -107,7 +117,7 @@ When the macro is later saved (`macro_engine::save_macro` → `~/.local/share/de
 
 ## 🟡 WARNING Findings
 
-### W1. Missing `permissions.toml` defaults to allow-all
+### W1. Missing `permissions.toml` defaults to allow-all ✅ FIXED
 
 **File:** `src/permissions.rs:45-50`
 
@@ -124,7 +134,7 @@ On first run (or any install without a permissions file), every action is permit
 
 ---
 
-### W2. `HIGH_RISK_ACTIONS` list is too narrow
+### W2. `HIGH_RISK_ACTIONS` list is too narrow ✅ FIXED
 
 **File:** `src/permissions.rs:160-166`
 
@@ -201,7 +211,7 @@ Clipboard reads/writes are persisted to SQLite history by default. Passwords, to
 
 ---
 
-### W9. Confirmation actions unreachable in headless mode
+### W9. Confirmation actions unreachable in headless mode ✅ FIXED
 
 **Files:** `src/daemon/execute.rs:231-232`, `src/daemon/dispatch.rs:374-386`
 
@@ -251,7 +261,7 @@ When `HOME`/`XDG_DATA_HOME` are unset, paths fall back to `/root/.local/...`. On
 
 ---
 
-### W14. Release artifact name mismatch — install and update are broken
+### W14. Release artifact name mismatch — install and update are broken ✅ FIXED
 
 **File:** `.github/workflows/release.yml:50`
 
