@@ -1,8 +1,12 @@
 use crate::DaemonState;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tracing::{error, info, warn};
 
 const DASHBOARD_PORT: u16 = 20129;
+
+/// Max concurrent dashboard connections. Protects against fd/memory exhaustion.
+const MAX_DASHBOARD_CONNECTIONS: usize = 32;
 
 mod render_data;
 mod server;
@@ -22,11 +26,24 @@ pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
         }
     };
     info!("Dashboard: http://{}", addr);
+    let semaphore = Arc::new(Semaphore::new(MAX_DASHBOARD_CONNECTIONS));
     loop {
         match listener.accept().await {
             Ok((stream, _)) => {
+                let permit = match semaphore.clone().try_acquire_owned() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        // All permits exhausted — drop connection gracefully
+                        warn!(
+                            "Dashboard: connection limit ({}) reached, rejecting",
+                            MAX_DASHBOARD_CONNECTIONS
+                        );
+                        continue;
+                    }
+                };
                 let state = Arc::clone(&state);
                 tokio::spawn(async move {
+                    let _permit = permit; // hold until handler finishes
                     if let Err(e) = server::handle_request(stream, state).await {
                         warn!("Dashboard: {}", e);
                     }

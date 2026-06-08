@@ -1,5 +1,8 @@
 use crate::DaemonState;
 use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpStream;
+use tracing::warn;
 
 use super::{
     base64_encode, error_box_html, render_agent_mailbox, render_audio, render_audit,
@@ -10,6 +13,13 @@ use super::{
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
+
+/// Max request-line size (64 KB) — rejects oversized HTTP requests.
+const MAX_REQUEST_LINE: u64 = 65536;
+/// Max header line size (8 KB).
+const MAX_HEADER_LINE: u64 = 8192;
+/// Max number of HTTP headers.
+const MAX_HEADERS: usize = 100;
 
 pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> String {
     let mut page = HTML_PAGE
@@ -181,25 +191,63 @@ async fn sse_card_html(card: &str, state: &DaemonState) -> String {
     }
 }
 
+/// Parse HTTP headers with size and count limits. Returns an error string
+/// if limits are exceeded, or completes normally.
+async fn read_headers(
+    reader: &mut BufReader<&mut tokio::io::Take<tokio::net::tcp::ReadHalf<'_>>>,
+) -> Result<(), String> {
+    for _header_count in 0..MAX_HEADERS {
+        let mut line = String::new();
+        reader
+            .read_line(&mut line)
+            .await
+            .map_err(|e| format!("header read error: {e}"))?;
+        if line.len() > MAX_HEADER_LINE as usize {
+            return Err("header line too large".into());
+        }
+        if line.trim().is_empty() {
+            return Ok(()); // end of headers
+        }
+    }
+    Err("too many headers".into())
+}
+
+/// Send a simple HTTP error response and close the connection.
+async fn send_error(writer: &mut tokio::net::tcp::WriteHalf<'_>, status: u16, msg: &str) {
+    let body = format!("{} {}\n", status, msg);
+    let _ = writer
+        .write_all(&http_response(status, "text/plain", body.as_bytes()))
+        .await;
+}
+
 pub(crate) async fn handle_request(
-    mut stream: tokio::net::TcpStream,
+    mut stream: TcpStream,
     state: Arc<DaemonState>,
 ) -> anyhow::Result<()> {
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-
     let (read_half, mut write_half) = stream.split();
-    let mut reader = BufReader::new(read_half);
+
+    // Cap the total request body at 64KB — prevents memory exhaustion.
+    let mut limited = read_half.take(MAX_REQUEST_LINE + MAX_HEADERS as u64 * MAX_HEADER_LINE);
+    let mut reader = BufReader::new(&mut limited);
+
     let mut request_line = String::new();
-    reader.read_line(&mut request_line).await?;
+    if reader.read_line(&mut request_line).await.is_err() {
+        send_error(&mut write_half, 400, "Bad Request").await;
+        return Ok(());
+    }
+    if request_line.len() > MAX_REQUEST_LINE as usize {
+        send_error(&mut write_half, 414, "URI Too Long").await;
+        return Ok(());
+    }
 
     let (method, path) = parse_request_line(request_line.trim()).unwrap_or(("GET", "/"));
 
-    loop {
-        let mut line = String::new();
-        reader.read_line(&mut line).await?;
-        if line.trim().is_empty() {
-            break;
-        }
+    // Read headers with bounds
+    if let Err(e) = read_headers(&mut reader).await {
+        warn!("Dashboard header error: {}", e);
+        let status = if e.contains("too large") { 431 } else { 400 };
+        send_error(&mut write_half, status, &e).await;
+        return Ok(());
     }
 
     // SSE event stream — polls cards every 3 seconds

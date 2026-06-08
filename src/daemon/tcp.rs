@@ -1,6 +1,6 @@
 use crate::DaemonState;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 
@@ -9,6 +9,9 @@ use super::client::handle_client_tcp;
 /// Synthetic UID assigned to TCP connections. Permissions for TCP clients
 /// are configured under `[permissions."uid:4294967294"]` in permissions.toml.
 pub const TCP_EFFECTIVE_UID: u32 = 0xFFFF_FFFE;
+
+/// Max size of an auth message line (4KB).
+const MAX_AUTH_LINE: u64 = 4096;
 
 /// Start a TCP listener on the given bind address. Authenticates with bearer token
 /// before handing off to the standard client handler.
@@ -46,14 +49,17 @@ async fn handle_tcp_connection(
     state: &DaemonState,
 ) -> anyhow::Result<()> {
     let (reader, mut writer) = tokio::io::split(stream);
-    let mut reader = BufReader::new(reader);
-
-    // Read auth message
+    // Cap reads at MAX_AUTH_LINE+1 so read_line can't buffer unboundedly.
+    // The +1 lets us detect overlong messages.
+    let mut limited = reader.take(MAX_AUTH_LINE + 1);
+    let mut buf_reader = BufReader::new(&mut limited);
     let mut auth_line = String::new();
-    reader.read_line(&mut auth_line).await?;
+    buf_reader.read_line(&mut auth_line).await?;
+    drop(buf_reader);
+    let reader = limited.into_inner();
 
     // Reject oversized auth messages
-    if auth_line.len() > 4096 {
+    if auth_line.len() > MAX_AUTH_LINE as usize {
         warn!(
             "TCP auth message too large ({} bytes) — rejecting",
             auth_line.len()
@@ -120,7 +126,8 @@ async fn handle_tcp_connection(
 
     let provided = auth.get("token").and_then(|v| v.as_str()).unwrap_or("");
 
-    if provided != token {
+    // Constant-time token comparison — no short-circuiting per-character
+    if !constant_time_eq(provided, token) {
         warn!("TCP client sent invalid token");
         let err = serde_json::json!({
             "type": "error", "id": "auth", "status": "error",
@@ -133,11 +140,29 @@ async fn handle_tcp_connection(
     }
 
     // Reassemble stream from split halves for the generic handler
-    let stream = reader.into_inner().unsplit(writer);
+    let stream = reader.unsplit(writer);
     handle_client_tcp(stream, TCP_EFFECTIVE_UID, state).await
 }
 
 /// Generate a random 32-character hex token suitable for TCP auth.
 pub fn generate_token() -> String {
     uuid::Uuid::new_v4().to_string().replace('-', "")
+}
+
+/// Constant-time string comparison. Resistant to timing side-channel attacks
+/// because it compares all bytes regardless of where a mismatch occurs.
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    let a_bytes = a.as_bytes();
+    let b_bytes = b.as_bytes();
+    // Length check: different lengths → not equal (minor length leak, but
+    // token length is already visible in the JSON message size).
+    if a_bytes.len() != b_bytes.len() {
+        return false;
+    }
+    // XOR all bytes — no short-circuit, every byte pair is compared
+    a_bytes
+        .iter()
+        .zip(b_bytes.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }
