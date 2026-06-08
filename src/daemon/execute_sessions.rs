@@ -33,7 +33,7 @@ pub(crate) async fn execute_session_action(
 
             // Persist to database
             {
-                let db = state.database.lock().unwrap();
+                let db = state.database.lock().await;
                 if let Err(e) = db.upsert_session(&data) {
                     tracing::warn!("Failed to persist session '{}' to DB: {}", name, e);
                 }
@@ -48,7 +48,7 @@ pub(crate) async fn execute_session_action(
             let mut sessions = state.sessions.lock().await;
             if sessions.remove(&name).is_some() {
                 // Remove from database
-                let db = state.database.lock().unwrap();
+                let db = state.database.lock().await;
                 let _ = db.delete_session(&name);
 
                 info!("Session '{}' destroyed", name);
@@ -101,7 +101,7 @@ pub(crate) async fn execute_session_action(
 
             // Persist variable to DB
             {
-                let db = state.database.lock().unwrap();
+                let db = state.database.lock().await;
                 let _ = db.upsert_session(session);
             }
 

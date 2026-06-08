@@ -7,7 +7,7 @@ pub(crate) async fn execute_blackboard_action(
     action: Action,
     state: &DaemonState,
 ) -> anyhow::Result<Value> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().await;
     let default_ns = "default".to_string();
 
     match action {

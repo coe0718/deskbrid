@@ -378,7 +378,7 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
         // Load persisted rules into engine
         {
             let persisted = {
-                let db = state.database.lock().unwrap();
+                let db = state.database.lock().await;
                 db.load_rules().unwrap_or_else(|e| {
                     warn!("Failed to load persisted rules: {}", e);
                     Vec::new()

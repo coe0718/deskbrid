@@ -86,7 +86,7 @@ pub struct DaemonState {
     pub clipboard_history_capacity: usize,
     pub schedule: Arc<daemon::schedule::ScheduleState>,
     pub recording: Arc<Mutex<Option<daemon::macro_engine::ActiveRecording>>>,
-    pub database: Arc<std::sync::Mutex<Database>>,
+    pub database: Arc<tokio::sync::Mutex<Database>>,
     /// Named sessions — map of session name to session data (#31)
     pub sessions: Arc<Mutex<HashMap<String, SessionData>>>,
     /// Rules engine state — registered rules with runtime tracking (#83)
@@ -154,7 +154,7 @@ impl DaemonState {
             clipboard_history_capacity: daemon::clipboard_history_capacity_from_env(),
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),
             recording: Arc::new(Mutex::new(None)),
-            database: Arc::new(std::sync::Mutex::new(database)),
+            database: Arc::new(tokio::sync::Mutex::new(database)),
             sessions: Arc::new(Mutex::new(sessions)),
             rules: Arc::new(Mutex::new(RuleEngine::new())),
             screencast_process: Arc::new(Mutex::new(None)),

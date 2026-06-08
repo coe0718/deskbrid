@@ -106,7 +106,7 @@ fn gnome_x11_keeps_primary_monitor_capability_supported() {
 async fn audit_actions_work_without_desktop_backend() {
     let state = crate::DaemonState::new();
     // Clear stale on-disk entries from previous test runs.
-    state.database.lock().unwrap().clear_audit().unwrap();
+    state.database.lock().await.clear_audit().unwrap();
 
     let first = dispatch_action(
         "test",
@@ -144,7 +144,7 @@ async fn audit_actions_work_without_desktop_backend() {
 async fn dry_run_validates_permissions_without_backend() {
     let state = crate::DaemonState::new();
     // Clear stale on-disk entries from previous test runs.
-    state.database.lock().unwrap().clear_audit().unwrap();
+    state.database.lock().await.clear_audit().unwrap();
 
     let response = dispatch::dispatch_action_with_options(
         "test",
@@ -186,7 +186,7 @@ async fn dry_run_validates_permissions_without_backend() {
 #[tokio::test]
 async fn clipboard_cache_db_consistent_after_write() {
     let state = crate::DaemonState::new();
-    state.database.lock().unwrap().clear_clipboard().unwrap();
+    state.database.lock().await.clear_clipboard().unwrap();
 
     // Write through the daemon API
     crate::daemon::clipboard::record_clipboard_text(&state, "test-one", "api").await;
@@ -217,7 +217,7 @@ async fn clipboard_cache_db_consistent_after_write() {
 #[tokio::test]
 async fn audit_cache_db_consistent_after_write() {
     let state = crate::DaemonState::new();
-    state.database.lock().unwrap().clear_audit().unwrap();
+    state.database.lock().await.clear_audit().unwrap();
 
     // Write an audit entry through the daemon path
     dispatch_action(
@@ -261,7 +261,7 @@ async fn audit_cache_db_consistent_after_write() {
 #[tokio::test]
 async fn clipboard_entries_persist_across_state_instances() {
     let state = crate::DaemonState::new();
-    state.database.lock().unwrap().clear_clipboard().unwrap();
+    state.database.lock().await.clear_clipboard().unwrap();
 
     crate::daemon::clipboard::record_clipboard_text(&state, "survivor", "test").await;
 
@@ -287,13 +287,13 @@ async fn clipboard_entries_persist_across_state_instances() {
     );
 
     // Cleanup
-    state2.database.lock().unwrap().clear_clipboard().unwrap();
+    state2.database.lock().await.clear_clipboard().unwrap();
 }
 
 #[tokio::test]
 async fn audit_entries_persist_across_state_instances() {
     let state = crate::DaemonState::new();
-    state.database.lock().unwrap().clear_audit().unwrap();
+    state.database.lock().await.clear_audit().unwrap();
 
     dispatch_action(
         "test",
@@ -329,7 +329,7 @@ async fn audit_entries_persist_across_state_instances() {
     assert_eq!(entries[0]["action_type"], "audit.log");
 
     // Cleanup
-    state2.database.lock().unwrap().clear_audit().unwrap();
+    state2.database.lock().await.clear_audit().unwrap();
 }
 
 // ── 3. Confirmation System ────────────────────────────────

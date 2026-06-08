@@ -40,7 +40,8 @@ pub(crate) async fn load_audit_from_db(state: &DaemonState) {
     let db_arc = state.database.clone();
     let cap = state.audit_capacity;
     let entries = tokio::task::spawn_blocking(move || {
-        let db = db_arc.lock().unwrap();
+        let handle = tokio::runtime::Handle::current();
+        let db = handle.block_on(db_arc.lock());
         db.get_audit_log(cap, None, None).unwrap_or_else(|e| {
             tracing::warn!("Failed to load audit log from database: {e}");
             Vec::new()
@@ -77,7 +78,7 @@ pub(crate) async fn record_audit_entry(state: &DaemonState, record: AuditRecord)
     drop(entries);
 
     // Persist to SQLite synchronously — DB is the source of truth.
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().await;
     let _ = db.insert_audit(&entry);
 }
 
@@ -98,7 +99,8 @@ pub(crate) async fn execute_audit_action(
             let limit = limit.unwrap_or(DEFAULT_AUDIT_LIMIT).min(MAX_AUDIT_LIMIT);
             let db_arc = state.database.clone();
             let mut entries = tokio::task::spawn_blocking(move || {
-                let db = db_arc.lock().unwrap();
+                let handle = tokio::runtime::Handle::current();
+                let db = handle.block_on(db_arc.lock());
                 db.get_audit_log(limit, action_type.as_deref(), status.as_deref())
             })
             .await
@@ -117,7 +119,7 @@ pub(crate) async fn execute_audit_action(
             drop(entries);
             state.next_audit_id.store(1, Ordering::Relaxed);
 
-            let db = state.database.lock().unwrap();
+            let db = state.database.lock().await;
             db.clear_audit()?;
             Ok(serde_json::json!({"cleared": cleared}))
         }
@@ -133,7 +135,7 @@ mod tests {
     async fn audit_log_filters_newest_entries_then_returns_chronological_order() {
         let state = DaemonState::new();
         // Clear stale on-disk entries from previous test runs.
-        state.database.lock().unwrap().clear_audit().unwrap();
+        state.database.lock().await.clear_audit().unwrap();
         for seq in 1..=3 {
             record_audit_entry(
                 &state,

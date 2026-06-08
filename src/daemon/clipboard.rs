@@ -25,7 +25,8 @@ pub(crate) async fn load_clipboard_from_db(state: &DaemonState) {
     let db_arc = state.database.clone();
     let cap = state.clipboard_history_capacity;
     let entries = tokio::task::spawn_blocking(move || {
-        let db = db_arc.lock().unwrap();
+        let handle = tokio::runtime::Handle::current();
+        let db = handle.block_on(db_arc.lock());
         db.get_clipboard_history(cap, None).unwrap_or_else(|e| {
             tracing::warn!("Failed to load clipboard history from database: {e}");
             Vec::new()
@@ -60,7 +61,7 @@ pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, sourc
     drop(history);
 
     // Persist to SQLite synchronously — DB is the source of truth.
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().await;
     let _ = db.insert_clipboard(text, Some(source));
 }
 
@@ -75,7 +76,8 @@ pub(crate) async fn execute_clipboard_history_action(
                 .min(MAX_CLIPBOARD_HISTORY_LIMIT);
             let db_arc = state.database.clone();
             let mut entries = tokio::task::spawn_blocking(move || {
-                let db = db_arc.lock().unwrap();
+                let handle = tokio::runtime::Handle::current();
+                let db = handle.block_on(db_arc.lock());
                 db.get_clipboard_history(limit, query.as_deref())
             })
             .await
@@ -93,7 +95,7 @@ pub(crate) async fn execute_clipboard_history_action(
             history.clear();
             drop(history);
 
-            let db = state.database.lock().unwrap();
+            let db = state.database.lock().await;
             db.clear_clipboard()?;
             Ok(serde_json::json!({"cleared": cleared}))
         }
@@ -109,7 +111,7 @@ mod tests {
     async fn clipboard_history_dedupes_consecutive_entries() {
         let state = DaemonState::new();
         // Clear stale on-disk entries from previous test runs.
-        state.database.lock().unwrap().clear_clipboard().unwrap();
+        state.database.lock().await.clear_clipboard().unwrap();
         record_clipboard_text(&state, "hello", "write").await;
         record_clipboard_text(&state, "hello", "read").await;
 

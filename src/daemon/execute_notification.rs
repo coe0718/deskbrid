@@ -105,7 +105,7 @@ pub(crate) async fn execute_notification(
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            let db = state.database.lock().unwrap();
+            let db = state.database.lock().await;
             let db_id = db
                 .insert_notification(
                     app_name,
@@ -144,7 +144,7 @@ pub(crate) async fn execute_notification(
             ref app_name,
             ref since,
         } => {
-            let db = state.database.lock().unwrap();
+            let db = state.database.lock().await;
             let limit = limit.unwrap_or(50) as usize;
             let notifications = db.get_notifications(limit, app_name.as_deref(), *since)?;
             serde_json::json!({ "notifications": notifications })
@@ -172,7 +172,7 @@ pub(crate) async fn execute_notification(
             })
         }
         NotificationClearHistory => {
-            let db = state.database.lock().unwrap();
+            let db = state.database.lock().await;
             db.clear_notifications()?;
             serde_json::json!({"cleared": true})
         }

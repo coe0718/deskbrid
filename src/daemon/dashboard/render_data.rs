@@ -38,7 +38,7 @@ async fn execute_secrets_collections(state: &DaemonState) -> anyhow::Result<Stri
 }
 
 pub(super) async fn render_clipboard(state: &DaemonState) -> String {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().await;
     match db.get_clipboard_history(10, None) {
         Ok(entries) => {
             if entries.is_empty() {
@@ -136,7 +136,7 @@ pub(super) async fn render_rules(state: &DaemonState) -> String {
 }
 
 pub(super) async fn render_notifications(state: &DaemonState) -> String {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().await;
     match db.get_notifications(8, None, None) {
         Ok(entries) => {
             if entries.is_empty() {
