@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
+use super::helpers::home_dir;
 use crate::DaemonState;
 
 // ─── Recording State ──────────────────────────────────
@@ -60,7 +61,7 @@ fn macro_dir() -> PathBuf {
     let base = std::env::var("XDG_DATA_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+            let home = home_dir().to_string_lossy().to_string();
             PathBuf::from(home).join(".local").join("share")
         });
     base.join("deskbrid").join("macros")

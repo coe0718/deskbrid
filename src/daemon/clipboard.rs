@@ -13,6 +13,15 @@ pub(crate) fn clipboard_history_capacity_from_env() -> usize {
         .unwrap_or(DEFAULT_CLIPBOARD_HISTORY_CAPACITY)
 }
 
+/// Whether clipboard history persistence is enabled. Defaults to true.
+/// Set DESKBRID_CLIPBOARD_HISTORY=false to disable — clipboard reads/writes
+/// still work, but nothing is persisted to disk or in-memory history.
+pub(crate) fn clipboard_history_enabled() -> bool {
+    std::env::var("DESKBRID_CLIPBOARD_HISTORY")
+        .map(|v| v.to_lowercase() != "false" && v != "0")
+        .unwrap_or(true)
+}
+
 pub(crate) fn is_clipboard_history_action(action: &Action) -> bool {
     matches!(
         action,
@@ -43,6 +52,9 @@ pub(crate) async fn load_clipboard_from_db(state: &DaemonState) {
 }
 
 pub(crate) async fn record_clipboard_text(state: &DaemonState, text: &str, source: &str) {
+    if !clipboard_history_enabled() {
+        return;
+    }
     let mut history = state.clipboard_history.lock().await;
     if history.back().is_some_and(|entry| entry.text == text) {
         return;

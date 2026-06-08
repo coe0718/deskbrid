@@ -1,3 +1,4 @@
+use crate::daemon::helpers::home_dir;
 use crate::protocol::Action;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -200,7 +201,7 @@ fn uid_key(uid: u32) -> String {
 }
 
 fn config_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+    let home = home_dir().to_string_lossy().to_string();
     PathBuf::from(home)
         .join(".config")
         .join("deskbrid")

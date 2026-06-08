@@ -2,6 +2,14 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
 
+/// Resolve the user's home directory.
+/// Uses dirs::home_dir() (XDG-aware, cross-platform), falls back to $HOME.
+pub fn home_dir() -> PathBuf {
+    dirs::home_dir()
+        .or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("/root"))
+}
+
 pub fn unix_timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -96,8 +104,8 @@ pub async fn spawn_detached_process(
 /// Then verifies the result is within the allowed sandbox dirs.
 pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
     let expanded = if path.starts_with('~') {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
-        PathBuf::from(path.replacen('~', &home, 1))
+        let home = home_dir();
+        PathBuf::from(path.replacen('~', &home.to_string_lossy(), 1))
     } else {
         PathBuf::from(path)
     };
@@ -122,7 +130,7 @@ pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
 
     // Sandbox check: verify path is within allowed directories
     let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS").unwrap_or_else(|_| {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         format!("{}:/tmp", home)
     });
     let allowed: Vec<PathBuf> = allowed_dirs
@@ -152,7 +160,7 @@ pub fn screenshot_temp_path() -> String {
     let dir = std::env::var("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+            let home = home_dir().to_string_lossy().to_string();
             PathBuf::from(home).join(".cache")
         })
         .join("deskbrid");
@@ -234,7 +242,7 @@ mod tests {
 
     #[test]
     fn expand_path_allows_home_dir() {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         let result = expand_path(&format!("{}/.bashrc", home));
         assert!(
             result.is_ok(),
@@ -262,7 +270,7 @@ mod tests {
 
     #[test]
     fn expand_path_blocks_traversal_into_etc() {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         let traversal = format!("{}/../../../etc/passwd", home);
         let result = expand_path(&traversal);
         assert!(
@@ -294,7 +302,7 @@ mod tests {
             "~ expansion should work: {:?}",
             result.err()
         );
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         assert!(result.unwrap().starts_with(&home));
     }
 
@@ -306,7 +314,7 @@ mod tests {
 
     #[test]
     fn expand_path_allows_existing_files_in_home() {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         // .bashrc typically exists
         let path = format!("{}/.bashrc", home);
         if std::path::Path::new(&path).exists() {

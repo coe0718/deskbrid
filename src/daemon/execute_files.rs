@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::expand_path;
 
+use super::helpers::home_dir;
 use tokio::io::AsyncWriteExt;
 
 pub(crate) async fn execute_files(
@@ -37,7 +38,7 @@ pub(crate) async fn execute_files(
         } => {
             let search_root = match root {
                 Some(r) => expand_path(r)?.to_string_lossy().to_string(),
-                None => std::env::var("HOME").unwrap_or_else(|_| "/root".into()),
+                None => home_dir().to_string_lossy().to_string(),
             };
             serde_json::json!({"matches": backend.files_search(pattern, Some(&search_root), max_results).await?})
         }

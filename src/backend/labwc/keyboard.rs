@@ -1,10 +1,11 @@
 use super::LabwcBackend;
+use crate::daemon::helpers::home_dir;
 use crate::protocol::KeyboardLayout;
 use std::path::PathBuf;
 
 /// Path to the labwc environment file for keyboard layout configuration.
 fn env_file() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+    let home = home_dir().to_string_lossy().to_string();
     PathBuf::from(home)
         .join(".config")
         .join("labwc")

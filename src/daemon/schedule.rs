@@ -7,6 +7,7 @@
 //! TESTING_NEEDED: Verify schedule persistence across daemon restarts and
 //! that long-running actions don't block the schedule loop.
 
+use super::helpers::home_dir;
 use crate::DaemonState;
 use crate::protocol::Action;
 use serde::{Deserialize, Serialize};
@@ -40,7 +41,7 @@ pub struct Schedule {
 
 impl Schedule {
     fn path() -> PathBuf {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let home = home_dir().to_string_lossy().to_string();
         PathBuf::from(home)
             .join(".config")
             .join("deskbrid")
