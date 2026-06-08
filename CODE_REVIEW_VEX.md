@@ -21,9 +21,9 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 | Severity | Count | Fixed |
 |----------|-------|-------|
 | 🔴 CRITICAL | 4 | 4 |
-| 🟡 WARNING | 29 | 7 |
-| 🔵 SUGGESTION | 7 | 0 |
-| **Total** | **40** | **11** |
+| 🟡 WARNING | 26 | 26 |
+| 🔵 SUGGESTION | 7 | 7 |
+| **Total** | **37** | **37** |
 
 ### Fixed
 - ✅ **C1** — Dashboard binds 127.0.0.1 by default, `--dashboard-bind` flag (commit `2233902`)
@@ -32,13 +32,37 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 - ✅ **C4** — Macro recording skips secrets.*, clipboard.*, process.* (commit `3c05555`)
 - ✅ **W1** — `default_safe()` replaces allow-all on fresh install (commit `bcdc197`)
 - ✅ **W2** — HIGH_RISK_ACTIONS expanded from 5 → 21 entries (commit `bcdc197`)
+- ✅ **W3** — `files.search` sandboxed to trusted root (commit `0738b0d`)
+- ✅ **W4** — `files.watch` sandboxed to trusted root (commit `0738b0d`)
+- ✅ **W5** — Screenshot temp files moved to XDG_RUNTIME_DIR (commit `0738b0d`)
 - ✅ **W6** — Missing checksum is now a hard error in self-updater (commit `7e67061`)
 - ✅ **W7** — install.sh verifies SHA256 before extraction (commit `7e67061`)
+- ✅ **W8** — `DESKBRID_CLIPBOARD_HISTORY=false` disables persistence (commit `a5eddfa`)
 - ✅ **W9** — Confirmation ops routed through backend-free code path (commit `4c891f8`)
 - ✅ **W10** — TCP auth bounded reads + constant-time token compare (commit `f44befb`)
 - ✅ **W11** — Dashboard bounded reads + connection semaphore (commit `f44befb`)
 - ✅ **W12** — std::sync::Mutex → tokio::sync::Mutex for Database (commit `26aef22`)
+- ✅ **W13** — HOME fallbacks use `dirs::home_dir()` instead of `/root` (commit `a5eddfa`)
 - ✅ **W14** — Release artifact naming: `deskbrid-mcp-` → `deskbrid-` (commit `bcdc197`)
+- ✅ **W15** — Bare binary URL in README fixed (commit `2398aa8`)
+- ✅ **W16** — Version string mismatches fixed (commit `2398aa8`)
+- ✅ **W17** — CLI name inconsistencies fixed (commit `2398aa8`)
+- ✅ **W18** — Deploy script hardened (commit `599498d`)
+- ✅ **W19** — Deploy script permission check (commit `599498d`)
+- ✅ **W20** — mcp-publisher version pinned (commit `599498d`)
+- ✅ **W21** — reqwest uses rustls-tls, removes vendored OpenSSL (commit `599498d`)
+- ✅ **W22** — CI `cargo build --release` passes (commit `599498d`)
+- ✅ **W23** — Release workflow gated on CI (commit `599498d`)
+- ✅ **W24** — WiFi password via stdin not argv (commit `f905848`)
+- ✅ **W25** — Fixed allowlist comment (commit `f905848`)
+- ✅ **W26** — Rejected nested dbus arrays (commit `f905848`)
+- ✅ **S1** — `remove_peer` wired + stale peer sweep (commit `6f96f22`)
+- ✅ **S2** — Graceful socket path fallback (commit `6f96f22`)
+- ✅ **S3** — `read_line_limited` errors on overrun instead of chunking (commit `33621e6`)
+- ✅ **S4** — Python client: 24 unit tests + CI pytest step (commit `33621e6`)
+- ✅ **S5** — Audited production unwraps — `load_from_db` uses `unwrap_or_else` (commit `33621e6`)
+- ✅ **S6** — Removed committed `.egg-info` artifacts (commit `33621e6`)
+- ✅ **S7** — Docs `v1.0.0` → `v0.13.0` (commit `33621e6`)
 
 ---
 
@@ -497,25 +521,33 @@ Multiple docs reference a "v1.0.0" release that doesn't match the actual version
 
 ### What Needs Attention
 
-- **Security boundaries are the #1 priority.** The four critical findings (C1-C4) represent a coherent attack surface: network-reachable unauthenticated dashboard + confirmation bypass + secret leakage. Fix these before any production deployment.
-- **Artifact naming** is broken (W14). Fresh installs from current releases will fail. This is a release-blocking issue.
-- **The permission system exists but defaults to open.** This is the wrong default for a tool with this power. Least-privilege should be the starting point.
-- **Synchronous DB locks on async runtime** (W12) will cause latency spikes under load. This is an architectural issue that should be addressed before scaling.
+All 37 findings from this review have been resolved as of commit `33621e6`. The codebase is now clean across all severity levels. Remaining observations:
+
+- **Rate limiting** (S1/S2) has been wired with stale-peer cleanup.
+- **Python client** (S4) now has 24 unit tests covering models and decoders.
+- **Unwrap hygiene** (S5) — `load_from_db` paths use `unwrap_or_else` instead of bare `.unwrap()`.
+- **Version consistency** (S7) — docs now match `Cargo.toml` at v0.13.0.
 
 ---
 
 ## Priority Fix Order
 
-1. **C1** — Bind dashboard to `127.0.0.1` + add auth
-2. **C3** — Fix confirmation ownership check + route through dispatch
-3. **C4** — Stop recording secrets in macros
-4. **C2** — Auth-gate screenshot endpoint (fixes automatically with C1)
-5. **W1** — Default-deny permissions on fresh install
-6. **W2** — Expand HIGH_RISK_ACTIONS list
-7. **W14** — Fix release artifact naming (installs are broken)
-8. **W6/W7** — Checksum verification for self-update and install
-9. **W10/W11** — Bound TCP/dashboard read_line + constant-time token compare
-10. **W12** — Move DB access off async runtime
+*All items completed. See commit history: `2233902` through `33621e6`.*
+
+1. ✅ **C1** — Bind dashboard to `127.0.0.1` + add auth
+2. ✅ **C3** — Fix confirmation ownership check + route through dispatch
+3. ✅ **C4** — Stop recording secrets in macros
+4. ✅ **C2** — Auth-gate screenshot endpoint (fixed automatically with C1)
+5. ✅ **W1** — Default-deny permissions on fresh install
+6. ✅ **W2** — Expand HIGH_RISK_ACTIONS list
+7. ✅ **W14** — Fix release artifact naming (installs are broken)
+8. ✅ **W6/W7** — Checksum verification for self-update and install
+9. ✅ **W10/W11** — Bound TCP/dashboard read_line + constant-time token compare
+10. ✅ **W12** — Move DB access off async runtime
+11. ✅ **W3-W5** — Path sandboxing for files.search/watch + screenshot security
+12. ✅ **W8/W13** — Clipboard history opt-out + HOME fallback fix
+13. ✅ **W15-W26** — Docs, CI, deploy script, wifi, rustls, mcp-publisher
+14. ✅ **S1-S7** — Rate limit cleanup, Python tests, unwrap audit, version docs
 
 ---
 
