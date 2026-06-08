@@ -96,10 +96,16 @@ pub async fn dispatch_action_with_options(
         }
     }
 
-    // Record action if macro recording is active (skip recording control commands)
+    // Record action if macro recording is active.
+    // Skip recording control commands and sensitive namespaces to avoid
+    // persisting secrets, clipboard contents, or process arguments to disk.
     {
         let at = action.action_type();
-        if !at.starts_with("macro.") {
+        if !at.starts_with("macro.")
+            && !at.starts_with("secrets.")
+            && !at.starts_with("clipboard.")
+            && !at.starts_with("process.")
+        {
             let params = action.to_json().unwrap_or_default();
             if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&params) {
                 crate::daemon::macro_engine::record_action(state, at, parsed);
