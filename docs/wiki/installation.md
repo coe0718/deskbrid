@@ -16,11 +16,16 @@ The installer detects your distro and desktop, installs dependencies, configures
 
 ## Manual Install
 
-1. Download the latest release:
+1. Download the latest release tarball:
 ```bash
-curl -LO https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid
-chmod +x deskbrid
+ARCH=$(uname -m)
+case "$ARCH" in x86_64) ARCH="x86_64-unknown-linux-gnu";; aarch64|arm64) ARCH="aarch64-unknown-linux-gnu";; esac
+curl -LO "https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid-${ARCH}.tar.gz"
+curl -LO "https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid-${ARCH}.tar.gz.sha256"
+sha256sum -c "deskbrid-${ARCH}.tar.gz.sha256"
+tar -xzf "deskbrid-${ARCH}.tar.gz"
 sudo mv deskbrid /usr/local/bin/
+chmod +x /usr/local/bin/deskbrid
 ```
 
 2. Install desktop-specific dependencies.

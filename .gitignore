@@ -18,3 +18,7 @@ MCP_INTEGRATION.md/
 /scripts/deploy-site.sh
 .tuck-state.md
 dist/
+clients/python/deskbrid.egg-info/
+clients/python/build/
+clients/python/__pycache__/
+clients/python/*.egg-info/
