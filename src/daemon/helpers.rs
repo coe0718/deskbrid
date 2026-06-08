@@ -145,6 +145,28 @@ pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
     Ok(canonical)
 }
 
+/// Generate a safe temporary path for screenshots.
+/// Uses XDG_RUNTIME_DIR or ~/.cache/deskbrid with UUID filenames
+/// instead of predictable /tmp paths with world-readable permissions.
+pub fn screenshot_temp_path() -> String {
+    let dir = std::env::var("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+            PathBuf::from(home).join(".cache")
+        })
+        .join("deskbrid");
+    let _ = std::fs::create_dir_all(&dir);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+    }
+    dir.join(format!("screenshot_{}.png", uuid::Uuid::new_v4()))
+        .to_string_lossy()
+        .to_string()
+}
+
 pub fn ensure_safe_pid(pid: u32) -> anyhow::Result<()> {
     if pid <= 1 {
         anyhow::bail!("refusing to target reserved pid {}", pid);

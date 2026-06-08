@@ -8,12 +8,7 @@ pub(super) async fn screenshot(
     region: Option<Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let path = format!(
-        "/tmp/deskbrid_x11_{}.png",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs()
-    );
+    let path = crate::daemon::helpers::screenshot_temp_path();
     if let Some(r) = region {
         let geo = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
         backend

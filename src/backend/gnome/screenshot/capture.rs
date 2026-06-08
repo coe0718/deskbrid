@@ -12,10 +12,7 @@ impl GnomeBackend {
         region: Option<Region>,
         window_id: Option<String>,
     ) -> anyhow::Result<protocol::ScreenshotResult> {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_nanos();
-        let path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
+        let path = crate::daemon::helpers::screenshot_temp_path();
 
         // Fast path: use existing Mutter ScreenCast PipeWire stream (no dialogs)
         if monitor.is_none()

@@ -7,11 +7,8 @@ pub(super) async fn screenshot(
     _region: Option<protocol::Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs();
-    let raw_path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
-    let out_path = format!("/tmp/deskbrid_screenshot_out_{}.png", std::process::id());
+    let raw_path = crate::daemon::helpers::screenshot_temp_path();
+    let out_path = crate::daemon::helpers::screenshot_temp_path();
 
     if let Some(ref wid) = _window_id {
         let info = crate::backend::DesktopBackend::window_get(backend, wid).await?;

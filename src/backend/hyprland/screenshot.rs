@@ -7,10 +7,7 @@ pub(super) async fn screenshot(
     region: Option<protocol::Region>,
     window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs();
-    let path = format!("/tmp/deskbrid_screenshot_{}.png", ts);
+    let path = crate::daemon::helpers::screenshot_temp_path();
     if let Some(ref wid) = window_id {
         let info = windows::window_get(backend, wid).await?;
         if let Some(geo) = info.geometry {

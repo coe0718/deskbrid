@@ -20,8 +20,9 @@ pub(crate) async fn execute_files(
             recursive,
             ref patterns,
         } => {
+            let sandboxed = expand_path(path)?;
             backend
-                .files_watch(path, recursive, patterns.as_deref())
+                .files_watch(&sandboxed.to_string_lossy(), recursive, patterns.as_deref())
                 .await?;
             serde_json::json!({"watching": path})
         }
@@ -34,7 +35,11 @@ pub(crate) async fn execute_files(
             ref root,
             max_results,
         } => {
-            serde_json::json!({"matches": backend.files_search(pattern, root.as_deref(), max_results).await?})
+            let search_root = match root {
+                Some(r) => expand_path(r)?.to_string_lossy().to_string(),
+                None => std::env::var("HOME").unwrap_or_else(|_| "/root".into()),
+            };
+            serde_json::json!({"matches": backend.files_search(pattern, Some(&search_root), max_results).await?})
         }
 
         FilesRead {

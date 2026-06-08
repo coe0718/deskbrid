@@ -7,12 +7,7 @@ pub(super) async fn screenshot(
     region: Option<protocol::Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let path = format!(
-        "/tmp/deskbrid_screenshot_{}.png",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs()
-    );
+    let path = crate::daemon::helpers::screenshot_temp_path();
 
     let output_name = if let Some(monitor_id) = monitor {
         let outputs = backend.swaymsg_json(&["-t", "get_outputs"]).await?;
