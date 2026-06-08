@@ -21,9 +21,9 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 | Severity | Count | Fixed |
 |----------|-------|-------|
 | 🔴 CRITICAL | 4 | 4 |
-| 🟡 WARNING | 29 | 4 |
+| 🟡 WARNING | 29 | 6 |
 | 🔵 SUGGESTION | 7 | 0 |
-| **Total** | **40** | **8** |
+| **Total** | **40** | **10** |
 
 ### Fixed
 - ✅ **C1** — Dashboard binds 127.0.0.1 by default, `--dashboard-bind` flag (commit `2233902`)
@@ -32,7 +32,11 @@ However, **the security posture is dangerous for a tool that controls keystrokes
 - ✅ **C4** — Macro recording skips secrets.*, clipboard.*, process.* (commit `3c05555`)
 - ✅ **W1** — `default_safe()` replaces allow-all on fresh install (commit `bcdc197`)
 - ✅ **W2** — HIGH_RISK_ACTIONS expanded from 5 → 21 entries (commit `bcdc197`)
+- ✅ **W6** — Missing checksum is now a hard error in self-updater (commit `7e67061`)
+- ✅ **W7** — install.sh verifies SHA256 before extraction (commit `7e67061`)
 - ✅ **W9** — Confirmation ops routed through backend-free code path (commit `4c891f8`)
+- ✅ **W10** — TCP auth bounded reads + constant-time token compare (commit `f44befb`)
+- ✅ **W11** — Dashboard bounded reads + connection semaphore (commit `f44befb`)
 - ✅ **W14** — Release artifact naming: `deskbrid-mcp-` → `deskbrid-` (commit `bcdc197`)
 
 ---
@@ -181,7 +185,7 @@ Screenshots are written to `/tmp/deskbrid_screenshot_<unix_seconds>.png` with pr
 
 ---
 
-### W6. Self-update proceeds without checksum verification
+### W6. Self-update proceeds without checksum verification ✅ FIXED
 
 **File:** `src/cmd/update/github.rs:82`
 
@@ -191,7 +195,7 @@ When no `.sha256` asset is published alongside a release, the self-updater logs 
 
 ---
 
-### W7. Install script downloads without checksum verification
+### W7. Install script downloads without checksum verification ✅ FIXED
 
 **File:** `site/install.sh:271`
 
@@ -221,7 +225,7 @@ Clipboard reads/writes are persisted to SQLite history by default. Passwords, to
 
 ---
 
-### W10. TCP auth `read_line` unbounded; non-constant-time token compare
+### W10. TCP auth `read_line` unbounded; non-constant-time token compare ✅ FIXED
 
 **File:** `src/daemon/tcp.rs:53, :123`
 
@@ -231,7 +235,7 @@ The 4096-byte guard at line 56 fires *after* `read_line` at line 53 has already 
 
 ---
 
-### W11. Dashboard HTTP parsing unbounded; no connection cap
+### W11. Dashboard HTTP parsing unbounded; no connection cap ✅ FIXED
 
 **File:** `src/daemon/dashboard/server.rs:193, :197-203`
 
