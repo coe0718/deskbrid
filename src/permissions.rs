@@ -210,7 +210,7 @@ fn config_path() -> PathBuf {
 
 /// Actions that are never authorized by wildcard patterns.
 /// These require explicit naming in the allow list — `"*"` or `"process.*"` won't cut it.
-const HIGH_RISK_ACTIONS: &[&str] = &[
+pub(crate) const HIGH_RISK_ACTIONS: &[&str] = &[
     "browser.evaluate",
     "process.start",
     "process.stop",

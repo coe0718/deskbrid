@@ -36,11 +36,46 @@ pub(crate) async fn execute_capabilities(
                 .filter(|name| !unsupported_actions.contains(name))
                 .collect();
 
+            // High-risk actions that require explicit allow-listing (never authorized by wildcards)
+            let high_risk: Vec<&str> = crate::permissions::HIGH_RISK_ACTIONS.to_vec();
+
+            // Sandbox: file access is restricted to these colon-separated directories
+            let sandbox_dirs: Vec<String> = std::env::var("DESKBRID_ALLOWED_DIRS")
+                .unwrap_or_else(|_| {
+                    let home = dirs::home_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "/root".to_string());
+                    format!("{}:/tmp", home)
+                })
+                .split(':')
+                .map(|s| s.to_string())
+                .collect();
+
+            // Permissions file location
+            let permissions_path = dirs::config_dir()
+                .map(|p| p.join("deskbrid").join("permissions.toml"))
+                .map(|p| p.to_string_lossy().to_string());
+
             serde_json::json!({
                 "desktop": desktop,
                 "actions": actions,
                 "supported": supported,
-                "unsupported": unsupported
+                "unsupported": unsupported,
+                "high_risk": high_risk,
+                "sandbox": {
+                    "mechanism": "DESKBRID_ALLOWED_DIRS",
+                    "dirs": sandbox_dirs,
+                },
+                "transport": {
+                    "type": "unix_socket",
+                    "local_only": true,
+                    "socket_path": format!("$XDG_RUNTIME_DIR/deskbrid.sock"),
+                },
+                "permissions": {
+                    "path": permissions_path,
+                    "model": "deny_wins_first_then_allow",
+                    "high_risk_policy": "never_auth_by_wildcard_must_be_explicitly_named",
+                }
             })
         }
 
