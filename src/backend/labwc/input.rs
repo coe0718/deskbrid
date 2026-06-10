@@ -7,15 +7,21 @@ pub(super) async fn keyboard_type(backend: &LabwcBackend, t: &str) -> anyhow::Re
 }
 
 pub(super) async fn keyboard_key(backend: &LabwcBackend, k: &str) -> anyhow::Result<()> {
-    backend.ydotool(&["key", k]).await
+    backend
+        .ydotool(&["key", &crate::backend::ydotool_key_name(k)])
+        .await
 }
 
 pub(super) async fn keyboard_combo(backend: &LabwcBackend, keys: &[String]) -> anyhow::Result<()> {
     for k in keys {
-        backend.ydotool(&["key", &format!("{}:1", k)]).await?;
+        backend
+            .ydotool(&["key", &format!("{}:1", crate::backend::ydotool_key_name(k))])
+            .await?;
     }
     for k in keys.iter().rev() {
-        backend.ydotool(&["key", &format!("{}:0", k)]).await?;
+        backend
+            .ydotool(&["key", &format!("{}:0", crate::backend::ydotool_key_name(k))])
+            .await?;
     }
     Ok(())
 }

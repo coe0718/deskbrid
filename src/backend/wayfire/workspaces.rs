@@ -36,7 +36,9 @@ pub(super) async fn keyboard_type(backend: &WayfireBackend, text: &str) -> anyho
 }
 
 pub(super) async fn keyboard_key(backend: &WayfireBackend, key: &str) -> anyhow::Result<()> {
-    backend.ydotool(&["key", key]).await
+    backend
+        .ydotool(&["key", &crate::backend::ydotool_key_name(key)])
+        .await
 }
 
 pub(super) async fn keyboard_combo(
@@ -44,10 +46,14 @@ pub(super) async fn keyboard_combo(
     keys: &[String],
 ) -> anyhow::Result<()> {
     for k in keys {
-        backend.ydotool(&["key", &format!("{}:1", k)]).await?;
+        backend
+            .ydotool(&["key", &format!("{}:1", crate::backend::ydotool_key_name(k))])
+            .await?;
     }
     for k in keys.iter().rev() {
-        backend.ydotool(&["key", &format!("{}:0", k)]).await?;
+        backend
+            .ydotool(&["key", &format!("{}:0", crate::backend::ydotool_key_name(k))])
+            .await?;
     }
     Ok(())
 }

@@ -38,15 +38,27 @@ pub(super) async fn keyboard_type(backend: &NiriBackend, text: &str) -> anyhow::
 }
 
 pub(super) async fn keyboard_key(backend: &NiriBackend, key: &str) -> anyhow::Result<()> {
-    backend.ydotool(&["key", key]).await
+    backend
+        .ydotool(&["key", &crate::backend::ydotool_key_name(key)])
+        .await
 }
 
 pub(super) async fn keyboard_combo(backend: &NiriBackend, keys: &[String]) -> anyhow::Result<()> {
     for key in keys {
-        backend.ydotool(&["key", &format!("{}:1", key)]).await?;
+        backend
+            .ydotool(&[
+                "key",
+                &format!("{}:1", crate::backend::ydotool_key_name(key)),
+            ])
+            .await?;
     }
     for key in keys.iter().rev() {
-        backend.ydotool(&["key", &format!("{}:0", key)]).await?;
+        backend
+            .ydotool(&[
+                "key",
+                &format!("{}:0", crate::backend::ydotool_key_name(key)),
+            ])
+            .await?;
     }
     Ok(())
 }

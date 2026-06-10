@@ -398,3 +398,33 @@ pub trait DesktopBackend: Send + Sync {
         print::print_file(printer, path).await
     }
 }
+
+// ─── Shared ydotool key mapping ───────────────────
+// ydotool's `key` subcommand only accepts numeric keycodes, not string names.
+// Passing strings like "ENTER" silently fails — keys never reach the compositor.
+// Key codes from linux/input-event-codes.h
+
+/// Map a human-readable key name to a ydotool numeric keycode.
+pub(crate) fn ydotool_key_name(key: &str) -> String {
+    match key.to_lowercase().as_str() {
+        "return" | "enter" => "28".into(),              // KEY_ENTER
+        "tab" => "15".into(),                           // KEY_TAB
+        "escape" | "esc" => "1".into(),                 // KEY_ESC
+        "backspace" => "14".into(),                     // KEY_BACKSPACE
+        "delete" | "del" => "111".into(),               // KEY_DELETE
+        "up" => "103".into(),                           // KEY_UP
+        "down" => "108".into(),                         // KEY_DOWN
+        "left" => "105".into(),                         // KEY_LEFT
+        "right" => "106".into(),                        // KEY_RIGHT
+        "home" => "102".into(),                         // KEY_HOME
+        "end" => "107".into(),                          // KEY_END
+        "page_up" | "pgup" => "104".into(),             // KEY_PAGEUP
+        "page_down" | "pgdn" => "109".into(),           // KEY_PAGEDOWN
+        "space" => "57".into(),                         // KEY_SPACE
+        "shift" | "shift_l" | "shift_r" => "42".into(), // KEY_LEFTSHIFT
+        "ctrl" | "control" | "control_l" | "ctrl_l" => "29".into(), // KEY_LEFTCTRL
+        "alt" | "alt_l" => "56".into(),                 // KEY_LEFTALT
+        "super" | "super_l" | "meta" | "win" | "windows" => "125".into(), // KEY_LEFTMETA
+        other => other.to_string(),
+    }
+}
