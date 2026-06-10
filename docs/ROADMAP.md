@@ -3,7 +3,7 @@
 **Purpose:** Catalog every mechanism Deskbrid can use to gain deeper control over Linux
 systems — beyond what the current DE backends already provide.
 
-**Current state:** v0.7.0. Deskbrid already has an impressive surface (90+ actions, 5 DE
+**Current state:** v1.0.0. Production-ready — DB persistence, rules engine, keyring, rate limiting,
 backends). This doc focuses on what's **not yet in the code** — the remaining 80% of the
 operating system that agents need to control.
 
@@ -63,6 +63,9 @@ it to the completed table below.
 || [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
 || [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
 || [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
+|| [29. Keyring / Secrets](#29-keyring--secrets) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
+|| [129. Per-UID Rate Limiting](#129-per-uid-rate-limiting) | Per-namespace, per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
+|| [135. Provider Manifest](#135-provider-manifest) | capabilities.list exposes high_risk actions, sandbox dirs, transport constraints, and permissions model for orchestrator integration | `src/daemon/capabilities/mod.rs`, `src/mcp/helpers.rs` |
 
 ### Already Built (not covered here)
 

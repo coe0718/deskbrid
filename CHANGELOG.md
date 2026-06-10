@@ -1,3 +1,66 @@
+## v1.0.0 — First Stable Release
+
+**Tuck + Scout + Vex · 60 commits · 134 files · +18033 −4310**
+
+Production-ready release: DB-backed persistence, rules engine, keyring, rate limiting, pressure monitoring, and a hardened security model with Vex audit remediation. Every core subsystem hardened with tests, explicit error handling, and clear boundaries.
+
+### 🏗️ DB as Source of Truth (#84)
+- **a0a7e32** — SQLite schema migrations, PRAGMA user_version, synchronous writes via tokio::sync::Mutex + spawn_blocking. 23 new tests.
+- **7c0b191** — Scout's v1.0.0 release notes and changelog.
+
+### ⚙️ Rules Engine v1.0.0 (#83)
+- **4cefad6** — Split rules/eval.rs (454→218) into matching/timerange/engine modules. TimeRange timer, VarEquals/VarExists conditions, app_id resolution from window list.
+
+### 🔑 Keyring/Secrets (#29)
+- Secret-tool executor, protocol actions, MCP tools, CLI subcommand, dashboard card, confirmation-gated access. ~500 lines.
+
+### 🚦 Rate Limiting (#129)
+- Per-namespace, per-UID token buckets. 8 namespaces, permissions.toml config, wildcard 120/min, UID isolation. +285 lines.
+
+### 📊 System Pressure/PSI (#96)
+- /proc/pressure/{cpu,memory,io} monitoring, dashboard card, unit tests. ~100 lines.
+
+### 📋 Provider Manifest (#135)
+- **681b8b8** — capabilities.list now exposes high_risk actions, sandbox dirs, transport constraints, and permissions model. Enables orchestrator integration (Monadix, etc.). +37 lines.
+
+### 🔒 Vex Security Audit — 37/37 Resolved
+- **2233902** — C1/C2: Dashboard bound to 127.0.0.1 by default.
+- **4c891f8** — C3/W9: Confirmation ownership check + backend-free routing.
+- **3c05555** — C4: Prevent macro recording of secrets/clipboard/process actions.
+- **bcdc197** — W1/W2/W14: Default-deny permissions, expanded HIGH_RISK_ACTIONS (21 actions), release artifact naming fix.
+- **7e67061** — W6/W7: Hard-fail on missing checksum, verify in install.sh.
+- **f44befb** — W10/W11: Bound TCP+dashboard reads, constant-time token compare, connection cap.
+- **26aef22** — W12: Switch DB Mutex from std::sync to tokio::sync.
+- **0738b0d** — W3/W4/W5: Path sandbox for files.search/watch, secure screenshot paths.
+- **a5eddfa** — W8/W13: Clipboard history opt-out, HOME /root fallbacks.
+- **599498d** — W18-W23: Deploy script hardening, mcp-publisher pin, rustls, CI gates.
+- **f905848** — W15/W16/W17: Fix docs — bare binary URL, version mismatches, CLI names.
+- **2398aa8** — W24/W25/W26: WiFi password via stdin, fix allowlist comment, reject nested dbus arrays.
+- **6f96f22** — S1/S2: Wire remove_peer, add stale sweep, graceful socket path fallback.
+- **33621e6** — S3/S4/S5/S6/S7: Capped read_line, Python tests, unwrap audit, egg-info cleanup.
+- **f21d58d** — Vex review summary updated — 37/37 resolved.
+
+### 🔨 Refactoring
+- **ec77126** — Split protocol/types.rs (265→209) into common/envelope modules.
+- **d97a9dd** — Split daemon/helpers.rs (329→186) into paths/process/responses.
+- **8725836** — Split mcp/types.rs (696→120) into 5 domain modules.
+
+### 📝 Documentation
+- **7d69b7b** — Recover 7 deleted design docs from git history (10K lines) → docs/archive/.
+- **0f8bedd** — permissions.example.toml with all actions, presets, high-risk ★ markers.
+- **8468c1b** — Archive Vex review, Scout changelog, permissions example into docs/.
+- **6a468b8** — Scout's rate limiting design spec.
+- **f0071b4** — Scout's v1.0.0 test plan.
+- **8e3db22** — Fix v1.0.0 doc version strings, add security/pressure/permissions sections.
+- **ba45008–c1a3c71** — Fix broken docs links, PatchHive relationship, ecosystem references.
+
+### 🐛 Fixes
+- **bd72132** — Stable /tmp path in expand_path test.
+- **f3ac61d** — Remove invalid `needs: ci` from release workflow.
+- **2837a64** — Remove duplicate `use super::*` in paths.rs tests.
+- **503fabe** — Drop state before creating state2 in test to ensure WAL checkpoint.
+- **d7e3e7d** — CI: install libpipewire-0.3-dev for --all-features builds.
+
 ## v0.13.0 — Action Confirmation, Agent Messaging, Unified Search
 
 **Tuck · 8 commits · 32 files · +1197 −20**

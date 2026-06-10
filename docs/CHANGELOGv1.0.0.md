@@ -9,6 +9,7 @@ v1.0.0 marks the first stable release of Deskbrid, a Linux desktop control daemo
 #29 — Secret/Keyring. secret-tool executor, protocol actions, MCP tools, CLI subcommand, dashboard card, confirmation-gated. 3 commits, ~500 lines.
 #129 — Per-namespace per-UID rate limiting. 8 namespaces, token buckets, permissions.toml config, wildcard 120/min, UID isolation tests. 1 commit, +285 lines.
 #83 — Rules engine v1.0.0. TimeRange timer, VarEquals/VarExists condition evaluator, app_id resolution from window list, zero stubs. 4 commits, ~300 lines.
+#135 — capabilities.list provider manifest. Exposes high_risk actions, sandbox dirs, transport constraints, and permissions model for orchestrator integration (Monadix, etc.). 681b8b8, +37 lines.
 
 ## Security
 

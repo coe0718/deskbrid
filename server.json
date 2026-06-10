@@ -2,12 +2,12 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.coe0718/deskbrid",
   "description": "Linux automation. 92+ MCP tools: windows, input, screenshots, clipboard, print, AT-SPI. 9 DEs.",
-  "version": "0.13.0",
+  "version": "1.0.0",
   "website": "https://deskbrid.patchhive.dev",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/coe0718/deskbrid:0.13.0",
+      "identifier": "ghcr.io/coe0718/deskbrid:1.0.0",
       "transport": {
         "type": "stdio"
       }
