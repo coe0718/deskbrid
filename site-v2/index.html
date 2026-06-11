@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deskbrid — Unify the Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --surface: #111118;
+    --surface-raised: #16161f;
+    --text-primary: #e4e4e7;
+    --text-secondary: rgba(228, 228, 231, 0.6);
+    --text-tertiary: rgba(228, 228, 231, 0.4);
+    --accent: #00e5ff;
+    --accent-dim: rgba(0, 229, 255, 0.12);
+    --border: rgba(228, 228, 231, 0.08);
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--bg); color: var(--text-primary); font-family: var(--font-display); }
+  body { overflow-x: hidden; }
+
+  ::selection { background: var(--accent); color: var(--bg); }
+
+  /* ── Typography ─────────────────────────────── */
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; }
+  .display { font-size: clamp(4rem, 10vw, 10rem); line-height: 0.92; font-weight: 700; letter-spacing: -0.04em; }
+  .display-sub { font-size: clamp(1.25rem, 2.5vw, 1.75rem); color: var(--text-secondary); font-weight: 400; letter-spacing: -0.01em; }
+  h2 { font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; margin-bottom: 1.5rem; }
+  h3 { font-size: 1.25rem; line-height: 1.3; margin-bottom: 0.5rem; }
+  p, li { color: var(--text-secondary); line-height: 1.7; font-size: 1.05rem; }
+  .mono { font-family: var(--font-mono); font-size: 0.875rem; }
+
+  /* ── Layout ─────────────────────────────────── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+  section { padding: 8rem 0; position: relative; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+  .grid-9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+
+  /* ── Hero ───────────────────────────────────── */
+  .hero { min-height: 100vh; display: flex; align-items: center; position: relative; padding-top: 4rem; }
+  .hero-content { position: relative; z-index: 2; }
+  .hero .display { margin-bottom: 1rem; }
+  .hero .display-sub { max-width: 560px; margin-bottom: 2.5rem; }
+  .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .hero-line { position: absolute; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, var(--accent), transparent); top: 50%; opacity: 0.3; }
+  .hero-backend-grid { position: absolute; right: -5%; top: 50%; transform: translateY(-50%); width: 45%; opacity: 0.15; }
+
+  /* ── Buttons ────────────────────────────────── */
+  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.75rem; border-radius: 0.5rem; font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s var(--ease-expo); border: none; text-decoration: none; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(0, 229, 255, 0.3); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--surface-raised); border-color: rgba(228, 228, 231, 0.15); }
+
+  /* ── Code Window ────────────────────────────── */
+  .code-window { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; position: relative; }
+  .code-window::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2.5rem; background: var(--surface-raised); border-bottom: 1px solid var(--border); }
+  .code-dots { position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem; z-index: 1; }
+  .code-dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; }
+  .code-dot:nth-child(1) { background: #ff5f56; } .code-dot:nth-child(2) { background: #ffbd2e; } .code-dot:nth-child(3) { background: #27c93f; }
+  .code-content { padding: 3.5rem 1.5rem 1.5rem; font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.7; color: var(--text-secondary); }
+  .code-content .cmd { color: var(--accent); }
+  .code-content .comment { color: var(--text-tertiary); }
+  .code-content .output { color: var(--text-primary); }
+
+  /* ── Backend Cards ──────────────────────────── */
+  .backend-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 2rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); transition: all 0.3s var(--ease-expo); }
+  .backend-chip:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+  /* ── Feature Cards ──────────────────────────── */
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2.5rem; transition: all 0.4s var(--ease-expo); position: relative; overflow: hidden; }
+  .feature-card::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 100% 0%, var(--accent-dim), transparent 70%); opacity: 0; transition: opacity 0.4s var(--ease-expo); }
+  .feature-card:hover { transform: translateY(-4px); border-color: rgba(0, 229, 255, 0.2); }
+  .feature-card:hover::after { opacity: 1; }
+  .feature-card-icon { font-size: 1.5rem; margin-bottom: 1rem; }
+  .feature-card h3 { position: relative; z-index: 1; }
+  .feature-card p { position: relative; z-index: 1; }
+
+  /* ── Stats ─────────────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; padding: 4rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .stat-value { font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 700; letter-spacing: -0.03em; color: var(--accent); }
+  .stat-label { color: var(--text-tertiary); font-size: 0.875rem; margin-top: 0.25rem; }
+
+  /* ── Animation ─────────────────────────────── */
+  .reveal { opacity: 0; transform: translateY(40px); transition: all 0.9s var(--ease-expo); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; } .reveal-delay-4 { transition-delay: 0.4s; }
+  .reveal-delay-5 { transition-delay: 0.5s; } .reveal-delay-6 { transition-delay: 0.6s; }
+
+  /* ── Problem visualization ─────────────────── */
+  .frag-vis { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .frag-piece { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; flex: 1; min-width: 120px; text-align: center; transition: all 0.5s var(--ease-expo); }
+  .frag-piece:hover { border-color: rgba(255, 95, 86, 0.4); }
+  .frag-piece .frag-name { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+  .frag-piece .frag-protocol { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-tertiary); }
+
+  .unified { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; background: var(--surface); border: 1px solid var(--accent); border-radius: 1rem; }
+  .unified-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); }
+
+  /* ── Footer ────────────────────────────────── */
+  footer { padding: 4rem 0; border-top: 1px solid var(--border); text-align: center; }
+  footer p { font-size: 0.875rem; }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .stats { grid-template-columns: 1fr; gap: 3rem; }
+    .hero .display { font-size: clamp(3rem, 12vw, 5rem); }
+    section { padding: 4rem 0; }
+    .hero-backend-grid { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Hero ─────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-line"></div>
+  <div class="container hero-content">
+    <div class="reveal">
+      <p class="mono" style="color: var(--accent); margin-bottom: 1.5rem;">$ deskbrid daemon</p>
+    </div>
+    <h1 class="display reveal reveal-delay-1">
+      Deskbrid<span style="color: var(--accent);">.</span>
+    </h1>
+    <p class="display-sub reveal reveal-delay-2">
+      One binary. Nine desktops.<br>AI agents meet Linux.
+    </p>
+    <div class="hero-cta reveal reveal-delay-3">
+      <a href="#" class="btn btn-primary">
+        <span style="font-family: var(--font-mono)">curl -fsSL deskbrid.dev | bash</span>
+      </a>
+      <a href="#" class="btn btn-ghost">View on GitHub →</a>
+    </div>
+  </div>
+  <div class="hero-backend-grid">
+    <div class="grid-9" style="gap: 0.5rem;">
+      <div class="backend-chip" style="font-size:0.6rem">GNOME</div>
+      <div class="backend-chip" style="font-size:0.6rem">KDE</div>
+      <div class="backend-chip" style="font-size:0.6rem">Hyprland</div>
+      <div class="backend-chip" style="font-size:0.6rem">Sway</div>
+      <div class="backend-chip" style="font-size:0.6rem">COSMIC</div>
+      <div class="backend-chip" style="font-size:0.6rem">Niri</div>
+      <div class="backend-chip" style="font-size:0.6rem">Wayfire</div>
+      <div class="backend-chip" style="font-size:0.6rem">Labwc</div>
+      <div class="backend-chip" style="font-size:0.6rem">X11</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats ────────────────────────────────────── -->
+<section style="padding:0">
+  <div class="container">
+    <div class="stats">
+      <div class="reveal">
+        <div class="stat-value">9</div>
+        <div class="stat-label">Desktop backends</div>
+      </div>
+      <div class="reveal reveal-delay-1">
+        <div class="stat-value">100+</div>
+        <div class="stat-label">MCP tools</div>
+      </div>
+      <div class="reveal reveal-delay-2">
+        <div class="stat-value">47K</div>
+        <div class="stat-label">Lines of Rust</div>
+      </div>
+      <div class="reveal reveal-delay-3">
+        <div class="stat-value">1</div>
+        <div class="stat-label">Binary. Zero deps.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── The Problem ──────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="grid-2">
+      <div>
+        <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># The Problem</p>
+        <h2 class="reveal">Linux has no unified desktop.</h2>
+        <p class="reveal reveal-delay-1">Mac gives you one AX API. Windows has UIA. Linux has <strong>nine compositors</strong> that all think they're special. Each with its own protocol, its own quirks, its own way of breaking.</p>
+        <p class="reveal reveal-delay-2" style="margin-top:1rem">AI agents need to click buttons, read screens, type keystrokes. Without Deskbrid, that means reimplementing the same intent nine different ways — and keeping them at parity as each compositor drifts.</p>
+      </div>
+      <div class="reveal reveal-delay-3">
+        <div class="frag-vis">
+          <div class="frag-piece"><div class="frag-name">GNOME</div><div class="frag-protocol">AT-SPI2</div></div>
+          <div class="frag-piece"><div class="frag-name">KDE</div><div class="frag-protocol">AT-SPI2*</div></div>
+          <div class="frag-piece"><div class="frag-name">Hyprland</div><div class="frag-protocol">wlr-randr</div></div>
+          <div class="frag-piece"><div class="frag-name">Sway</div><div class="frag-protocol">swaymsg</div></div>
+          <div class="frag-piece"><div class="frag-name">COSMIC</div><div class="frag-protocol">cosmic-randr</div></div>
+          <div class="frag-piece"><div class="frag-name">X11</div><div class="frag-protocol">xdotool</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── The Solution ─────────────────────────────── -->
+<section style="background: var(--surface);">
+  <div class="container">
+    <div class="grid-2">
+      <div class="reveal">
+        <div class="unified" style="margin-bottom: 2rem;">
+          <div class="backend-chip">GNOME</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="backend-chip">KDE</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="backend-chip">Hyprland</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div style="font-family:var(--font-mono);color:var(--accent);font-size:0.8rem">deskbrid</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="unified-label">One API</div>
+        </div>
+      </div>
+      <div>
+        <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># The Solution</p>
+        <h2 class="reveal">Write once.<br>Run everywhere.</h2>
+        <p class="reveal reveal-delay-1">Deskbrid auto-detects your desktop environment at startup. GNOME, KDE, Hyprland, Sway, COSMIC, Niri, Wayfire, Labwc, or X11 — one protocol, one daemon, one API. The agent doesn't need to know what it's running on. Deskbrid handles the translation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Code Demo ────────────────────────────────── -->
+<section>
+  <div class="container">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;">$ deskbrid --demo</p>
+    <h2 class="reveal" style="margin-bottom: 3rem;">It speaks agent.</h2>
+    <div class="grid-2" style="gap: 3rem;">
+      <div class="code-window reveal">
+        <div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div>
+        <div class="code-content">
+          <span class="comment"># Unix socket — agent-native</span><br>
+          <span class="cmd">echo</span> <span class="output">'{"type":"windows.list","id":"1"}'</span> |<br>
+          &nbsp;&nbsp;<span class="cmd">nc -U</span> $XDG_RUNTIME_DIR/deskbrid.sock<br><br>
+          <span class="comment"># CLI — human-native</span><br>
+          <span class="cmd">$ deskbrid</span> windows list<br>
+          <span class="output">→ Code — OSS [1920×1080]</span><br>
+          <span class="output">→ Terminal — zsh [1920×1080 *]</span><br>
+          <span class="output">→ Firefox — github.com [2560×1440]</span>
+        </div>
+      </div>
+      <div class="code-window reveal reveal-delay-2">
+        <div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div>
+        <div class="code-content">
+          <span class="comment"># Python client</span><br>
+          <span class="cmd">from</span> deskbrid <span class="cmd">import</span> Deskbrid<br><br>
+          client = Deskbrid()<br>
+          client.focus_window(app_id=<span class="output">'code'</span>)<br>
+          client.type_text(<span class="output">"Hello from AI!<span style="animation: blink 1s step-end infinite;">▊</span>"</span>)<br>
+          client.screenshot(save=<span class="output">'desktop.png'</span>)<br><br>
+          <span class="comment"># MCP tools — 100+ actions</span><br>
+          <span class="cmd">$ deskbrid</span> mcp<br>
+          <span class="output">→ MCP server ready on stdio</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────── -->
+<section style="background: var(--surface);">
+  <div class="container">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># Capabilities</p>
+    <h2 class="reveal" style="margin-bottom: 4rem;">Everything an agent<br>needs to drive a desktop.</h2>
+    <div class="grid-3">
+      <div class="feature-card reveal">
+        <div class="feature-card-icon">🪟</div>
+        <h3>Windows & Workspaces</h3>
+        <p>List, focus, close, minimize, maximize, tile, move, resize. Full window management across all compositors.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-card-icon">⌨️</div>
+        <h3>Keyboard & Mouse</h3>
+        <p>Type text, send key combos, control the mouse. Virtual input devices via uinput — works everywhere.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-card-icon">📋</div>
+        <h3>Clipboard</h3>
+        <p>Read, write, and track clipboard history. Cross-compositor pasteboard access.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card-icon">📸</div>
+        <h3>Screenshots & OCR</h3>
+        <p>Capture screens, diff regions, extract text. Built-in OCR for reading what's on screen.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-card-icon">🔊</div>
+        <h3>Audio Control</h3>
+        <p>Volume, mute, sink management via PipeWire. Full audio routing for agents.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-card-icon">🛡️</div>
+        <h3>Permissions & Safety</h3>
+        <p>Rate limiting, confirmation mode, per-action permissions. Agents can't go rogue.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ──────────────────────────────────────── -->
+<section>
+  <div class="container" style="text-align: center;">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;">$ deskbrid update</p>
+    <h2 class="reveal" style="margin-bottom: 1.5rem;">Start driving.</h2>
+    <p class="reveal reveal-delay-1" style="max-width: 560px; margin: 0 auto 2.5rem;">
+      One command. Your AI has a desktop. Nine compositors, one API, zero friction.
+    </p>
+    <div class="reveal reveal-delay-2" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="#" class="btn btn-primary" style="font-family: var(--font-mono); font-size: 0.85rem;">
+        curl -fsSL deskbrid.dev | bash
+      </a>
+      <a href="#" class="btn btn-ghost">Read the Docs →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <p style="color: var(--text-tertiary);">Deskbrid · Built with Rust · <span style="color: var(--accent);">v2 concept</span></p>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

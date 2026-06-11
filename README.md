@@ -67,21 +67,19 @@ Deskbrid ships with a built-in web dashboard at `localhost:20129` — system inf
 
 | Desktop | Session | Status | Backend |
 |---------|---------|--------|---------|
-| **GNOME 46–50** | Wayland | ✅ Supported | Mutter RemoteDesktop + Shell Extension |
-| **Hyprland** | Wayland | ✅ Supported (v0.3.0) | hyprctl + ydotool + grim |
-| **KDE Plasma** | Wayland | ✅ Supported (v0.4.0) | KWin D-Bus + ydotool + spectacle |
+| **GNOME 46–50** | Wayland | ✅ Core | Mutter RemoteDesktop + Shell Extension |
+| **KDE Plasma** | Wayland | ✅ Core | KWin D-Bus + ydotool + spectacle |
+| **Hyprland** | Wayland | ✅ Core | hyprctl + ydotool + grim |
+| **Sway** | Wayland | ✅ Core | swaymsg + ydotool + grim |
+| **Labwc** | Wayland | ⚠️ Partial | wlrctl + ydotool + grim + wlr-randr |
 | **COSMIC** | Wayland | ⚠️ Partial | cosmic-helper + cosmic-randr + ydotool + grim |
-| **Sway** | Wayland | ✅ Supported | swaymsg + ydotool + grim |
-| **Niri** | Wayland | ✅ Partial | niri msg + ydotool + grim + wlr-randr |
-| **Wayfire** | Wayland | ✅ Supported (no move/resize) | wf-ipc + ydotool + grim + wlr-randr |
-| **Labwc** | Wayland | ✅ Supported (no move/resize) | wlrctl + ydotool + grim + wlr-randr |
-| Cinnamon | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
-| MATE | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
-| X11 (generic) | X11 | ✅ Supported (shared X11) | xdotool + wmctrl + xclip + import |
+| **Niri** | Wayland | 🔲 Untested | niri msg + ydotool + grim + wlr-randr |
+| **Wayfire** | Wayland | 🔲 Untested | wf-ipc + ydotool + grim + wlr-randr |
+| Cinnamon | X11 | 🔲 Untested | xdotool + wmctrl + xclip + import |
+| MATE | X11 | 🔲 Untested | xdotool + wmctrl + xclip + import |
+| X11 (generic) | X11 | 🔲 Untested | xdotool + wmctrl + xclip + import |
 
-Deskbrid auto-detects your desktop at startup (`$XDG_CURRENT_DESKTOP` → process scan → GNOME fallback). No config files, no flags.
-
-See **[DE Test Matrix](docs/DE_TEST_MATRIX.md)** for per-action compatibility across all desktops — every action, every compositor, tested on real hardware.
+> **Honest coverage:** Deskbrid works well on GNOME, KDE, Hyprland, and Sway — tested on real hardware (Turtle, a 2014 Haswell laptop). The other seven backends have code but zero runtime verification. Even within core backends, support is uneven: Hyprland lacks `windows.minimize` and `monitor.set_primary`, COSMIC lacks window move/resize and tiling, Labwc lacks move/resize, minimize, tile, and primary monitor control. Stubbed actions (`ui.tree.get`, `ui.element.click`, `bluetooth.pair`) return "not supported." This is **broad but partial** Linux desktop automation, not universal cross-desktop control. See the full [DE Test Matrix](docs/DE_TEST_MATRIX.md) for per-action, per-compositor detail.
 
 ## Installation
 

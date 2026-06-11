@@ -50,5 +50,7 @@ pub(super) async fn window_move_resize(
     _w: u32,
     _h: u32,
 ) -> anyhow::Result<()> {
-    anyhow::bail!("window move/resize is not supported by wf-ipc")
+    anyhow::bail!(
+        "window move/resize not available: wf-ipc does not expose set_geometry (Wayland compositor protocol limitation, not a Deskbrid gap)"
+    )
 }

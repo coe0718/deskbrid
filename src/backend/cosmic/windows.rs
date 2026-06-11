@@ -92,7 +92,9 @@ pub(super) async fn window_move_resize(
     _width: u32,
     _height: u32,
 ) -> anyhow::Result<()> {
-    anyhow::bail!("window move/resize not yet supported on COSMIC")
+    anyhow::bail!(
+        "window move/resize not available: COSMIC toplevel management protocol does not expose set_geometry (Wayland protocol limitation, not a Deskbrid gap)"
+    )
 }
 
 // ─── Workspaces ─────────────────────────────────────
