@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn expand_path_blocks_traversal_into_etc() {
         let traversal = "/tmp/../../../etc/passwd";
-        let result = expand_path(&traversal);
+        let result = expand_path(traversal);
         assert!(
             result.is_err(),
             "../../../etc/passwd traversal should be blocked"
