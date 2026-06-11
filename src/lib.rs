@@ -65,6 +65,20 @@ fn unix_timestamp() -> u64 {
 }
 
 /// Global daemon state shared across all client connections
+///
+/// ## Lock ordering
+/// When multiple locks MUST be held simultaneously, acquire in this order:
+/// 1. `backend` (RwLock) — always first; shortest-held
+/// 2. `database` (tokio Mutex)
+/// 3. `rules` (Mutex)
+/// 4. `screencast_process` (Mutex)
+/// 5. `recording` (Mutex)
+///
+/// `audit_log`, `clipboard_history` — standalone, never held with other locks.
+/// DashMap fields (`inhibitors`, `terminals`, `rate_limits`, `sessions`,
+/// `pending_confirmations`) are lock-free sharded maps — no ordering needed.
+/// `rate_limit_store`, `schedule`, `agent_mailbox`, `search_index` —
+/// internally synchronized, never held with other DaemonState locks.
 pub struct DaemonState {
     pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
     /// Broadcast channel for push events (file changes, etc.)
