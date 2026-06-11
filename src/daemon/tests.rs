@@ -311,7 +311,14 @@ async fn audit_entries_persist_across_state_instances() {
     )
     .await;
 
-    // Drop state so WAL is checkpointed before state2 opens
+    // Force WAL checkpoint so the next DaemonState sees committed data
+    state
+        .database
+        .lock()
+        .await
+        .conn
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .ok();
     drop(state);
 
     // "Restart": new DaemonState, load from DB, query directly
