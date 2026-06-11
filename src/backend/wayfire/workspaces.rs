@@ -36,6 +36,9 @@ pub(super) async fn keyboard_type(backend: &WayfireBackend, text: &str) -> anyho
 }
 
 pub(super) async fn keyboard_key(backend: &WayfireBackend, key: &str) -> anyhow::Result<()> {
+    if key.eq_ignore_ascii_case("return") || key.eq_ignore_ascii_case("enter") {
+        return crate::backend::ydotool_type_enter().await;
+    }
     backend
         .ydotool(&["key", &crate::backend::ydotool_key_name(key)])
         .await

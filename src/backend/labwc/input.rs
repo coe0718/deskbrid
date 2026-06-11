@@ -7,6 +7,9 @@ pub(super) async fn keyboard_type(backend: &LabwcBackend, t: &str) -> anyhow::Re
 }
 
 pub(super) async fn keyboard_key(backend: &LabwcBackend, k: &str) -> anyhow::Result<()> {
+    if k.eq_ignore_ascii_case("return") || k.eq_ignore_ascii_case("enter") {
+        return crate::backend::ydotool_type_enter().await;
+    }
     backend
         .ydotool(&["key", &crate::backend::ydotool_key_name(k)])
         .await

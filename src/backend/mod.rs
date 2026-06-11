@@ -428,3 +428,30 @@ pub(crate) fn ydotool_key_name(key: &str) -> String {
         other => other.to_string(),
     }
 }
+
+/// Send a Return/Enter keypress by piping a newline through ydotool type.
+///
+/// ydotool's `key 28` subcommand is broken on some compositors (observed on Hyprland).
+/// `ydotool type --file -` with a piped newline is the reliable workaround.
+pub(crate) async fn ydotool_type_enter() -> anyhow::Result<()> {
+    use tokio::io::AsyncWriteExt;
+    use tokio::process::Command;
+
+    let mut child = Command::new("ydotool")
+        .args(["type", "--file", "-"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(b"\n").await?;
+    }
+
+    let output = child.wait_with_output().await?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("ydotool type --file - failed: {}", stderr.trim());
+    }
+    Ok(())
+}
