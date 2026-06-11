@@ -91,7 +91,10 @@ pub(super) async fn window_move_resize(
     _w: u32,
     _h: u32,
 ) -> anyhow::Result<()> {
+    // PROTOCOL LIMITATION: wlr-foreign-toplevel-management-unstable-v1
+    // does not expose move/resize. wlrctl toplevel has no geometry commands.
+    // Mouse simulation is the only path but fragile across window decorations.
     anyhow::bail!(
-        "window move/resize not available: wlrctl/Wayland foreign toplevel protocol does not expose set_geometry (Wayland protocol limitation, not a Deskbrid gap)"
+        "window move/resize is not supported by the Wayland toplevel protocol — use input.mouse.drag as a workaround"
     )
 }
