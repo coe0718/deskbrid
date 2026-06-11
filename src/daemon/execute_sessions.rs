@@ -12,16 +12,14 @@ pub(crate) async fn execute_session_action(
 ) -> anyhow::Result<Value> {
     match action {
         Action::SessionCreate { name, clone_from } => {
-            let mut sessions = state.sessions.lock().await;
-
-            if sessions.contains_key(&name) {
+            if state.sessions.contains_key(&name) {
                 anyhow::bail!("session '{}' already exists", name);
             }
 
             let data = if let Some(ref source_name) = clone_from {
-                match sessions.get(source_name) {
+                match state.sessions.get(source_name) {
                     Some(source) => {
-                        let mut cloned = source.clone();
+                        let mut cloned = source.value().clone();
                         cloned.name = name.clone();
                         cloned
                     }
@@ -39,14 +37,13 @@ pub(crate) async fn execute_session_action(
                 }
             }
 
-            sessions.insert(name.clone(), data);
+            state.sessions.insert(name.clone(), data);
             info!("Session '{}' created", name);
             Ok(serde_json::json!({"ok": true, "session": name}))
         }
 
         Action::SessionDestroy { name } => {
-            let mut sessions = state.sessions.lock().await;
-            if sessions.remove(&name).is_some() {
+            if state.sessions.remove(&name).is_some() {
                 // Remove from database
                 let db = state.database.lock().await;
                 let _ = db.delete_session(&name);
@@ -61,9 +58,9 @@ pub(crate) async fn execute_session_action(
         }
 
         Action::SessionList => {
-            let sessions = state.sessions.lock().await;
             let mut list: Vec<Value> = Vec::new();
-            for s in sessions.values() {
+            for entry in state.sessions.iter() {
+                let s = entry.value();
                 list.push(serde_json::json!({
                     "name": s.name,
                     "var_count": s.vars.len(),
@@ -77,8 +74,7 @@ pub(crate) async fn execute_session_action(
         }
 
         Action::SessionSwitch { name } => {
-            let sessions = state.sessions.lock().await;
-            if sessions.contains_key(&name) {
+            if state.sessions.contains_key(&name) {
                 Ok(serde_json::json!({"ok": true, "session": name}))
             } else {
                 // Auto-create if doesn't exist
@@ -91,30 +87,32 @@ pub(crate) async fn execute_session_action(
         }
 
         Action::SessionVarSet { name, value } => {
-            let mut sessions = state.sessions.lock().await;
-            let session = sessions
-                .get_mut(session_id)
-                .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
+            {
+                let mut session_ref = state
+                    .sessions
+                    .get_mut(session_id)
+                    .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
 
-            session.vars.insert(name.clone(), value.clone());
-            session.touch();
+                session_ref.vars.insert(name.clone(), value.clone());
+                session_ref.touch();
+            }
 
             // Persist variable to DB
             {
+                let session_ref = state.sessions.get(session_id).unwrap();
                 let db = state.database.lock().await;
-                let _ = db.upsert_session(session);
+                let _ = db.upsert_session(session_ref.value());
             }
 
             Ok(serde_json::json!({"ok": true, "var": name, "value": value}))
         }
 
         Action::SessionVarGet { name } => {
-            let sessions = state.sessions.lock().await;
-            // Look up by session_id, var name
-            let session = sessions
+            let session = state
+                .sessions
                 .get(session_id)
                 .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
-
+            let session = session.value();
             match session.vars.get(&name) {
                 Some(value) => Ok(serde_json::json!({"var": name, "value": value})),
                 None => Ok(serde_json::json!({"var": name, "value": null, "found": false})),
@@ -122,10 +120,11 @@ pub(crate) async fn execute_session_action(
         }
 
         Action::SessionVarList => {
-            let sessions = state.sessions.lock().await;
-            let session = sessions
+            let session = state
+                .sessions
                 .get(session_id)
                 .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
+            let session = session.value();
 
             let mut vars: Vec<Value> = session
                 .vars

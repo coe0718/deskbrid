@@ -159,11 +159,7 @@ pub(crate) async fn create_terminal(
         }
     });
 
-    state
-        .terminals
-        .lock()
-        .await
-        .insert(id.clone(), session.clone());
+    state.terminals.insert(id.clone(), session.clone());
 
     Ok(json!({
         "terminal_id": id,

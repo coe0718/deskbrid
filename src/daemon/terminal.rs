@@ -109,7 +109,7 @@ async fn write_terminal(
             MAX_WRITE_BYTES
         );
     }
-    let session = terminal_session(state, terminal_id).await?;
+    let session = terminal_session(state, terminal_id)?;
     if session.closed.load(Ordering::Relaxed) {
         anyhow::bail!("terminal is closed: {terminal_id}");
     }
@@ -131,7 +131,7 @@ async fn read_terminal(
     max_bytes: Option<u64>,
     flush: bool,
 ) -> anyhow::Result<serde_json::Value> {
-    let session = terminal_session(state, terminal_id).await?;
+    let session = terminal_session(state, terminal_id)?;
     let max_bytes = max_bytes
         .unwrap_or(DEFAULT_READ_BYTES as u64)
         .min(MAX_BUFFER_BYTES as u64) as usize;
@@ -163,7 +163,7 @@ async fn resize_terminal(
     if rows == 0 || cols == 0 {
         anyhow::bail!("rows and cols must be positive");
     }
-    let session = terminal_session(state, terminal_id).await?;
+    let session = terminal_session(state, terminal_id)?;
     let writer = session.writer.lock().unwrap_or_else(|e| e.into_inner());
     let mut winsize = libc::winsize {
         ws_row: rows,
@@ -185,10 +185,8 @@ async fn resize_terminal(
 async fn list_terminals(state: &DaemonState) -> anyhow::Result<serde_json::Value> {
     let sessions: Vec<_> = state
         .terminals
-        .lock()
-        .await
-        .values()
-        .map(TerminalSession::summary)
+        .iter()
+        .map(|r| r.value().summary())
         .collect();
     Ok(json!({"terminals": sessions}))
 }
@@ -199,9 +197,10 @@ async fn kill_terminal(
     signal: Option<&str>,
 ) -> anyhow::Result<serde_json::Value> {
     let session = {
-        let mut terminals = state.terminals.lock().await;
-        terminals
+        state
+            .terminals
             .remove(terminal_id)
+            .map(|(_, v)| v)
             .ok_or_else(|| anyhow::anyhow!("terminal not found: {terminal_id}"))?
     };
     ensure_safe_pid(session.pid)?;

@@ -18,6 +18,7 @@ pub mod tray;
 pub mod util;
 pub mod visual;
 
+use dashmap::DashMap;
 use permissions::Permissions;
 use protocol::DeskbridEvent;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -71,14 +72,14 @@ pub struct DaemonState {
     /// Scoped permissions per UID
     pub permissions: Permissions,
     /// Active systemd-inhibit helper processes keyed by Deskbrid handle ID.
-    pub inhibitors: Arc<Mutex<HashMap<u32, Child>>>,
+    pub inhibitors: DashMap<u32, Child>,
     /// Active pseudo-terminal sessions keyed by Deskbrid terminal ID.
-    pub terminals: Arc<Mutex<HashMap<String, daemon::terminal::TerminalSession>>>,
+    pub terminals: DashMap<String, daemon::terminal::TerminalSession>,
     /// Recent action audit entries, kept in memory as a bounded ring.
     pub audit_log: Arc<Mutex<VecDeque<protocol::AuditEntry>>>,
     pub audit_capacity: usize,
     pub action_timeout_ms: Option<u64>,
-    pub(crate) rate_limits: Arc<Mutex<HashMap<u32, daemon::RateBucket>>>,
+    pub(crate) rate_limits: DashMap<u32, daemon::RateBucket>,
     pub(crate) rate_limit: Option<daemon::RateLimitConfig>,
     /// Per-namespace, per-UID rate limiting (#129)
     pub rate_limit_store: Arc<daemon::RateLimitStore>,
@@ -88,13 +89,12 @@ pub struct DaemonState {
     pub recording: Arc<Mutex<Option<daemon::macro_engine::ActiveRecording>>>,
     pub database: Arc<tokio::sync::Mutex<Database>>,
     /// Named sessions — map of session name to session data (#31)
-    pub sessions: Arc<Mutex<HashMap<String, SessionData>>>,
+    pub sessions: DashMap<String, SessionData>,
     /// Rules engine state — registered rules with runtime tracking (#83)
     pub rules: Arc<Mutex<RuleEngine>>,
     /// Active portal screencast process (GStreamer pipeline)
     pub screencast_process: Arc<Mutex<Option<daemon::portal::ActiveScreencast>>>,
-    pub pending_confirmations:
-        Arc<Mutex<HashMap<String, daemon::execute_confirmation::PendingConfirmation>>>,
+    pub pending_confirmations: DashMap<String, daemon::execute_confirmation::PendingConfirmation>,
     pub agent_mailbox: Arc<daemon::execute_agent::AgentMailboxStore>,
     pub search_index: Arc<daemon::search::SearchIndex>,
     next_confirmation_id: AtomicU64,
@@ -142,12 +142,12 @@ impl DaemonState {
             backend: Arc::new(RwLock::new(None)),
             event_tx,
             permissions,
-            inhibitors: Arc::new(Mutex::new(HashMap::new())),
-            terminals: Arc::new(Mutex::new(HashMap::new())),
+            inhibitors: DashMap::new(),
+            terminals: DashMap::new(),
             audit_log: Arc::new(Mutex::new(VecDeque::new())),
             audit_capacity: daemon::audit_capacity_from_env(),
             action_timeout_ms: daemon::action_timeout_from_env(),
-            rate_limits: Arc::new(Mutex::new(HashMap::new())),
+            rate_limits: DashMap::new(),
             rate_limit: daemon::rate_limit_from_env(),
             rate_limit_store: Arc::new(rate_limit_store),
             clipboard_history: Arc::new(Mutex::new(VecDeque::new())),
@@ -155,10 +155,10 @@ impl DaemonState {
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),
             recording: Arc::new(Mutex::new(None)),
             database: Arc::new(tokio::sync::Mutex::new(database)),
-            sessions: Arc::new(Mutex::new(sessions)),
+            sessions: DashMap::from_iter(sessions),
             rules: Arc::new(Mutex::new(RuleEngine::new())),
             screencast_process: Arc::new(Mutex::new(None)),
-            pending_confirmations: Arc::new(Mutex::new(HashMap::new())),
+            pending_confirmations: DashMap::new(),
             agent_mailbox: Arc::new(daemon::execute_agent::AgentMailboxStore::new()),
             search_index: Arc::new(daemon::search::SearchIndex::new()),
             next_confirmation_id: AtomicU64::new(1),

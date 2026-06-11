@@ -24,16 +24,14 @@ pub async fn execute_confirmation(
 ) -> anyhow::Result<Value> {
     match action {
         Action::ConfirmAction { id } => {
-            let mut pending = state.pending_confirmations.lock().await;
             // Ownership check BEFORE removal — wrong peer must not consume the entry.
-            if let Some(entry) = pending.get(&id)
-                && entry.peer_uid != caller_uid
-            {
-                return Ok(
-                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
-                );
-            }
-            if let Some(entry) = pending.remove(&id) {
+            if let Some(entry) = state.pending_confirmations.get(&id)
+                && entry.value().peer_uid != caller_uid {
+                    return Ok(
+                        json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                    );
+                }
+            if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
                 let backend = state.backend.read().await;
                 let backend_ref = backend.as_ref().map(|b| b.as_ref());
                 let result = match backend_ref {
@@ -54,16 +52,14 @@ pub async fn execute_confirmation(
             }
         }
         Action::DenyAction { id } => {
-            let mut pending = state.pending_confirmations.lock().await;
             // Ownership check BEFORE removal — wrong peer must not consume the entry.
-            if let Some(entry) = pending.get(&id)
-                && entry.peer_uid != caller_uid
-            {
-                return Ok(
-                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
-                );
-            }
-            if let Some(entry) = pending.remove(&id) {
+            if let Some(entry) = state.pending_confirmations.get(&id)
+                && entry.value().peer_uid != caller_uid {
+                    return Ok(
+                        json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                    );
+                }
+            if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
                 let _ = entry;
                 Ok(json!({"status": "denied", "id": id}))
             } else {
@@ -73,15 +69,15 @@ pub async fn execute_confirmation(
             }
         }
         Action::ConfirmationList => {
-            let pending = state.pending_confirmations.lock().await;
-            let items: Vec<_> = pending
+            let items: Vec<_> = state
+                .pending_confirmations
                 .iter()
-                .map(|(id, entry)| {
+                .map(|entry| {
                     json!({
-                        "id": id,
-                        "action_type": entry.action.action_type(),
-                        "created_at": entry.created_at,
-                        "session_id": entry.session_id,
+                        "id": entry.key(),
+                        "action_type": entry.value().action.action_type(),
+                        "created_at": entry.value().created_at,
+                        "session_id": entry.value().session_id,
                     })
                 })
                 .collect();
@@ -97,20 +93,20 @@ pub fn spawn_confirmation_sweeper(state: std::sync::Arc<crate::DaemonState>) {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(SWEEP_INTERVAL_SECS)).await;
-            let mut pending = state.pending_confirmations.lock().await;
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64;
-            let before = pending.len();
-            pending
+            let before = state.pending_confirmations.len();
+            state
+                .pending_confirmations
                 .retain(|_, entry| now_ms.saturating_sub(entry.created_at) < CONFIRMATION_TTL_MS);
-            if pending.len() != before {
+            if state.pending_confirmations.len() != before {
                 tracing::debug!(
                     "Confirmation sweep: {} → {} (removed {} expired)",
                     before,
-                    pending.len(),
-                    before - pending.len(),
+                    state.pending_confirmations.len(),
+                    before - state.pending_confirmations.len(),
                 );
             }
         }

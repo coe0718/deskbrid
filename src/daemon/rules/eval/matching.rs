@@ -194,23 +194,21 @@ pub(crate) fn condition_matches(
 
     match cond {
         RuleCondition::VarEquals { name, value } => {
-            // Try to read session "default". If locked (rare), skip this tick.
-            let Ok(sessions) = state.sessions.try_lock() else {
-                debug!("condition_matches: sessions lock held, skipping");
-                return false;
-            };
-            if let Some(session) = sessions.get("default") {
-                session.vars.get(name).map(|v| v == value).unwrap_or(false)
+            // Read session "default" directly — DashMap is non-blocking.
+            if let Some(session) = state.sessions.get("default") {
+                session
+                    .value()
+                    .vars
+                    .get(name)
+                    .map(|v| v == value)
+                    .unwrap_or(false)
             } else {
                 false
             }
         }
         RuleCondition::VarExists { name } => {
-            let Ok(sessions) = state.sessions.try_lock() else {
-                return false;
-            };
-            if let Some(session) = sessions.get("default") {
-                session.vars.contains_key(name)
+            if let Some(session) = state.sessions.get("default") {
+                session.value().vars.contains_key(name)
             } else {
                 false
             }

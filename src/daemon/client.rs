@@ -109,16 +109,12 @@ where
                     && raw["type"].as_str() == Some("connect")
                 {
                     if let Some(session_name) = raw["session"].as_str() {
-                            let name = session_name.to_string();
-                            // Create session if it doesn't exist
-                            {
-                                let mut sessions = state.sessions.lock().await;
-                                if !sessions.contains_key(&name) {
-                                    let data = crate::SessionData::new(name.clone());
-                                    sessions.insert(name.clone(), data);
-                                }
-                            }
-                            conn.session_id = name;
+                        let name = session_name.to_string();
+                        // Create session if it doesn't exist
+                        state.sessions.entry(name.clone()).or_insert_with(|| {
+                            crate::SessionData::new(name.clone())
+                        });
+                        conn.session_id = name;
                             let resp = serde_json::json!({
                                 "type": "response",
                                 "id": raw["id"].as_str().unwrap_or("?"),

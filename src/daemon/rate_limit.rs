@@ -67,8 +67,8 @@ impl RateBucket {
 
 pub(crate) async fn check_rate_limit(state: &DaemonState, peer_uid: u32) -> Option<RateLimitHit> {
     let config = state.rate_limit?;
-    let mut buckets = state.rate_limits.lock().await;
-    let bucket = buckets
+    let mut bucket = state
+        .rate_limits
         .entry(peer_uid)
         .or_insert_with(|| RateBucket::new(config));
     bucket.take(config)

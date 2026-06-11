@@ -42,7 +42,7 @@ pub async fn inhibit(
     }
 
     let inhibitor_id = state.next_inhibitor_id();
-    state.inhibitors.lock().await.insert(inhibitor_id, child);
+    state.inhibitors.insert(inhibitor_id, child);
     Ok(json!({ "inhibitor_id": inhibitor_id, "what": what, "who": who, "why": why, "mode": mode }))
 }
 
@@ -50,7 +50,7 @@ pub async fn release_inhibit(
     state: &DaemonState,
     inhibitor_id: u32,
 ) -> anyhow::Result<serde_json::Value> {
-    let Some(mut child) = state.inhibitors.lock().await.remove(&inhibitor_id) else {
+    let Some((_, mut child)) = state.inhibitors.remove(&inhibitor_id) else {
         anyhow::bail!("inhibitor not found: {inhibitor_id}");
     };
     child.start_kill()?;

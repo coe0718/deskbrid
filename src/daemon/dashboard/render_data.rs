@@ -101,12 +101,13 @@ pub(super) async fn render_audit(state: &DaemonState) -> String {
 }
 
 pub(super) async fn render_sessions(state: &DaemonState) -> String {
-    let sessions = state.sessions.lock().await;
+    let sessions = &state.sessions;
     if sessions.is_empty() {
         return r#"<div class="empty">No sessions</div>"#.into();
     }
     let mut rows = String::new();
-    for s in sessions.values() {
+    for entry in sessions.iter() {
+        let s = entry.value();
         rows.push_str(&super::kv(&s.name, &format!("{} vars", s.vars.len())));
     }
     rows
@@ -177,22 +178,28 @@ pub(super) async fn render_macros() -> String {
 }
 
 pub(super) async fn render_confirmations(state: &DaemonState) -> String {
-    let pending = state.pending_confirmations.lock().await;
+    let pending = &state.pending_confirmations;
     if pending.is_empty() {
         return r#"<div class="empty">No pending confirmations</div>"#.into();
     }
     let mut rows = String::new();
-    for (id, entry) in pending.iter().take(10) {
+    for (count, entry) in pending.iter().enumerate() {
+        if count >= 10 {
+            break;
+        }
+        let id = entry.key();
+        let e = entry.value();
         let truncated_id: String = id.chars().take(12).collect();
         rows.push_str(&super::kv(
-            &format!("⚠ {}", entry.action.action_type()),
+            &format!("⚠ {}", e.action.action_type()),
             &truncated_id,
         ));
     }
-    if pending.len() > 10 {
+    let total = pending.len();
+    if total > 10 {
         rows.push_str(&format!(
             r#"<div class="empty">… and {} more</div>"#,
-            pending.len() - 10
+            total - 10
         ));
     }
     rows

@@ -10,7 +10,7 @@ use super::helpers::ensure_safe_pid;
 
 use super::terminal::{MAX_BUFFER_BYTES, TerminalSession};
 
-pub(crate) async fn terminal_session(
+pub(crate) fn terminal_session(
     state: &DaemonState,
     terminal_id: &str,
 ) -> anyhow::Result<TerminalSession> {
@@ -19,10 +19,8 @@ pub(crate) async fn terminal_session(
     }
     state
         .terminals
-        .lock()
-        .await
         .get(terminal_id)
-        .cloned()
+        .map(|r| r.value().clone())
         .ok_or_else(|| anyhow::anyhow!("terminal not found: {terminal_id}"))
 }
 

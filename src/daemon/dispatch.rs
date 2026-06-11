@@ -152,8 +152,6 @@ pub async fn dispatch_action_with_options(
         };
         state
             .pending_confirmations
-            .lock()
-            .await
             .insert(confirm_id.clone(), entry);
         let response = serde_json::json!({
             "type": "response",

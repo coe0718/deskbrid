@@ -364,15 +364,14 @@ async fn confirmation_queue_stores_pending_requests() {
     assert!(!confirm_id.is_empty());
 
     // Verify it's in the pending queue
-    let pending = state.pending_confirmations.lock().await;
     assert!(
-        pending.contains_key(&confirm_id),
+        state.pending_confirmations.contains_key(&confirm_id),
         "confirmation should be in queue"
     );
-    let entry = pending.get(&confirm_id).unwrap();
-    assert_eq!(entry.action.action_type(), "windows.close");
-    assert_eq!(entry.peer_uid, 1000);
-    assert_eq!(entry.session_id, "test-session");
+    let entry = state.pending_confirmations.get(&confirm_id).unwrap();
+    assert_eq!(entry.value().action.action_type(), "windows.close");
+    assert_eq!(entry.value().peer_uid, 1000);
+    assert_eq!(entry.value().session_id, "test-session");
 }
 
 #[tokio::test]
@@ -412,9 +411,8 @@ async fn confirmation_deny_removes_from_queue() {
     assert_eq!(deny["id"], confirm_id);
 
     // Verify it's removed from queue
-    let pending = state.pending_confirmations.lock().await;
     assert!(
-        !pending.contains_key(&confirm_id),
+        !state.pending_confirmations.contains_key(&confirm_id),
         "denied confirmation should be removed"
     );
 }
@@ -483,7 +481,7 @@ async fn confirmation_sweeper_removes_expired_entries() {
         - 400_000; // 400 seconds ago (TTL is 300s)
 
     let confirm_id = "expired-test-id".to_string();
-    state.pending_confirmations.lock().await.insert(
+    state.pending_confirmations.insert(
         confirm_id.clone(),
         crate::daemon::execute_confirmation::PendingConfirmation {
             request_id: "test".to_string(),
@@ -501,16 +499,15 @@ async fn confirmation_sweeper_removes_expired_entries() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
-    let mut pending = state.pending_confirmations.lock().await;
-    let before = pending.len();
-    pending.retain(|_, entry| now_ms.saturating_sub(entry.created_at) < 300_000); // TTL
-    let removed = before - pending.len();
-    drop(pending);
+    let before = state.pending_confirmations.len();
+    state
+        .pending_confirmations
+        .retain(|_, entry| now_ms.saturating_sub(entry.created_at) < 300_000); // TTL
+    let removed = before - state.pending_confirmations.len();
 
     assert!(removed > 0, "expired confirmation should be swept");
-    let pending = state.pending_confirmations.lock().await;
     assert!(
-        !pending.contains_key(&confirm_id),
+        !state.pending_confirmations.contains_key(&confirm_id),
         "expired entry should be gone"
     );
 }
@@ -536,8 +533,6 @@ async fn confirmation_rejects_wrong_peer_uid() {
     };
     state
         .pending_confirmations
-        .lock()
-        .await
         .insert(confirm_id.clone(), entry);
 
     // Peer 200 tries to deny — should be rejected
@@ -560,12 +555,10 @@ async fn confirmation_rejects_wrong_peer_uid() {
     );
 
     // Original entry should still be in queue
-    let pending = state.pending_confirmations.lock().await;
     assert!(
-        pending.contains_key(&confirm_id),
+        state.pending_confirmations.contains_key(&confirm_id),
         "entry owned by peer 100 should not be removable by peer 200"
     );
-    drop(pending);
 
     // Peer 100 can deny it
     let deny = crate::daemon::execute_confirmation::execute_confirmation(
@@ -581,6 +574,5 @@ async fn confirmation_rejects_wrong_peer_uid() {
     assert!(!deny.as_object().unwrap().contains_key("error"));
 
     // Now it's gone
-    let pending = state.pending_confirmations.lock().await;
-    assert!(!pending.contains_key(&confirm_id));
+    assert!(!state.pending_confirmations.contains_key(&confirm_id));
 }
