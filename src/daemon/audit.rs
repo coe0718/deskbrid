@@ -137,7 +137,14 @@ mod tests {
     #[tokio::test]
     async fn audit_log_filters_newest_entries_then_returns_chronological_order() {
         let state = DaemonState::new();
-        // Clear stale on-disk entries from previous test runs.
+        // Force WAL checkpoint so stale entries from other connections are visible to clear_audit.
+        state
+            .database
+            .lock()
+            .await
+            .conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .ok();
         state.database.lock().await.clear_audit().unwrap();
         for seq in 1..=3 {
             record_audit_entry(
