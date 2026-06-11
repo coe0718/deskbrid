@@ -3,547 +3,424 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deskbrid — Desktop Control Daemon</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Deskbrid — Unify the Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --accent:#06b6d4;
-  --accent-light:#22d3ee;
-  --accent-dark:#0891b2;
-  --accent-glow:rgba(6,182,212,0.3);
-  --accent-subtle:rgba(6,182,212,0.08);
-  --bg:#0a0a0f;
-  --bg-card:#111118;
-  --bg-card-hover:#161622;
-  --text:#e2e8f0;
-  --text-muted:#94a3b8;
-  --border:#1e293b;
-  --border-hover:#334155;
-  --success:#22c55e;
-}
-html{scroll-behavior:smooth}
-body{
-  font-family:Inter,system-ui,-apple-system,sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  line-height:1.6;
-  -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
-}
-body::before{
-  content:'';
-  position:fixed;
-  top:-50%;left:-50%;width:200%;height:200%;
-  background:
-    radial-gradient(ellipse at 20% 30%,rgba(6,182,212,0.08) 0%,transparent 50%),
-    radial-gradient(ellipse at 80% 70%,rgba(168,85,247,0.06) 0%,transparent 50%),
-    radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.05) 0%,transparent 40%);
-  pointer-events:none;z-index:0;
-}
+  :root {
+    --bg: #08080c;
+    --surface: #111118;
+    --surface-raised: #16161f;
+    --text-primary: #e4e4e7;
+    --text-secondary: rgba(228, 228, 231, 0.6);
+    --text-tertiary: rgba(228, 228, 231, 0.4);
+    --accent: #00e5ff;
+    --accent-dim: rgba(0, 229, 255, 0.12);
+    --border: rgba(228, 228, 231, 0.08);
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  }
 
-/* Navigation */
-nav{
-  position:fixed;top:0;left:0;right:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 24px;
-  background:rgba(10,10,15,0.85);
-  backdrop-filter:blur(16px) saturate(1.2);
-  -webkit-backdrop-filter:blur(16px) saturate(1.2);
-  border-bottom:1px solid var(--border);
-}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.2rem;color:var(--text);text-decoration:none}
-.brand:hover{color:var(--accent-light)}
-.nav-right{display:flex;align-items:center;gap:20px}
-.nav-right a{color:var(--text-muted);text-decoration:none;font-size:0.9rem;font-weight:500;transition:color .2s}
-.nav-right a:hover{color:var(--text)}
-.nav-live{display:inline-flex!important;align-items:center;gap:6px;color:var(--success)!important;font-weight:600!important}
-.live-dot-nav{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.nav-cta{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:8px 16px;border-radius:8px;
-  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
-  color:#fff!important;font-weight:600;font-size:0.85rem;
-  box-shadow:0 0 20px var(--accent-glow);
-  transition:transform .2s,box-shadow .2s;
-  white-space:nowrap;
-}
-.nav-cta:hover{transform:translateY(-1px);box-shadow:0 0 30px var(--accent-glow)}
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--bg); color: var(--text-primary); font-family: var(--font-display); }
+  body { overflow-x: hidden; }
 
-/* Hero */
-.hero{
-  position:relative;z-index:1;
-  min-height:90vh;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  text-align:center;padding:120px 24px 80px;
-}
-.hero-badge{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:6px 16px;border-radius:100px;
-  background:var(--accent-subtle);border:1px solid rgba(6,182,212,0.2);
-  color:var(--accent-light);font-size:0.85rem;font-weight:600;
-  margin-bottom:24px;
-}
-.hero h1{
-  font-size:clamp(2.8rem,8vw,5.5rem);font-weight:900;line-height:1.1;
-  margin-bottom:16px;
-}
-.gradient-text{
-  background:linear-gradient(135deg,var(--accent-light),var(--accent),var(--accent-dark));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.hero p{
-  max-width:640px;font-size:1.15rem;color:var(--text-muted);
-  margin-bottom:32px;line-height:1.7;
-}
-.hero-actions{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:48px}
-.btn-primary{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;border-radius:12px;border:none;
-  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
-  color:#fff;font-weight:700;font-size:1rem;cursor:pointer;
-  text-decoration:none;
-  box-shadow:0 0 24px var(--accent-glow);
-  transition:transform .2s,box-shadow .2s;
-}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 36px var(--accent-glow)}
-.btn-secondary{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;border-radius:12px;
-  background:var(--bg-card);border:1px solid var(--border);
-  color:var(--text);font-weight:600;font-size:1rem;
-  text-decoration:none;transition:all .2s;
-}
-.btn-secondary:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateY(-2px)}
+  ::selection { background: var(--accent); color: var(--bg); }
 
-/* Code Mockup */
-.hero-mockup{
-  width:100%;max-width:720px;margin-top:16px;
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:12px;overflow:hidden;
-  text-align:left;box-shadow:0 24px 80px rgba(0,0,0,0.5);
-}
-.mockup-header{
-  display:flex;align-items:center;gap:8px;
-  padding:12px 16px;
-  background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);
-}
-.mockup-dot{width:10px;height:10px;border-radius:50%}
-.mockup-dot.r{background:#ef4444}
-.mockup-dot.y{background:#f59e0b}
-.mockup-dot.g{background:#22c55e}
-.mockup-title{font-size:0.8rem;color:var(--text-muted);margin-left:8px;font-family:JetBrains Mono,monospace}
-.mockup-body{padding:16px;overflow-x:auto;font-family:JetBrains Mono,monospace;font-size:0.82rem;line-height:1.7}
-.mockup-body .kw{color:#c084fc}
-.mockup-body .fn{color:#22d3ee}
-.mockup-body .str{color:#34d399}
-.mockup-body .num{color:#f472b6}
-.mockup-body .cm{color:#64748b;font-style:italic}
-.mockup-body .ok{color:#22c55e;font-weight:600}
+  /* ── Typography ─────────────────────────────── */
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; }
+  .display { font-size: clamp(4rem, 10vw, 10rem); line-height: 0.92; font-weight: 700; letter-spacing: -0.04em; }
+  .display-sub { font-size: clamp(1.25rem, 2.5vw, 1.75rem); color: var(--text-secondary); font-weight: 400; letter-spacing: -0.01em; }
+  h2 { font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; margin-bottom: 1.5rem; }
+  h3 { font-size: 1.25rem; line-height: 1.3; margin-bottom: 0.5rem; }
+  p, li { color: var(--text-secondary); line-height: 1.7; font-size: 1.05rem; }
+  .mono { font-family: var(--font-mono); font-size: 0.875rem; }
 
-/* Section common */
-.section{padding:80px 24px;position:relative;z-index:1}
-.section-inner{max-width:1100px;margin:0 auto}
-.section h2{
-  text-align:center;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;
-  margin-bottom:48px;
-}
+  /* ── Layout ─────────────────────────────────── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+  section { padding: 8rem 0; position: relative; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+  .grid-9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 
-/* Features Grid */
-.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
-.feature-card{
-  padding:32px;border-radius:16px;
-  background:var(--bg-card);border:1px solid var(--border);
-  transition:all .3s;cursor:default;
-}
-.feature-card:hover{
-  transform:translateY(-3px);border-color:var(--accent);
-  box-shadow:0 8px 40px rgba(6,182,212,0.1);
-  background:var(--bg-card-hover);
-}
-.feature-card .icon{font-size:2rem;margin-bottom:12px;display:block}
-.feature-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px;color:var(--text)}
-.feature-card p{font-size:0.9rem;color:var(--text-muted);line-height:1.6}
+  /* ── Hero ───────────────────────────────────── */
+  .hero { min-height: 100vh; display: flex; align-items: center; position: relative; padding-top: 4rem; }
+  .hero-content { position: relative; z-index: 2; }
+  .hero .display { margin-bottom: 1rem; }
+  .hero .display-sub { max-width: 560px; margin-bottom: 2.5rem; }
+  .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .hero-line { position: absolute; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, var(--accent), transparent); top: 50%; opacity: 0.3; }
+  .hero-backend-grid { position: absolute; right: -5%; top: 50%; transform: translateY(-50%); width: 45%; opacity: 0.15; }
 
-/* Backend Grid */
-.backend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:32px}
-.backend-card{
-  padding:24px;border-radius:12px;
-  background:var(--bg-card);border:1px solid var(--border);
-  text-align:center;transition:all .3s;
-}
-.backend-card:hover{transform:translateY(-2px);border-color:var(--accent)}
-.backend-card .icon{font-size:2rem;margin-bottom:8px}
-.backend-card h4{font-size:0.95rem;font-weight:700;margin-bottom:4px}
-.backend-card .status{font-size:0.8rem;font-weight:600}
-.backend-card .status.ok{color:var(--success)}
-.backend-card .status.planned{color:#f59e0b}
+  /* ── Buttons ────────────────────────────────── */
+  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.75rem; border-radius: 0.5rem; font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s var(--ease-expo); border: none; text-decoration: none; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(0, 229, 255, 0.3); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+  .btn-ghost:hover { background: var(--surface-raised); border-color: rgba(228, 228, 231, 0.15); }
 
-/* Install */
-.install-cmds{max-width:700px;margin:0 auto}
-.install-cmd{
-  background:var(--bg-card);border:1px solid var(--border);
-  border-radius:12px;padding:20px 24px;margin-bottom:16px;
-  font-family:JetBrains Mono,monospace;font-size:0.85rem;
-  overflow-x:auto;white-space:pre-wrap;word-break:break-all;
-}
-.install-cmd.primary{
-  border-color:var(--accent);background:var(--accent-subtle);
-}
-.install-cmd .prompt{color:var(--accent-light);user-select:none}
-.install-cmd .comment{color:var(--text-muted);font-style:italic;margin-bottom:4px}
-.install-cmd .badge{
-  display:inline-block;padding:2px 10px;border-radius:100px;
-  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
-  color:#fff;font-size:0.65rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:0.04em;margin-left:8px;vertical-align:middle;
-}
+  /* ── Code Window ────────────────────────────── */
+  .code-window { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; position: relative; }
+  .code-window::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2.5rem; background: var(--surface-raised); border-bottom: 1px solid var(--border); }
+  .code-dots { position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem; z-index: 1; }
+  .code-dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; }
+  .code-dot:nth-child(1) { background: #ff5f56; } .code-dot:nth-child(2) { background: #ffbd2e; } .code-dot:nth-child(3) { background: #27c93f; }
+  .code-content { padding: 3.5rem 1.5rem 1.5rem; font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.7; color: var(--text-secondary); }
+  .code-content .cmd { color: var(--accent); }
+  .code-content .comment { color: var(--text-tertiary); }
+  .code-content .output { color: var(--text-primary); }
 
-/* Agent install block */
-.install-cmd.agent{
-  margin-top:24px;
-  background:linear-gradient(135deg,var(--accent-subtle),rgba(168,85,247,0.05));
-  border-color:rgba(6,182,212,0.3);
-  font-family:Inter,system-ui,sans-serif;
-  white-space:normal;word-break:normal;
-  display:flex;align-items:flex-start;gap:12px;
-}
-.install-cmd.agent .icon{font-size:1.4rem;flex-shrink:0;margin-top:2px}
-.install-cmd.agent .body{flex:1}
-.install-cmd.agent .body .label{font-size:0.75rem;color:var(--text-muted);font-weight:600;margin-bottom:2px}
-.install-cmd.agent .body p{font-size:0.9rem;color:var(--text);line-height:1.5;font-family:Inter,system-ui,sans-serif}
-.install-cmd.agent code{
-  display:inline-block;padding:2px 8px;border-radius:6px;
-  background:var(--bg-card);border:1px solid var(--border);
-  font-family:JetBrains Mono,monospace;font-size:0.8rem;
-  color:var(--accent-light);margin-top:6px;
-}
+  /* ── Backend Cards ──────────────────────────── */
+  .backend-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 2rem; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); transition: all 0.3s var(--ease-expo); }
+  .backend-chip:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
 
-/* CTA Section */
-.cta-section{
-  text-align:center;padding:100px 24px;
-  position:relative;z-index:1;
-}
-.cta-section h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:16px}
-.cta-section p{color:var(--text-muted);max-width:500px;margin:0 auto 32px;font-size:1.05rem}
-.cta-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+  /* ── GitHub Stats ─────────────────────────── */
+  .gh-stats { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; padding: 2rem 0; }
+  .gh-stat { text-align: center; }
+  .gh-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); font-family: var(--font-mono); }
+  .gh-stat-label { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .gh-stat a { color: inherit; text-decoration: none; }
+  .gh-stat a:hover .gh-stat-value { color: var(--text-primary); }
 
-/* Footer */
-footer{
-  text-align:center;padding:40px 24px;
-  border-top:1px solid var(--border);
-  color:var(--text-muted);font-size:0.85rem;position:relative;z-index:1;
-}
-footer a{color:var(--text-muted);text-decoration:none;transition:color .2s}
-footer a:hover{color:var(--accent-light)}
+  /* ── Feature Cards ──────────────────────────── */
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2.5rem; transition: all 0.4s var(--ease-expo); position: relative; overflow: hidden; }
+  .feature-card::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 100% 0%, var(--accent-dim), transparent 70%); opacity: 0; transition: opacity 0.4s var(--ease-expo); }
+  .feature-card:hover { transform: translateY(-4px); border-color: rgba(0, 229, 255, 0.2); }
+  .feature-card:hover::after { opacity: 1; }
+  .feature-card-icon { font-size: 1.5rem; margin-bottom: 1rem; }
+  .feature-card h3 { position: relative; z-index: 1; }
+  .feature-card p { position: relative; z-index: 1; }
 
-/* Animations */
-.reveal{opacity:0;transform:translateY(30px);transition:all .6s cubic-bezier(.22,1,.36,1)}
-.reveal.visible{opacity:1;transform:translateY(0)}
+  /* ── Stats ─────────────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; padding: 4rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .stat-value { font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 700; letter-spacing: -0.03em; color: var(--accent); }
+  .stat-label { color: var(--text-tertiary); font-size: 0.875rem; margin-top: 0.25rem; }
 
-/* Mobile */
-@media(max-width:768px){
-  nav{padding:10px 16px}
-  .nav-right{gap:12px}
-  .hero{padding:100px 16px 60px}
-  .section{padding:60px 16px}
-  .hero-actions{flex-direction:column;align-items:center}
-  .features-grid{grid-template-columns:1fr}
-  .backend-grid{grid-template-columns:1fr 1fr}
-  .install-cmd{padding:14px 16px;font-size:0.8rem}
-  .install-cmd.agent{padding:14px 16px}
-}
-@media(max-width:480px){
-  .backend-grid{grid-template-columns:1fr}
-  .hero h1{font-size:2.2rem}
-  .hero{padding:80px 12px 40px}
-  .section{padding:40px 12px}
-  .hero-mockup{font-size:0.75rem}
-  .mockup-body{font-size:0.7rem}
-  .install-cmd{font-size:0.75rem;padding:12px}
-  .install-cmd.agent{padding:12px}
-  .install-cmds{max-width:100%}
-}
+  /* ── Animation ─────────────────────────────── */
+  .reveal { opacity: 0; transform: translateY(40px); transition: all 0.9s var(--ease-expo); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; } .reveal-delay-4 { transition-delay: 0.4s; }
+  .reveal-delay-5 { transition-delay: 0.5s; } .reveal-delay-6 { transition-delay: 0.6s; }
+
+  /* ── Problem visualization ─────────────────── */
+  .frag-vis { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .frag-piece { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; flex: 1; min-width: 120px; text-align: center; transition: all 0.5s var(--ease-expo); }
+  .frag-piece:hover { border-color: rgba(255, 95, 86, 0.4); }
+  .frag-piece .frag-name { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+  .frag-piece .frag-protocol { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-tertiary); }
+
+  .unified { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; background: var(--surface); border: 1px solid var(--accent); border-radius: 1rem; }
+  .unified-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); }
+
+  /* ── Footer ────────────────────────────────── */
+  footer { padding: 4rem 0; border-top: 1px solid var(--border); text-align: center; }
+  footer p { font-size: 0.875rem; }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .stats { grid-template-columns: 1fr; gap: 3rem; }
+    .hero .display { font-size: clamp(3rem, 12vw, 5rem); }
+    section { padding: 4rem 0; }
+    .hero-backend-grid { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<nav>
-  <a class="brand" href="/" aria-label="Deskbrid home">
-    <span>🖥️</span> Deskbrid
-  </a>
-  <div class="nav-right">
-    <a href="#features">Features</a>
-    <a href="#install">Install</a>
-    <a href="/live" class="nav-live"><span class="live-dot-nav"></span>Live Demo</a>
-    <a href="https://github.com/coe0718/deskbrid" class="nav-cta">View on GitHub →</a>
-  </div>
-</nav>
-
+<!-- ── Hero ─────────────────────────────────────── -->
 <section class="hero">
-  <div class="hero-badge">🖥️ v1.0.0 — 10 backends · Rules Engine · Keyring · Rate Limiting · Provider Manifest</div>
-  <h1>
-    The <span class="gradient-text">Linux Desktop HAL</span><br>
-    for AI Agents
-  </h1>
-  <p>
-    Deskbrid is the hardware abstraction layer your AI agents are missing.
-    Unix socket daemon + MCP server, nine desktop backends, auto-detection at startup.
-    Tested on real hardware — not VMs, not headless CI. If a 2014 Haswell laptop can run it, your desktop can too.
-  </p>
-  <div class="hero-actions">
-    <a href="https://github.com/coe0718/deskbrid/releases" class="btn-primary">⬇️ Download v1.0.0</a>
-    <a href="https://github.com/coe0718/deskbrid" class="btn-secondary">View on GitHub →</a>
-  </div>
-
-  <!-- Code Mockup -->
-  <div class="hero-mockup">
-    <div class="mockup-header">
-      <div class="mockup-dot r"></div>
-      <div class="mockup-dot y"></div>
-      <div class="mockup-dot g"></div>
-      <span class="mockup-title">deskbrid — interactive demo</span>
+  <div class="hero-line"></div>
+  <div class="container hero-content">
+    <div class="reveal">
+      <p class="mono" style="color: var(--accent); margin-bottom: 1.5rem;">$ deskbrid daemon</p>
     </div>
-    <div class="mockup-body">
-      <span class="cm"># Unix socket daemon + MCP server — talk to it from any AI tool</span><br>
-      <br>
-      <span class="prompt">$</span> deskbrid daemon --mcp-port 9001 <span class="cm"># socket + TCP</span><br>
-      <span class="ok">  ← daemon ready · Sway backend loaded (auto-detected)</span><br>
-      <br>
-      <span class="prompt">$</span> echo '<span class="str">{"type":"windows.list","id":"r1"}</span>' | nc -U /run/user/1000/deskbrid.sock -w 2<br>
-      <span class="ok">  ← 4 windows · Sway 1.11 · Wayland</span><br>
-      <br>
-      <span class="prompt">$</span> deskbrid mcp <span class="cm"># MCP server for Hermes Agent, Claude Code, Cursor, Codex</span><br>
-      <span class="ok">  ← MCP server ready on stdin/stdout · 9 backends available</span><br>
-      <br>
-      <span class="prompt">$</span> deskbrid health <span class="cm"># verify dependencies in one shot</span><br>
-      <span class="ok">  ← all deps OK · mako notifications · uinput ready</span>
+    <h1 class="display reveal reveal-delay-1">
+      Deskbrid<span style="color: var(--accent);">.</span>
+    </h1>
+    <p class="display-sub reveal reveal-delay-2">
+      One binary. Nine desktops.<br>AI agents meet Linux.
+    </p>
+    <div class="hero-cta reveal reveal-delay-3">
+      <a href="https://deskbrid.patchhive.dev/install.sh" class="btn btn-primary">
+        <span style="font-family: var(--font-mono)">curl -fsSL deskbrid.patchhive.dev/install.sh | bash</span>
+      </a>
+      <a href="https://github.com/coe0718/deskbrid" class="btn btn-ghost">View on GitHub →</a>
+    </div>
+  </div>
+  <div class="hero-backend-grid">
+    <div class="grid-9" style="gap: 0.5rem;">
+      <div class="backend-chip" style="font-size:0.6rem">GNOME</div>
+      <div class="backend-chip" style="font-size:0.6rem">KDE</div>
+      <div class="backend-chip" style="font-size:0.6rem">Hyprland</div>
+      <div class="backend-chip" style="font-size:0.6rem">Sway</div>
+      <div class="backend-chip" style="font-size:0.6rem">COSMIC</div>
+      <div class="backend-chip" style="font-size:0.6rem">Niri</div>
+      <div class="backend-chip" style="font-size:0.6rem">Wayfire</div>
+      <div class="backend-chip" style="font-size:0.6rem">Labwc</div>
+      <div class="backend-chip" style="font-size:0.6rem">X11</div>
     </div>
   </div>
 </section>
 
-<section class="section" id="features">
-  <div class="section-inner">
-    <h2>Every control surface, <span class="gradient-text">one socket</span></h2>
-    <div class="features-grid">
-      <div class="feature-card reveal">
-        <span class="icon">🪟</span>
-        <h3>Window Control</h3>
-        <p>List, focus, close, minimize, maximize, move, resize, activate-or-launch. Layout profiles. Full programmatic window management across any desktop environment.</p>
+<!-- ── Stats ────────────────────────────────────── -->
+<section style="padding:0">
+  <div class="container">
+    <div class="stats">
+      <div class="reveal">
+        <div class="stat-value">9</div>
+        <div class="stat-label">Desktop backends</div>
       </div>
-      <div class="feature-card reveal">
-        <span class="icon">⌨️</span>
-        <h3>Input Injection + uinput</h3>
-        <p>Type text, press keys, combo shortcuts, mouse drag. Keyboard layout management — list, get, switch, add, remove layouts. Absolute pointer via uinput for pixel-perfect clicks. ydotoold, XTest, and Mutter RemoteDesktop pipelines.</p>
+      <div class="reveal reveal-delay-1">
+        <div class="stat-value">100+</div>
+        <div class="stat-label">MCP tools</div>
       </div>
-      <div class="feature-card reveal">
-        <span class="icon">🔌</span>
-        <h3>MCP Server</h3>
-        <p>85-tool Model Context Protocol server on stdin/stdout or TCP. Hermes Agent, Claude Code, Codex, Cursor — any MCP client can control the desktop. Zero external MCP crate dependency.</p>
+      <div class="reveal reveal-delay-2">
+        <div class="stat-value">47K</div>
+        <div class="stat-label">Lines of Rust</div>
       </div>
-      <div class="feature-card reveal">
-        <span class="icon">🤖</span>
-        <h3>Hermes Agent Plugin</h3>
-        <p>First-class Hermes Agent integration. Drop the plugin in, enable it, and all 85 tools appear in every agent session. Bundled skill teaches agents how to use the desktop. Auto-starts the daemon. Direct Unix socket mode — no MCP overhead.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">🌳</span>
-        <h3>AT-SPI2 Accessibility Tree</h3>
-        <p>Browse the accessibility tree, find elements by role/name, click them, read text. Full BFS snapshot builder with filtering. Perfect for UI automation.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">📷</span>
-        <h3>Screenshots + OCR + Diff</h3>
-        <p>Full-screen, window, and region captures. Optical character recognition. Pixel diffing to detect visual changes. Works on GNOME, KDE, Hyprland, COSMIC.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">📋</span>
-        <h3>Clipboard + History</h3>
-        <p>Read/write clipboard with format negotiation. Clipboard history with timestamps. Primary and clipboard selections on Wayland.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">🌐</span>
-        <h3>Browser CDP Control</h3>
-        <p>List tabs, navigate, evaluate JavaScript, take screenshots, click elements — all via Chrome DevTools Protocol. Control Chromium/Chrome/Firefox from your agent.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">📁</span>
-        <h3>File Operations</h3>
-        <p>Read, write, copy, move, delete, mkdir, list — full filesystem access through the socket. No separate tool needed.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">🎵</span>
-        <h3>MPRIS Media + Audio</h3>
-        <p>Play, pause, next, previous, volume control. Per-app audio management via pactl. Bluetooth device pairing through bluetoothctl.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">🔔</span>
-        <h3>System Controls</h3>
-        <p>Notifications, systemd unit management, polkit actions, network config via nmcli, terminal PTY sessions, sysfs backlight control, thermal zone monitoring, CPU frequency and governor management, daemon rate limiting with audit log.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">📺</span>
-        <h3>Workspaces + Monitors</h3>
-        <p>List and switch workspaces, move windows. Monitor control with xrandr/cosmic-randr. Multi-monitor awareness with per-monitor workspace isolation.</p>
-      </div>
-      <div class="feature-card reveal">
-        <span class="icon">🎨</span>
-        <h3>Color Picker + App Catalog</h3>
-        <p>Sample pixel colors anywhere on screen. App catalog with process detection, confinement checks, and idle detection via input device timestamps.</p>
+      <div class="reveal reveal-delay-3">
+        <div class="stat-value">MIT</div>
+        <div class="stat-label">Open source</div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section" style="padding-top:40px">
-  <div class="section-inner">
-    <h2><span class="gradient-text">Backend</span> Support</h2>
-    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:8px">Auto-detected at startup — no config needed. Verified on real hardware.</p>
-    <div class="backend-grid">
-      <div class="backend-card reveal">
-        <div class="icon">🐚</div>
-        <h4>GNOME 46+</h4>
-        <div class="status ok">✅ Verified</div>
+<!-- ── GitHub Pulse ─────────────────────────────── -->
+<section style="padding: 0;">
+  <div class="container">
+    <div class="gh-stats" id="gh-stats">
+      <div class="gh-stat">
+        <a href="https://github.com/coe0718/deskbrid/stargazers">
+          <div class="gh-stat-value">···</div>
+          <div class="gh-stat-label">Stars</div>
+        </a>
       </div>
-      <div class="backend-card reveal">
-        <div class="icon">🌀</div>
-        <h4>Hyprland</h4>
-        <div class="status ok">✅ Verified · 31/33</div>
+      <div class="gh-stat">
+        <a href="https://github.com/coe0718/deskbrid/network/members">
+          <div class="gh-stat-value">···</div>
+          <div class="gh-stat-label">Forks</div>
+        </a>
       </div>
-      <div class="backend-card reveal">
-        <div class="icon">💜</div>
-        <h4>KDE Plasma 6</h4>
-        <div class="status ok">✅ Verified</div>
+      <div class="gh-stat">
+        <a href="https://github.com/coe0718/deskbrid/releases/latest">
+          <div class="gh-stat-value">···</div>
+          <div class="gh-stat-label">Latest Release</div>
+        </a>
       </div>
-      <div class="backend-card reveal">
-        <div class="icon">🚀</div>
-        <h4>COSMIC</h4>
-        <div class="status ok">✅ Verified · 31/33</div>
-      </div>
-      <div class="backend-card reveal">
-        <div class="icon">🌊</div>
-        <h4>Sway</h4>
-        <div class="status ok">✅ Verified · 33/33 🏆</div>
-      </div>
-      <div class="backend-card reveal">
-        <div class="icon">📜</div>
-        <h4>Niri</h4>
-        <div class="status ok">✅ Supported</div>
-      </div>
-      <div class="backend-card reveal">
-        <div class="icon">🔥</div>
-        <h4>Wayfire</h4>
-        <div class="status ok">✅ Supported</div>
-      </div>
-      <div class="backend-card reveal">
-        <div class="icon">🧱</div>
-        <h4>Labwc</h4>
-        <div class="status ok">✅ Verified · 26/33</div>
-      </div>
-      <div class="backend-card reveal">
-        <div class="icon">🖥️</div>
-        <h4>X11 (Cinnamon, MATE)</h4>
-        <div class="status ok">✅ Supported</div>
+      <div class="gh-stat">
+        <a href="https://github.com/coe0718/deskbrid/issues">
+          <div class="gh-stat-value">···</div>
+          <div class="gh-stat-label">Open Issues</div>
+        </a>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section" style="padding-top:40px;padding-bottom:40px">
-  <div class="section-inner" style="max-width:900px">
-    <h2>Tested on <span class="gradient-text">real hardware</span></h2>
-    <p style="text-align:center;color:var(--text-muted);margin-top:-32px;margin-bottom:32px">No VMs. No headless CI. No fake green checkmarks.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
-      <div class="feature-card reveal" style="text-align:center">
-        <span class="icon">🐢</span>
-        <h3>Turtle</h3>
-        <p style="font-size:0.85rem">2014 Haswell laptop — i3-4010U, 4GB RAM, Intel HD 4400, 465GB spinning rust, dead battery, busted keyboard. Runs 6 DEs.</p>
+<!-- ── The Problem ──────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="grid-2">
+      <div>
+        <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># The Problem</p>
+        <h2 class="reveal">Linux has no unified desktop.</h2>
+        <p class="reveal reveal-delay-1">Mac gives you one AX API. Windows has UIA. Linux has <strong>nine compositors</strong> that all think they're special. Each with its own protocol, its own quirks, its own way of breaking.</p>
+        <p class="reveal reveal-delay-2" style="margin-top:1rem">AI agents need to click buttons, read screens, type keystrokes. Without Deskbrid, that means reimplementing the same intent nine different ways — and keeping them at parity as each compositor drifts.</p>
       </div>
-      <div class="feature-card reveal" style="text-align:center">
-        <span class="icon">✅</span>
-        <h3>6 DEs Verified</h3>
-        <p style="font-size:0.85rem">GNOME, KDE, Hyprland, COSMIC, Sway, Labwc — all tested live via SSH. Sway scored a perfect 33/33.</p>
-      </div>
-      <div class="feature-card reveal" style="text-align:center">
-        <span class="icon">📊</span>
-        <h3>Full Matrix</h3>
-        <p style="font-size:0.85rem">Every action, every DE, every result documented. <a href="https://github.com/coe0718/deskbrid/blob/main/docs/DE_TEST_MATRIX.md" style="color:var(--accent-light)">DE_TEST_MATRIX.md</a> — no guessing, no lies.</p>
-      </div>
-    </div>
-    <p style="text-align:center;color:var(--text-muted);font-size:0.9rem;margin-top:24px;font-style:italic">If this laptop can run it, your desktop can too.</p>
-  </div>
-</section>
-
-<section class="section" id="install">
-  <div class="section-inner">
-    <h2>Get started in <span class="gradient-text">30 seconds</span></h2>
-    <div class="install-cmds">
-      <div class="install-cmd primary reveal">
-        <div class="comment"># One-shot install — auto-detects desktop + installs deps <span class="badge">recommended</span></div>
-        <span class="prompt">$</span> bash &lt;(curl -fsSL https://deskbrid.patchhive.dev/install.sh)
-      </div>
-      <div class="install-cmd reveal">
-        <div class="comment"># Download binary directly</div>
-        <span class="prompt">$</span> curl -LO https://github.com/coe0718/deskbrid/releases/latest/download/deskbrid-x86_64-unknown-linux-gnu.tar.gz && tar xzf deskbrid-x86_64-unknown-linux-gnu.tar.gz && chmod +x deskbrid
-      </div>
-      <div class="install-cmd reveal">
-        <div class="comment"># Or build from source</div>
-        <span class="prompt">$</span> git clone https://github.com/coe0718/deskbrid.git && cd deskbrid && cargo build --release
-      </div>
-      <div class="install-cmd reveal">
-        <div class="comment"># Start the daemon</div>
-        <span class="prompt">$</span> deskbrid daemon
-      </div>
-      <div class="install-cmd agent reveal">
-        <span class="icon">🤖</span>
-        <div class="body">
-          <div class="label">AGENT PROMPT</div>
-          <p>Tell your AI assistant: <strong>"Hey, install Deskbrid for me"</strong></p>
-          <code>bash &lt;(curl -fsSL deskbrid.patchhive.dev/install.sh)</code>
-        </div>
-      </div>
-      <div class="install-cmd agent reveal">
-        <span class="icon">🧠</span>
-        <div class="body">
-          <div class="label">HERMES AGENT — PLUGIN</div>
-          <p>Copy the plugin into <code>~/.hermes/plugins/deskbrid/</code>, enable it in <code>config.yaml</code>, restart Hermes. All 85 tools appear. Or use MCP mode with a 5-line config entry.</p>
-          <code>cp -r hermes/plugin ~/.hermes/plugins/deskbrid</code>
-        </div>
-      </div>
-      <div class="install-cmd agent reveal">
-        <span class="icon">🔌</span>
-        <div class="body">
-          <div class="label">HERMES AGENT — MCP (zero plugin)</div>
-          <p>Add to <code>~/.hermes/config.yaml</code> and restart. Hermes discovers every tool automatically. No plugin code needed.</p>
-          <code>mcp_servers:<br>&nbsp;&nbsp;deskbrid:<br>&nbsp;&nbsp;&nbsp;&nbsp;command: deskbrid<br>&nbsp;&nbsp;&nbsp;&nbsp;args: [mcp]</code>
+      <div class="reveal reveal-delay-3">
+        <div class="frag-vis">
+          <div class="frag-piece"><div class="frag-name">GNOME</div><div class="frag-protocol">AT-SPI2</div></div>
+          <div class="frag-piece"><div class="frag-name">KDE</div><div class="frag-protocol">AT-SPI2*</div></div>
+          <div class="frag-piece"><div class="frag-name">Hyprland</div><div class="frag-protocol">wlr-randr</div></div>
+          <div class="frag-piece"><div class="frag-name">Sway</div><div class="frag-protocol">swaymsg</div></div>
+          <div class="frag-piece"><div class="frag-name">COSMIC</div><div class="frag-protocol">cosmic-randr</div></div>
+          <div class="frag-piece"><div class="frag-name">X11</div><div class="frag-protocol">xdotool</div></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="cta-section">
-  <h2>Ready to bridge your <span class="gradient-text">AI to your desktop</span>?</h2>
-  <p>Deskbrid is open source, MIT licensed, and ready to run on any modern Linux desktop.</p>
-  <div class="cta-actions">
-    <a href="https://github.com/coe0718/deskbrid" class="btn-primary">⭐ Star on GitHub</a>
-    <a href="https://github.com/coe0718/deskbrid/issues" class="btn-secondary">Report an Issue</a>
+<!-- ── The Solution ─────────────────────────────── -->
+<section style="background: var(--surface);">
+  <div class="container">
+    <div class="grid-2">
+      <div class="reveal">
+        <div class="unified" style="margin-bottom: 2rem;">
+          <div class="backend-chip">GNOME</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="backend-chip">KDE</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="backend-chip">Hyprland</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div style="font-family:var(--font-mono);color:var(--accent);font-size:0.8rem">deskbrid</div>
+          <span style="color: var(--text-tertiary)">→</span>
+          <div class="unified-label">One API</div>
+        </div>
+      </div>
+      <div>
+        <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># The Solution</p>
+        <h2 class="reveal">Write once.<br>Run everywhere.</h2>
+        <p class="reveal reveal-delay-1">Deskbrid auto-detects your desktop environment at startup. GNOME, KDE, Hyprland, Sway, COSMIC, Niri, Wayfire, Labwc, or X11 — one protocol, one daemon, one API. The agent doesn't need to know what it's running on. Deskbrid handles the translation.</p>
+      </div>
+    </div>
   </div>
 </section>
 
+<!-- ── Code Demo ────────────────────────────────── -->
+<section>
+  <div class="container">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;">$ deskbrid --demo</p>
+    <h2 class="reveal" style="margin-bottom: 3rem;">It speaks agent.</h2>
+    <div class="grid-2" style="gap: 3rem;">
+      <div class="code-window reveal">
+        <div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div>
+        <div class="code-content">
+          <span class="comment"># Unix socket — agent-native</span><br>
+          <span class="cmd">echo</span> <span class="output">'{"type":"windows.list","id":"1"}'</span> |<br>
+          &nbsp;&nbsp;<span class="cmd">nc -U</span> $XDG_RUNTIME_DIR/deskbrid.sock<br><br>
+          <span class="comment"># CLI — human-native</span><br>
+          <span class="cmd">$ deskbrid</span> windows list<br>
+          <span class="output">→ Code — OSS [1920×1080]</span><br>
+          <span class="output">→ Terminal — zsh [1920×1080 *]</span><br>
+          <span class="output">→ Firefox — github.com [2560×1440]</span>
+        </div>
+      </div>
+      <div class="code-window reveal reveal-delay-2">
+        <div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div>
+        <div class="code-content">
+          <span class="comment"># Python client</span><br>
+          <span class="cmd">from</span> deskbrid <span class="cmd">import</span> Deskbrid<br><br>
+          client = Deskbrid()<br>
+          client.focus_window(app_id=<span class="output">'code'</span>)<br>
+          client.type_text(<span class="output">"Hello from AI!<span style="animation: blink 1s step-end infinite;">▊</span>"</span>)<br>
+          client.screenshot(save=<span class="output">'desktop.png'</span>)<br><br>
+          <span class="comment"># MCP tools — 100+ actions</span><br>
+          <span class="cmd">$ deskbrid</span> mcp<br>
+          <span class="output">→ MCP server ready on stdio</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────── -->
+<section style="background: var(--surface);">
+  <div class="container">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;"># Capabilities</p>
+    <h2 class="reveal" style="margin-bottom: 4rem;">Everything an agent<br>needs to drive a desktop.</h2>
+    <div class="grid-3">
+      <div class="feature-card reveal">
+        <div class="feature-card-icon">🪟</div>
+        <h3>Windows & Workspaces</h3>
+        <p>List, focus, close, minimize, maximize, tile, move, resize. Full window management across all compositors.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-card-icon">⌨️</div>
+        <h3>Keyboard & Mouse</h3>
+        <p>Type text, send key combos, control the mouse. Virtual input devices via uinput — works everywhere.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-card-icon">📋</div>
+        <h3>Clipboard</h3>
+        <p>Read, write, and track clipboard history. Cross-compositor pasteboard access.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card-icon">📸</div>
+        <h3>Screenshots & OCR</h3>
+        <p>Capture screens, diff regions, extract text. Built-in OCR for reading what's on screen.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-card-icon">📊</div>
+        <h3>Live Dashboard</h3>
+        <p>Web UI at localhost:20129 — system info, running windows, clipboard history, audit log, all streaming live via SSE.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-card-icon">🔌</div>
+        <h3>MCP Integration</h3>
+        <p>100+ MCP tools across 22 categories. Claude Desktop, Codex, Cursor — any MCP client. <code style="font-family: var(--font-mono); color: var(--accent);">deskbrid mcp</code></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Install ──────────────────────────────────── -->
+<section>
+  <div class="container" style="text-align: center;">
+    <p class="mono" style="color: var(--accent); margin-bottom: 1rem;">$ deskbrid daemon</p>
+    <h2 class="reveal" style="margin-bottom: 1.5rem;">Get started in 30 seconds.</h2>
+    <p class="reveal reveal-delay-1" style="max-width: 560px; margin: 0 auto 2.5rem;">
+      One command. Your AI has a desktop. Nine compositors, one API, zero friction.
+    </p>
+    <div class="reveal reveal-delay-2" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 3rem;">
+      <a href="https://deskbrid.patchhive.dev/install.sh" class="btn btn-primary" style="font-family: var(--font-mono); font-size: 0.85rem;">
+        curl -fsSL deskbrid.patchhive.dev/install.sh | bash
+      </a>
+      <a href="https://deskbrid.patchhive.dev/live" class="btn btn-ghost">🔴 Live Demo →</a>
+      <a href="https://github.com/coe0718/deskbrid" class="btn btn-ghost">Docs →</a>
+    </div>
+    <div class="code-window reveal reveal-delay-3" style="max-width: 640px; margin: 0 auto; text-align: left;">
+      <div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div>
+      <div class="code-content">
+        <span class="comment"># Install — auto-detects distro + DE</span><br>
+        <span class="cmd">$</span> bash <span class="output">&lt;(curl -fsSL deskbrid.patchhive.dev/install.sh)</span><br>
+        <span class="output">→ Detected: Arch Linux + Hyprland</span><br>
+        <span class="output">→ Installed deps: ydotoold wlrctl grim slurp</span><br>
+        <span class="output">→ Deskbrid installed to /usr/local/bin</span><br><br>
+        <span class="comment"># Start the daemon</span><br>
+        <span class="cmd">$ deskbrid</span> daemon<br>
+        <span class="output">→ GNOME backend loaded successfully</span><br>
+        <span class="output">→ Dashboard: http://127.0.0.1:20129</span><br>
+        <span class="output">→ Unix socket: /run/user/1000/deskbrid.sock</span><br><br>
+        <span class="comment"># Agent connects</span><br>
+        <span class="cmd">$ echo</span> <span class="output">'{"type":"windows.list","id":"1"}'</span> | <span class="cmd">nc -U</span> $XDG_RUNTIME_DIR/deskbrid.sock
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────── -->
 <footer>
-  <p>Built by <a href="https://github.com/coe0718">coe0718</a> &middot; MIT License &middot; <a href="https://github.com/coe0718/deskbrid">GitHub</a></p>
-  <p style="margin-top:16px">
-    <a href="https://nicklaunches.com/products/deskbrid/?utm_source=deskbrid.patchhive.dev&utm_medium=badge&utm_campaign=featured" target="_blank" rel="noopener"><img src="https://nicklaunches.com/badges/featured-dark.svg" alt="Deskbrid on Nick Launches" width="244" height="56" /></a>
-  </p>
+  <div class="container">
+    <p style="color: var(--text-tertiary);">Deskbrid · Built with Rust · <a href="https://github.com/coe0718/deskbrid" style="color: var(--accent); text-decoration: none;">GitHub</a> · <a href="https://deskbrid.patchhive.dev/live" style="color: var(--accent); text-decoration: none;">Live Demo</a></p>
+  </div>
 </footer>
 
 <script>
-const observer=new IntersectionObserver((e)=>{e.forEach(e=>{e.isIntersecting&&(e.target.classList.add("visible"),observer.unobserve(e.target))})},{threshold:.12});
-document.querySelectorAll(".reveal").forEach(e=>observer.observe(e));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Live GitHub stats ──
+  (async () => {
+    const el = document.getElementById('gh-stats');
+    if (!el) return;
+    try {
+      const [repo, releases] = await Promise.all([
+        fetch('https://api.github.com/repos/coe0718/deskbrid').then(r => r.json()),
+        fetch('https://api.github.com/repos/coe0718/deskbrid/releases?per_page=1').then(r => r.json()),
+      ]);
+      const vals = el.querySelectorAll('.gh-stat-value');
+      vals[0].textContent = (repo.stargazers_count || 0).toLocaleString();
+      vals[1].textContent = (repo.forks_count || 0).toLocaleString();
+      const tag = releases[0]?.tag_name || '—';
+      vals[2].textContent = tag.startsWith('v') ? tag : 'v' + tag;
+      vals[3].textContent = (repo.open_issues_count || 0).toLocaleString();
+    } catch(e) {
+      // Silent fail — stats just stay as ···
+    }
+  })();
 </script>
+
 </body>
 </html>
