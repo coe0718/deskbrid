@@ -9,7 +9,7 @@ pub(super) async fn keyboard_key(backend: &HyprBackend, key: &str) -> anyhow::Re
     if key.eq_ignore_ascii_case("return") || key.eq_ignore_ascii_case("enter") {
         return crate::backend::ydotool_type_enter().await;
     }
-    let k = ydotool_key_name(key);
+    let k = crate::backend::ydotool_key_name(key);
     backend.sh("ydotool", &["key", &k]).await?;
     Ok(())
 }
@@ -18,7 +18,10 @@ pub(super) async fn keyboard_combo(backend: &HyprBackend, keys: &[String]) -> an
     if keys.is_empty() {
         return Ok(());
     }
-    let combo: Vec<String> = keys.iter().map(|k| ydotool_key_name(k)).collect();
+    let combo: Vec<String> = keys
+        .iter()
+        .map(|k| crate::backend::ydotool_key_name(k))
+        .collect();
     for (i, key) in combo.iter().enumerate() {
         if i < combo.len() - 1 {
             backend

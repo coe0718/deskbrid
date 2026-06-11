@@ -229,7 +229,9 @@ pub async fn execute_action(
         // Confirmation / agent / search actions are now dispatched directly
         // from dispatch_action_with_options before reaching execute_action.
         ConfirmAction { .. } | DenyAction { .. } | ConfirmationList => {
-            unreachable!("confirmation actions are handled in dispatch")
+            anyhow::bail!(
+                "internal dispatch error: confirmation actions must be handled in dispatch, not execute"
+            )
         }
         AgentMessage { .. } | AgentBroadcast { .. } | AgentMailbox => {
             execute_agent::execute_agent(action, state, "default").await?
@@ -252,7 +254,7 @@ async fn execute_portal(action: Action, state: &DaemonState) -> anyhow::Result<s
         PortalScreencastStop => {
             super::portal::portal_screencast_stop(&state.screencast_process).await?
         }
-        _ => unreachable!("not a portal action"),
+        _ => anyhow::bail!("internal dispatch error: not a portal action"),
     })
 }
 
@@ -293,6 +295,6 @@ async fn execute_schedule(
             sched.save().await?;
             Ok(serde_json::json!({ "removed": name }))
         }
-        _ => unreachable!(),
+        _ => anyhow::bail!("internal dispatch error: not a schedule action"),
     }
 }

@@ -97,34 +97,6 @@ pub(super) fn format_monitor_float(value: f64) -> String {
     out
 }
 
-/// Map a human-readable key name to ydotool keycode name.
-pub(super) fn ydotool_key_name(key: &str) -> String {
-    // ydotool key subcommand ONLY accepts numeric key codes, not string names.
-    // Using string names like "ENTER" silently fails — keys never arrive.
-    // Key codes from linux/input-event-codes.h
-    match key.to_lowercase().as_str() {
-        "return" | "enter" => "28".into(),              // KEY_ENTER
-        "tab" => "15".into(),                           // KEY_TAB
-        "escape" | "esc" => "1".into(),                 // KEY_ESC
-        "backspace" => "14".into(),                     // KEY_BACKSPACE
-        "delete" | "del" => "111".into(),               // KEY_DELETE
-        "up" => "103".into(),                           // KEY_UP
-        "down" => "108".into(),                         // KEY_DOWN
-        "left" => "105".into(),                         // KEY_LEFT
-        "right" => "106".into(),                        // KEY_RIGHT
-        "home" => "102".into(),                         // KEY_HOME
-        "end" => "107".into(),                          // KEY_END
-        "page_up" | "pgup" => "104".into(),             // KEY_PAGEUP
-        "page_down" | "pgdn" => "109".into(),           // KEY_PAGEDOWN
-        "space" => "57".into(),                         // KEY_SPACE
-        "shift" | "shift_l" | "shift_r" => "42".into(), // KEY_LEFTSHIFT
-        "ctrl" | "control" | "control_l" | "ctrl_l" => "29".into(), // KEY_LEFTCTRL
-        "alt" | "alt_l" => "56".into(),                 // KEY_LEFTALT
-        "super" | "super_l" | "meta" | "win" | "windows" => "125".into(), // KEY_LEFTMETA
-        other => other.to_string(),
-    }
-}
-
 /// Simple PNG header parser for dimensions.
 pub(super) async fn get_png_dimensions(path: &str) -> anyhow::Result<(u32, u32)> {
     let data = tokio::fs::read(path).await?;

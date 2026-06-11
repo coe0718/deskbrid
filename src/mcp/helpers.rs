@@ -12,6 +12,10 @@ pub(super) async fn do_execute(
     let action =
         crate::protocol::Action::from_json(&format!(r#"{{"type":"{}","id":"mcp"}}"#, action_type))
             .map(|(_, a)| a)?;
+    // MCP runs as UID 0 (root/daemon) — check permissions against default policy
+    if !state.permissions.check(0, &action) {
+        anyhow::bail!("permission denied: {}", action.action_type());
+    }
     let backend = state.backend.read().await;
     let backend = backend
         .as_ref()
@@ -33,6 +37,10 @@ pub(super) async fn do_execute_with(
     }
     let action = crate::protocol::Action::from_json(&serde_json::to_string(&Value::Object(map))?)
         .map(|(_, a)| a)?;
+    // MCP runs as UID 0 (root/daemon) — check permissions against default policy
+    if !state.permissions.check(0, &action) {
+        anyhow::bail!("permission denied: {}", action.action_type());
+    }
     let backend = state.backend.read().await;
     let backend = backend
         .as_ref()
