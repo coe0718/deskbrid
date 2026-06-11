@@ -16,6 +16,10 @@ pub(super) async fn do_execute(
     if !state.permissions.check(0, &action) {
         anyhow::bail!("permission denied: {}", action.action_type());
     }
+    // Per-namespace rate limit check (same as socket dispatch)
+    if let Some(_hit) = state.rate_limit_store.check(0, &action) {
+        anyhow::bail!("rate limited: {}", action.action_type());
+    }
     let backend = state.backend.read().await;
     let backend = backend
         .as_ref()
@@ -40,6 +44,10 @@ pub(super) async fn do_execute_with(
     // MCP runs as UID 0 (root/daemon) — check permissions against default policy
     if !state.permissions.check(0, &action) {
         anyhow::bail!("permission denied: {}", action.action_type());
+    }
+    // Per-namespace rate limit check (same as socket dispatch)
+    if let Some(_hit) = state.rate_limit_store.check(0, &action) {
+        anyhow::bail!("rate limited: {}", action.action_type());
     }
     let backend = state.backend.read().await;
     let backend = backend

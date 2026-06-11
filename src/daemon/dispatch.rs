@@ -394,8 +394,8 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
-    let backend = state.backend.read().await;
-    let backend = match backend.as_ref() {
+    let backend_guard = state.backend.clone().read_owned().await;
+    let backend = match backend_guard.as_ref() {
         Some(b) => b,
         None => {
             let response = not_supported_response(
@@ -407,6 +407,10 @@ pub async fn dispatch_action_with_options(
             return response;
         }
     };
+    // OwnedReadGuard is held for the action duration, but the underlying
+    // Arc<RwLock<...>> can still be independently cloned by other tasks.
+    // This avoids the borrow-on-DaemonState approach that tied the guard
+    // lifetime to the state reference.
 
     let result = if let Action::WaitFor {
         condition,

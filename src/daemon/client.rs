@@ -233,6 +233,11 @@ where
     }
 
     info!("Client disconnected (uid={})", peer_uid);
+
+    // Clean up rate limit buckets and other per-peer state to prevent
+    // unbounded memory growth from accumulated disconnected clients.
+    state.rate_limit_store.remove_peer(peer_uid);
+
     Ok(())
 }
 

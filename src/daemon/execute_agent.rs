@@ -126,6 +126,6 @@ pub async fn execute_agent(
             let messages = state.agent_mailbox.get_for(session_id).await;
             Ok(json!({"messages": messages, "count": messages.len()}))
         }
-        _ => unreachable!("not an agent action"),
+        _ => anyhow::bail!("internal dispatch error: not an agent action"),
     }
 }
