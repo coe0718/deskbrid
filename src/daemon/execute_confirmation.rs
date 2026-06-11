@@ -26,11 +26,12 @@ pub async fn execute_confirmation(
         Action::ConfirmAction { id } => {
             // Ownership check BEFORE removal — wrong peer must not consume the entry.
             if let Some(entry) = state.pending_confirmations.get(&id)
-                && entry.value().peer_uid != caller_uid {
-                    return Ok(
-                        json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
-                    );
-                }
+                && entry.value().peer_uid != caller_uid
+            {
+                return Ok(
+                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                );
+            }
             if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
                 let backend = state.backend.read().await;
                 let backend_ref = backend.as_ref().map(|b| b.as_ref());
@@ -54,11 +55,12 @@ pub async fn execute_confirmation(
         Action::DenyAction { id } => {
             // Ownership check BEFORE removal — wrong peer must not consume the entry.
             if let Some(entry) = state.pending_confirmations.get(&id)
-                && entry.value().peer_uid != caller_uid {
-                    return Ok(
-                        json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
-                    );
-                }
+                && entry.value().peer_uid != caller_uid
+            {
+                return Ok(
+                    json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
+                );
+            }
             if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
                 let _ = entry;
                 Ok(json!({"status": "denied", "id": id}))
