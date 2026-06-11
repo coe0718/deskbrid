@@ -102,6 +102,6 @@ pub(crate) async fn execute_input(
             serde_json::json!({"removed": index})
         }
 
-        _ => unreachable!("not a input action"),
+        _ => anyhow::bail!("internal dispatch error: not a input action"),
     })
 }

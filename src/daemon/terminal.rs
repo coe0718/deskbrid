@@ -90,7 +90,9 @@ pub async fn execute_terminal_action(
             terminal_id,
             signal,
         } => kill_terminal(state, &terminal_id, signal.as_deref()).await,
-        _ => unreachable!("non-terminal action passed to terminal dispatcher"),
+        _ => anyhow::bail!(
+            "internal dispatch error: non-terminal action passed to terminal dispatcher"
+        ),
     }
 }
 

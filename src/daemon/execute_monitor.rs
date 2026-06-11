@@ -50,6 +50,6 @@ pub(crate) async fn execute_monitor(
             backend.monitor_set_enabled(output, false).await?;
             serde_json::json!({"output": output, "enabled": false})
         }
-        _ => unreachable!("not a monitor action"),
+        _ => anyhow::bail!("internal dispatch error: not a monitor action"),
     })
 }

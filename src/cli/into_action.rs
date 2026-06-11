@@ -40,7 +40,7 @@ fn into_secrets_action(cmd: &Command) -> protocol::Action {
                 collection: collection.clone(),
             }
         }
-        _ => unreachable!(),
+        _ => panic!("cli: unmatched command — this is a bug"),
     }
 }
 

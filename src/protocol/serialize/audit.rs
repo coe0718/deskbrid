@@ -60,6 +60,6 @@ pub(super) fn serialize_audit(action: &Action, id: &str) -> serde_json::Value {
         }
         Action::NotificationClearHistory => json!({"type": "notification.clear_history", "id": id}),
         Action::NotificationWatch => json!({"type": "notification.watch", "id": id}),
-        _ => unreachable!("not a audit action"),
+        _ => serde_json::json!({"error": "not a audit action"}),
     }
 }

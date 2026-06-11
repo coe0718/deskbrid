@@ -61,6 +61,6 @@ pub(super) fn serialize_audio(action: &Action, id: &str) -> serde_json::Value {
         Action::MonitorDisable { output } => {
             json!({"type": "monitor.disable", "id": id, "output": output})
         }
-        _ => unreachable!("not an audio action"),
+        _ => serde_json::json!({"error": "not an audio action"}),
     }
 }

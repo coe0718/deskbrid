@@ -17,7 +17,7 @@ pub fn serialize_confirmation(action: &Action, id: &str) -> Value {
             "type": "confirmation.list",
             "id": id,
         }),
-        _ => unreachable!("not a confirmation action"),
+        _ => serde_json::json!({"error": "not a confirmation action"}),
     }
 }
 
@@ -65,7 +65,7 @@ pub fn serialize_agent(action: &Action, id: &str) -> Value {
             "type": "agent.mailbox",
             "id": id,
         }),
-        _ => unreachable!("not an agent action"),
+        _ => serde_json::json!({"error": "not an agent action"}),
     }
 }
 
@@ -93,7 +93,7 @@ pub fn serialize_search(action: &Action, id: &str) -> Value {
             "type": "search.index",
             "id": id,
         }),
-        _ => unreachable!("not a search action"),
+        _ => serde_json::json!({"error": "not a search action"}),
     }
 }
 
@@ -138,6 +138,6 @@ pub fn serialize_secrets(action: &Action, id: &str) -> Value {
             }
             msg
         }
-        _ => unreachable!("not a secrets action"),
+        _ => serde_json::json!({"error": "not a secrets action"}),
     }
 }

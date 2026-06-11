@@ -25,6 +25,6 @@ pub(super) fn serialize_bluetooth(action: &Action, id: &str) -> serde_json::Valu
         Action::BluetoothForget { address } => {
             json!({"type": "bluetooth.forget", "id": id, "address": address})
         }
-        _ => unreachable!("not a bluetooth action"),
+        _ => serde_json::json!({"error": "not a bluetooth action"}),
     }
 }

@@ -23,6 +23,6 @@ pub(crate) async fn execute_clipboard(
         ClipboardHistoryList { .. } | ClipboardHistoryClear => {
             anyhow::bail!("clipboard history actions are handled by the daemon dispatcher")
         }
-        _ => unreachable!("not a clipboard action"),
+        _ => anyhow::bail!("internal dispatch error: not a clipboard action"),
     })
 }

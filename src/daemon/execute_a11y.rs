@@ -58,6 +58,6 @@ pub(crate) async fn execute_a11y(action: Action, _state: &DaemonState) -> anyhow
             crate::a11y::actions::click_element(&object_ref).await?
         }
 
-        _ => unreachable!("not an a11y action"),
+        _ => anyhow::bail!("internal dispatch error: not an a11y action"),
     })
 }

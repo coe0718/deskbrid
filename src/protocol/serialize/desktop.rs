@@ -12,6 +12,6 @@ pub(super) fn serialize_desktop(action: &Action, id: &str) -> serde_json::Value 
         Action::DesktopListSchemas => {
             json!({"type": "desktop.list_schemas", "id": id})
         }
-        _ => unreachable!("not a desktop settings action"),
+        _ => serde_json::json!({"error": "not a desktop settings action"}),
     }
 }

@@ -91,6 +91,6 @@ pub(super) fn serialize_windows(action: &Action, id: &str) -> serde_json::Value 
         Action::LayoutProfileRestore { name } => {
             json!({"type": "layout_profiles.restore", "id": id, "name": name})
         }
-        _ => unreachable!("not a windows action"),
+        _ => serde_json::json!({"error": "not a windows action"}),
     }
 }

@@ -79,6 +79,6 @@ pub(crate) async fn execute_capabilities(
             })
         }
 
-        _ => unreachable!("not a capabilities action"),
+        _ => anyhow::bail!("internal dispatch error: not a capabilities action"),
     })
 }

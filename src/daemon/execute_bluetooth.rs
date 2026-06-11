@@ -57,6 +57,6 @@ pub(crate) async fn execute_bluetooth(
             serde_json::json!({"forgotten": address, "ok": ok, "note": note})
         }
 
-        _ => unreachable!("not a bluetooth action"),
+        _ => anyhow::bail!("internal dispatch error: not a bluetooth action"),
     })
 }

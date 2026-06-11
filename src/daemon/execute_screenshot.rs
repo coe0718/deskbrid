@@ -73,7 +73,7 @@ pub(crate) async fn execute_screenshot(
             .await?
         }
 
-        _ => unreachable!("not a screenshot action"),
+        _ => anyhow::bail!("internal dispatch error: not a screenshot action"),
     })
 }
 
@@ -91,6 +91,6 @@ pub(crate) async fn execute_screencast(
             backend.stop_screencast().await?;
             serde_json::json!({ "ok": true })
         }
-        _ => unreachable!("not a screencast action"),
+        _ => anyhow::bail!("internal dispatch error: not a screencast action"),
     })
 }

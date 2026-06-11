@@ -16,6 +16,6 @@ pub(crate) async fn execute_hotkeys(
         } => serde_json::json!({"registered": hotkey_id, "keys": keys}),
         HotkeysUnregister { ref hotkey_id } => serde_json::json!({"unregistered": hotkey_id}),
 
-        _ => unreachable!("not a hotkeys action"),
+        _ => anyhow::bail!("internal dispatch error: not a hotkeys action"),
     })
 }

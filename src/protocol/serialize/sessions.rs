@@ -24,6 +24,6 @@ pub(super) fn serialize_sessions(action: &Action, id: &str) -> serde_json::Value
             json!({"type": "session.var.get", "id": id, "name": name})
         }
         Action::SessionVarList => json!({"type": "session.var.list", "id": id}),
-        _ => unreachable!("not a session action"),
+        _ => serde_json::json!({"error": "not a session action"}),
     }
 }

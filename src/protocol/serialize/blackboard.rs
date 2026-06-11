@@ -35,6 +35,6 @@ pub(super) fn serialize_blackboard(action: &Action, id: &str) -> serde_json::Val
             }
             obj
         }
-        _ => unreachable!("not a blackboard action"),
+        _ => serde_json::json!({"error": "not a blackboard action"}),
     }
 }

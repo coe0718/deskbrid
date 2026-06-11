@@ -74,6 +74,8 @@ pub async fn execute_system_control_action(
         Action::TimerList => service_list(Some("timer")).await,
         Action::TimerStart { name } => systemctl_unit("start", &name).await,
         Action::TimerStop { name } => systemctl_unit("stop", &name).await,
-        _ => unreachable!("non-system action passed to system control dispatcher"),
+        _ => anyhow::bail!(
+            "internal dispatch error: non-system action passed to system control dispatcher"
+        ),
     }
 }

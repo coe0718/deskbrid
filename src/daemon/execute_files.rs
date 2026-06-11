@@ -198,6 +198,6 @@ pub(crate) async fn execute_files(
         }
 
         // Browser (Chrome DevTools Protocol)
-        _ => unreachable!("not a files action"),
+        _ => anyhow::bail!("internal dispatch error: not a files action"),
     })
 }

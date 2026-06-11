@@ -28,6 +28,6 @@ pub(super) fn serialize_a11y_location(action: &Action, id: &str) -> serde_json::
             }
             v
         }
-        _ => unreachable!("not a a11y_location action"),
+        _ => serde_json::json!({"error": "not a a11y_location action"}),
     }
 }

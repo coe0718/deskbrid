@@ -11,6 +11,6 @@ pub(super) fn serialize_color_pick(action: &Action, id: &str) -> serde_json::Val
             }
             obj
         }
-        _ => unreachable!("not a color_pick action"),
+        _ => serde_json::json!({"error": "not a color_pick action"}),
     }
 }

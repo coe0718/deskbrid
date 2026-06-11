@@ -108,6 +108,6 @@ pub(super) fn serialize_files(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
-        _ => unreachable!("not a files action"),
+        _ => serde_json::json!({"error": "not a files action"}),
     }
 }

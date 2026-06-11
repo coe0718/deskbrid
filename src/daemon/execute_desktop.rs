@@ -29,6 +29,6 @@ pub(crate) async fn execute_desktop(
             let schemas = backend.desktop_list_schemas().await?;
             serde_json::json!({ "schemas": schemas, "count": schemas.len() })
         }
-        _ => unreachable!("not a desktop settings action"),
+        _ => anyhow::bail!("internal dispatch error: not a desktop settings action"),
     })
 }

@@ -74,10 +74,12 @@ pub(crate) async fn execute_stubs(
         | Unsubscribe { .. }
         | SystemPrintFile { .. }
         | Disconnect => {
-            unreachable!("action reached execute_stubs but should have been handled earlier")
+            anyhow::bail!(
+                "internal dispatch error: action reached execute_stubs but should have been handled earlier"
+            )
         }
 
-        _ => unreachable!("unexpected action in execute_stubs"),
+        _ => anyhow::bail!("internal dispatch error: unexpected action in execute_stubs"),
     })
 }
 

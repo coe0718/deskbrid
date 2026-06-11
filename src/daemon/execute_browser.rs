@@ -24,6 +24,6 @@ pub(crate) async fn execute_browser(
         } => crate::browser::click(tab_index, selector).await?,
 
         // Accessibility (AT-SPI2)
-        _ => unreachable!("not a browser action"),
+        _ => anyhow::bail!("internal dispatch error: not a browser action"),
     })
 }

@@ -117,6 +117,6 @@ pub(crate) async fn execute_process(
             serde_json::json!({"pid": pid, "exited": true, "elapsed_ms": started.elapsed().as_millis()})
         }
 
-        _ => unreachable!("not a process action"),
+        _ => anyhow::bail!("internal dispatch error: not a process action"),
     })
 }

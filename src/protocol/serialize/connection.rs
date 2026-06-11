@@ -12,6 +12,6 @@ pub(super) fn serialize_connection(action: &Action, id: &str) -> serde_json::Val
             json!({"type": "unsubscribe", "id": id, "events": events})
         }
         Action::Disconnect => json!({"type": "disconnect", "id": id}),
-        _ => unreachable!("not a connection action"),
+        _ => serde_json::json!({"error": "not a connection action"}),
     }
 }

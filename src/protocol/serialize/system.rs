@@ -247,6 +247,6 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
 
         // Clients
         Action::ClientsList => json!({"type": "clients.list", "id": id}),
-        _ => unreachable!("not a system action"),
+        _ => serde_json::json!({"error": "not a system action"}),
     }
 }

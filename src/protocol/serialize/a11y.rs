@@ -108,6 +108,6 @@ pub(super) fn serialize_a11y(action: &Action, id: &str) -> serde_json::Value {
         Action::A11yClickElementByRef { object_ref } => {
             json!({"type": "a11y.click_element_by_ref", "id": id, "object_ref": object_ref})
         }
-        _ => unreachable!("not a a11y action"),
+        _ => serde_json::json!({"error": "not a a11y action"}),
     }
 }

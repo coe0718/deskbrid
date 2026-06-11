@@ -92,6 +92,6 @@ pub(crate) async fn execute_windows(
             }
         }
 
-        _ => unreachable!("not a windows action"),
+        _ => anyhow::bail!("internal dispatch error: not a windows action"),
     })
 }

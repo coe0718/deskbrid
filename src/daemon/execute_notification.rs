@@ -182,6 +182,6 @@ pub(crate) async fn execute_notification(
             serde_json::json!({"watching": true})
         }
 
-        _ => unreachable!("not a notification action"),
+        _ => anyhow::bail!("internal dispatch error: not a notification action"),
     })
 }

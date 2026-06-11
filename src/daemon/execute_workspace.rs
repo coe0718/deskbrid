@@ -56,6 +56,6 @@ pub(crate) async fn execute_workspace(
             serde_json::json!(restore_layout_profile(&profile, backend).await?)
         }
 
-        _ => unreachable!("not a workspace action"),
+        _ => anyhow::bail!("internal dispatch error: not a workspace action"),
     })
 }

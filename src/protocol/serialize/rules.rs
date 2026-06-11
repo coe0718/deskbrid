@@ -46,6 +46,6 @@ pub(super) fn serialize_rules(action: &Action, id: &str) -> serde_json::Value {
         Action::RuleResume { rule_id } => {
             json!({"type": "rule.resume", "id": id, "rule_id": rule_id})
         }
-        _ => unreachable!("not a rules action"),
+        _ => serde_json::json!({"error": "not a rules action"}),
     }
 }

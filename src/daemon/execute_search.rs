@@ -187,6 +187,6 @@ pub async fn execute_search(
             let stats = state.search_index.stats().await;
             Ok(json!({"index": stats}))
         }
-        _ => unreachable!("not a search action"),
+        _ => anyhow::bail!("internal dispatch error: not a search action"),
     }
 }

@@ -87,7 +87,7 @@ pub async fn execute_confirmation(
                 .collect();
             Ok(json!({"pending": items, "count": items.len()}))
         }
-        _ => unreachable!("not a confirmation action"),
+        _ => anyhow::bail!("internal dispatch error: not a confirmation action"),
     }
 }
 

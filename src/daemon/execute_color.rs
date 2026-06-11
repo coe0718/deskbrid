@@ -18,6 +18,6 @@ pub(crate) async fn execute_color(
             }
         }
 
-        _ => unreachable!("not a color action"),
+        _ => anyhow::bail!("internal dispatch error: not a color action"),
     })
 }

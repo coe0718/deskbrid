@@ -105,6 +105,6 @@ pub(super) fn serialize_process(action: &Action, id: &str) -> serde_json::Value 
         Action::HotkeysUnregister { hotkey_id } => {
             json!({"type": "hotkeys.unregister", "id": id, "hotkey_id": hotkey_id})
         }
-        _ => unreachable!("not a process action"),
+        _ => serde_json::json!({"error": "not a process action"}),
     }
 }

@@ -37,7 +37,7 @@ pub(crate) async fn execute_audio(
             serde_json::json!({"target": target, "name": name, "default": true})
         }
 
-        _ => unreachable!("not an audio action"),
+        _ => anyhow::bail!("internal dispatch error: not an audio action"),
     })
 }
 

@@ -80,6 +80,6 @@ pub(super) fn serialize_input(action: &Action, id: &str) -> serde_json::Value {
             obj
         }
         Action::ClipboardHistoryClear => json!({"type": "clipboard.history.clear", "id": id}),
-        _ => unreachable!("not a input action"),
+        _ => serde_json::json!({"error": "not a input action"}),
     }
 }

@@ -68,7 +68,7 @@ pub(crate) async fn execute_system(
         SystemCpuSetGovernor { ref governor } => cpu_set_governor(governor).await?,
         SystemUpdate { check, force } => crate::cmd::update::run_json(check, force).await?,
         DbusCall { .. } => execute_dbus_call(&action).await?,
-        _ => unreachable!("not a system action"),
+        _ => anyhow::bail!("internal dispatch error: not a system action"),
     })
 }
 

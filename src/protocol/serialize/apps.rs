@@ -41,6 +41,6 @@ pub(super) fn serialize_apps(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
-        _ => unreachable!("not a apps action"),
+        _ => serde_json::json!({"error": "not a apps action"}),
     }
 }
