@@ -1,0 +1,28 @@
+{
+  "compositor": "gnome",
+  "version": "47",
+  "last_updated": "2026-06-11",
+  "_note": "Stub — populate by running Deskbrid on a GNOME 47 desktop and capturing a tree snapshot",
+  "selectors": [
+    {
+      "role": "push_button",
+      "name": "OK",
+      "description": "Standard dialog OK button — GNOME uses push_button (not button)"
+    },
+    {
+      "role": "menu_item",
+      "name": "File",
+      "description": "Application File menu"
+    },
+    {
+      "role": "text",
+      "name": "Search",
+      "description": "Search input field"
+    },
+    {
+      "role": "check_box",
+      "name": "Enable",
+      "description": "Standard enable/disable checkbox"
+    }
+  ]
+}

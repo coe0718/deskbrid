@@ -6,6 +6,7 @@
 
 pub mod actions;
 pub(crate) mod bus;
+pub mod selector_baseline;
 pub mod setup;
 pub mod tree;
 mod util;

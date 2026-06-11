@@ -1,0 +1,23 @@
+{
+  "compositor": "kde",
+  "version": "6.3",
+  "last_updated": "2026-06-11",
+  "_note": "Stub — KDE uses 'button' not 'push_button'. Populate with real tree data.",
+  "selectors": [
+    {
+      "role": "button",
+      "name": "OK",
+      "description": "Standard dialog OK button — KDE uses button (not push_button)"
+    },
+    {
+      "role": "menu_item",
+      "name": "File",
+      "description": "Application File menu"
+    },
+    {
+      "role": "text",
+      "name": "Search",
+      "description": "Search input field"
+    }
+  ]
+}
