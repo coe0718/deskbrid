@@ -26,6 +26,13 @@ pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
         }
     };
     info!("Dashboard: http://{}", addr);
+    if bind_ip != "127.0.0.1" && bind_ip != "::1" && bind_ip != "localhost" {
+        warn!(
+            "Dashboard bound to {} — exposed to network with NO authentication. \
+             Anyone on the network can see clipboard, screenshots, audit log, and window titles.",
+            bind_ip
+        );
+    }
     let semaphore = Arc::new(Semaphore::new(MAX_DASHBOARD_CONNECTIONS));
     loop {
         match listener.accept().await {

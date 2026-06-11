@@ -133,6 +133,8 @@ pub async fn run(
     dashboard_bind: String,
     tcp_bind: Option<String>,
     tcp_token: Option<String>,
+    mcp_port: Option<u16>,
+    mcp_token: Option<String>,
 ) -> anyhow::Result<()> {
     let sock = socket_path();
     let _ = tokio::fs::remove_file(&sock).await;
@@ -206,6 +208,21 @@ pub async fn run(
         tokio::spawn(async move {
             if let Err(e) = tcp::run_tcp_listener(bind, token, tcp_state).await {
                 error!("TCP listener exited: {}", e);
+            }
+        });
+    }
+
+    // Start MCP TCP listener if configured (shares daemon state)
+    if let Some(port) = mcp_port {
+        let mcp_token = mcp_token.unwrap_or_else(|| {
+            let t = tcp::generate_token();
+            info!("Generated MCP auth token: {}", t);
+            t
+        });
+        let mcp_state = Arc::clone(&state);
+        tokio::spawn(async move {
+            if let Err(e) = crate::mcp::server::run_mcp_tcp(mcp_state, port, mcp_token).await {
+                error!("MCP TCP listener exited: {}", e);
             }
         });
     }

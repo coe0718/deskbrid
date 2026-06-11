@@ -89,11 +89,15 @@ pub enum Command {
         #[arg(long)]
         mcp_port: Option<u16>,
 
+        /// MCP TCP auth token (auto-generated if not provided)
+        #[arg(long)]
+        mcp_token: Option<String>,
+
         /// Disable the built-in web dashboard (port 20129)
         #[arg(long)]
         no_dashboard: bool,
 
-        /// Dashboard bind address (default: 127.0.0.1 — use 0.0.0.0 for LAN access)
+        /// Dashboard bind address (default: 127.0.0.1)
         #[arg(long, default_value = "127.0.0.1")]
         dashboard_bind: String,
 

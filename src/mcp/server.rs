@@ -24,7 +24,6 @@ use crate::mcp::tools_agent::{BroadcastArgs, SendMessageArgs};
 use crate::mcp::tools_confirmation::ConfirmActionArgs;
 use crate::mcp::tools_search::SearchArgs;
 use crate::mcp::tools_secrets::{SecretsGetArgs, SecretsStoreArgs};
-use anyhow::Context;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
     tool, tool_router,
@@ -131,31 +130,71 @@ pub async fn run_mcp(state: Arc<DaemonState>) -> anyhow::Result<()> {
 }
 
 /// Run the MCP server over TCP transport (for `deskbrid daemon --mcp-port`).
-/// Self-contained: creates its own daemon state and backend.
-pub async fn run_mcp_tcp_on_port(port: u16) -> anyhow::Result<()> {
-    let event_tx = tokio::sync::broadcast::channel(256).0;
-    let state = Arc::new(crate::DaemonState::new());
-    let backend = crate::backend::create_backend(event_tx)
-        .await
-        .context("no desktop backend detected")?;
-    *state.backend.write().await = Some(backend);
-    run_mcp_tcp(state, port).await
-}
-
-/// Run the MCP server over TCP transport (for `deskbrid daemon --mcp-port`).
-/// Uses rmcp's stream transport — same tool surface as stdio mode.
-pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16) -> anyhow::Result<()> {
+/// Requires bearer-token auth before the MCP handshake — same pattern as the TCP
+/// control listener. Without a valid token the connection is rejected.
+pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> anyhow::Result<()> {
+    use crate::daemon::tcp::constant_time_eq;
     use rmcp::service::serve_server;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
     use tokio::net::TcpListener;
+
+    const MAX_AUTH_LINE: u64 = 4096;
 
     let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&addr).await?;
-    tracing::info!("Deskbrid MCP (rmcp) TCP server listening on {addr}");
+    tracing::info!("Deskbrid MCP (rmcp) TCP server listening on {addr} (token auth)");
 
     loop {
         let (stream, peer) = listener.accept().await?;
         let state = state.clone();
+        let token = token.clone();
         tokio::spawn(async move {
+            // ── Bearer token auth ──
+            let (reader, writer) = tokio::io::split(stream);
+            let mut limited = reader.take(MAX_AUTH_LINE + 1);
+            let mut buf_reader = BufReader::new(&mut limited);
+            let mut auth_line = String::new();
+            if let Err(e) = buf_reader.read_line(&mut auth_line).await {
+                tracing::error!("MCP auth read error from {peer}: {e}");
+                return;
+            }
+            drop(buf_reader);
+            let reader = limited.into_inner();
+
+            if auth_line.len() > MAX_AUTH_LINE as usize {
+                tracing::warn!(
+                    "MCP auth message too large ({} bytes) from {peer} — rejecting",
+                    auth_line.len()
+                );
+                return;
+            }
+
+            if auth_line.trim().is_empty() {
+                tracing::warn!("MCP client {peer} sent empty auth — rejecting");
+                return;
+            }
+
+            let auth: serde_json::Value = match serde_json::from_str(&auth_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!("MCP client {peer} sent invalid JSON auth: {e}");
+                    return;
+                }
+            };
+
+            if auth.get("type") != Some(&serde_json::Value::String("auth".into())) {
+                tracing::warn!("MCP client {peer} sent non-auth first message");
+                return;
+            }
+
+            let provided = auth.get("token").and_then(|v| v.as_str()).unwrap_or("");
+            if !constant_time_eq(provided, &token) {
+                tracing::warn!("MCP client {peer} sent invalid token");
+                return;
+            }
+
+            // ── Auth passed — reassemble and serve ──
+            let stream = reader.unsplit(writer);
             let server = McpServer::new(state);
             if let Err(e) = serve_server(server, stream).await {
                 tracing::error!("MCP connection error from {peer}: {e}");

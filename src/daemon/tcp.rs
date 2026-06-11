@@ -151,7 +151,7 @@ pub fn generate_token() -> String {
 
 /// Constant-time string comparison. Resistant to timing side-channel attacks
 /// because it compares all bytes regardless of where a mismatch occurs.
-fn constant_time_eq(a: &str, b: &str) -> bool {
+pub(crate) fn constant_time_eq(a: &str, b: &str) -> bool {
     let a_bytes = a.as_bytes();
     let b_bytes = b.as_bytes();
     // Length check: different lengths → not equal (minor length leak, but
