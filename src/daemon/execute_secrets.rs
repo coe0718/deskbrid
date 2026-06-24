@@ -79,7 +79,8 @@ async fn list_collections() -> anyhow::Result<Value> {
                 "message": "Secret Service is not available on this system"
             }));
         }
-        anyhow::bail!("secret-tool search failed: {stderr}");
+        tracing::warn!("secret-tool search failed: {stderr}");
+        anyhow::bail!("secret-tool search failed: internal error");
     }
 
     // Parse secret-tool output to extract unique collection paths.
@@ -131,7 +132,8 @@ async fn get_secret(
                 "message": "no secret matching those attributes"
             }));
         }
-        anyhow::bail!("secret-tool lookup failed: {stderr}");
+        tracing::warn!("secret-tool lookup failed: {stderr}");
+        anyhow::bail!("secret-tool lookup failed: internal error");
     }
 
     let mut secret = SecretString(String::from_utf8(output.stdout)?);
@@ -178,7 +180,8 @@ async fn store_secret(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("secret-tool store failed: {stderr}");
+        tracing::warn!("secret-tool store failed: {stderr}");
+        anyhow::bail!("secret-tool store failed: internal error");
     }
 
     Ok(serde_json::json!({ "success": true }))

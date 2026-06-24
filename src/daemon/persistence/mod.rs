@@ -121,6 +121,13 @@ impl Database {
             );
         }
 
+        // Wrap all migrations in a transaction so a crash mid-migration
+        // rolls back the entire batch rather than leaving the schema
+        // half-migrated with user_version already incremented.
+        self.conn
+            .execute_batch("BEGIN EXCLUSIVE")
+            .context("failed to begin migration transaction")?;
+
         for v in stored..CURRENT_SCHEMA_VERSION {
             match v {
                 // v0 → v1: initial schema (CREATE TABLE IF NOT EXISTS handled by init_db)
@@ -136,6 +143,10 @@ impl Database {
                 .context(format!("failed to update schema version to {}", v + 1))?;
             tracing::info!("Migrated database schema v{v} → v{}", v + 1);
         }
+
+        self.conn
+            .execute_batch("COMMIT")
+            .context("failed to commit migration transaction")?;
         Ok(())
     }
 }

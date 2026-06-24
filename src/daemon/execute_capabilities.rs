@@ -15,9 +15,8 @@ pub(crate) async fn execute_capabilities(
             let desktop = backend.system_info().await?.desktop;
             let desktop_l = desktop.to_lowercase();
             let mut unsupported = vec![
-                serde_json::json!({"action":"ui.tree.get","reason":"AT-SPI not integrated yet"}),
-                serde_json::json!({"action":"ui.element.click","reason":"AT-SPI not integrated yet"}),
-                serde_json::json!({"action":"ui.element.set_text","reason":"AT-SPI not integrated yet"}),
+                serde_json::json!({"action":"ui.element.click","reason":"browser CDP-based, not AT-SPI"}),
+                serde_json::json!({"action":"ui.element.set_text","reason":"browser CDP-based, not AT-SPI"}),
             ];
             if desktop_l.contains("hyprland") {
                 unsupported.push(serde_json::json!({

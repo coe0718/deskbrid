@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
 use crate::DaemonState;
+use crate::MAX_RULE_DISPATCH_DEPTH;
 use crate::protocol::{Action, Rule};
 
 use super::matching::resolve_event_app_id;
@@ -47,6 +48,21 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                     };
 
                     for (rule, action) in to_dispatch {
+                        // Check dispatch depth to prevent rule→action→event→rule loops (W4).
+                        let depth = state
+                            .rule_dispatch_depth
+                            .load(std::sync::atomic::Ordering::Relaxed);
+                        if depth >= MAX_RULE_DISPATCH_DEPTH {
+                            warn!(
+                                "Rule dispatch depth {} reached max {} — blocking rule '{}' action '{}'",
+                                depth,
+                                MAX_RULE_DISPATCH_DEPTH,
+                                rule.name,
+                                action.action_type()
+                            );
+                            continue;
+                        }
+
                         info!(
                             "Rule '{}' firing action: {}",
                             rule.name,
@@ -59,6 +75,9 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                                 let state = Arc::clone(&state);
                                 tokio::spawn(async move {
                                     let seq = crate::daemon::helpers::unix_timestamp();
+                                    state
+                                        .rule_dispatch_depth
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                     let result = crate::daemon::dispatch::dispatch_action(
                                         &request_id,
                                         parsed_action,
@@ -67,6 +86,9 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                                         seq,
                                     )
                                     .await;
+                                    state
+                                        .rule_dispatch_depth
+                                        .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                                     debug!(
                                         "Rule '{}' action completed: {:?}",
                                         rule.name,

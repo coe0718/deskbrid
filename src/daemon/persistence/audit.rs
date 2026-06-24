@@ -130,6 +130,7 @@ fn parse_audit_params(params: &Option<String>) -> (Option<String>, Option<bool>)
         return (None, None);
     };
     let Ok(val) = serde_json::from_str::<serde_json::Value>(json) else {
+        tracing::warn!("audit log params field is not valid JSON — entry silently lost error info");
         return (None, None);
     };
     let error = val

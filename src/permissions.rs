@@ -234,7 +234,7 @@ pub(crate) const HIGH_RISK_ACTIONS: &[&str] = &[
     "secrets.store_secret",
 ];
 
-fn is_high_risk(action_name: &str) -> bool {
+pub(crate) fn is_high_risk(action_name: &str) -> bool {
     HIGH_RISK_ACTIONS.contains(&action_name)
 }
 

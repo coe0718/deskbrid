@@ -116,7 +116,14 @@ pub struct DaemonState {
     next_terminal_id: AtomicU32,
     next_audit_id: AtomicU64,
     next_clipboard_history_id: AtomicU64,
+    /// Tracks recursive rule→action→event→rule dispatch depth (W4).
+    /// Capped at MAX_RULE_DISPATCH_DEPTH to prevent infinite cascades.
+    pub rule_dispatch_depth: AtomicU32,
 }
+
+/// Maximum depth for rule-triggered dispatch chains (W4).
+/// Prevents rule A → action → event → rule B → action → ... infinite loops.
+pub const MAX_RULE_DISPATCH_DEPTH: u32 = 5;
 
 impl DaemonState {
     pub fn new() -> Self {
@@ -180,6 +187,7 @@ impl DaemonState {
             next_terminal_id: AtomicU32::new(1),
             next_audit_id: AtomicU64::new(1),
             next_clipboard_history_id: AtomicU64::new(1),
+            rule_dispatch_depth: AtomicU32::new(0),
         }
     }
 

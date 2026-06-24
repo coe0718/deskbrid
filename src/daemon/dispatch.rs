@@ -69,6 +69,30 @@ pub async fn dispatch_action_with_options(
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;
         return response;
     }
+
+    // Rules engine (peer_uid=0) must not dispatch HIGH_RISK actions without
+    // explicit confirmation. Prevents privilege escalation under allow_all()
+    // where uid 0 passes all permission checks. (W2+W3)
+    if peer_uid == 0
+        && crate::permissions::is_high_risk(action.action_type())
+        && options.require_confirmation != Some(true)
+    {
+        let response = serde_json::json!({
+            "type": "response",
+            "id": request_id,
+            "seq": seq,
+            "status": "error",
+            "error": {
+                "code": "RULES_HIGH_RISK_BLOCKED",
+                "message": format!(
+                    "rules engine cannot dispatch high-risk action '{}' without confirmation",
+                    action.action_type()
+                )
+            }
+        });
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
     for implied_action in implied_permission_actions(&action) {
         if !state.permissions.check(peer_uid, &implied_action) {
             let response =
