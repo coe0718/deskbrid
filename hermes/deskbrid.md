@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v1.0.0)
+# Deskbrid Desktop Control (v1.1.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v1.0.0 highlights:** First stable release — DB as source of truth (#84), Rules Engine (#83), Keyring/Secrets (#29), Rate Limiting (#129), System Pressure/PSI (#96), and Provider Manifest for orchestrator integration (#135). Granular per-UID permissions with high-risk action gating, confirmation mode for destructive actions, and full audit trail. Three major features — **Action Confirmation Mode** (#37) requires explicit agent approval before destructive actions execute; **Agent-to-Agent Messaging** (#44) adds an in-process mailbox for inter-session communication; **Unified Search** (#80) indexes windows, apps, files, clipboard, and audit log with relevance scoring. Background TTL sweeper keeps confirmation queue and mailbox clean. 8 new MCP tools across confirmation, agent, and search categories. Dashboard cards for all three features with live SSE updates.
+**v1.1.0 highlights:** Security hardening release — all 6 Vex v2 review warnings + bonus resolved. Rules engine now blocked from dispatching HIGH_RISK actions (RULES_HIGH_RISK_BLOCKED), dispatch depth capped at 5 to prevent rule→rule cascades, secret-tool stderr sanitized (logged server-side, \"internal error\" to clients), migration atomicity via BEGIN EXCLUSIVE transaction, malformed audit JSON now warns instead of silently dropping. Protocol refactored (1505→481 lines), DaemonState Mutex→DashMap for lock ordering, all unreachable!() panics eliminated, a11y selector baseline framework added, capabilities report corrected (ui.tree.get was falsely marked unsupported). 18 commits · 98 files · +3,756 −1,812 since v1.0.0.
 
 **v0.12.1 highlights:** Async safety release — all blocking `std::fs` and `std::process::Command` calls in async execution paths converted to `tokio::fs`/`tokio::process::Command`. Path sandbox (`expand_path`) applied to `print-file` (prevents agent path traversal). 30+ blocking calls eliminated across 14 files. Claude code review catch.
 

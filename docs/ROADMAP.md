@@ -3,9 +3,7 @@
 **Purpose:** Catalog every mechanism Deskbrid can use to gain deeper control over Linux
 systems — beyond what the current DE backends already provide.
 
-**Current state:** v1.0.0. Production-ready — DB persistence, rules engine, keyring, rate limiting,
-backends). This doc focuses on what's **not yet in the code** — the remaining 80% of the
-operating system that agents need to control.
+**Current state:** v1.1.0. Security hardening release — Vex v2 audit resolved, protocol refactored, DashMap migration, rules engine HIGH_RISK guard, loop detection, migration atomicity.
 
 ### Roadmap Status
 
@@ -25,6 +23,7 @@ it to the completed table below.
 
 | Section | Landed Scope | Code |
 |---|---|---|
+| [v1.1.0 Security Hardening](#) | Vex v2 audit (7/7 resolved), rules engine HIGH_RISK guard, loop detection, migration atomicity, secret-tool stderr sanitized, capabilities report corrected, protocol refactored (1505→481), DashMap migration, unreachable elimination, a11y selector baselines | `src/daemon/dispatch.rs`, `src/daemon/rules/`, `src/daemon/persistence/`, `src/daemon/execute_secrets.rs`, `src/daemon/execute_capabilities.rs`, `src/lib.rs`, `src/permissions.rs` |
 | [1. systemd (logind + manager)](#1-systemd-logind--manager) | Inhibit/release, session list/lock/switch, service and timer control, journal query | `src/daemon/system/`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [2. polkit (PolicyKit Privilege Escalation)](#2-polkit-policykit-privilege-escalation) | Check/request authorization and ship Deskbrid policy actions | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` |
 | [9. Confinement Detection](#9-confinement-detection-flatpak--snap--selinux--apparmor) | Detect Flatpak, Snap, AppImage, containers, WSL, AppArmor, and SELinux via `system.confinement` and capability/health reports | `src/daemon/capabilities/confinement.rs`, `src/protocol/`, `clients/python/` |

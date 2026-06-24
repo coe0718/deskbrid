@@ -1,3 +1,36 @@
+## v1.1.0 — Security Hardening
+
+**Tuck · 18 commits · 98 files · +3,756 −1,812**
+
+Vex v2 audit resolution + structural hardening. All 6 warnings + 1 bonus resolved. Protocol refactored, lock ordering documented, DashMap migration, unreachable elimination, a11y selector baseline framework.
+
+### 🔒 Vex v2 Security Audit — 7/7 Resolved (CODE_REVIEW_VEX_V2.md)
+- **c3145d2** — B1: `ui.tree.get` removed from capabilities unsupported list (AT-SPI working). CDP reasons clarified.
+- **c3145d2** — W1: secret-tool stderr sanitized — logged server-side, "internal error" returned to clients.
+- **c3145d2** — W2+W3: Rules engine blocked from HIGH_RISK dispatch without confirmation (`RULES_HIGH_RISK_BLOCKED` error code). `is_high_risk()` made pub(crate).
+- **c3145d2** — W4: Rule dispatch depth counter (AtomicU32, cap 5 via MAX_RULE_DISPATCH_DEPTH) prevents infinite rule→action→event→rule cascades.
+- **c3145d2** — W5: Migration wrapped in BEGIN EXCLUSIVE/COMMIT transaction — crash mid-migration no longer corrupts schema version.
+- **c3145d2** — W6: Audit log `parse_audit_params` now emits `tracing::warn!` on malformed JSON instead of silent drop.
+
+### 🏗️ Structural Hardening (#25)
+- **a6d8b03** — Protocol refactor: `mod.rs` split 1505→481 lines into domain files.
+- **bf1dc86** — DaemonState: `Mutex<HashMap>` → `DashMap` for lock ordering simplification.
+- **e8fb71d** — `docs/CONTRIBUTING.md` + lock ordering documentation added.
+- **5885efb** — All `unreachable!()` panics eliminated from non-test code.
+- **d1c1ad5** — MCP rate limiting, session cleanup, backend lock scope reduction.
+
+### 🐛 Fixes
+- **0831edf, 44e2148** — Flaky audit persistence tests fixed with WAL checkpoint pattern.
+- **5a30bb2** — Dual DaemonState bug + MCP TCP auth gap + dashboard 0.0.0.0 bind fix.
+- **39552a3, 92be69d** — ydotool Enter key fix (numeric code 28 pipe workaround).
+
+### ♿ A11y Selector Framework
+- **e7ffed5** — Auto-normalization for same-group role remaps across compositors.
+- **d81955c** — Per-compositor selector baselines with LOUD failure detection.
+
+### 🌐 Site
+- **03ed1d3** — v2 landing page redesign.
+
 ## v1.0.0 — First Stable Release
 
 **Tuck + Scout + Vex · 60 commits · 134 files · +18033 −4310**
