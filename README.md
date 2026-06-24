@@ -11,7 +11,7 @@
   <a href="https://github.com/coe0718/deskbrid/releases"><img src="https://img.shields.io/github/v/release/coe0718/deskbrid?color=06b6d4" alt="Release"></a>
   <a href="https://discord.gg/Hs4ryPwEs"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://nicklaunches.com/products/deskbrid/"><img src="https://img.shields.io/badge/Nick%20Launches-featured-8b5cf6" alt="Nick Launches"></a>
-  <a href="https://lobehub.com/mcp/coe0718-deskbrid"><img src="https://lobehub.com/badge/mcp/coe0718-deskbrid" alt="MCP Badge"></a>
+  <a href="https://lobehub.com/mcp/coe0718-deskbrid"><img src="https://lobehub.com/badge/mcp-full/coe0718-deskbrid" alt="MCP Badge"></a>
 </p>
 
 <p align="center">
