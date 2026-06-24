@@ -256,7 +256,27 @@ Deskbrid exposes a full Model Context Protocol server for AI coding tools:
 deskbrid mcp
 ```
 
-**Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+### Hermes Agent (built-in skill)
+
+Deskbrid ships with a Hermes skill for one-command setup. In any Hermes session:
+
+```
+/deskbrid-hermes-mcp
+```
+
+Or from the terminal:
+
+```bash
+hermes mcp add deskbrid --command "deskbrid mcp"
+hermes mcp test deskbrid
+# → ✓ deskbrid: connected
+```
+
+After a session restart (`/reset`), the agent gains 100+ Linux desktop control tools.
+
+### Claude Desktop
+
+`~/.config/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -269,13 +289,11 @@ deskbrid mcp
 }
 ```
 
-**Available MCP tools (20+):**
-- `list_windows`, `focus_window`
-- `type_text`, `press_keys`, `mouse_move`, `mouse_click`
-- `screenshot`, `clipboard_read`, `clipboard_write`
-- `list_apps`, `get_accessibility_tree`
-- `perform_action`, `set_element_value`, `get_element_text`, `click_element`
-- `doctor`, `setup_accessibility`, `capabilities`
+### Codex / Cursor / any MCP client
+
+Configure the MCP server with command `deskbrid mcp` — the protocol is standard JSON-RPC over stdio.
+
+**Available MCP tools (100+ across 20 categories):** windows, input, clipboard, screenshots, system, AT-SPI accessibility, terminal PTY, files, audio, network, MPRIS, print, notifications, keyring, rules, confirmation, agent messaging, search, macros, capabilities.
 
 ## Compared to Alternatives
 
