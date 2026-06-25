@@ -12,11 +12,8 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn list_audio_sinks(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "audio.list_sinks", json!({})),
-        )
+    async fn list_audio_sinks(&self) -> String {
+        self.call(do_execute(&self.state, "audio.list_sinks", json!({})),).await
     }
 
     #[tool(
@@ -29,11 +26,8 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn list_audio_sources(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "audio.list_sources", json!({})),
-        )
+    async fn list_audio_sources(&self) -> String {
+        self.call(do_execute(&self.state, "audio.list_sources", json!({})),).await
     }
 
     #[tool(
@@ -46,14 +40,11 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn get_audio_volume(
+    async fn get_audio_volume(
         &self,
         Parameters(AudioTargetParams { target, id }): Parameters<AudioTargetParams>,
-    ) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "audio.get_volume", json!({"target": target, "id": id})),
-        )
+    ) -> String {
+        self.call(do_execute(&self.state, "audio.get_volume", json!({"target": target, "id": id})),).await
     }
 
     #[tool(
@@ -66,16 +57,11 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn set_audio_volume(
+    async fn set_audio_volume(
         &self,
         Parameters(SetVolume { sink_id, volume }): Parameters<SetVolume>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "audio.set_sink_volume",
-            json!({"sink_id": sink_id, "volume": volume}),
-        )
+    ) -> String {
+        self.exec("audio.set_sink_volume", json!({"sink_id": sink_id, "volume": volume}),).await
     }
 
     #[tool(
@@ -88,16 +74,11 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn set_audio_node_volume(
+    async fn set_audio_node_volume(
         &self,
         Parameters(AudioVolumeParams { target, id, volume }): Parameters<AudioVolumeParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "audio.set_volume",
-            json!({"target": target, "id": id, "volume": volume}),
-        )
+    ) -> String {
+        self.exec("audio.set_volume", json!({"target": target, "id": id, "volume": volume}),).await
     }
 
     #[tool(
@@ -110,16 +91,11 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn mute_audio(
+    async fn mute_audio(
         &self,
         Parameters(AudioMuteParams { target, id, mute }): Parameters<AudioMuteParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "audio.mute",
-            json!({"target": target, "id": id, "mute": mute}),
-        )
+    ) -> String {
+        self.exec("audio.mute", json!({"target": target, "id": id, "mute": mute}),).await
     }
 
     #[tool(
@@ -132,16 +108,11 @@ macro_rules! tools_audio {
             open_world_hint = true
         )
     )]
-    fn set_default_audio(
+    async fn set_default_audio(
         &self,
         Parameters(AudioDefaultParams { target, name }): Parameters<AudioDefaultParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "audio.set_default",
-            json!({"target": target, "name": name}),
-        )
+    ) -> String {
+        self.exec("audio.set_default", json!({"target": target, "name": name}),).await
     }
     };
 }

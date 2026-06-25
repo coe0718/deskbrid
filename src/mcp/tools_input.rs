@@ -12,8 +12,8 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn type_text(&self, Parameters(TypeText { text }): Parameters<TypeText>) -> Json<Value> {
-        block(&self.rt, do_type_text(&self.state, &text))
+    async fn type_text(&self, Parameters(TypeText { text }): Parameters<TypeText>) -> String {
+        self.call(do_type_text(&self.state, &text)).await
     }
 
     #[tool(
@@ -26,13 +26,8 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn press_key(&self, Parameters(PressKey { key }): Parameters<PressKey>) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "input.keyboard",
-            json!({"key": key}),
-        )
+    async fn press_key(&self, Parameters(PressKey { key }): Parameters<PressKey>) -> String {
+        self.exec("input.keyboard", json!({"key": key}),).await
     }
 
     #[tool(
@@ -45,8 +40,8 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn press_keys(&self, Parameters(PressKeys { keys }): Parameters<PressKeys>) -> Json<Value> {
-        block(&self.rt, do_press_keys(&self.state, &keys))
+    async fn press_keys(&self, Parameters(PressKeys { keys }): Parameters<PressKeys>) -> String {
+        self.call(do_press_keys(&self.state, &keys)).await
     }
 
     #[tool(
@@ -59,8 +54,8 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn mouse_move(&self, Parameters(MouseMove { x, y }): Parameters<MouseMove>) -> Json<Value> {
-        block(&self.rt, do_mouse_move(&self.state, x, y))
+    async fn mouse_move(&self, Parameters(MouseMove { x, y }): Parameters<MouseMove>) -> String {
+        self.call(do_mouse_move(&self.state, x, y)).await
     }
 
     #[tool(
@@ -73,11 +68,11 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn mouse_click(
+    async fn mouse_click(
         &self,
         Parameters(MouseClick { button }): Parameters<MouseClick>,
-    ) -> Json<Value> {
-        block(&self.rt, do_mouse_click(&self.state, &button))
+    ) -> String {
+        self.call(do_mouse_click(&self.state, &button)).await
     }
 
     #[tool(
@@ -90,16 +85,11 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn mouse_scroll(
+    async fn mouse_scroll(
         &self,
         Parameters(MouseScroll { dx, dy }): Parameters<MouseScroll>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "input.mouse",
-            json!({"action": "scroll", "dx": dx, "dy": dy}),
-        )
+    ) -> String {
+        self.exec("input.mouse", json!({"action": "scroll", "dx": dx, "dy": dy}),).await
     }
 
     #[tool(
@@ -112,11 +102,11 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn click_coordinate(
+    async fn click_coordinate(
         &self,
         Parameters(ClickCoord { x, y, button }): Parameters<ClickCoord>,
-    ) -> Json<Value> {
-        block(&self.rt, do_click_coordinate(x, y, &button))
+    ) -> String {
+        self.call(do_click_coordinate(x, y, &button)).await
     }
 
     #[tool(
@@ -129,7 +119,7 @@ macro_rules! tools_input {
             open_world_hint = true
         )
     )]
-    fn drag(
+    async fn drag(
         &self,
         Parameters(Drag {
             from_x,
@@ -138,8 +128,8 @@ macro_rules! tools_input {
             to_y,
             button,
         }): Parameters<Drag>,
-    ) -> Json<Value> {
-        block(&self.rt, do_drag(from_x, from_y, to_x, to_y, &button))
+    ) -> String {
+        self.call(do_drag(from_x, from_y, to_x, to_y, &button)).await
     }
     };
 }

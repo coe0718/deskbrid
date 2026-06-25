@@ -13,16 +13,11 @@ macro_rules! tools_screencast {
             open_world_hint = true
         )
     )]
-    fn screencast_start(
+    async fn screencast_start(
         &self,
         Parameters(ScreencastStartParams { output_path }): Parameters<ScreencastStartParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "screencast.start",
-            json!({ "output_path": output_path }),
-        )
+    ) -> String {
+        self.exec("screencast.start", json!({ "output_path": output_path }),).await
     }
 
     #[tool(
@@ -35,8 +30,8 @@ macro_rules! tools_screencast {
             open_world_hint = true
         )
     )]
-    fn screencast_stop(&self) -> Json<Value> {
-        execute(self.state.clone(), &self.rt, "screencast.stop", json!({}))
+    async fn screencast_stop(&self) -> String {
+        self.exec("screencast.stop", json!({})).await
     }
     };
 }

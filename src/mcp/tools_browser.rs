@@ -12,11 +12,8 @@ macro_rules! tools_browser {
             open_world_hint = true
         )
     )]
-    fn list_browser_tabs(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "browser.list_tabs", json!({})),
-        )
+    async fn list_browser_tabs(&self) -> String {
+        self.call(do_execute(&self.state, "browser.list_tabs", json!({})),).await
     }
 
     #[tool(
@@ -29,15 +26,15 @@ macro_rules! tools_browser {
             open_world_hint = true
         )
     )]
-    fn browser_navigate(
+    async fn browser_navigate(
         &self,
         Parameters(BrowserNavigate { tab_index, url }): Parameters<BrowserNavigate>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"url": url});
         if let Some(t) = tab_index {
             args["tab_index"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "browser.navigate", args)
+        self.exec("browser.navigate", args).await
     }
 
     #[tool(
@@ -50,19 +47,19 @@ macro_rules! tools_browser {
             open_world_hint = true
         )
     )]
-    fn browser_evaluate(
+    async fn browser_evaluate(
         &self,
         Parameters(BrowserEvaluate {
             tab_index,
             expression,
             await_promise,
         }): Parameters<BrowserEvaluate>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"expression": expression, "await_promise": await_promise});
         if let Some(t) = tab_index {
             args["tab_index"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "browser.evaluate", args)
+        self.exec("browser.evaluate", args).await
     }
 
     #[tool(
@@ -75,15 +72,15 @@ macro_rules! tools_browser {
             open_world_hint = true
         )
     )]
-    fn browser_screenshot(
+    async fn browser_screenshot(
         &self,
         Parameters(TabIndex { tab_index }): Parameters<TabIndex>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(t) = tab_index {
             args["tab_index"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "browser.screenshot_tab", args)
+        self.exec("browser.screenshot_tab", args).await
     }
 
     #[tool(
@@ -96,18 +93,18 @@ macro_rules! tools_browser {
             open_world_hint = true
         )
     )]
-    fn browser_click(
+    async fn browser_click(
         &self,
         Parameters(BrowserClick {
             tab_index,
             selector,
         }): Parameters<BrowserClick>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"selector": selector});
         if let Some(t) = tab_index {
             args["tab_index"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "browser.click", args)
+        self.exec("browser.click", args).await
     }
     };
 }

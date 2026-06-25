@@ -11,8 +11,8 @@ macro_rules! tools_screenshot {
             open_world_hint = true
         )
     )]
-    fn screenshot(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "screenshot", json!({})))
+    async fn screenshot(&self) -> String {
+        self.call(do_execute(&self.state, "screenshot", json!({}))).await
     }
 
     #[tool(
@@ -25,7 +25,7 @@ macro_rules! tools_screenshot {
             open_world_hint = true
         )
     )]
-    fn screenshot_region(
+    async fn screenshot_region(
         &self,
         Parameters(ScreenshotOptions {
             monitor,
@@ -35,7 +35,7 @@ macro_rules! tools_screenshot {
             region_w,
             region_h,
         }): Parameters<ScreenshotOptions>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(m) = monitor {
             args["monitor"] = json!(m);
@@ -46,7 +46,7 @@ macro_rules! tools_screenshot {
         if let (Some(x), Some(y), Some(w), Some(h)) = (region_x, region_y, region_w, region_h) {
             args["region"] = json!({"x": x, "y": y, "width": w, "height": h});
         }
-        execute(self.state.clone(), &self.rt, "screenshot", args)
+        self.exec("screenshot", args).await
     }
 
     #[tool(
@@ -59,7 +59,7 @@ macro_rules! tools_screenshot {
             open_world_hint = true
         )
     )]
-    fn screenshot_diff(
+    async fn screenshot_diff(
         &self,
         Parameters(ScreenshotDiff {
             before_path,
@@ -68,7 +68,7 @@ macro_rules! tools_screenshot {
             diff_path,
             monitor,
         }): Parameters<ScreenshotDiff>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"before_path": before_path});
         if let Some(a) = after_path {
             args["after_path"] = json!(a);
@@ -83,7 +83,7 @@ macro_rules! tools_screenshot {
         if let Some(m) = monitor {
             args["monitor"] = json!(m);
         }
-        execute(self.state.clone(), &self.rt, "screenshot.diff", args)
+        self.exec("screenshot.diff", args).await
     }
     };
 }

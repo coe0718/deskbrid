@@ -12,8 +12,8 @@ macro_rules! tools_media {
             open_world_hint = true
         )
     )]
-    fn list_media_players(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "mpris.list", json!({})))
+    async fn list_media_players(&self) -> String {
+        self.call(do_execute(&self.state, "mpris.list", json!({}))).await
     }
 
     #[tool(
@@ -26,15 +26,15 @@ macro_rules! tools_media {
             open_world_hint = true
         )
     )]
-    fn media_player_info(
+    async fn media_player_info(
         &self,
         Parameters(MprisPlayer { player }): Parameters<MprisPlayer>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(p) = player {
             args["player"] = json!(p);
         }
-        execute(self.state.clone(), &self.rt, "mpris.get", args)
+        self.exec("mpris.get", args).await
     }
 
     #[tool(
@@ -47,15 +47,15 @@ macro_rules! tools_media {
             open_world_hint = true
         )
     )]
-    fn media_player_control(
+    async fn media_player_control(
         &self,
         Parameters(MprisControl { player, action }): Parameters<MprisControl>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"action": action});
         if let Some(p) = player {
             args["player"] = json!(p);
         }
-        execute(self.state.clone(), &self.rt, "mpris.control", args)
+        self.exec("mpris.control", args).await
     }
     };
 }

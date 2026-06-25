@@ -11,16 +11,11 @@ macro_rules! tools_services {
             open_world_hint = false
         )
     )]
-    fn service_status(
+    async fn service_status(
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "service.status",
-            json!({"name": name}),
-        )
+    ) -> String {
+        self.exec("service.status", json!({"name": name}),).await
     }
 
     #[tool(
@@ -33,16 +28,11 @@ macro_rules! tools_services {
             open_world_hint = false
         )
     )]
-    fn service_start(
+    async fn service_start(
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "service.start",
-            json!({"name": name}),
-        )
+    ) -> String {
+        self.exec("service.start", json!({"name": name}),).await
     }
 
     #[tool(
@@ -55,16 +45,11 @@ macro_rules! tools_services {
             open_world_hint = false
         )
     )]
-    fn service_stop(
+    async fn service_stop(
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "service.stop",
-            json!({"name": name}),
-        )
+    ) -> String {
+        self.exec("service.stop", json!({"name": name}),).await
     }
 
     #[tool(
@@ -77,7 +62,7 @@ macro_rules! tools_services {
             open_world_hint = true
         )
     )]
-    fn journal_query(
+    async fn journal_query(
         &self,
         Parameters(JournalQuery {
             since,
@@ -86,7 +71,7 @@ macro_rules! tools_services {
             priority,
             tail,
         }): Parameters<JournalQuery>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(s) = since {
             args["since"] = json!(s);
@@ -103,7 +88,7 @@ macro_rules! tools_services {
         if let Some(t) = tail {
             args["tail"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "journal.query", args)
+        self.exec("journal.query", args).await
     }
     };
 }

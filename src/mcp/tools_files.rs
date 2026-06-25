@@ -12,13 +12,8 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_list(&self, Parameters(FilePath { path }): Parameters<FilePath>) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "files.list",
-            json!({"path": path}),
-        )
+    async fn file_list(&self, Parameters(FilePath { path }): Parameters<FilePath>) -> String {
+        self.exec("files.list", json!({"path": path}),).await
     }
 
     #[tool(
@@ -31,14 +26,14 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_read(
+    async fn file_read(
         &self,
         Parameters(FileRead {
             path,
             offset,
             limit,
         }): Parameters<FileRead>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"path": path});
         if let Some(o) = offset {
             args["offset"] = json!(o);
@@ -46,7 +41,7 @@ macro_rules! tools_files {
         if let Some(l) = limit {
             args["limit"] = json!(l);
         }
-        execute(self.state.clone(), &self.rt, "files.read", args)
+        self.exec("files.read", args).await
     }
 
     #[tool(
@@ -59,20 +54,15 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_write(
+    async fn file_write(
         &self,
         Parameters(FileWrite {
             path,
             content,
             append,
         }): Parameters<FileWrite>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "files.write",
-            json!({"path": path, "content": content, "append": append}),
-        )
+    ) -> String {
+        self.exec("files.write", json!({"path": path, "content": content, "append": append}),).await
     }
 
     #[tool(
@@ -85,19 +75,19 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_search(
+    async fn file_search(
         &self,
         Parameters(FileSearch {
             pattern,
             root,
             max_results,
         }): Parameters<FileSearch>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"pattern": pattern, "max_results": max_results});
         if let Some(r) = root {
             args["root"] = json!(r);
         }
-        execute(self.state.clone(), &self.rt, "files.search", args)
+        self.exec("files.search", args).await
     }
 
     #[tool(
@@ -110,19 +100,14 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_copy(
+    async fn file_copy(
         &self,
         Parameters(FileCopy {
             source,
             destination,
         }): Parameters<FileCopy>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "files.copy",
-            json!({"source": source, "destination": destination}),
-        )
+    ) -> String {
+        self.exec("files.copy", json!({"source": source, "destination": destination}),).await
     }
 
     #[tool(
@@ -135,19 +120,19 @@ macro_rules! tools_files {
             open_world_hint = true
         )
     )]
-    fn file_watch(
+    async fn file_watch(
         &self,
         Parameters(FileWatch {
             path,
             recursive,
             patterns,
         }): Parameters<FileWatch>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"path": path, "recursive": recursive});
         if let Some(p) = patterns {
             args["patterns"] = json!(p);
         }
-        execute(self.state.clone(), &self.rt, "files.watch", args)
+        self.exec("files.watch", args).await
     }
     };
 }

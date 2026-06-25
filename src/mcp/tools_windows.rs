@@ -11,8 +11,8 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn list_windows(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "windows.list", json!({})))
+    async fn list_windows(&self) -> String {
+        self.call(do_execute(&self.state, "windows.list", json!({}))).await
     }
 
     #[tool(
@@ -25,8 +25,8 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn focused_window(&self) -> Json<Value> {
-        block(&self.rt, do_focused_window(&self.state))
+    async fn focused_window(&self) -> String {
+        self.call(do_focused_window(&self.state)).await
     }
 
     #[tool(
@@ -39,11 +39,8 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn list_workspaces(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "workspaces.list", json!({})),
-        )
+    async fn list_workspaces(&self) -> String {
+        self.call(do_execute(&self.state, "workspaces.list", json!({})),).await
     }
 
 
@@ -57,11 +54,11 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn focus_window(
+    async fn focus_window(
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
-    ) -> Json<Value> {
-        block(&self.rt, do_focus_window(&self.state, &window_id))
+    ) -> String {
+        self.call(do_focus_window(&self.state, &window_id)).await
     }
 
     #[tool(
@@ -74,16 +71,11 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn close_window(
+    async fn close_window(
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "windows.close",
-            json!({"window_id": window_id}),
-        )
+    ) -> String {
+        self.exec("windows.close", json!({"window_id": window_id}),).await
     }
 
     #[tool(
@@ -96,16 +88,11 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn minimize_window(
+    async fn minimize_window(
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "windows.minimize",
-            json!({"window_id": window_id}),
-        )
+    ) -> String {
+        self.exec("windows.minimize", json!({"window_id": window_id}),).await
     }
 
     #[tool(
@@ -118,16 +105,11 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn maximize_window(
+    async fn maximize_window(
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "windows.maximize",
-            json!({"window_id": window_id}),
-        )
+    ) -> String {
+        self.exec("windows.maximize", json!({"window_id": window_id}),).await
     }
 
     #[tool(
@@ -140,7 +122,7 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn move_resize_window(
+    async fn move_resize_window(
         &self,
         Parameters(MoveResize {
             window_id,
@@ -149,13 +131,8 @@ macro_rules! tools_windows {
             width,
             height,
         }): Parameters<MoveResize>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "windows.move_resize",
-            json!({"window_id": window_id, "x": x, "y": y, "width": width, "height": height}),
-        )
+    ) -> String {
+        self.exec("windows.move_resize", json!({"window_id": window_id, "x": x, "y": y, "width": width, "height": height}),).await
     }
 
     #[tool(
@@ -168,7 +145,7 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn tile_window(
+    async fn tile_window(
         &self,
         Parameters(TileWindow {
             window_id,
@@ -176,7 +153,7 @@ macro_rules! tools_windows {
             monitor,
             padding,
         }): Parameters<TileWindow>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"window_id": window_id, "preset": preset});
         if let Some(m) = monitor {
             args["monitor"] = json!(m);
@@ -184,7 +161,7 @@ macro_rules! tools_windows {
         if let Some(p) = padding {
             args["padding"] = json!(p);
         }
-        execute(self.state.clone(), &self.rt, "windows.tile", args)
+        self.exec("windows.tile", args).await
     }
 
     #[tool(
@@ -197,24 +174,19 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn activate_or_launch(
+    async fn activate_or_launch(
         &self,
         Parameters(ActivateOrLaunch {
             app_id,
             command,
             workdir,
         }): Parameters<ActivateOrLaunch>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"app_id": app_id, "command": command});
         if let Some(wd) = workdir {
             args["workdir"] = json!(wd);
         }
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "windows.activate_or_launch",
-            args,
-        )
+        self.exec("windows.activate_or_launch", args,).await
     }
 
 
@@ -228,16 +200,11 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn switch_workspace(
+    async fn switch_workspace(
         &self,
         Parameters(SwitchWorkspace { workspace_id }): Parameters<SwitchWorkspace>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "workspaces.switch",
-            json!({"workspace_id": workspace_id}),
-        )
+    ) -> String {
+        self.exec("workspaces.switch", json!({"workspace_id": workspace_id}),).await
     }
 
     #[tool(
@@ -250,20 +217,15 @@ macro_rules! tools_windows {
             open_world_hint = true
         )
     )]
-    fn move_window_to_workspace(
+    async fn move_window_to_workspace(
         &self,
         Parameters(MoveWindowToWorkspace {
             window_id,
             workspace_id,
             follow,
         }): Parameters<MoveWindowToWorkspace>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "workspaces.move_window",
-            json!({"window_id": window_id, "workspace_id": workspace_id, "follow": follow}),
-        )
+    ) -> String {
+        self.exec("workspaces.move_window", json!({"window_id": window_id, "workspace_id": workspace_id, "follow": follow}),).await
     }
     };
 }

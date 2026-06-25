@@ -11,11 +11,8 @@ macro_rules! tools_clipboard {
                 open_world_hint = true
             )
         )]
-        fn clipboard_read(&self) -> Json<Value> {
-            block(
-                &self.rt,
-                do_execute(&self.state, "clipboard.read", json!({})),
-            )
+        async fn clipboard_read(&self) -> String {
+            self.call(do_execute(&self.state, "clipboard.read", json!({})),).await
         }
 
         #[tool(
@@ -28,11 +25,11 @@ macro_rules! tools_clipboard {
                 open_world_hint = true
             )
         )]
-        fn clipboard_write(
+        async fn clipboard_write(
             &self,
             Parameters(ClipboardWrite { text }): Parameters<ClipboardWrite>,
-        ) -> Json<Value> {
-            block(&self.rt, do_clipboard_write(&self.state, &text))
+        ) -> String {
+            self.call(do_clipboard_write(&self.state, &text)).await
         }
     };
 }

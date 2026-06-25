@@ -11,11 +11,8 @@ macro_rules! tools_network {
                 open_world_hint = true
             )
         )]
-        fn network_status(&self) -> Json<Value> {
-            block(
-                &self.rt,
-                do_execute(&self.state, "network.status", json!({})),
-            )
+        async fn network_status(&self) -> String {
+            self.call(do_execute(&self.state, "network.status", json!({})),).await
         }
     };
 }

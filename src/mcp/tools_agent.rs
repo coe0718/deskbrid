@@ -11,16 +11,16 @@ macro_rules! tools_agent {
             open_world_hint = false
         )
     )]
-    fn send_message(
+    async fn send_message(
         &self,
         Parameters(args): Parameters<SendMessageArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let to_session = args.to_session.clone();
         let subject = args.subject.clone();
         let body = args.body.clone();
         let ttl_ms = args.ttl_ms;
         let reply_to = args.reply_to.clone();
-        block_state(&self.rt, &self.state, move |state| {
+        self.call_state( move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::AgentMessage {
                     to_session,
@@ -31,7 +31,7 @@ macro_rules! tools_agent {
                 };
                 $crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
             })
-        })
+        }).await
     }
 
     #[tool(
@@ -44,14 +44,14 @@ macro_rules! tools_agent {
             open_world_hint = true
         )
     )]
-    fn broadcast(
+    async fn broadcast(
         &self,
         Parameters(args): Parameters<BroadcastArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let subject = args.subject.clone();
         let body = args.body.clone();
         let exclude_self = args.exclude_self;
-        block_state(&self.rt, &self.state, move |state| {
+        self.call_state( move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::AgentBroadcast {
                     subject,
@@ -60,7 +60,7 @@ macro_rules! tools_agent {
                 };
                 $crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
             })
-        })
+        }).await
     }
 
     #[tool(
@@ -73,13 +73,13 @@ macro_rules! tools_agent {
             open_world_hint = false
         )
     )]
-    fn check_mailbox(&self) -> Json<Value> {
-        block_state(&self.rt, &self.state, |state| {
+    async fn check_mailbox(&self) -> String {
+        self.call_state( |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::AgentMailbox;
                 $crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
             })
-        })
+        }).await
     }
     };
 }

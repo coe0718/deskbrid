@@ -11,20 +11,15 @@ macro_rules! tools_search {
             open_world_hint = true
         )
     )]
-    fn unified_search(
+    async fn unified_search(
         &self,
         Parameters(args): Parameters<SearchArgs>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "search.query",
-            serde_json::json!({
+    ) -> String {
+        self.exec("search.query", serde_json::json!({
                 "query": args.query,
                 "categories": args.categories,
                 "limit": args.limit,
-            }),
-        )
+            }),).await
     }
 
     #[tool(
@@ -37,13 +32,8 @@ macro_rules! tools_search {
             open_world_hint = false
         )
     )]
-    fn search_index_status(&self) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "search.index",
-            serde_json::json!({}),
-        )
+    async fn search_index_status(&self) -> String {
+        self.exec("search.index", serde_json::json!({}),).await
     }
     };
 }

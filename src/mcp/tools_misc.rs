@@ -12,8 +12,8 @@ macro_rules! tools_misc {
             open_world_hint = false
         )
     )]
-    fn doctor(&self) -> Json<Value> {
-        block(&self.rt, do_doctor(&self.state))
+    async fn doctor(&self) -> String {
+        self.call(do_doctor(&self.state)).await
     }
 
     #[tool(
@@ -26,8 +26,8 @@ macro_rules! tools_misc {
             open_world_hint = false
         )
     )]
-    fn setup_accessibility(&self) -> Json<Value> {
-        block(&self.rt, do_setup_accessibility(&self.state))
+    async fn setup_accessibility(&self) -> String {
+        self.call(do_setup_accessibility(&self.state)).await
     }
 
     #[tool(
@@ -40,8 +40,8 @@ macro_rules! tools_misc {
             open_world_hint = false
         )
     )]
-    fn capabilities(&self) -> Json<Value> {
-        block(&self.rt, do_capabilities(&self.state))
+    async fn capabilities(&self) -> String {
+        self.call(do_capabilities(&self.state)).await
     }
 
 
@@ -55,11 +55,8 @@ macro_rules! tools_misc {
             open_world_hint = true
         )
     )]
-    fn layout_list(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "layout_profiles.list", json!({})),
-        )
+    async fn layout_list(&self) -> String {
+        self.call(do_execute(&self.state, "layout_profiles.list", json!({})),).await
     }
 
     #[tool(
@@ -72,16 +69,11 @@ macro_rules! tools_misc {
             open_world_hint = true
         )
     )]
-    fn layout_save(
+    async fn layout_save(
         &self,
         Parameters(LayoutSave { name, overwrite }): Parameters<LayoutSave>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "layout_profiles.save",
-            json!({"name": name, "overwrite": overwrite}),
-        )
+    ) -> String {
+        self.exec("layout_profiles.save", json!({"name": name, "overwrite": overwrite}),).await
     }
 
     #[tool(
@@ -94,16 +86,11 @@ macro_rules! tools_misc {
             open_world_hint = true
         )
     )]
-    fn layout_restore(
+    async fn layout_restore(
         &self,
         Parameters(LayoutName { name }): Parameters<LayoutName>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "layout_profiles.restore",
-            json!({"name": name}),
-        )
+    ) -> String {
+        self.exec("layout_profiles.restore", json!({"name": name}),).await
     }
 
     #[tool(
@@ -116,16 +103,11 @@ macro_rules! tools_misc {
             open_world_hint = true
         )
     )]
-    fn layout_delete(
+    async fn layout_delete(
         &self,
         Parameters(LayoutName { name }): Parameters<LayoutName>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "layout_profiles.delete",
-            json!({"name": name}),
-        )
+    ) -> String {
+        self.exec("layout_profiles.delete", json!({"name": name}),).await
     }
 
 
@@ -139,16 +121,11 @@ macro_rules! tools_misc {
             open_world_hint = false
         )
     )]
-    fn register_hotkey(
+    async fn register_hotkey(
         &self,
         Parameters(HotkeyRegister { hotkey_id, keys }): Parameters<HotkeyRegister>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "hotkeys.register",
-            json!({"hotkey_id": hotkey_id, "keys": keys}),
-        )
+    ) -> String {
+        self.exec("hotkeys.register", json!({"hotkey_id": hotkey_id, "keys": keys}),).await
     }
 
     #[tool(
@@ -161,16 +138,11 @@ macro_rules! tools_misc {
             open_world_hint = false
         )
     )]
-    fn unregister_hotkey(
+    async fn unregister_hotkey(
         &self,
         Parameters(HotkeyUnregister { hotkey_id }): Parameters<HotkeyUnregister>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "hotkeys.unregister",
-            json!({"hotkey_id": hotkey_id}),
-        )
+    ) -> String {
+        self.exec("hotkeys.unregister", json!({"hotkey_id": hotkey_id}),).await
     }
     };
 }

@@ -12,7 +12,7 @@ macro_rules! tools_notifications {
             open_world_hint = true
         )
     )]
-    fn send_notification(
+    async fn send_notification(
         &self,
         Parameters(NotificationSend {
             app_name,
@@ -20,13 +20,8 @@ macro_rules! tools_notifications {
             body,
             urgency,
         }): Parameters<NotificationSend>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "notification.send",
-            json!({"app_name": app_name, "title": title, "body": body, "urgency": urgency}),
-        )
+    ) -> String {
+        self.exec("notification.send", json!({"app_name": app_name, "title": title, "body": body, "urgency": urgency}),).await
     }
 
     #[tool(
@@ -39,16 +34,11 @@ macro_rules! tools_notifications {
             open_world_hint = true
         )
     )]
-    fn close_notification(
+    async fn close_notification(
         &self,
         Parameters(NotificationClose { notification_id }): Parameters<NotificationClose>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "notification.close",
-            json!({"notification_id": notification_id}),
-        )
+    ) -> String {
+        self.exec("notification.close", json!({"notification_id": notification_id}),).await
     }
     };
 }

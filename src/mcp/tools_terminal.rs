@@ -12,7 +12,7 @@ macro_rules! tools_terminal {
             open_world_hint = false
         )
     )]
-    fn terminal_create(
+    async fn terminal_create(
         &self,
         Parameters(TerminalCreate {
             shell,
@@ -20,7 +20,7 @@ macro_rules! tools_terminal {
             rows,
             cols,
         }): Parameters<TerminalCreate>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(s) = shell {
             args["shell"] = json!(s);
@@ -34,7 +34,7 @@ macro_rules! tools_terminal {
         if let Some(c) = cols {
             args["cols"] = json!(c);
         }
-        execute(self.state.clone(), &self.rt, "terminal.create", args)
+        self.exec("terminal.create", args).await
     }
 
     #[tool(
@@ -47,16 +47,11 @@ macro_rules! tools_terminal {
             open_world_hint = false
         )
     )]
-    fn terminal_write(
+    async fn terminal_write(
         &self,
         Parameters(TerminalWrite { terminal_id, input }): Parameters<TerminalWrite>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "terminal.write",
-            json!({"terminal_id": terminal_id, "input": input}),
-        )
+    ) -> String {
+        self.exec("terminal.write", json!({"terminal_id": terminal_id, "input": input}),).await
     }
 
     #[tool(
@@ -69,14 +64,14 @@ macro_rules! tools_terminal {
             open_world_hint = false
         )
     )]
-    fn terminal_read(
+    async fn terminal_read(
         &self,
         Parameters(TerminalRead {
             terminal_id,
             max_bytes,
             flush,
         }): Parameters<TerminalRead>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"terminal_id": terminal_id});
         if let Some(m) = max_bytes {
             args["max_bytes"] = json!(m);
@@ -84,7 +79,7 @@ macro_rules! tools_terminal {
         if flush {
             args["flush"] = json!(true);
         }
-        execute(self.state.clone(), &self.rt, "terminal.read", args)
+        self.exec("terminal.read", args).await
     }
 
     #[tool(
@@ -97,20 +92,15 @@ macro_rules! tools_terminal {
             open_world_hint = false
         )
     )]
-    fn terminal_resize(
+    async fn terminal_resize(
         &self,
         Parameters(TerminalResize {
             terminal_id,
             rows,
             cols,
         }): Parameters<TerminalResize>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "terminal.resize",
-            json!({"terminal_id": terminal_id, "rows": rows, "cols": cols}),
-        )
+    ) -> String {
+        self.exec("terminal.resize", json!({"terminal_id": terminal_id, "rows": rows, "cols": cols}),).await
     }
     };
 }

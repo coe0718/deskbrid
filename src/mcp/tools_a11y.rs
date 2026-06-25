@@ -11,8 +11,8 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn list_apps(&self) -> Json<Value> {
-        block(&self.rt, do_list_apps(&self.state))
+    async fn list_apps(&self) -> String {
+        self.call(do_list_apps(&self.state)).await
     }
 
     #[tool(
@@ -25,7 +25,7 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn get_accessibility_tree(
+    async fn get_accessibility_tree(
         &self,
         Parameters(A11yTree {
             app_name,
@@ -33,11 +33,8 @@ macro_rules! tools_a11y {
             max_nodes,
             max_depth,
         }): Parameters<A11yTree>,
-    ) -> Json<Value> {
-        block(
-            &self.rt,
-            do_get_accessibility_tree(&self.state, app_name.as_deref(), pid, max_nodes, max_depth),
-        )
+    ) -> String {
+        self.call(do_get_accessibility_tree(&self.state, app_name.as_deref(), pid, max_nodes, max_depth),).await
     }
 
 
@@ -51,17 +48,14 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn perform_action(
+    async fn perform_action(
         &self,
         Parameters(A11yAction {
             object_ref,
             action_name,
         }): Parameters<A11yAction>,
-    ) -> Json<Value> {
-        block(
-            &self.rt,
-            do_perform_action(&self.state, &object_ref, action_name.as_deref()),
-        )
+    ) -> String {
+        self.call(do_perform_action(&self.state, &object_ref, action_name.as_deref()),).await
     }
 
     #[tool(
@@ -74,14 +68,11 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn set_element_value(
+    async fn set_element_value(
         &self,
         Parameters(SetValue { object_ref, value }): Parameters<SetValue>,
-    ) -> Json<Value> {
-        block(
-            &self.rt,
-            do_set_element_value(&self.state, &object_ref, &value),
-        )
+    ) -> String {
+        self.call(do_set_element_value(&self.state, &object_ref, &value),).await
     }
 
     #[tool(
@@ -94,17 +85,14 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn get_element_text(
+    async fn get_element_text(
         &self,
         Parameters(GetText {
             object_ref,
             max_chars,
         }): Parameters<GetText>,
-    ) -> Json<Value> {
-        block(
-            &self.rt,
-            do_get_element_text(&self.state, &object_ref, max_chars),
-        )
+    ) -> String {
+        self.call(do_get_element_text(&self.state, &object_ref, max_chars),).await
     }
 
     #[tool(
@@ -117,11 +105,11 @@ macro_rules! tools_a11y {
             open_world_hint = true
         )
     )]
-    fn click_element(
+    async fn click_element(
         &self,
         Parameters(ClickElement { object_ref }): Parameters<ClickElement>,
-    ) -> Json<Value> {
-        block(&self.rt, do_click_element(&self.state, &object_ref))
+    ) -> String {
+        self.call(do_click_element(&self.state, &object_ref)).await
     }
     };
 }

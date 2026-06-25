@@ -11,13 +11,13 @@ macro_rules! tools_secrets {
                 open_world_hint = true
             )
         )]
-        fn secrets_list_collections(&self) -> Json<Value> {
-            block_state(&self.rt, &self.state, |state| {
+        async fn secrets_list_collections(&self) -> String {
+            self.call_state( |state| {
                 Box::pin(async move {
                     let action = $crate::protocol::Action::SecretsListCollections;
                     $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
                 })
-            })
+            }).await
         }
 
         #[tool(
@@ -30,19 +30,19 @@ macro_rules! tools_secrets {
                 open_world_hint = true
             )
         )]
-        fn secrets_get_secret(
+        async fn secrets_get_secret(
             &self,
             Parameters(SecretsGetArgs { attributes }): Parameters<SecretsGetArgs>,
-        ) -> Json<Value> {
+        ) -> String {
             let attrs = attributes.clone();
-            block_state(&self.rt, &self.state, move |state| {
+            self.call_state( move |state| {
                 Box::pin(async move {
                     let action = $crate::protocol::Action::SecretsGetSecret {
                         attributes: attrs,
                     };
                     $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
                 })
-            })
+            }).await
         }
 
         #[tool(
@@ -55,7 +55,7 @@ macro_rules! tools_secrets {
                 open_world_hint = true
             )
         )]
-        fn secrets_store_secret(
+        async fn secrets_store_secret(
             &self,
             Parameters(SecretsStoreArgs {
                 attributes,
@@ -63,12 +63,12 @@ macro_rules! tools_secrets {
                 label,
                 collection,
             }): Parameters<SecretsStoreArgs>,
-        ) -> Json<Value> {
+        ) -> String {
             let attrs = attributes.clone();
             let sec = secret.clone();
             let lbl = label.clone();
             let col = collection.clone();
-            block_state(&self.rt, &self.state, move |state| {
+            self.call_state( move |state| {
                 Box::pin(async move {
                     let action = $crate::protocol::Action::SecretsStoreSecret {
                         attributes: attrs,
@@ -78,7 +78,7 @@ macro_rules! tools_secrets {
                     };
                     $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
                 })
-            })
+            }).await
         }
     };
 }

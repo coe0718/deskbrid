@@ -11,8 +11,8 @@ macro_rules! tools_system {
             open_world_hint = false
         )
     )]
-    fn system_info(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.info", json!({})))
+    async fn system_info(&self) -> String {
+        self.call(do_execute(&self.state, "system.info", json!({}))).await
     }
 
     #[tool(
@@ -25,11 +25,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn battery_status(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "system.battery", json!({})),
-        )
+    async fn battery_status(&self) -> String {
+        self.call(do_execute(&self.state, "system.battery", json!({})),).await
     }
 
     #[tool(
@@ -42,8 +39,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn idle_seconds(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.idle", json!({})))
+    async fn idle_seconds(&self) -> String {
+        self.call(do_execute(&self.state, "system.idle", json!({}))).await
     }
 
     #[tool(
@@ -56,11 +53,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn check_update(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "system.update", json!({"check": true})),
-        )
+    async fn check_update(&self) -> String {
+        self.call(do_execute(&self.state, "system.update", json!({"check": true})),).await
     }
 
     #[tool(
@@ -73,11 +67,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn self_update(&self) -> Json<Value> {
-        block(
-            &self.rt,
-            do_execute(&self.state, "system.update", json!({"force": false})),
-        )
+    async fn self_update(&self) -> String {
+        self.call(do_execute(&self.state, "system.update", json!({"force": false})),).await
     }
 
     #[tool(
@@ -90,7 +81,7 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn dbus_call(
+    async fn dbus_call(
         &self,
         Parameters(DbusCallArgs {
             bus,
@@ -100,7 +91,7 @@ macro_rules! tools_system {
             method,
             args,
         }): Parameters<DbusCallArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut req = json!({
             "service": service,
             "path": path,
@@ -113,7 +104,7 @@ macro_rules! tools_system {
         if let Some(a) = args {
             req["args"] = a;
         }
-        execute(self.state.clone(), &self.rt, "dbus.call", req)
+        self.exec("dbus.call", req).await
     }
 
 
@@ -127,8 +118,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn list_processes(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "process.list", json!({})))
+    async fn list_processes(&self) -> String {
+        self.call(do_execute(&self.state, "process.list", json!({}))).await
     }
 
     #[tool(
@@ -141,15 +132,15 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn start_process(
+    async fn start_process(
         &self,
         Parameters(ProcessStart { command, workdir }): Parameters<ProcessStart>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"command": command});
         if let Some(w) = workdir {
             args["workdir"] = json!(w);
         }
-        execute(self.state.clone(), &self.rt, "process.start", args)
+        self.exec("process.start", args).await
     }
 
     #[tool(
@@ -162,16 +153,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn stop_process(
+    async fn stop_process(
         &self,
         Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "process.stop",
-            json!({"pid": pid, "signal": signal}),
-        )
+    ) -> String {
+        self.exec("process.stop", json!({"pid": pid, "signal": signal}),).await
     }
 
     #[tool(
@@ -184,16 +170,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn signal_process(
+    async fn signal_process(
         &self,
         Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "process.signal",
-            json!({"pid": pid, "signal": signal}),
-        )
+    ) -> String {
+        self.exec("process.signal", json!({"pid": pid, "signal": signal}),).await
     }
 
     #[tool(
@@ -206,16 +187,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn process_exists(
+    async fn process_exists(
         &self,
         Parameters(ProcessPid { pid }): Parameters<ProcessPid>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "process.exists",
-            json!({"pid": pid}),
-        )
+    ) -> String {
+        self.exec("process.exists", json!({"pid": pid}),).await
     }
 
     #[tool(
@@ -228,15 +204,15 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn wait_for_process(
+    async fn wait_for_process(
         &self,
         Parameters(ProcessWait { pid, timeout_ms }): Parameters<ProcessWait>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"pid": pid});
         if let Some(t) = timeout_ms {
             args["timeout_ms"] = json!(t);
         }
-        execute(self.state.clone(), &self.rt, "process.wait", args)
+        self.exec("process.wait", args).await
     }
 
     #[tool(
@@ -249,8 +225,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn backlight_list(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.backlight_list", json!({})))
+    async fn backlight_list(&self) -> String {
+        self.call(do_execute(&self.state, "system.backlight_list", json!({}))).await
     }
 
     #[tool(
@@ -263,15 +239,15 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn backlight_get(
+    async fn backlight_get(
         &self,
         Parameters(BacklightDevice { device }): Parameters<BacklightDevice>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(d) = device {
             args["device"] = json!(d);
         }
-        execute(self.state.clone(), &self.rt, "system.backlight_get", args)
+        self.exec("system.backlight_get", args).await
     }
 
     #[tool(
@@ -284,15 +260,15 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn backlight_set(
+    async fn backlight_set(
         &self,
         Parameters(BacklightSetArgs { device, value }): Parameters<BacklightSetArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"value": value});
         if let Some(d) = device {
             args["device"] = json!(d);
         }
-        execute(self.state.clone(), &self.rt, "system.backlight_set", args)
+        self.exec("system.backlight_set", args).await
     }
 
     #[tool(
@@ -305,8 +281,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_list(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.print_list", json!({})))
+    async fn print_list(&self) -> String {
+        self.call(do_execute(&self.state, "system.print_list", json!({}))).await
     }
 
     #[tool(
@@ -319,15 +295,15 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_default(
+    async fn print_default(
         &self,
         Parameters(PrintDefaultArgs { printer }): Parameters<PrintDefaultArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({});
         if let Some(p) = printer {
             args["printer"] = json!(p);
         }
-        execute(self.state.clone(), &self.rt, "system.print_default", args)
+        self.exec("system.print_default", args).await
     }
 
     #[tool(
@@ -340,12 +316,12 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_file(
+    async fn print_file(
         &self,
         Parameters(PrintFileArgs { printer, path }): Parameters<PrintFileArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let args = json!({"printer": printer, "path": path});
-        execute(self.state.clone(), &self.rt, "system.print_file", args)
+        self.exec("system.print_file", args).await
     }
 
     #[tool(
@@ -358,8 +334,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_jobs(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.print_jobs", json!({})))
+    async fn print_jobs(&self) -> String {
+        self.call(do_execute(&self.state, "system.print_jobs", json!({}))).await
     }
 
     #[tool(
@@ -372,16 +348,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_job_cancel(
+    async fn print_job_cancel(
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "system.print_job_cancel",
-            json!({"job_id": job_id}),
-        )
+    ) -> String {
+        self.exec("system.print_job_cancel", json!({"job_id": job_id}),).await
     }
 
     #[tool(
@@ -394,16 +365,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_job_pause(
+    async fn print_job_pause(
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "system.print_job_pause",
-            json!({"job_id": job_id}),
-        )
+    ) -> String {
+        self.exec("system.print_job_pause", json!({"job_id": job_id}),).await
     }
 
     #[tool(
@@ -416,16 +382,11 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn print_job_resume(
+    async fn print_job_resume(
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "system.print_job_resume",
-            json!({"job_id": job_id}),
-        )
+    ) -> String {
+        self.exec("system.print_job_resume", json!({"job_id": job_id}),).await
     }
 
     #[tool(
@@ -438,8 +399,8 @@ macro_rules! tools_system {
             open_world_hint = true
         )
     )]
-    fn pressure(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "system.pressure", json!({})))
+    async fn pressure(&self) -> String {
+        self.call(do_execute(&self.state, "system.pressure", json!({}))).await
     }
     };
 }

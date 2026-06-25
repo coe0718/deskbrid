@@ -11,11 +11,8 @@ macro_rules! tools_bluetooth {
                 open_world_hint = true
             )
         )]
-        fn bluetooth_list(&self) -> Json<Value> {
-            block(
-                &self.rt,
-                do_execute(&self.state, "bluetooth.list", json!({})),
-            )
+        async fn bluetooth_list(&self) -> String {
+            self.call(do_execute(&self.state, "bluetooth.list", json!({})),).await
         }
 
         #[tool(
@@ -28,15 +25,15 @@ macro_rules! tools_bluetooth {
                 open_world_hint = true
             )
         )]
-        fn bluetooth_scan(
+        async fn bluetooth_scan(
             &self,
             Parameters(BluetoothScan { duration }): Parameters<BluetoothScan>,
-        ) -> Json<Value> {
+        ) -> String {
             let mut args = json!({});
             if let Some(d) = duration {
                 args["duration"] = json!(d);
             }
-            execute(self.state.clone(), &self.rt, "bluetooth.scan", args)
+            self.exec("bluetooth.scan", args).await
         }
     };
 }

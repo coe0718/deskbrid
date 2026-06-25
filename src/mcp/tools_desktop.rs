@@ -11,8 +11,8 @@ macro_rules! tools_desktop {
             open_world_hint = true
         )
     )]
-    fn list_schemas(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "desktop.list_schemas", json!({})))
+    async fn list_schemas(&self) -> String {
+        self.call(do_execute(&self.state, "desktop.list_schemas", json!({}))).await
     }
 
     #[tool(
@@ -25,16 +25,11 @@ macro_rules! tools_desktop {
             open_world_hint = true
         )
     )]
-    fn get_setting(
+    async fn get_setting(
         &self,
         Parameters(DesktopSettingKey { schema, key }): Parameters<DesktopSettingKey>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "desktop.get_setting",
-            json!({"schema": schema, "key": key}),
-        )
+    ) -> String {
+        self.exec("desktop.get_setting", json!({"schema": schema, "key": key}),).await
     }
 
     #[tool(
@@ -47,16 +42,11 @@ macro_rules! tools_desktop {
             open_world_hint = true
         )
     )]
-    fn set_setting(
+    async fn set_setting(
         &self,
         Parameters(DesktopSettingValue { schema, key, value }): Parameters<DesktopSettingValue>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "desktop.set_setting",
-            json!({"schema": schema, "key": key, "value": value}),
-        )
+    ) -> String {
+        self.exec("desktop.set_setting", json!({"schema": schema, "key": key, "value": value}),).await
     }
     };
 }

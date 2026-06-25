@@ -13,16 +13,11 @@ macro_rules! tools_portal {
             open_world_hint = true
         )
     )]
-    fn portal_screenshot(
+    async fn portal_screenshot(
         &self,
         Parameters(PortalScreenshotParams { interactive }): Parameters<PortalScreenshotParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "portal.screenshot",
-            json!({"interactive": interactive}),
-        )
+    ) -> String {
+        self.exec("portal.screenshot", json!({"interactive": interactive}),).await
     }
 
     #[tool(
@@ -35,16 +30,11 @@ macro_rules! tools_portal {
             open_world_hint = true
         )
     )]
-    fn portal_screencast_start(
+    async fn portal_screencast_start(
         &self,
         Parameters(ScreencastStartParams { output_path }): Parameters<ScreencastStartParams>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "portal.screencast_start",
-            json!({"output_path": output_path}),
-        )
+    ) -> String {
+        self.exec("portal.screencast_start", json!({"output_path": output_path}),).await
     }
 
     #[tool(
@@ -57,13 +47,8 @@ macro_rules! tools_portal {
             open_world_hint = true
         )
     )]
-    fn portal_screencast_stop(&self) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "portal.screencast_stop",
-            json!({}),
-        )
+    async fn portal_screencast_stop(&self) -> String {
+        self.exec("portal.screencast_stop", json!({}),).await
     }
     };
 }

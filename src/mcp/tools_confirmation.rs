@@ -11,17 +11,17 @@ macro_rules! tools_confirmation {
             open_world_hint = false
         )
     )]
-    fn confirm_action(
+    async fn confirm_action(
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let id = id.clone();
-        block_state(&self.rt, &self.state, move |state| {
+        self.call_state( move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::ConfirmAction { id };
                 $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
-        })
+        }).await
     }
 
     #[tool(
@@ -34,17 +34,17 @@ macro_rules! tools_confirmation {
             open_world_hint = false
         )
     )]
-    fn deny_action(
+    async fn deny_action(
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
-    ) -> Json<Value> {
+    ) -> String {
         let id = id.clone();
-        block_state(&self.rt, &self.state, move |state| {
+        self.call_state( move |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::DenyAction { id };
                 $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
-        })
+        }).await
     }
 
     #[tool(
@@ -57,13 +57,13 @@ macro_rules! tools_confirmation {
             open_world_hint = false
         )
     )]
-    fn list_confirmations(&self) -> Json<Value> {
-        block_state(&self.rt, &self.state, |state| {
+    async fn list_confirmations(&self) -> String {
+        self.call_state( |state| {
             Box::pin(async move {
                 let action = $crate::protocol::Action::ConfirmationList;
                 $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
             })
-        })
+        }).await
     }
     };
 }

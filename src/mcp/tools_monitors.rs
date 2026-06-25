@@ -12,8 +12,8 @@ macro_rules! tools_monitors {
             open_world_hint = true
         )
     )]
-    fn list_monitors(&self) -> Json<Value> {
-        block(&self.rt, do_execute(&self.state, "monitor.list", json!({})))
+    async fn list_monitors(&self) -> String {
+        self.call(do_execute(&self.state, "monitor.list", json!({}))).await
     }
 
     #[tool(
@@ -26,16 +26,11 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn set_primary_monitor(
+    async fn set_primary_monitor(
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "monitor.set_primary",
-            json!({"output": output}),
-        )
+    ) -> String {
+        self.exec("monitor.set_primary", json!({"output": output}),).await
     }
 
     #[tool(
@@ -48,7 +43,7 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn set_monitor_resolution(
+    async fn set_monitor_resolution(
         &self,
         Parameters(SetResolution {
             output,
@@ -56,12 +51,12 @@ macro_rules! tools_monitors {
             height,
             refresh_rate,
         }): Parameters<SetResolution>,
-    ) -> Json<Value> {
+    ) -> String {
         let mut args = json!({"output": output, "width": width, "height": height});
         if let Some(r) = refresh_rate {
             args["refresh_rate"] = json!(r);
         }
-        execute(self.state.clone(), &self.rt, "monitor.set_resolution", args)
+        self.exec("monitor.set_resolution", args).await
     }
 
     #[tool(
@@ -74,16 +69,11 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn set_monitor_scale(
+    async fn set_monitor_scale(
         &self,
         Parameters(SetScale { output, scale }): Parameters<SetScale>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "monitor.set_scale",
-            json!({"output": output, "scale": scale}),
-        )
+    ) -> String {
+        self.exec("monitor.set_scale", json!({"output": output, "scale": scale}),).await
     }
 
     #[tool(
@@ -96,16 +86,11 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn set_monitor_rotation(
+    async fn set_monitor_rotation(
         &self,
         Parameters(SetRotation { output, rotation }): Parameters<SetRotation>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "monitor.set_rotation",
-            json!({"output": output, "rotation": rotation}),
-        )
+    ) -> String {
+        self.exec("monitor.set_rotation", json!({"output": output, "rotation": rotation}),).await
     }
 
     #[tool(
@@ -118,16 +103,11 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn enable_monitor(
+    async fn enable_monitor(
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "monitor.enable",
-            json!({"output": output}),
-        )
+    ) -> String {
+        self.exec("monitor.enable", json!({"output": output}),).await
     }
 
     #[tool(
@@ -140,16 +120,11 @@ macro_rules! tools_monitors {
             open_world_hint = false
         )
     )]
-    fn disable_monitor(
+    async fn disable_monitor(
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
-    ) -> Json<Value> {
-        execute(
-            self.state.clone(),
-            &self.rt,
-            "monitor.disable",
-            json!({"output": output}),
-        )
+    ) -> String {
+        self.exec("monitor.disable", json!({"output": output}),).await
     }
     };
 }
