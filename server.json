@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.coe0718/deskbrid",
-  "description": "Linux automation. 92+ MCP tools: windows, input, screenshots, clipboard, print, AT-SPI. 9 DEs.",
-  "version": "1.1.0",
+  "description": "Linux automation. 123 MCP tools: windows, input, screenshots, clipboard, print, AT-SPI. 9 DEs.",
+  "version": "1.1.1",
   "website": "https://deskbrid.patchhive.dev",
   "packages": [
     {
