@@ -844,13 +844,13 @@ Perform a power action.
 }
 ```
 
-### `system.backlight.get`
+### `system.backlight_get`
 
 Read backlight devices from `/sys/class/backlight`. Pass `device` to focus one
 device; omit it to list all detected backlights.
 
 ```json
-{"type": "system.backlight.get", "id": "req-24", "device": "intel_backlight"}
+{"type": "system.backlight_get", "id": "req-24", "device": "intel_backlight"}
 ```
 ```json
 {
@@ -868,13 +868,13 @@ device; omit it to list all detected backlights.
 }
 ```
 
-### `system.backlight.set`
+### `system.backlight_set`
 
 Set a backlight device to a percentage from `0` to `100`. If `device` is omitted,
 Deskbrid uses the first backlight under `/sys/class/backlight`.
 
 ```json
-{"type": "system.backlight.set", "id": "req-25", "percent": 65, "device": "intel_backlight"}
+{"type": "system.backlight_set", "id": "req-25", "value": "65%", "device": "intel_backlight"}
 ```
 ```json
 {

@@ -15,13 +15,7 @@ macro_rules! tools_confirmation {
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
     ) -> String {
-        let id = id.clone();
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = $crate::protocol::Action::ConfirmAction { id };
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.confirm", json!({"id": id})).await
     }
 
     #[tool(
@@ -38,13 +32,7 @@ macro_rules! tools_confirmation {
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
     ) -> String {
-        let id = id.clone();
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = $crate::protocol::Action::DenyAction { id };
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.deny", json!({"id": id})).await
     }
 
     #[tool(
@@ -58,12 +46,7 @@ macro_rules! tools_confirmation {
         )
     )]
     async fn list_confirmations(&self) -> String {
-        self.call_state( |state| {
-            Box::pin(async move {
-                let action = $crate::protocol::Action::ConfirmationList;
-                $crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.list", json!({})).await
     }
     };
 }

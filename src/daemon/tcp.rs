@@ -1,6 +1,6 @@
 use crate::DaemonState;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 
@@ -12,6 +12,33 @@ pub const TCP_EFFECTIVE_UID: u32 = 0xFFFF_FFFE;
 
 /// Max size of an auth message line (4KB).
 const MAX_AUTH_LINE: u64 = 4096;
+
+/// Read one newline-terminated line without buffering bytes after the newline.
+/// This preserves pipelined messages sent immediately after the auth line.
+pub(crate) async fn read_limited_line<R: AsyncRead + Unpin>(
+    reader: &mut R,
+    max_bytes: usize,
+) -> std::io::Result<String> {
+    let mut buf = Vec::new();
+    let mut byte = [0u8; 1];
+    loop {
+        let n = reader.read(&mut byte).await?;
+        if n == 0 {
+            break;
+        }
+        buf.push(byte[0]);
+        if buf.len() > max_bytes {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("line exceeds {max_bytes} byte limit"),
+            ));
+        }
+        if byte[0] == b'\n' {
+            break;
+        }
+    }
+    String::from_utf8(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+}
 
 /// Start a TCP listener on the given bind address. Authenticates with bearer token
 /// before handing off to the standard client handler.
@@ -48,15 +75,22 @@ async fn handle_tcp_connection(
     token: &str,
     state: &DaemonState,
 ) -> anyhow::Result<()> {
-    let (reader, mut writer) = tokio::io::split(stream);
-    // Cap reads at MAX_AUTH_LINE+1 so read_line can't buffer unboundedly.
-    // The +1 lets us detect overlong messages.
-    let mut limited = reader.take(MAX_AUTH_LINE + 1);
-    let mut buf_reader = BufReader::new(&mut limited);
-    let mut auth_line = String::new();
-    buf_reader.read_line(&mut auth_line).await?;
-    drop(buf_reader);
-    let reader = limited.into_inner();
+    let (mut reader, mut writer) = tokio::io::split(stream);
+    let auth_line = match read_limited_line(&mut reader, MAX_AUTH_LINE as usize).await {
+        Ok(line) => line,
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
+            warn!("TCP auth message invalid or too large: {}", e);
+            let err = serde_json::json!({
+                "type": "error", "id": "auth", "status": "error",
+                "error": { "code": "INVALID_PARAMS", "message": "Auth message too large or invalid (max 4KB)" }
+            });
+            let _ = writer
+                .write_all(format!("{}\n", serde_json::to_string(&err)?).as_bytes())
+                .await;
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     // Reject oversized auth messages
     if auth_line.len() > MAX_AUTH_LINE as usize {
@@ -165,4 +199,37 @@ pub(crate) fn constant_time_eq(a: &str, b: &str) -> bool {
         .zip(b_bytes.iter())
         .fold(0u8, |acc, (x, y)| acc | (x ^ y))
         == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::AsyncReadExt;
+
+    #[tokio::test]
+    async fn read_limited_line_preserves_pipelined_bytes() {
+        let (mut client, mut server) = tokio::io::duplex(64);
+        let expected = br#"{"type":"ping"}"#;
+
+        client.write_all(b"auth\n").await.unwrap();
+        client.write_all(expected).await.unwrap();
+        client.write_all(b"\n").await.unwrap();
+
+        let line = read_limited_line(&mut server, 16).await.unwrap();
+        assert_eq!(line, "auth\n");
+
+        let mut rest = vec![0; expected.len() + 1];
+        server.read_exact(&mut rest).await.unwrap();
+        assert_eq!(rest, [expected.as_slice(), b"\n"].concat());
+    }
+
+    #[tokio::test]
+    async fn read_limited_line_rejects_oversized_line() {
+        let (mut client, mut server) = tokio::io::duplex(64);
+
+        client.write_all(b"abcdef\n").await.unwrap();
+        let err = read_limited_line(&mut server, 4).await.unwrap_err();
+
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    }
 }

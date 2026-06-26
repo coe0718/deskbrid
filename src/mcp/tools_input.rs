@@ -106,7 +106,7 @@ macro_rules! tools_input {
         &self,
         Parameters(ClickCoord { x, y, button }): Parameters<ClickCoord>,
     ) -> String {
-        self.call(do_click_coordinate(x, y, &button)).await
+        self.call(do_click_coordinate(&self.state, x, y, &button)).await
     }
 
     #[tool(
@@ -129,7 +129,7 @@ macro_rules! tools_input {
             button,
         }): Parameters<Drag>,
     ) -> String {
-        self.call(do_drag(from_x, from_y, to_x, to_y, &button)).await
+        self.call(do_drag(&self.state, from_x, from_y, to_x, to_y, &button)).await
     }
     };
 }

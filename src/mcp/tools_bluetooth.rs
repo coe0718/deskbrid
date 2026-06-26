@@ -12,7 +12,8 @@ macro_rules! tools_bluetooth {
             )
         )]
         async fn bluetooth_list(&self) -> String {
-            self.call(do_execute(&self.state, "bluetooth.list", json!({})),).await
+            self.call(do_execute(&self.state, "bluetooth.list", json!({})))
+                .await
         }
 
         #[tool(

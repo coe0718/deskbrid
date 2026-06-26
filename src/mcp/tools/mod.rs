@@ -108,7 +108,7 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let x = args["x"].as_f64().unwrap_or(0.0);
             let y = args["y"].as_f64().unwrap_or(0.0);
             let button = args["button"].as_str().unwrap_or("left");
-            do_click_coordinate(x, y, button).await?
+            do_click_coordinate(state, x, y, button).await?
         }
         "drag" => {
             let from_x = args["from_x"].as_f64().unwrap_or(0.0);
@@ -116,7 +116,7 @@ pub async fn call_tool(state: &DaemonState, name: &str, args: &Value) -> anyhow:
             let to_x = args["to_x"].as_f64().unwrap_or(0.0);
             let to_y = args["to_y"].as_f64().unwrap_or(0.0);
             let button = args["button"].as_str().unwrap_or("left");
-            do_drag(from_x, from_y, to_x, to_y, button).await?
+            do_drag(state, from_x, from_y, to_x, to_y, button).await?
         }
         _ => {
             // Generic fallback: pass the tool name as action type and args directly.

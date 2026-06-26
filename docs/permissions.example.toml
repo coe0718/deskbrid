@@ -24,7 +24,7 @@
 #   "*"         = every action (safe + high-risk alike — BE CAREFUL)
 #   "windows.*" = everything under windows (windows.list, windows.focus, …)
 #   "*.list"    = every "list" action across all categories
-#   "input.*"   = input.keyboard, input.mouse, input.mouse.drag, input.layouts.*
+#   "input.*"   = input.keyboard, input.mouse, input.mouse.drag, input.layouts.*, input.layout.*
 #   "clipboard.history" = exact match (no wildcard needed)
 #
 # ============================================================

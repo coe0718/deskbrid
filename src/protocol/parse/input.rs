@@ -44,18 +44,18 @@ pub(super) fn parse_input(raw: &Value, _id: &str, type_str: &str) -> anyhow::Res
             duration_ms: raw["duration_ms"].as_u64(),
         },
         // Keyboard layouts
-        "input.list_layouts" => Action::InputListLayouts,
-        "input.get_layout" => Action::InputGetLayout,
-        "input.set_layout" => Action::InputSetLayout {
+        "input.layouts.list" | "input.list_layouts" => Action::InputListLayouts,
+        "input.layout.get" | "input.get_layout" => Action::InputGetLayout,
+        "input.layout.set" | "input.set_layout" => Action::InputSetLayout {
             index: raw["index"].as_u64().map(|v| v as u32),
             name: raw["name"].as_str().map(String::from),
             variant: raw["variant"].as_str().map(String::from),
         },
-        "input.add_layout" => Action::InputAddLayout {
+        "input.layout.add" | "input.add_layout" => Action::InputAddLayout {
             name: raw["name"].as_str().map(String::from).unwrap_or_default(),
             variant: raw["variant"].as_str().map(String::from),
         },
-        "input.remove_layout" => Action::InputRemoveLayout {
+        "input.layout.remove" | "input.remove_layout" => Action::InputRemoveLayout {
             index: raw["index"].as_u64().map(|v| v as u32).unwrap_or(0),
         },
         _ => anyhow::bail!("unknown input type: {type_str}"),

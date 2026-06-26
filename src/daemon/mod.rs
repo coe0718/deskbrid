@@ -86,6 +86,7 @@ pub(crate) use clipboard::{
     is_clipboard_history_action, record_clipboard_text,
 };
 pub use dispatch::dispatch_action;
+pub(crate) use dispatch::dispatch_action_with_options;
 pub use execute::execute_action;
 pub use helpers::{
     ensure_safe_pid, expand_path, find_app_window, not_supported_response, ok_response,

@@ -64,19 +64,20 @@ class AsyncDeskbrid(AsyncActionsMixin):
                 self._connected.set()
                 return
 
-            if self._use_tcp:
-                reader, writer = await self._connect_tcp()
-            else:
-                reader, writer = await self._connect_unix()
-
+            writer: asyncio.StreamWriter | None = None
             try:
-                server_msg = await self._read_message_from(reader)
+                if self._use_tcp:
+                    reader, writer, server_msg = await self._connect_tcp()
+                else:
+                    reader, writer = await self._connect_unix()
+                    server_msg = await self._read_message_from(reader)
                 if server_msg.get("type") != "connected":
                     raise DeskbridError("protocol_error", f"expected connected message, got {server_msg.get('type')}")
             except Exception:
-                writer.close()
-                with contextlib.suppress(Exception):
-                    await writer.wait_closed()
+                if writer is not None:
+                    writer.close()
+                    with contextlib.suppress(Exception):
+                        await writer.wait_closed()
                 raise
 
             self._reader = reader
@@ -92,27 +93,37 @@ class AsyncDeskbrid(AsyncActionsMixin):
     async def _connect_unix(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         return await asyncio.open_unix_connection(self.socket_path)
 
-    async def _connect_tcp(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    async def _connect_tcp(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, dict[str, Any]]:
         if not self._tcp_token:
             raise DeskbridError("connection_closed",
                 "DESKBRID_TCP_TOKEN must be set for TCP transport")
         reader, writer = await asyncio.open_connection(self._tcp_host, self._tcp_port)
 
-        # Send auth message
-        auth_msg = json.dumps({"type": "auth", "token": self._tcp_token}) + "\n"
-        writer.write(auth_msg.encode("utf-8"))
-        await writer.drain()
+        try:
+            # Send auth message
+            auth_msg = json.dumps({"type": "auth", "token": self._tcp_token}) + "\n"
+            writer.write(auth_msg.encode("utf-8"))
+            await writer.drain()
 
-        # Read auth response — daemon either sends error or proceeds to protocol
-        auth_line = await reader.readline()
-        if not auth_line:
-            raise DeskbridError("connection_closed", "TCP connection closed during auth")
-        auth_resp = json.loads(auth_line.decode("utf-8"))
-        if auth_resp.get("status") == "error":
-            msg = auth_resp.get("error", {}).get("message", "authentication failed")
-            raise DeskbridError("unauthorized", str(msg))
+            # Read auth response. On success the daemon proceeds directly to the
+            # normal protocol and sends the initial "connected" frame.
+            auth_line = await reader.readline()
+            if not auth_line:
+                raise DeskbridError("connection_closed", "TCP connection closed during auth")
+            auth_resp = json.loads(auth_line.decode("utf-8"))
+            if auth_resp.get("status") == "error":
+                msg = auth_resp.get("error", {}).get("message", "authentication failed")
+                raise DeskbridError("unauthorized", str(msg))
 
-        return reader, writer
+            if not isinstance(auth_resp, dict):
+                raise DeskbridError("protocol_error", "auth response was not a JSON object")
+        except Exception:
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
+            raise
+
+        return reader, writer, auth_resp
 
     async def close(self) -> None:
         self._closed = True

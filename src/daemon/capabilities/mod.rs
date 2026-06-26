@@ -121,10 +121,10 @@ fn apply_input_capabilities(
 }
 
 fn apply_sysfs_capabilities(actions: &mut serde_json::Map<String, serde_json::Value>) {
-    set_requires(actions, "system.backlight.get", &["/sys/class/backlight"]);
+    set_requires(actions, "system.backlight_get", &["/sys/class/backlight"]);
     set_requires(
         actions,
-        "system.backlight.set",
+        "system.backlight_set",
         &["/sys/class/backlight", "backlight-write-permission"],
     );
     set_requires(actions, "system.thermal", &["/sys/class/thermal"]);

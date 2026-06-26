@@ -25,11 +25,12 @@ pub(crate) async fn execute_files(
             backend
                 .files_watch(&sandboxed.to_string_lossy(), recursive, patterns.as_deref())
                 .await?;
-            serde_json::json!({"watching": path})
+            serde_json::json!({"watching": sandboxed.to_string_lossy(), "path": path})
         }
         FilesUnwatch { ref path } => {
-            backend.files_unwatch(path).await?;
-            serde_json::json!({"unwatched": path})
+            let sandboxed = expand_path(path)?;
+            backend.files_unwatch(&sandboxed.to_string_lossy()).await?;
+            serde_json::json!({"unwatched": sandboxed.to_string_lossy(), "path": path})
         }
         FilesSearch {
             ref pattern,

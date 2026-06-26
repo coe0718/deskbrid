@@ -384,17 +384,17 @@ class AsyncActionsMixin:
         params: dict[str, Any] = {}
         if device is not None:
             params["device"] = device
-        return await self._request("system.backlight.get", params)
+        return await self._request("system.backlight_get", params)
 
     async def backlight_set(
         self,
         percent: float,
         device: str | None = None,
     ) -> dict[str, Any]:
-        params: dict[str, Any] = {"percent": percent}
+        params: dict[str, Any] = {"value": f"{percent}%"}
         if device is not None:
             params["device"] = device
-        return await self._request("system.backlight.set", params)
+        return await self._request("system.backlight_set", params)
 
     async def thermal(self) -> dict[str, Any]:
         return await self._request("system.thermal")

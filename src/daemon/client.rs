@@ -59,8 +59,10 @@ where
         loop {
             match event_rx.recv().await {
                 Ok(evt) => {
-                    if let Ok(json) = serde_json::to_string(&evt) {
-                        let _ = event_tx.send(json);
+                    if let Ok(json) = serde_json::to_string(&evt)
+                        && event_tx.send(json).is_err()
+                    {
+                        break;
                     }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
@@ -202,16 +204,24 @@ where
                             .await?;
                     }
 
-                    Action::FilesWatch { ref path, .. } => {
-                        conn.watched_paths.insert(path.clone());
+                    Action::FilesWatch { .. } => {
                         let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
+                        if resp["status"] == "ok"
+                            && let Some(watching) = resp["data"]["watching"].as_str()
+                        {
+                            conn.watched_paths.insert(watching.to_string());
+                        }
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
                     }
-                    Action::FilesUnwatch { ref path } => {
-                        conn.watched_paths.remove(path);
+                    Action::FilesUnwatch { .. } => {
                         let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
+                        if resp["status"] == "ok"
+                            && let Some(unwatched) = resp["data"]["unwatched"].as_str()
+                        {
+                            conn.watched_paths.remove(unwatched);
+                        }
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
@@ -229,6 +239,18 @@ where
     }
 
     info!("Client disconnected (uid={})", peer_uid);
+
+    if !conn.watched_paths.is_empty() {
+        let watched_paths: Vec<_> = conn.watched_paths.drain().collect();
+        let backend_guard = state.backend.read().await;
+        if let Some(backend) = backend_guard.as_ref() {
+            for path in watched_paths {
+                if let Err(e) = backend.files_unwatch(&path).await {
+                    warn!("failed to unwatch path {path} after client disconnect: {e}");
+                }
+            }
+        }
+    }
 
     // Clean up rate limit buckets and other per-peer state to prevent
     // unbounded memory growth from accumulated disconnected clients.

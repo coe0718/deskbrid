@@ -189,6 +189,30 @@ fn test_permissions_ping_always_allowed_in_default_deny() {
 }
 
 #[test]
+fn test_default_safe_allows_canonical_input_layout_actions() {
+    let p = Permissions::default_safe();
+
+    assert!(p.check(1000, &Action::InputListLayouts));
+    assert!(p.check(1000, &Action::InputGetLayout));
+    assert!(p.check(
+        1000,
+        &Action::InputSetLayout {
+            index: None,
+            name: Some("us".into()),
+            variant: None,
+        }
+    ));
+    assert!(p.check(
+        1000,
+        &Action::InputAddLayout {
+            name: "de".into(),
+            variant: None,
+        }
+    ));
+    assert!(p.check(1000, &Action::InputRemoveLayout { index: 1 }));
+}
+
+#[test]
 fn test_high_risk_denied_by_wildcard() {
     // allow_all uses "*" — high-risk actions should still be denied
     let p = Permissions::allow_all();

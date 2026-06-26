@@ -11,10 +11,7 @@ use crate::mcp::tools_agent::{BroadcastArgs, SendMessageArgs};
 use crate::mcp::tools_confirmation::ConfirmActionArgs;
 use crate::mcp::tools_search::SearchArgs;
 use crate::mcp::tools_secrets::{SecretsGetArgs, SecretsStoreArgs};
-use rmcp::{
-    handler::server::wrapper::Parameters,
-    tool, tool_router,
-};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -33,11 +30,10 @@ impl McpServer {
         }
     }
 
-    async fn call(
-        &self,
-        f: impl std::future::Future<Output = anyhow::Result<Value>>,
-    ) -> String {
-        f.await.unwrap_or_else(|e| json!({"error": e.to_string()})).to_string()
+    async fn call(&self, f: impl std::future::Future<Output = anyhow::Result<Value>>) -> String {
+        f.await
+            .unwrap_or_else(|e| json!({"error": e.to_string()}))
+            .to_string()
     }
 
     async fn exec(&self, action: &str, args: Value) -> String {
@@ -48,15 +44,6 @@ impl McpServer {
             }
             Err(e) => json!({"error": e.to_string()}).to_string(),
         }
-    }
-
-    async fn call_state<F, Fut>(&self, f: F) -> String
-    where
-        F: FnOnce(Arc<DaemonState>) -> Fut,
-        Fut: std::future::Future<Output = anyhow::Result<Value>> + Send + 'static,
-    {
-        let state = self.state.clone();
-        f(state).await.unwrap_or_else(|e| json!({"error": e.to_string()})).to_string()
     }
 }
 
@@ -95,7 +82,14 @@ impl McpServer {
             max_depth,
         }): Parameters<A11yTree>,
     ) -> String {
-        self.call(do_get_accessibility_tree(&self.state, app_name.as_deref(), pid, max_nodes, max_depth),).await
+        self.call(do_get_accessibility_tree(
+            &self.state,
+            app_name.as_deref(),
+            pid,
+            max_nodes,
+            max_depth,
+        ))
+        .await
     }
 
     #[tool(
@@ -115,7 +109,12 @@ impl McpServer {
             action_name,
         }): Parameters<A11yAction>,
     ) -> String {
-        self.call(do_perform_action(&self.state, &object_ref, action_name.as_deref()),).await
+        self.call(do_perform_action(
+            &self.state,
+            &object_ref,
+            action_name.as_deref(),
+        ))
+        .await
     }
 
     #[tool(
@@ -132,7 +131,8 @@ impl McpServer {
         &self,
         Parameters(SetValue { object_ref, value }): Parameters<SetValue>,
     ) -> String {
-        self.call(do_set_element_value(&self.state, &object_ref, &value),).await
+        self.call(do_set_element_value(&self.state, &object_ref, &value))
+            .await
     }
 
     #[tool(
@@ -152,7 +152,8 @@ impl McpServer {
             max_chars,
         }): Parameters<GetText>,
     ) -> String {
-        self.call(do_get_element_text(&self.state, &object_ref, max_chars),).await
+        self.call(do_get_element_text(&self.state, &object_ref, max_chars))
+            .await
     }
 
     #[tool(
@@ -182,27 +183,18 @@ impl McpServer {
             open_world_hint = false
         )
     )]
-    async fn send_message(
-        &self,
-        Parameters(args): Parameters<SendMessageArgs>,
-    ) -> String {
-        let to_session = args.to_session.clone();
-        let subject = args.subject.clone();
-        let body = args.body.clone();
-        let ttl_ms = args.ttl_ms;
-        let reply_to = args.reply_to.clone();
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::AgentMessage {
-                    to_session,
-                    subject,
-                    body: serde_json::to_value(&body).unwrap_or(serde_json::Value::Null),
-                    ttl_ms,
-                    reply_to,
-                };
-                crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
-            })
-        }).await
+    async fn send_message(&self, Parameters(args): Parameters<SendMessageArgs>) -> String {
+        self.exec(
+            "agent.message",
+            json!({
+                "to_session": args.to_session,
+                "subject": args.subject,
+                "body": serde_json::to_value(&args.body).unwrap_or(serde_json::Value::Null),
+                "ttl_ms": args.ttl_ms,
+                "reply_to": args.reply_to,
+            }),
+        )
+        .await
     }
 
     #[tool(
@@ -215,23 +207,16 @@ impl McpServer {
             open_world_hint = true
         )
     )]
-    async fn broadcast(
-        &self,
-        Parameters(args): Parameters<BroadcastArgs>,
-    ) -> String {
-        let subject = args.subject.clone();
-        let body = args.body.clone();
-        let exclude_self = args.exclude_self;
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::AgentBroadcast {
-                    subject,
-                    body: serde_json::to_value(&body).unwrap_or(serde_json::Value::Null),
-                    exclude_self,
-                };
-                crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
-            })
-        }).await
+    async fn broadcast(&self, Parameters(args): Parameters<BroadcastArgs>) -> String {
+        self.exec(
+            "agent.broadcast",
+            json!({
+                "subject": args.subject,
+                "body": serde_json::to_value(&args.body).unwrap_or(serde_json::Value::Null),
+                "exclude_self": args.exclude_self,
+            }),
+        )
+        .await
     }
 
     #[tool(
@@ -245,12 +230,7 @@ impl McpServer {
         )
     )]
     async fn check_mailbox(&self) -> String {
-        self.call_state( |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::AgentMailbox;
-                crate::daemon::execute_agent::execute_agent(action, &state, "mcp").await
-            })
-        }).await
+        self.exec("agent.mailbox", json!({})).await
     }
 
     #[tool(
@@ -264,7 +244,8 @@ impl McpServer {
         )
     )]
     async fn list_audio_sinks(&self) -> String {
-        self.call(do_execute(&self.state, "audio.list_sinks", json!({})),).await
+        self.call(do_execute(&self.state, "audio.list_sinks", json!({})))
+            .await
     }
 
     #[tool(
@@ -278,7 +259,8 @@ impl McpServer {
         )
     )]
     async fn list_audio_sources(&self) -> String {
-        self.call(do_execute(&self.state, "audio.list_sources", json!({})),).await
+        self.call(do_execute(&self.state, "audio.list_sources", json!({})))
+            .await
     }
 
     #[tool(
@@ -295,7 +277,12 @@ impl McpServer {
         &self,
         Parameters(AudioTargetParams { target, id }): Parameters<AudioTargetParams>,
     ) -> String {
-        self.call(do_execute(&self.state, "audio.get_volume", json!({"target": target, "id": id})),).await
+        self.call(do_execute(
+            &self.state,
+            "audio.get_volume",
+            json!({"target": target, "id": id}),
+        ))
+        .await
     }
 
     #[tool(
@@ -312,7 +299,11 @@ impl McpServer {
         &self,
         Parameters(SetVolume { sink_id, volume }): Parameters<SetVolume>,
     ) -> String {
-        self.exec("audio.set_sink_volume", json!({"sink_id": sink_id, "volume": volume}),).await
+        self.exec(
+            "audio.set_sink_volume",
+            json!({"sink_id": sink_id, "volume": volume}),
+        )
+        .await
     }
 
     #[tool(
@@ -329,7 +320,11 @@ impl McpServer {
         &self,
         Parameters(AudioVolumeParams { target, id, volume }): Parameters<AudioVolumeParams>,
     ) -> String {
-        self.exec("audio.set_volume", json!({"target": target, "id": id, "volume": volume}),).await
+        self.exec(
+            "audio.set_volume",
+            json!({"target": target, "id": id, "volume": volume}),
+        )
+        .await
     }
 
     #[tool(
@@ -346,7 +341,11 @@ impl McpServer {
         &self,
         Parameters(AudioMuteParams { target, id, mute }): Parameters<AudioMuteParams>,
     ) -> String {
-        self.exec("audio.mute", json!({"target": target, "id": id, "mute": mute}),).await
+        self.exec(
+            "audio.mute",
+            json!({"target": target, "id": id, "mute": mute}),
+        )
+        .await
     }
 
     #[tool(
@@ -363,43 +362,45 @@ impl McpServer {
         &self,
         Parameters(AudioDefaultParams { target, name }): Parameters<AudioDefaultParams>,
     ) -> String {
-        self.exec("audio.set_default", json!({"target": target, "name": name}),).await
+        self.exec("audio.set_default", json!({"target": target, "name": name}))
+            .await
     }
 
     #[tool(
-            name = "bluetooth_list",
-            description = "List paired Bluetooth devices.",
-            annotations(
-                read_only_hint = true,
-                destructive_hint = false,
-                idempotent_hint = true,
-                open_world_hint = true
-            )
-        )]
-        async fn bluetooth_list(&self) -> String {
-            self.call(do_execute(&self.state, "bluetooth.list", json!({})),).await
-        }
+        name = "bluetooth_list",
+        description = "List paired Bluetooth devices.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn bluetooth_list(&self) -> String {
+        self.call(do_execute(&self.state, "bluetooth.list", json!({})))
+            .await
+    }
 
     #[tool(
-            name = "bluetooth_scan",
-            description = "Scan for nearby Bluetooth devices.",
-            annotations(
-                read_only_hint = true,
-                destructive_hint = false,
-                idempotent_hint = false,
-                open_world_hint = true
-            )
-        )]
-        async fn bluetooth_scan(
-            &self,
-            Parameters(BluetoothScan { duration }): Parameters<BluetoothScan>,
-        ) -> String {
-            let mut args = json!({});
-            if let Some(d) = duration {
-                args["duration"] = json!(d);
-            }
-            self.exec("bluetooth.scan", args).await
+        name = "bluetooth_scan",
+        description = "Scan for nearby Bluetooth devices.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn bluetooth_scan(
+        &self,
+        Parameters(BluetoothScan { duration }): Parameters<BluetoothScan>,
+    ) -> String {
+        let mut args = json!({});
+        if let Some(d) = duration {
+            args["duration"] = json!(d);
         }
+        self.exec("bluetooth.scan", args).await
+    }
 
     #[tool(
         name = "list_browser_tabs",
@@ -412,7 +413,8 @@ impl McpServer {
         )
     )]
     async fn list_browser_tabs(&self) -> String {
-        self.call(do_execute(&self.state, "browser.list_tabs", json!({})),).await
+        self.call(do_execute(&self.state, "browser.list_tabs", json!({})))
+            .await
     }
 
     #[tool(
@@ -507,35 +509,36 @@ impl McpServer {
     }
 
     #[tool(
-            name = "clipboard_read",
-            description = "Read the current clipboard contents.",
-            annotations(
-                read_only_hint = true,
-                destructive_hint = false,
-                idempotent_hint = true,
-                open_world_hint = true
-            )
-        )]
-        async fn clipboard_read(&self) -> String {
-            self.call(do_execute(&self.state, "clipboard.read", json!({})),).await
-        }
+        name = "clipboard_read",
+        description = "Read the current clipboard contents.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn clipboard_read(&self) -> String {
+        self.call(do_execute(&self.state, "clipboard.read", json!({})))
+            .await
+    }
 
     #[tool(
-            name = "clipboard_write",
-            description = "Write text to the system clipboard.",
-            annotations(
-                read_only_hint = false,
-                destructive_hint = true,
-                idempotent_hint = false,
-                open_world_hint = true
-            )
-        )]
-        async fn clipboard_write(
-            &self,
-            Parameters(ClipboardWrite { text }): Parameters<ClipboardWrite>,
-        ) -> String {
-            self.call(do_clipboard_write(&self.state, &text)).await
-        }
+        name = "clipboard_write",
+        description = "Write text to the system clipboard.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn clipboard_write(
+        &self,
+        Parameters(ClipboardWrite { text }): Parameters<ClipboardWrite>,
+    ) -> String {
+        self.call(do_clipboard_write(&self.state, &text)).await
+    }
 
     #[tool(
         name = "confirm_action",
@@ -551,13 +554,7 @@ impl McpServer {
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
     ) -> String {
-        let id = id.clone();
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::ConfirmAction { id };
-                crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.confirm", json!({"id": id})).await
     }
 
     #[tool(
@@ -574,13 +571,7 @@ impl McpServer {
         &self,
         Parameters(ConfirmActionArgs { id }): Parameters<ConfirmActionArgs>,
     ) -> String {
-        let id = id.clone();
-        self.call_state( move |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::DenyAction { id };
-                crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.deny", json!({"id": id})).await
     }
 
     #[tool(
@@ -594,12 +585,7 @@ impl McpServer {
         )
     )]
     async fn list_confirmations(&self) -> String {
-        self.call_state( |state| {
-            Box::pin(async move {
-                let action = crate::protocol::Action::ConfirmationList;
-                crate::daemon::execute_confirmation::execute_confirmation(action, &state, 0).await
-            })
-        }).await
+        self.exec("confirmation.list", json!({})).await
     }
 
     #[tool(
@@ -613,7 +599,8 @@ impl McpServer {
         )
     )]
     async fn list_schemas(&self) -> String {
-        self.call(do_execute(&self.state, "desktop.list_schemas", json!({}))).await
+        self.call(do_execute(&self.state, "desktop.list_schemas", json!({})))
+            .await
     }
 
     #[tool(
@@ -630,7 +617,8 @@ impl McpServer {
         &self,
         Parameters(DesktopSettingKey { schema, key }): Parameters<DesktopSettingKey>,
     ) -> String {
-        self.exec("desktop.get_setting", json!({"schema": schema, "key": key}),).await
+        self.exec("desktop.get_setting", json!({"schema": schema, "key": key}))
+            .await
     }
 
     #[tool(
@@ -647,7 +635,11 @@ impl McpServer {
         &self,
         Parameters(DesktopSettingValue { schema, key, value }): Parameters<DesktopSettingValue>,
     ) -> String {
-        self.exec("desktop.set_setting", json!({"schema": schema, "key": key, "value": value}),).await
+        self.exec(
+            "desktop.set_setting",
+            json!({"schema": schema, "key": key, "value": value}),
+        )
+        .await
     }
 
     #[tool(
@@ -661,7 +653,7 @@ impl McpServer {
         )
     )]
     async fn file_list(&self, Parameters(FilePath { path }): Parameters<FilePath>) -> String {
-        self.exec("files.list", json!({"path": path}),).await
+        self.exec("files.list", json!({"path": path})).await
     }
 
     #[tool(
@@ -710,7 +702,11 @@ impl McpServer {
             append,
         }): Parameters<FileWrite>,
     ) -> String {
-        self.exec("files.write", json!({"path": path, "content": content, "append": append}),).await
+        self.exec(
+            "files.write",
+            json!({"path": path, "content": content, "append": append}),
+        )
+        .await
     }
 
     #[tool(
@@ -755,7 +751,11 @@ impl McpServer {
             destination,
         }): Parameters<FileCopy>,
     ) -> String {
-        self.exec("files.copy", json!({"source": source, "destination": destination}),).await
+        self.exec(
+            "files.copy",
+            json!({"source": source, "destination": destination}),
+        )
+        .await
     }
 
     #[tool(
@@ -808,7 +808,7 @@ impl McpServer {
         )
     )]
     async fn press_key(&self, Parameters(PressKey { key }): Parameters<PressKey>) -> String {
-        self.exec("input.keyboard", json!({"key": key}),).await
+        self.exec("input.keyboard", json!({"key": key})).await
     }
 
     #[tool(
@@ -870,7 +870,11 @@ impl McpServer {
         &self,
         Parameters(MouseScroll { dx, dy }): Parameters<MouseScroll>,
     ) -> String {
-        self.exec("input.mouse", json!({"action": "scroll", "dx": dx, "dy": dy}),).await
+        self.exec(
+            "input.mouse",
+            json!({"action": "scroll", "dx": dx, "dy": dy}),
+        )
+        .await
     }
 
     #[tool(
@@ -887,7 +891,8 @@ impl McpServer {
         &self,
         Parameters(ClickCoord { x, y, button }): Parameters<ClickCoord>,
     ) -> String {
-        self.call(do_click_coordinate(x, y, &button)).await
+        self.call(do_click_coordinate(&self.state, x, y, &button))
+            .await
     }
 
     #[tool(
@@ -910,7 +915,8 @@ impl McpServer {
             button,
         }): Parameters<Drag>,
     ) -> String {
-        self.call(do_drag(from_x, from_y, to_x, to_y, &button)).await
+        self.call(do_drag(&self.state, from_x, from_y, to_x, to_y, &button))
+            .await
     }
 
     #[tool(
@@ -924,7 +930,8 @@ impl McpServer {
         )
     )]
     async fn list_media_players(&self) -> String {
-        self.call(do_execute(&self.state, "mpris.list", json!({}))).await
+        self.call(do_execute(&self.state, "mpris.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1022,7 +1029,8 @@ impl McpServer {
         )
     )]
     async fn layout_list(&self) -> String {
-        self.call(do_execute(&self.state, "layout_profiles.list", json!({})),).await
+        self.call(do_execute(&self.state, "layout_profiles.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1039,7 +1047,11 @@ impl McpServer {
         &self,
         Parameters(LayoutSave { name, overwrite }): Parameters<LayoutSave>,
     ) -> String {
-        self.exec("layout_profiles.save", json!({"name": name, "overwrite": overwrite}),).await
+        self.exec(
+            "layout_profiles.save",
+            json!({"name": name, "overwrite": overwrite}),
+        )
+        .await
     }
 
     #[tool(
@@ -1056,7 +1068,8 @@ impl McpServer {
         &self,
         Parameters(LayoutName { name }): Parameters<LayoutName>,
     ) -> String {
-        self.exec("layout_profiles.restore", json!({"name": name}),).await
+        self.exec("layout_profiles.restore", json!({"name": name}))
+            .await
     }
 
     #[tool(
@@ -1073,7 +1086,8 @@ impl McpServer {
         &self,
         Parameters(LayoutName { name }): Parameters<LayoutName>,
     ) -> String {
-        self.exec("layout_profiles.delete", json!({"name": name}),).await
+        self.exec("layout_profiles.delete", json!({"name": name}))
+            .await
     }
 
     #[tool(
@@ -1090,7 +1104,11 @@ impl McpServer {
         &self,
         Parameters(HotkeyRegister { hotkey_id, keys }): Parameters<HotkeyRegister>,
     ) -> String {
-        self.exec("hotkeys.register", json!({"hotkey_id": hotkey_id, "keys": keys}),).await
+        self.exec(
+            "hotkeys.register",
+            json!({"hotkey_id": hotkey_id, "keys": keys}),
+        )
+        .await
     }
 
     #[tool(
@@ -1107,7 +1125,8 @@ impl McpServer {
         &self,
         Parameters(HotkeyUnregister { hotkey_id }): Parameters<HotkeyUnregister>,
     ) -> String {
-        self.exec("hotkeys.unregister", json!({"hotkey_id": hotkey_id}),).await
+        self.exec("hotkeys.unregister", json!({"hotkey_id": hotkey_id}))
+            .await
     }
 
     #[tool(
@@ -1121,7 +1140,8 @@ impl McpServer {
         )
     )]
     async fn list_monitors(&self) -> String {
-        self.call(do_execute(&self.state, "monitor.list", json!({}))).await
+        self.call(do_execute(&self.state, "monitor.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1138,7 +1158,8 @@ impl McpServer {
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
     ) -> String {
-        self.exec("monitor.set_primary", json!({"output": output}),).await
+        self.exec("monitor.set_primary", json!({"output": output}))
+            .await
     }
 
     #[tool(
@@ -1181,7 +1202,11 @@ impl McpServer {
         &self,
         Parameters(SetScale { output, scale }): Parameters<SetScale>,
     ) -> String {
-        self.exec("monitor.set_scale", json!({"output": output, "scale": scale}),).await
+        self.exec(
+            "monitor.set_scale",
+            json!({"output": output, "scale": scale}),
+        )
+        .await
     }
 
     #[tool(
@@ -1198,7 +1223,11 @@ impl McpServer {
         &self,
         Parameters(SetRotation { output, rotation }): Parameters<SetRotation>,
     ) -> String {
-        self.exec("monitor.set_rotation", json!({"output": output, "rotation": rotation}),).await
+        self.exec(
+            "monitor.set_rotation",
+            json!({"output": output, "rotation": rotation}),
+        )
+        .await
     }
 
     #[tool(
@@ -1215,7 +1244,7 @@ impl McpServer {
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
     ) -> String {
-        self.exec("monitor.enable", json!({"output": output}),).await
+        self.exec("monitor.enable", json!({"output": output})).await
     }
 
     #[tool(
@@ -1232,22 +1261,24 @@ impl McpServer {
         &self,
         Parameters(MonitorOutput { output }): Parameters<MonitorOutput>,
     ) -> String {
-        self.exec("monitor.disable", json!({"output": output}),).await
+        self.exec("monitor.disable", json!({"output": output}))
+            .await
     }
 
     #[tool(
-            name = "network_status",
-            description = "Network interfaces, IP addresses, and connectivity state.",
-            annotations(
-                read_only_hint = true,
-                destructive_hint = false,
-                idempotent_hint = true,
-                open_world_hint = true
-            )
-        )]
-        async fn network_status(&self) -> String {
-            self.call(do_execute(&self.state, "network.status", json!({})),).await
-        }
+        name = "network_status",
+        description = "Network interfaces, IP addresses, and connectivity state.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn network_status(&self) -> String {
+        self.call(do_execute(&self.state, "network.status", json!({})))
+            .await
+    }
 
     #[tool(
         name = "send_notification",
@@ -1268,7 +1299,11 @@ impl McpServer {
             urgency,
         }): Parameters<NotificationSend>,
     ) -> String {
-        self.exec("notification.send", json!({"app_name": app_name, "title": title, "body": body, "urgency": urgency}),).await
+        self.exec(
+            "notification.send",
+            json!({"app_name": app_name, "title": title, "body": body, "urgency": urgency}),
+        )
+        .await
     }
 
     #[tool(
@@ -1285,7 +1320,11 @@ impl McpServer {
         &self,
         Parameters(NotificationClose { notification_id }): Parameters<NotificationClose>,
     ) -> String {
-        self.exec("notification.close", json!({"notification_id": notification_id}),).await
+        self.exec(
+            "notification.close",
+            json!({"notification_id": notification_id}),
+        )
+        .await
     }
 
     #[tool(
@@ -1302,7 +1341,8 @@ impl McpServer {
         &self,
         Parameters(PortalScreenshotParams { interactive }): Parameters<PortalScreenshotParams>,
     ) -> String {
-        self.exec("portal.screenshot", json!({"interactive": interactive}),).await
+        self.exec("portal.screenshot", json!({"interactive": interactive}))
+            .await
     }
 
     #[tool(
@@ -1319,7 +1359,11 @@ impl McpServer {
         &self,
         Parameters(ScreencastStartParams { output_path }): Parameters<ScreencastStartParams>,
     ) -> String {
-        self.exec("portal.screencast_start", json!({"output_path": output_path}),).await
+        self.exec(
+            "portal.screencast_start",
+            json!({"output_path": output_path}),
+        )
+        .await
     }
 
     #[tool(
@@ -1333,7 +1377,7 @@ impl McpServer {
         )
     )]
     async fn portal_screencast_stop(&self) -> String {
-        self.exec("portal.screencast_stop", json!({}),).await
+        self.exec("portal.screencast_stop", json!({})).await
     }
 
     #[tool(
@@ -1350,7 +1394,8 @@ impl McpServer {
         &self,
         Parameters(ScreencastStartParams { output_path }): Parameters<ScreencastStartParams>,
     ) -> String {
-        self.exec("screencast.start", json!({ "output_path": output_path }),).await
+        self.exec("screencast.start", json!({ "output_path": output_path }))
+            .await
     }
 
     #[tool(
@@ -1378,7 +1423,8 @@ impl McpServer {
         )
     )]
     async fn screenshot(&self) -> String {
-        self.call(do_execute(&self.state, "screenshot", json!({}))).await
+        self.call(do_execute(&self.state, "screenshot", json!({})))
+            .await
     }
 
     #[tool(
@@ -1462,15 +1508,16 @@ impl McpServer {
             open_world_hint = true
         )
     )]
-    async fn unified_search(
-        &self,
-        Parameters(args): Parameters<SearchArgs>,
-    ) -> String {
-        self.exec("search.query", serde_json::json!({
+    async fn unified_search(&self, Parameters(args): Parameters<SearchArgs>) -> String {
+        self.exec(
+            "search.query",
+            serde_json::json!({
                 "query": args.query,
                 "categories": args.categories,
                 "limit": args.limit,
-            }),).await
+            }),
+        )
+        .await
     }
 
     #[tool(
@@ -1484,88 +1531,71 @@ impl McpServer {
         )
     )]
     async fn search_index_status(&self) -> String {
-        self.exec("search.index", serde_json::json!({}),).await
+        self.exec("search.index", serde_json::json!({})).await
     }
 
     #[tool(
-            name = "secrets_list_collections",
-            description = "List all keyring collections. Returns available secret collections from the Secret Service.",
-            annotations(
-                read_only_hint = true,
-                destructive_hint = false,
-                idempotent_hint = true,
-                open_world_hint = true
-            )
-        )]
-        async fn secrets_list_collections(&self) -> String {
-            self.call_state( |state| {
-                Box::pin(async move {
-                    let action = crate::protocol::Action::SecretsListCollections;
-                    crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
-        }
+        name = "secrets_list_collections",
+        description = "List all keyring collections. Returns available secret collections from the Secret Service.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn secrets_list_collections(&self) -> String {
+        self.exec("secrets.list_collections", json!({})).await
+    }
 
     #[tool(
-            name = "secrets_get_secret",
-            description = "Look up a secret by its attributes (key=value pairs). Requires confirmation approval before returning the secret value.",
-            annotations(
-                read_only_hint = false,
-                destructive_hint = false,
-                idempotent_hint = true,
-                open_world_hint = true
-            )
-        )]
-        async fn secrets_get_secret(
-            &self,
-            Parameters(SecretsGetArgs { attributes }): Parameters<SecretsGetArgs>,
-        ) -> String {
-            let attrs = attributes.clone();
-            self.call_state( move |state| {
-                Box::pin(async move {
-                    let action = crate::protocol::Action::SecretsGetSecret {
-                        attributes: attrs,
-                    };
-                    crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
-        }
+        name = "secrets_get_secret",
+        description = "Look up a secret by its attributes (key=value pairs). Requires confirmation approval before returning the secret value.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn secrets_get_secret(
+        &self,
+        Parameters(SecretsGetArgs { attributes }): Parameters<SecretsGetArgs>,
+    ) -> String {
+        self.exec("secrets.get_secret", json!({"attributes": attributes}))
+            .await
+    }
 
     #[tool(
-            name = "secrets_store_secret",
-            description = "Store a secret in the keyring. Requires confirmation approval.",
-            annotations(
-                read_only_hint = false,
-                destructive_hint = true,
-                idempotent_hint = false,
-                open_world_hint = true
-            )
-        )]
-        async fn secrets_store_secret(
-            &self,
-            Parameters(SecretsStoreArgs {
-                attributes,
-                secret,
-                label,
-                collection,
-            }): Parameters<SecretsStoreArgs>,
-        ) -> String {
-            let attrs = attributes.clone();
-            let sec = secret.clone();
-            let lbl = label.clone();
-            let col = collection.clone();
-            self.call_state( move |state| {
-                Box::pin(async move {
-                    let action = crate::protocol::Action::SecretsStoreSecret {
-                        attributes: attrs,
-                        secret: sec,
-                        label: lbl,
-                        collection: col,
-                    };
-                    crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
-        }
+        name = "secrets_store_secret",
+        description = "Store a secret in the keyring. Requires confirmation approval.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn secrets_store_secret(
+        &self,
+        Parameters(SecretsStoreArgs {
+            attributes,
+            secret,
+            label,
+            collection,
+        }): Parameters<SecretsStoreArgs>,
+    ) -> String {
+        self.exec(
+            "secrets.store_secret",
+            json!({
+                "attributes": attributes,
+                "secret": secret,
+                "label": label,
+                "collection": collection,
+            }),
+        )
+        .await
+    }
 
     #[tool(
         name = "service_status",
@@ -1581,7 +1611,7 @@ impl McpServer {
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
     ) -> String {
-        self.exec("service.status", json!({"name": name}),).await
+        self.exec("service.status", json!({"name": name})).await
     }
 
     #[tool(
@@ -1598,7 +1628,7 @@ impl McpServer {
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
     ) -> String {
-        self.exec("service.start", json!({"name": name}),).await
+        self.exec("service.start", json!({"name": name})).await
     }
 
     #[tool(
@@ -1615,7 +1645,7 @@ impl McpServer {
         &self,
         Parameters(ServiceName { name }): Parameters<ServiceName>,
     ) -> String {
-        self.exec("service.stop", json!({"name": name}),).await
+        self.exec("service.stop", json!({"name": name})).await
     }
 
     #[tool(
@@ -1668,7 +1698,8 @@ impl McpServer {
         )
     )]
     async fn system_info(&self) -> String {
-        self.call(do_execute(&self.state, "system.info", json!({}))).await
+        self.call(do_execute(&self.state, "system.info", json!({})))
+            .await
     }
 
     #[tool(
@@ -1682,7 +1713,8 @@ impl McpServer {
         )
     )]
     async fn battery_status(&self) -> String {
-        self.call(do_execute(&self.state, "system.battery", json!({})),).await
+        self.call(do_execute(&self.state, "system.battery", json!({})))
+            .await
     }
 
     #[tool(
@@ -1696,7 +1728,8 @@ impl McpServer {
         )
     )]
     async fn idle_seconds(&self) -> String {
-        self.call(do_execute(&self.state, "system.idle", json!({}))).await
+        self.call(do_execute(&self.state, "system.idle", json!({})))
+            .await
     }
 
     #[tool(
@@ -1710,7 +1743,12 @@ impl McpServer {
         )
     )]
     async fn check_update(&self) -> String {
-        self.call(do_execute(&self.state, "system.update", json!({"check": true})),).await
+        self.call(do_execute(
+            &self.state,
+            "system.update",
+            json!({"check": true}),
+        ))
+        .await
     }
 
     #[tool(
@@ -1724,7 +1762,12 @@ impl McpServer {
         )
     )]
     async fn self_update(&self) -> String {
-        self.call(do_execute(&self.state, "system.update", json!({"force": false})),).await
+        self.call(do_execute(
+            &self.state,
+            "system.update",
+            json!({"force": false}),
+        ))
+        .await
     }
 
     #[tool(
@@ -1774,7 +1817,8 @@ impl McpServer {
         )
     )]
     async fn list_processes(&self) -> String {
-        self.call(do_execute(&self.state, "process.list", json!({}))).await
+        self.call(do_execute(&self.state, "process.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1812,7 +1856,8 @@ impl McpServer {
         &self,
         Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
     ) -> String {
-        self.exec("process.stop", json!({"pid": pid, "signal": signal}),).await
+        self.exec("process.stop", json!({"pid": pid, "signal": signal}))
+            .await
     }
 
     #[tool(
@@ -1829,7 +1874,8 @@ impl McpServer {
         &self,
         Parameters(ProcessSignal { pid, signal }): Parameters<ProcessSignal>,
     ) -> String {
-        self.exec("process.signal", json!({"pid": pid, "signal": signal}),).await
+        self.exec("process.signal", json!({"pid": pid, "signal": signal}))
+            .await
     }
 
     #[tool(
@@ -1846,7 +1892,7 @@ impl McpServer {
         &self,
         Parameters(ProcessPid { pid }): Parameters<ProcessPid>,
     ) -> String {
-        self.exec("process.exists", json!({"pid": pid}),).await
+        self.exec("process.exists", json!({"pid": pid})).await
     }
 
     #[tool(
@@ -1881,7 +1927,8 @@ impl McpServer {
         )
     )]
     async fn backlight_list(&self) -> String {
-        self.call(do_execute(&self.state, "system.backlight_list", json!({}))).await
+        self.call(do_execute(&self.state, "system.backlight_list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1937,7 +1984,8 @@ impl McpServer {
         )
     )]
     async fn print_list(&self) -> String {
-        self.call(do_execute(&self.state, "system.print_list", json!({}))).await
+        self.call(do_execute(&self.state, "system.print_list", json!({})))
+            .await
     }
 
     #[tool(
@@ -1990,7 +2038,8 @@ impl McpServer {
         )
     )]
     async fn print_jobs(&self) -> String {
-        self.call(do_execute(&self.state, "system.print_jobs", json!({}))).await
+        self.call(do_execute(&self.state, "system.print_jobs", json!({})))
+            .await
     }
 
     #[tool(
@@ -2007,7 +2056,8 @@ impl McpServer {
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
     ) -> String {
-        self.exec("system.print_job_cancel", json!({"job_id": job_id}),).await
+        self.exec("system.print_job_cancel", json!({"job_id": job_id}))
+            .await
     }
 
     #[tool(
@@ -2024,7 +2074,8 @@ impl McpServer {
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
     ) -> String {
-        self.exec("system.print_job_pause", json!({"job_id": job_id}),).await
+        self.exec("system.print_job_pause", json!({"job_id": job_id}))
+            .await
     }
 
     #[tool(
@@ -2041,7 +2092,8 @@ impl McpServer {
         &self,
         Parameters(PrintJobAction { job_id }): Parameters<PrintJobAction>,
     ) -> String {
-        self.exec("system.print_job_resume", json!({"job_id": job_id}),).await
+        self.exec("system.print_job_resume", json!({"job_id": job_id}))
+            .await
     }
 
     #[tool(
@@ -2055,7 +2107,8 @@ impl McpServer {
         )
     )]
     async fn pressure(&self) -> String {
-        self.call(do_execute(&self.state, "system.pressure", json!({}))).await
+        self.call(do_execute(&self.state, "system.pressure", json!({})))
+            .await
     }
 
     #[tool(
@@ -2107,7 +2160,11 @@ impl McpServer {
         &self,
         Parameters(TerminalWrite { terminal_id, input }): Parameters<TerminalWrite>,
     ) -> String {
-        self.exec("terminal.write", json!({"terminal_id": terminal_id, "input": input}),).await
+        self.exec(
+            "terminal.write",
+            json!({"terminal_id": terminal_id, "input": input}),
+        )
+        .await
     }
 
     #[tool(
@@ -2156,7 +2213,11 @@ impl McpServer {
             cols,
         }): Parameters<TerminalResize>,
     ) -> String {
-        self.exec("terminal.resize", json!({"terminal_id": terminal_id, "rows": rows, "cols": cols}),).await
+        self.exec(
+            "terminal.resize",
+            json!({"terminal_id": terminal_id, "rows": rows, "cols": cols}),
+        )
+        .await
     }
 
     #[tool(
@@ -2170,7 +2231,8 @@ impl McpServer {
         )
     )]
     async fn list_windows(&self) -> String {
-        self.call(do_execute(&self.state, "windows.list", json!({}))).await
+        self.call(do_execute(&self.state, "windows.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -2198,7 +2260,8 @@ impl McpServer {
         )
     )]
     async fn list_workspaces(&self) -> String {
-        self.call(do_execute(&self.state, "workspaces.list", json!({})),).await
+        self.call(do_execute(&self.state, "workspaces.list", json!({})))
+            .await
     }
 
     #[tool(
@@ -2232,7 +2295,8 @@ impl McpServer {
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
     ) -> String {
-        self.exec("windows.close", json!({"window_id": window_id}),).await
+        self.exec("windows.close", json!({"window_id": window_id}))
+            .await
     }
 
     #[tool(
@@ -2249,7 +2313,8 @@ impl McpServer {
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
     ) -> String {
-        self.exec("windows.minimize", json!({"window_id": window_id}),).await
+        self.exec("windows.minimize", json!({"window_id": window_id}))
+            .await
     }
 
     #[tool(
@@ -2266,7 +2331,8 @@ impl McpServer {
         &self,
         Parameters(WindowId { window_id }): Parameters<WindowId>,
     ) -> String {
-        self.exec("windows.maximize", json!({"window_id": window_id}),).await
+        self.exec("windows.maximize", json!({"window_id": window_id}))
+            .await
     }
 
     #[tool(
@@ -2289,7 +2355,11 @@ impl McpServer {
             height,
         }): Parameters<MoveResize>,
     ) -> String {
-        self.exec("windows.move_resize", json!({"window_id": window_id, "x": x, "y": y, "width": width, "height": height}),).await
+        self.exec(
+            "windows.move_resize",
+            json!({"window_id": window_id, "x": x, "y": y, "width": width, "height": height}),
+        )
+        .await
     }
 
     #[tool(
@@ -2343,7 +2413,7 @@ impl McpServer {
         if let Some(wd) = workdir {
             args["workdir"] = json!(wd);
         }
-        self.exec("windows.activate_or_launch", args,).await
+        self.exec("windows.activate_or_launch", args).await
     }
 
     #[tool(
@@ -2360,7 +2430,8 @@ impl McpServer {
         &self,
         Parameters(SwitchWorkspace { workspace_id }): Parameters<SwitchWorkspace>,
     ) -> String {
-        self.exec("workspaces.switch", json!({"workspace_id": workspace_id}),).await
+        self.exec("workspaces.switch", json!({"workspace_id": workspace_id}))
+            .await
     }
 
     #[tool(
@@ -2381,9 +2452,12 @@ impl McpServer {
             follow,
         }): Parameters<MoveWindowToWorkspace>,
     ) -> String {
-        self.exec("workspaces.move_window", json!({"window_id": window_id, "workspace_id": workspace_id, "follow": follow}),).await
+        self.exec(
+            "workspaces.move_window",
+            json!({"window_id": window_id, "workspace_id": workspace_id, "follow": follow}),
+        )
+        .await
     }
-
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).
@@ -2398,9 +2472,8 @@ pub async fn run_mcp(state: Arc<DaemonState>) -> anyhow::Result<()> {
 
 /// Run the MCP server over TCP transport.
 pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> anyhow::Result<()> {
-    use crate::daemon::tcp::constant_time_eq;
+    use crate::daemon::tcp::{constant_time_eq, read_limited_line};
     use rmcp::service::serve_server;
-    use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
     use tokio::net::TcpListener;
     const MAX_AUTH_LINE: u64 = 4096;
     let addr = format!("127.0.0.1:{port}");
@@ -2411,16 +2484,14 @@ pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> a
         let state = state.clone();
         let token = token.clone();
         tokio::spawn(async move {
-            let (reader, writer) = tokio::io::split(stream);
-            let mut limited = reader.take(MAX_AUTH_LINE + 1);
-            let mut buf_reader = BufReader::new(&mut limited);
-            let mut auth_line = String::new();
-            if let Err(e) = buf_reader.read_line(&mut auth_line).await {
-                tracing::error!("MCP auth read error from {peer}: {e}");
-                return;
-            }
-            drop(buf_reader);
-            let reader = limited.into_inner();
+            let (mut reader, writer) = tokio::io::split(stream);
+            let auth_line = match read_limited_line(&mut reader, MAX_AUTH_LINE as usize).await {
+                Ok(line) => line,
+                Err(e) => {
+                    tracing::error!("MCP auth read error from {peer}: {e}");
+                    return;
+                }
+            };
             if auth_line.len() > MAX_AUTH_LINE as usize {
                 tracing::warn!("MCP auth message too large from {peer} — rejecting");
                 return;
@@ -2431,7 +2502,10 @@ pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> a
             }
             let auth: serde_json::Value = match serde_json::from_str(&auth_line) {
                 Ok(v) => v,
-                Err(e) => { tracing::warn!("MCP client {peer} sent invalid JSON auth: {e}"); return; }
+                Err(e) => {
+                    tracing::warn!("MCP client {peer} sent invalid JSON auth: {e}");
+                    return;
+                }
             };
             if auth.get("type") != Some(&serde_json::Value::String("auth".into())) {
                 tracing::warn!("MCP client {peer} sent non-auth first message");

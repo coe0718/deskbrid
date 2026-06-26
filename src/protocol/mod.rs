@@ -66,12 +66,27 @@ mod tests {
         assert!(actions.contains(&"mpris.list"));
         assert!(actions.contains(&"color.pick"));
         assert!(actions.contains(&"input.mouse.drag"));
+        assert!(actions.contains(&"input.layouts.list"));
+        assert!(actions.contains(&"input.layout.get"));
+        assert!(actions.contains(&"input.layout.set"));
+        assert!(actions.contains(&"input.layout.add"));
+        assert!(actions.contains(&"input.layout.remove"));
         assert!(actions.contains(&"system.backlight_get"));
         assert!(actions.contains(&"system.backlight_set"));
         assert!(actions.contains(&"system.thermal"));
         assert!(actions.contains(&"system.cpu.frequency"));
         assert!(actions.contains(&"system.cpu.governor"));
         assert!(actions.contains(&"system.cpu.set_governor"));
+        assert!(actions.contains(&"network.connections.list"));
+        assert!(actions.contains(&"network.connections.profiles"));
+        assert!(actions.contains(&"network.hotspot.start"));
+        assert!(actions.contains(&"network.hotspot.stop"));
+        assert!(actions.contains(&"network.wifi.enable"));
+        assert!(actions.contains(&"network.wwan.enable"));
+        assert!(actions.contains(&"network.dns.set"));
+        assert!(actions.contains(&"network.dns.reset"));
+        assert!(actions.contains(&"network.vpn.connect"));
+        assert!(actions.contains(&"network.vpn.disconnect"));
     }
 
     #[test]
@@ -118,6 +133,36 @@ mod tests {
         assert!(
             Action::from_json(r#"{"type":"system.backlight_set","id":"x","value":"50%"}"#).is_ok()
         );
+    }
+
+    #[test]
+    fn parses_input_layout_aliases() {
+        let (_, list) = Action::from_json(r#"{"type":"input.list_layouts","id":"x"}"#).unwrap();
+        assert!(matches!(list, Action::InputListLayouts));
+
+        let (_, get) = Action::from_json(r#"{"type":"input.get_layout","id":"x"}"#).unwrap();
+        assert!(matches!(get, Action::InputGetLayout));
+
+        let (_, set) =
+            Action::from_json(r#"{"type":"input.set_layout","id":"x","name":"us"}"#).unwrap();
+        assert!(matches!(
+            set,
+            Action::InputSetLayout {
+                name: Some(name),
+                ..
+            } if name == "us"
+        ));
+
+        let (_, add) =
+            Action::from_json(r#"{"type":"input.add_layout","id":"x","name":"de"}"#).unwrap();
+        assert!(matches!(
+            add,
+            Action::InputAddLayout { name, .. } if name == "de"
+        ));
+
+        let (_, remove) =
+            Action::from_json(r#"{"type":"input.remove_layout","id":"x","index":2}"#).unwrap();
+        assert!(matches!(remove, Action::InputRemoveLayout { index: 2 }));
     }
 
     #[test]

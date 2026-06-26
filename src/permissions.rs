@@ -126,6 +126,7 @@ impl Permissions {
                         "network.*".to_string(),
                         "bluetooth.*".to_string(),
                         "input.layouts.*".to_string(),
+                        "input.layout.*".to_string(),
                         "notification.*".to_string(),
                         "monitor.*".to_string(),
                         "search.*".to_string(),

@@ -12,7 +12,8 @@ macro_rules! tools_clipboard {
             )
         )]
         async fn clipboard_read(&self) -> String {
-            self.call(do_execute(&self.state, "clipboard.read", json!({})),).await
+            self.call(do_execute(&self.state, "clipboard.read", json!({})))
+                .await
         }
 
         #[tool(

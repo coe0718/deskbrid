@@ -12,12 +12,7 @@ macro_rules! tools_secrets {
             )
         )]
         async fn secrets_list_collections(&self) -> String {
-            self.call_state( |state| {
-                Box::pin(async move {
-                    let action = $crate::protocol::Action::SecretsListCollections;
-                    $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
+            self.exec("secrets.list_collections", json!({})).await
         }
 
         #[tool(
@@ -34,15 +29,7 @@ macro_rules! tools_secrets {
             &self,
             Parameters(SecretsGetArgs { attributes }): Parameters<SecretsGetArgs>,
         ) -> String {
-            let attrs = attributes.clone();
-            self.call_state( move |state| {
-                Box::pin(async move {
-                    let action = $crate::protocol::Action::SecretsGetSecret {
-                        attributes: attrs,
-                    };
-                    $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
+            self.exec("secrets.get_secret", json!({"attributes": attributes})).await
         }
 
         #[tool(
@@ -64,21 +51,12 @@ macro_rules! tools_secrets {
                 collection,
             }): Parameters<SecretsStoreArgs>,
         ) -> String {
-            let attrs = attributes.clone();
-            let sec = secret.clone();
-            let lbl = label.clone();
-            let col = collection.clone();
-            self.call_state( move |state| {
-                Box::pin(async move {
-                    let action = $crate::protocol::Action::SecretsStoreSecret {
-                        attributes: attrs,
-                        secret: sec,
-                        label: lbl,
-                        collection: col,
-                    };
-                    $crate::daemon::execute_secrets::execute_secrets_action(action, &state).await
-                })
-            }).await
+            self.exec("secrets.store_secret", json!({
+                "attributes": attributes,
+                "secret": secret,
+                "label": label,
+                "collection": collection,
+            })).await
         }
     };
 }

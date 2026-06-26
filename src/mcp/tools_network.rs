@@ -12,7 +12,8 @@ macro_rules! tools_network {
             )
         )]
         async fn network_status(&self) -> String {
-            self.call(do_execute(&self.state, "network.status", json!({})),).await
+            self.call(do_execute(&self.state, "network.status", json!({})))
+                .await
         }
     };
 }
