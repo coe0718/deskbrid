@@ -3,7 +3,7 @@
 **Purpose:** Catalog every mechanism Deskbrid can use to gain deeper control over Linux
 systems — beyond what the current DE backends already provide.
 
-**Current state:** v1.1.0. Security hardening release — Vex v2 audit resolved, protocol refactored, DashMap migration, rules engine HIGH_RISK guard, loop detection, migration atomicity.
+**Current state:** v1.1.1. Security hardening release plus mock backend, region/text watchers, agent registry, and lock/mutex coordination.
 
 ### Roadmap Status
 
@@ -35,6 +35,8 @@ it to the completed table below.
 | [18. Clipboard History](#18-clipboard-history) | Query and clear bounded text entries observed through Deskbrid clipboard reads/writes | `src/daemon/clipboard.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [19. Window Tiling Presets](#19-window-tiling-presets) | Move windows into named monitor-aware presets with optional padding | `src/tiling.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [20. Color Picker](#20-color-picker) | Sample pixel colors from a screenshot path or live 1x1 capture and return RGBA/hex | `src/color.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
+| [21. Desktop Settings](#21-desktop-settings-readwrite-configuration) | Read/write GSettings-backed desktop settings and list schemas through protocol, CLI, MCP, and backend wrappers | `src/daemon/execute_desktop.rs`, `src/backend/gsettings_desktop.rs`, `src/protocol/`, `src/cli/` |
+| [22. Keyboard Layout Management](#22-keyboard-layout-management) | List/get/set/add/remove keyboard layouts across supported backends | `src/daemon/execute_input.rs`, `src/backend/*/keyboard*.rs`, `src/protocol/` |
 | [24. Screenshot Diffing](#24-screenshot-diffing) | Pixel diff screenshots with tolerance, changed bounding boxes, optional diff images, and wait-driven stability | `src/visual.rs`, `src/daemon/wait.rs`, `src/protocol/`, `clients/python/` |
 | [26. Wait-for Conditions](#26-wait-for-conditions) | Daemon-polled waits for windows, clipboard, processes, files, idle time, and screenshot stability | `src/daemon/wait.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [sysfs Backlight](#6-sysfs--procfs--devfs-direct-hardware-access) | Read and set `/sys/class/backlight` devices by percentage with permission-aware metadata | `src/daemon/sysfs.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
@@ -47,37 +49,40 @@ it to the completed table below.
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [54. Audio Control](#54-audio-control-pipewire--pulseaudio-d-bus) | Full audio control: list sources, get/set volume, mute/unmute, set default sink/source via pactl | `src/daemon/execute_audio.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
-|| [125. Auto-Update](#125-auto-update-with-rollback) | Self-update command: check latest GitHub release, download matching tarball, optional checksum verification, binary backup/replacement, user-service restart | `src/cmd/update/`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
-|| [28. D-Bus Raw Access](#28-dbus-raw-access) | Raw D-Bus method calls via `dbus-send` subprocess, CLI `deskbrid dbus-call`, MCP `dbus_call` tool, Python client wrapper, high-risk action gate | `src/daemon/execute_system.rs`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
-|| [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
-|| [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
-|| [25. Action Recording & Replay](#25-action-recording--replay-macros) | Macro recording engine, dispatch hook, JSON file storage, replay with fast/timed modes, CLI, Python client | `src/daemon/macro_engine.rs`, `src/daemon/execute_macro.rs`, `src/protocol/parse/macro_cmd.rs`, `src/protocol/serialize/macro_cmd.rs` |
-|| [84. Persistence Layer (SQLite)](#84-persistence-layer-sqlite) | SQLite database with WAL mode, 6 tables (clipboard_history, audit_log, notifications, macros, blackboard, sessions), CRUD methods for all data types, clipboard/audit/blackboard wired | `src/daemon/persistence.rs` |
-|| [31. Named Sessions](#31-named-sessions-multi-agent-isolation) | Per-agent session isolation with variables, create/destroy/list/switch, persisted to SQLite, CLI and protocol support | `src/daemon/execute_sessions.rs`, `src/protocol/parse/sessions.rs`, `src/cli/sessions.rs` |
-|| [83. Rules Engine](#83-event-driven-triggers-rules-engine) | Event-driven triggers tied to subscription bus, rule CRUD, cooldown/max_fires, persists to SQLite, background evaluation task | `src/daemon/rules.rs`, `src/daemon/execute_rules.rs`, `src/protocol/rules_types.rs` |
-|| [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
-|| [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | nmcli-backed: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
+| [125. Auto-Update](#125-auto-update-with-rollback) | Self-update command: check latest GitHub release, download matching tarball, optional checksum verification, binary backup/replacement, user-service restart | `src/cmd/update/`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
+| [28. D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch) | Raw D-Bus method calls via `dbus-send` subprocess, CLI `deskbrid dbus-call`, MCP `dbus_call` tool, Python client wrapper, high-risk action gate | `src/daemon/execute_system.rs`, `src/protocol/`, `src/cli/`, `src/mcp/`, `clients/python/` |
+| [27. Cron / Scheduled Actions](#27-cron--scheduled-actions) | Schedule engine reading `~/.config/deskbrid/schedule.json`, 60s-poll daemon task, CLI `deskbrid schedule list|add|remove`, protocol actions | `src/daemon/schedule.rs`, `src/protocol/`, `src/cli/` |
+| [30. TCP Mode](#30-tcp-mode-network-control) | TCP listener with bearer token auth, synthetic UID for permissions, Rust/Python client TCP transport via env vars, CLI `--tcp-port`/`--tcp-token` | `src/daemon/tcp.rs`, `src/daemon/client.rs`, `src/client.rs`, `src/cli/`, `clients/python/` |
+| [25. Action Recording & Replay](#25-action-recording--replay-macros) | Macro recording engine, dispatch hook, JSON file storage, replay with fast/timed modes, CLI, Python client | `src/daemon/macro_engine.rs`, `src/daemon/execute_macro.rs`, `src/protocol/parse/macro_cmd.rs`, `src/protocol/serialize/macro_cmd.rs` |
+| [31. Named Sessions](#31-named-sessions-multi-agent-isolation) | Per-agent session isolation with variables, create/destroy/list/switch, persisted to SQLite, CLI and protocol support | `src/daemon/execute_sessions.rs`, `src/protocol/parse/sessions.rs`, `src/cli/sessions.rs` |
+| [42. Region Watching](#42-screen-region-watching) | Event-driven region diff watchers with change/stable events, thresholds, and auto-save controls | `src/daemon/region_watch.rs`, `src/protocol/parse/watch.rs`, `src/protocol/serialize/watch.rs` |
+| [43. Text Change Events](#43-text-change-events-watched-regions) | OCR-backed text watchers for region text changes, match, and mismatch events | `src/daemon/region_watch.rs`, `src/ocr.rs`, `src/protocol/parse/watch.rs` |
+| [83. Rules Engine](#83-event-driven-triggers-rules-engine) | Event-driven triggers tied to subscription bus, rule CRUD, cooldown/max_fires, persists to SQLite, background evaluation task | `src/daemon/rules.rs`, `src/daemon/execute_rules.rs`, `src/protocol/rules_types.rs` |
+| [84. Persistence Layer (SQLite)](#84-persistence-layer-sqlite) | SQLite database with WAL mode, 6 tables (clipboard_history, audit_log, notifications, macros, blackboard, sessions), CRUD methods for all data types, clipboard/audit/blackboard wired | `src/daemon/persistence.rs` |
+| [85. MCP Server Mode](#85-mcp-server-mode) | rmcp-backed stdio and token-authenticated TCP MCP server sharing daemon dispatch/state | `src/mcp/server.rs`, `src/mcp/tools/`, `src/daemon/mod.rs` |
+| [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
+| [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | nmcli-backed: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
+| [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
+| [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
+| [45. Shared Blackboard](#45-shared-blackboard-kv-store) | SQLite-backed namespaced key/value store with set/get/delete/list protocol actions | `src/daemon/execute_blackboard.rs`, `src/daemon/persistence/blackboard.rs`, `src/protocol/parse/blackboard.rs` |
+| [46. Lock / Mutex](#46-lock--mutex-primitives) | Atomic daemon lock table with TTL expiry, force-steal, wait timeout events, token-checked release, and disconnect cleanup | `src/daemon/locks.rs`, `src/daemon/dispatch.rs`, `src/protocol/` |
+| [47. Agent Registry](#47-agent-registry) | Session auto-registration plus explicit agent register/list/get/heartbeat, liveness events, subscription counts, last action, and lock ownership reporting | `src/daemon/agent_registry.rs`, `src/daemon/client.rs`, `src/protocol/` |
+| [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
+| [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
+| [122. Mock Backend](#122-mock-backend-for-agent-testing) | Deterministic `--mock` desktop backend with scenario loading and mock dispatch coverage | `src/backend/mock.rs`, `src/daemon/mod.rs`, `src/daemon/tests.rs` |
+| [29. Keyring / Secrets](#29-secret--keyring-access) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
 
-|| [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
-|| [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
-|| [46. Lock / Mutex](#46-lock--mutex-primitives) | Atomic daemon lock table with TTL expiry, force-steal, wait timeout events, token-checked release, and disconnect cleanup | `src/daemon/locks.rs`, `src/daemon/dispatch.rs`, `src/protocol/` |
-|| [47. Agent Registry](#47-agent-registry) | Session auto-registration plus explicit agent register/list/get/heartbeat, liveness events, subscription counts, last action, and lock ownership reporting | `src/daemon/agent_registry.rs`, `src/daemon/client.rs`, `src/protocol/` |
-|| [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
-|| [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
-|| [29. Keyring / Secrets](#29-keyring--secrets) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
-|| [129. Per-UID Rate Limiting](#129-per-uid-rate-limiting) | Per-namespace, per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
-|| [135. Provider Manifest](#135-provider-manifest) | capabilities.list exposes high_risk actions, sandbox dirs, transport constraints, and permissions model for orchestrator integration | `src/daemon/capabilities/mod.rs`, `src/mcp/helpers.rs` |
+### Already Built Reference
 
-### Already Built (not covered here)
-
-These features exist in the codebase already for reference:
+These baseline features exist in the codebase already for reference. Some also have
+roadmap sections above with expanded shipped scope.
 
 | Feature | File(s) | Protocol Actions |
 |---|---|---|
 | **AT-SPI2 Accessibility** | `src/a11y/` (tree, bus, actions, value, setup, util) | `a11y.tree`, `a11y.get_element`, `a11y.click_element`, `a11y.get_text` |
 | **File CRUD** | `src/daemon/execute.rs` (dispatcher) + `execute_files.rs` | `files.read/write/copy/move/delete/mkdir/list` |
 | **Browser CDP** | `src/browser.rs` | `browser.list_tabs/navigate/evaluate/screenshot_tab/click` |
-| **Screen recording (half-built)** | `src/backend/gnome/` (core, screenshot, screencast) | `screencast.start/stop` in protocol, Mutter ScreenCast session exists but recording output not wired |
+| **Screen recording** | `src/backend/gnome/` (core, screenshot, screencast) | `screencast.start/stop` in protocol, PipeWire screencast events exposed through client surfaces |
 | **Event filtering (Subscribe/Unsubscribe)** | `src/daemon/client.rs` | `subscribe`, `unsubscribe` — glob patterns (`window.*`, `file.*`) |
 | **Systemd/logind control** | `src/daemon/system/{logind,systemd}.rs` | `system.inhibit/release_inhibit`, `system.sessions`, `system.lock_session`, `system.switch_user`, `service.*`, `journal.query`, `timer.*` |
 | **Polkit auth checks** | `src/daemon/system/polkit.rs`, `deploy/org.deskbrid.policy` | `system.check_auth`, `system.elevate` |
@@ -94,7 +99,7 @@ These features exist in the codebase already for reference:
 3. [Linux Capabilities](#3-linux-capabilities)
 4. [cgroups v2 (Process Resource Control)](#4-cgroups-v2-process-resource-control)
 5. [udev (Device Event Monitoring)](#5-udev-device-event-monitoring)
-6. [sysfs / procfs / devfs (Direct Hardware Access)](#6-sysfs--procfs--devfs-direct-hardware-access)
+6. [✅ sysfs / procfs / devfs (Direct Hardware Access)](#6-sysfs--procfs--devfs-direct-hardware-access)
 7. [fanotify (System-Wide File Monitoring)](#7-fanotify-system-wide-file-monitoring)
 8. [eBPF / LSM BPF](#8-ebpf--lsm-bpf)
 9. [✅ Confinement Detection (Flatpak / Snap / SELinux / AppArmor)](#9-confinement-detection-flatpak--snap--selinux--apparmor)
@@ -103,36 +108,36 @@ These features exist in the codebase already for reference:
 12. [✅ OCR / Text Extraction](#12-ocr--text-extraction)
 13. [✅ Terminal / PTY Multiplexer](#13-terminal--pty-multiplexer)
 14. [✅ MPRIS Media Control](#14-mpris-media-control)
-15. [Drag & Drop](#15-drag--drop)
+15. [✅ Drag & Drop](#15-drag--drop)
 16. [✅ Application Menu Catalog](#16-application-menu-catalog)
 17. [✅ Screen Recording (Finish Half-Built)](#17-screen-recording-finish-half-built-implementation)
 18. [✅ Clipboard History](#18-clipboard-history)
 19. [✅ Window Tiling Presets](#19-window-tiling-presets)
 20. [✅ Color Picker](#20-color-picker)
-21. [Desktop Settings](#21-desktop-settings-readwrite-configuration)
-22. [Keyboard Layout Management](#22-keyboard-layout-management)
+21. [✅ Desktop Settings](#21-desktop-settings-readwrite-configuration)
+22. [✅ Keyboard Layout Management](#22-keyboard-layout-management)
 23. [Session & User Management](#23-session--user-management)
 24. [✅ Screenshot Diffing](#24-screenshot-diffing)
-25. [Action Recording & Replay](#25-action-recording--replay-macros)
+25. [✅ Action Recording & Replay](#25-action-recording--replay-macros)
 26. [✅ Wait-for Conditions](#26-wait-for-conditions)
 27. [✅ Cron / Scheduled Actions](#27-cron--scheduled-actions)
 28. [✅ D-Bus Raw Access](#28-d-bus-raw-access-escape-hatch)
 29. [✅ Secret / Keyring Access](#29-secret--keyring-access)
-30. [TCP Mode (Network)](#30-tcp-mode-network-control)
-31. [Named Sessions](#31-named-sessions-multi-agent-isolation)
+30. [✅ TCP Mode (Network)](#30-tcp-mode-network-control)
+31. [✅ Named Sessions](#31-named-sessions-multi-agent-isolation)
 32. [Remote Screenshot Streaming](#32-remote-screenshot-streaming)
 33. [✅ Dry-Run Mode](#33-dry-run-mode)
 34. [✅ Audit Log](#34-audit-log)
 35. [✅ Rate Limiting](#35-rate-limiting-per-client)
 36. [Sandboxed Profiles](#36-sandboxed-agent-profiles)
-37. [Action Confirmation](#37-action-confirmation-mode)
+37. [✅ Action Confirmation](#37-action-confirmation-mode)
 38. [Canary Actions](#38-canary-actions--auto-suspend)
 39. [User Presence](#39-user-presence-events)
 40. [Time & Location](#40-time-of-day--location-awareness)
 41. [CV Element Detection](#41-element-detection-via-screenshot-cv)
-42. [Region Watching](#42-screen-region-watching)
-43. [Text Change Events](#43-text-change-events-watched-regions)
-44. [Agent Messaging](#44-agent-to-agent-messaging)
+42. [✅ Region Watching](#42-screen-region-watching)
+43. [✅ Text Change Events](#43-text-change-events-watched-regions)
+44. [✅ Agent Messaging](#44-agent-to-agent-messaging)
 45. [✅ Shared Blackboard](#45-shared-blackboard-kv-store)
 46. [✅ Lock / Mutex](#46-lock--mutex-primitives)
 47. [✅ Agent Registry](#47-agent-registry)
@@ -149,8 +154,8 @@ These features exist in the codebase already for reference:
 58. [USB Device Control](#58-usb-device-power-control)
 59. [Input Device Config](#59-input-device-configuration)
 60. [Monitor DDC/CI](#60-monitor-ddcci)
-61. [Notification History](#61-notification-history--action-buttons)
-62. [NetworkManager D-Bus](#62-networkmanager-d-bus)
+61. [✅ Notification History](#61-notification-history--action-buttons)
+62. [✅ NetworkManager D-Bus](#62-networkmanager-d-bus)
 63. [Tailscale / WireGuard](#63-tailscale--wireguard-status)
 64. [mDNS Discovery](#64-mdns-advertisement-deskbrid-instance-discovery)
 65. [Distrobox / Toolbox](#65-distrobox--toolbox-integration)
@@ -167,11 +172,11 @@ These features exist in the codebase already for reference:
 77. [Retry Backoff](#77-retry-with-exponential-backoff)
 78. [Health Webhook](#78-health-webhook)
 79. [Session Persistence](#79-session-persistence-survive-logout)
-80. [Unified Search](#80-unified-search)
+80. [✅ Unified Search](#80-unified-search)
 81. [Plugin System](#82-plugin-system)
-82. [Rules Engine](#83-event-driven-triggers-rules-engine)
-83. [Persistence (SQLite)](#84-persistence-layer-sqlite)
-84. [MCP Server](#85-mcp-server-mode)
+82. [✅ Rules Engine](#83-event-driven-triggers-rules-engine)
+83. [✅ Persistence (SQLite)](#84-persistence-layer-sqlite)
+84. [✅ MCP Server](#85-mcp-server-mode)
 85. [Declarative Workflows](#86-declarative-workflows--state-machines)
 86. [Web Dashboard](#87-built-in-web-dashboard)
 87. [Screenshot Timeline](#88-screenshot-timeline)
@@ -182,7 +187,7 @@ These features exist in the codebase already for reference:
 92. [Workspace Lifecycle](#93-workspace-lifecycle)
 93. [File Metadata](#94-advanced-file-metadata)
 94. [Storage Monitor](#95-storage-monitoring)
-95. [System Pressure](#96-system-pressure--psi)
+95. [✅ System Pressure](#96-system-pressure--psi)
 96. [Firewall](#97-network-firewall-management)
 97. [Proxy](#98-network-proxy-management)
 98. [Captive Portal](#99-captive-portal-detection)
@@ -207,7 +212,7 @@ These features exist in the codebase already for reference:
 117. [Nix / Guix](#119-nix--guix-awareness)
 118. [TPM / Security](#120-tpm--hardware-security)
 119. [Headless Compositor](#121-headless-wayland-compositor-ci--testing)
-120. [Mock Backend](#122-mock-backend-for-agent-testing)
+120. [✅ Mock Backend](#122-mock-backend-for-agent-testing)
 121. [Plugin Hot-Reload](#123-plugin-hot-reload)
 122. [Graceful Restart](#124-graceful-restart--config-live-reload)
 123. [✅ Auto-Update](#125-auto-update-with-rollback)
@@ -635,14 +640,10 @@ thermal zone reads, CPU frequency reads, CPU governor reads, and CPU governor wr
 are exposed through protocol, CLI, and Python clients. LEDs, fans, and GPIO remain
 future extensions.
 
-### What's Missing
+### Remaining Scope
 
-Deskbrid has no backend-agnostic access to hardware knobs:
-- Screen brightness (beyond what DE-specific APIs provide)
-- Backlight control
+Future hardware extensions still worth adding:
 - LEDs (keyboard, notification)
-- CPU frequency scaling
-- Thermal sensors
 - Fan speed (when available)
 - GPIO pins (on embedded/SBC setups)
 
@@ -775,7 +776,7 @@ monitoring agent.
 report in `system.capabilities` and `system.health`. It detects Flatpak, Snap,
 AppImage packaging, containers, WSL, AppArmor profiles, and SELinux mode.
 
-### What's Missing
+### Remaining Scope
 
 Portal-specific permission repair is future work. Deskbrid can now tell agents
 when sandbox/container/security context is likely to affect behavior:
@@ -851,13 +852,15 @@ SystemConfinement,
 
 ## 10. Desktop Portal Integration (XDG Portals)
 
-**Status:** ✅ Done — *TESTING NEEDED on live desktop environment*
+**Status:** ✅ Done for screenshot and screencast portal integration — *TESTING
+NEEDED on live desktop environment*
 
-### What's Missing
+### Remaining Scope
 
-Deskbrid uses portals for screenshots (the `screenshot_portal.py` script), but
-doesn't expose the full portal API. XDG Portals are the *official* way for
-sandboxed apps and Wayland-native tools to access desktop services.
+Deskbrid exposes XDG Screenshot and ScreenCast portal paths through the daemon,
+CLI, Python client, and MCP tools. Wider portal coverage remains future scope.
+XDG Portals are the *official* way for sandboxed apps and Wayland-native tools to
+access desktop services.
 
 **Key portals an agent would want:**
 
@@ -935,7 +938,7 @@ Only available on systemd systems. When absent, these actions should return
 
 **Status:** ✅ Done on `main`.
 
-### What's Missing
+### Original Gap
 
 The screenshot pipeline works and returns PNG paths, but nothing extracts text from
 those images. When the accessibility tree isn't available (games, Electron apps,
@@ -1008,7 +1011,7 @@ ScreenshotOcr {
 
 **Status:** ✅ Done on `main`.
 
-### What's Missing
+### Original Gap
 
 This is Deskbrid's biggest gap for coding agents. `ProcessStart` is fire-and-forget
 (stdin=null, stdout=null, stderr=null). An agent can run `ls` but can't:
@@ -1121,7 +1124,7 @@ SIGCHLD, terminal size changes, and proper cleanup on client disconnect.
 `mpris.control` for standard session-bus MPRIS players, including playback status,
 metadata, volume, and common transport controls.
 
-### What's Missing
+### Original Gap
 
 Seek, set-position, shuffle/repeat, raise, and quit controls are future work.
 
@@ -1224,7 +1227,7 @@ Python: `client.mouse_drag(from_x, from_y, to_x, to_y, button="left", duration_m
 `.desktop` files and exposes `apps.list`, `apps.search`, and `apps.get` through
 the protocol, CLI, and Python client.
 
-### What's Missing
+### Original Gap
 
 Running application menubar exploration via DBus menu model remains future work.
 
@@ -1272,28 +1275,12 @@ events are all wired through the protocol, dispatch, CLI, and MCP layers.
 
 ### Current Status
 
-The protocol has `screencast.start` and `screencast.stop` in `public_action_types()`
-but both return `"supported": false`.
+The shipped protocol has `screencast.start` and `screencast.stop`, and the daemon
+drives GNOME/Mutter ScreenCast through a PipeWire/GStreamer recording path.
 
-The GNOME backend already has a real ScreenCast session:
-```rust
-// src/backend/gnome.rs:
-fn init_screen_cast() {
-    // Creates a Mutter ScreenCast session via DBus
-    // Records a monitor → gets a stream path (self.sc_stream_path)
-}
-```
+### Remaining Scope
 
-The stream path is only used for absolute mouse positioning. The video data is
-never delivered to clients.
-
-### What Needs to Be Built
-
-**A) PipeWire stream reader**
-Mutter ScreenCast outputs video via PipeWire. Deskbrid has `pipewire` and `spa`
-crates as optional deps. Read the stream frames from the PipeWire node.
-
-**B) Recording lifecycle**
+The original richer recording lifecycle is still future scope:
 ```rust
 ScreencastStart {
     monitor: Option<u32>,
@@ -1304,7 +1291,7 @@ ScreencastStart {
 ScreencastStop,
 ```
 
-**C) Encoding**
+Encoding and streaming enhancements:
 - **Option 1 (simple):** Save frames as PNGs. Agent processes later.
 - **Option 2 (moderate):** Pipe through FFmpeg subprocess for real-time encoding.
 - **Option 3 (complex):** In-process via gstreamer Rust bindings.
@@ -1335,7 +1322,7 @@ observed through `clipboard.read` and `clipboard.write`, dedupes consecutive
 duplicates, and exposes `clipboard.history` / `clipboard.history.clear` through
 the protocol, CLI, and Python client.
 
-### What's Missing
+### Original Gap
 
 Background clipboard watching, restore-by-entry, and persistence across daemon
 restarts are still future work.
@@ -1423,7 +1410,7 @@ DeskbridEvent::ClipboardChanged {
 `window_move_resize`, with monitor selection, named presets, optional padding,
 CLI support, and Python client bindings.
 
-### What's Missing
+### Original Gap
 
 Future refinements: compositor-native tiling integrations where they give better
 results than pixel geometry, smooth transitions, and richer layout presets.
@@ -1491,7 +1478,7 @@ WindowsTile {
 existing image path or a fresh 1x1 screen capture, returning RGBA channels and a
 hex string.
 
-### What's Missing
+### Original Gap
 
 HSL formatting and monitor-relative coordinate helpers are future refinements.
 
@@ -1550,15 +1537,21 @@ ColorPickerFromFile {
 
 ## 21. Desktop Settings (Read/Write Configuration)
 
-### What's Missing
+**Status:** ✅ Done. Deskbrid exposes `desktop.get_setting`,
+`desktop.set_setting`, and `desktop.list_schemas` through protocol, CLI, MCP,
+and backend wrappers. The implementation uses native KDE helpers where present
+and a shared GSettings fallback elsewhere.
 
-Deskbrid has no way to read or change desktop environment settings. Agents can't:
-- Toggle dark mode
+### Remaining Scope
+
+Higher-level abstract setting names and non-GSettings backends can still be
+expanded:
+- Toggle dark mode via a stable cross-DE alias
 - Change accent color
-- Adjust font size (accessibility)
+- Adjust font size/accessibility presets
 - Enable/disable tap-to-click
 - Remap keyboard shortcuts
-- Change wallpaper (already planned via portal in section 10)
+- Change wallpaper (also covered by portal work in section 10)
 
 ### Implementation
 
@@ -1654,7 +1647,11 @@ to DE-specific backends.
 
 ## 22. Keyboard Layout Management
 
-### What's Missing
+**Status:** ✅ Done. Deskbrid exposes `input.layouts.list`,
+`input.layout.get`, `input.layout.set`, `input.layout.add`, and
+`input.layout.remove` through protocol and backend implementations.
+
+### Original Gap
 
 Deskbrid can inject keystrokes but has no awareness of the active keyboard layout.
 An agent can't:
@@ -1855,7 +1852,7 @@ without logind.
 
 **Status:** ✅ Done on `main`.
 
-### What's Missing
+### Original Gap
 
 Agents can take screenshots but can't compare two to detect what changed. Common
 scenarios: wait for a page to finish loading, detect popups appearing, verify UI
@@ -1906,7 +1903,7 @@ DeskbridEvent::ScreenChanged { diff_percent, screenshot_id, timestamp }
 
 **Status:** ✅ Done
 
-### What's Missing
+### Original Gap
 
 Agents can execute individual actions but can't record sequences for replay, loop
 actions, share macros, or parameterize them with variables.
@@ -1947,7 +1944,7 @@ MacroExport { name: String }, MacroImport { name: String, data: String },
 
 **Status:** ✅ Done on `main`.
 
-### What's Missing
+### Original Gap
 
 There's a `wait` CLI command but no protocol-level action. Agents must poll
 manually — wasteful and slow. Proper wait-for lets the daemon poll efficiently.
@@ -1999,7 +1996,7 @@ DeskbridEvent::WaitMatched { wait_id, condition, value, elapsed_ms }
 
 **Status:** ✅ Done
 
-### What's Missing
+### Original Gap
 
 No built-in scheduling. Agents can't run health checks every 5 minutes, take daily
 screenshots, or do idle-time maintenance without external cron.
@@ -2044,7 +2041,7 @@ DeskbridEvent::CronJobCompleted { job_id, name, total_runs }
 
 **Status:** ✅ Done
 
-### What's Missing
+### Original Gap
 
 No matter how many actions Deskbrid wraps, there will always be a D-Bus interface
 it doesn't cover. Agents need a direct D-Bus call escape hatch. Deskbrid already
@@ -2128,7 +2125,7 @@ SecretsStoreSecret { attributes, secret, label, collection },
 
 **Status:** ✅ Done
 
-### What's Missing
+### Original Gap
 
 Deskbrid only listens on a Unix socket. Remote machines can't connect. Agents can't
 control other computers on the network.
@@ -2156,7 +2153,10 @@ env vars. Both fall back to Unix socket when TCP is not configured.
 
 ## 31. Named Sessions (Multi-Agent Isolation)
 
-### What's Missing
+**Status:** ✅ Done. Named sessions now support create/destroy/list/switch plus
+session variables, persistence, and per-connection active session tracking.
+
+### Original Gap
 
 All clients share daemon state. Two agents see each other's subscriptions, share
 clipboard history, and race on operations.
@@ -2231,7 +2231,7 @@ DeskbridEvent::ScreencapFrame { data_base64, width, height, timestamp, frame_num
 performs permission checks, returns would-execute metadata, skips backend loading
 and execution, and records the result in the audit log.
 
-### What's Missing
+### Original Gap
 
 Per-action detailed change previews are future work. The shipped version is a
 safe dispatcher-level validation pass.
@@ -2268,7 +2268,7 @@ Python client. Entries include action type, caller UID, sequence, status, durati
 and error message, but intentionally omit full action payloads to avoid copying
 clipboard text, command arguments, or future secrets into the log.
 
-### What's Missing
+### Original Gap
 
 Persistent JSONL/journald export and subscription events are still future work.
 The current shipped scope is the queryable in-memory audit trail.
@@ -2308,7 +2308,7 @@ checks. Defaults are `DESKBRID_RATE_LIMIT_PER_SEC=30` and
 Limited requests return `RATE_LIMITED` with `retry_after_ms` and are recorded in
 the audit log.
 
-### What's Missing
+### Original Gap
 
 Per-action category limits and `permissions.toml` overrides are future work. The
 shipped version is a daemon-wide per-UID bucket.
@@ -2380,7 +2380,7 @@ Named sessions (section 31) reference a profile on creation:
 
 **Status:** ✅ Done (v0.13.0)
 
-**What's Missing:** Destructive actions (file delete, system power, process kill)
+**Original Gap:** Destructive actions (file delete, system power, process kill)
 execute immediately. No "are you sure?" guard for high-cost operations.
 
 **Implementation:** Add a `confirm` flag to the envelope:
@@ -2560,8 +2560,13 @@ ML: significant (model file + inference runtime).
 
 ## 42. Screen Region Watching
 
-**What's Missing:** Agents can take screenshots but can't say "watch this 200x200
-area and tell me when it changes." Requires manual polling.
+**Status:** ✅ Done. `region_watch.create`, `region_watch.update`,
+`region_watch.remove`, and `region_watch.list` are implemented with region diffing,
+change/stable events, threshold controls, optional auto-save, and max-change
+cleanup.
+
+**Original Gap:** Agents can take screenshots but couldn't say "watch this 200x200
+area and tell me when it changes" without manual polling.
 
 **Implementation:** Daemon captures a region at an interval, diffs against previous
 frame, fires event when change detected.
@@ -2602,9 +2607,13 @@ DeskbridEvent::RegionStable {
 
 ## 43. Text Change Events (Watched Regions)
 
-**What's Missing:** Agents can watch a region visually (section 42) but can't say
-"tell me when the text in this 300x100 area changes." OCR + region watching =
-text-aware region watching.
+**Status:** ✅ Done. `text_watch.create`, `text_watch.remove`, and
+`text_watch.list` are implemented with OCR-backed text change, match, and mismatch
+events over watched regions.
+
+**Original Gap:** Agents can watch a region visually (section 42) but couldn't say
+"tell me when the text in this 300x100 area changes." OCR + region watching made
+text-aware region watching possible.
 
 **Implementation:** Combine region watching (section 42) with OCR (section 12):
 
@@ -2641,7 +2650,7 @@ DeskbridEvent::TextMatched {
 
 **Status:** ✅ Done (v0.13.0)
 
-**What's Missing:** Two agents connected to the same daemon can't communicate.
+**Original Gap:** Two agents connected to the same daemon can't communicate.
 Each only talks to the daemon. If agent-alpha discovers something agent-beta needs,
 it must send it through an external channel.
 
@@ -3107,10 +3116,12 @@ bind to the compositor's globals.
 
 ## 54. Audio Control (PipeWire / PulseAudio D-Bus)
 
-**Status:** ✅ Done — *TESTING NEEDED on live desktop environment*
+**Status:** ✅ Done for pactl-backed device controls — *TESTING NEEDED on live
+desktop environment*
 
-**What's Missing:** Deskbrid has `AudioListSinks` and `AudioSetSinkVolume` (sink
-volume only). No per-app audio, no routing, no loopback, no mute state.
+**Remaining Scope:** Per-app audio, advanced routing, loopback capture, and native
+PipeWire graph control remain future work. The shipped implementation covers sink
+and source listing, volume/mute, and default sink/source selection through pactl.
 
 ### Implementation
 
@@ -3455,8 +3466,12 @@ MonitorDDCPower { bus: String, state: String },   // "on", "off", "sleep"
 
 ## 61. Notification History & Action Buttons
 
-**What's Missing:** Deskbrid can `NotificationSend` and `NotificationClose` but
-can't read existing notifications or respond to action buttons.
+**Status:** ✅ Done. Deskbrid exposes notification history, clear, watch, and
+action invocation through `notification.history`, `notification.clear_history`,
+`notification.watch`, and `notification.action`.
+
+**Original Gap:** Deskbrid could `NotificationSend` and `NotificationClose` but
+couldn't read existing notifications or respond to action buttons.
 
 ### Implementation
 
@@ -3522,8 +3537,13 @@ DeskbridEvent::NotificationActed {
 
 ## 62. NetworkManager D-Bus
 
-**What's Missing:** Deskbrid uses nmcli for WiFi. NetworkManager's D-Bus API gives
-richer control: connection profiles, signal strength, hotspots, ethernet, VPN.
+**Status:** ✅ Done for the currently shipped network additions. Deskbrid exposes
+connection listing, saved profiles, hotspot start/stop, WiFi/WWAN toggles, DNS
+set/reset, and VPN connect/disconnect through the protocol and backend network
+executor.
+
+**Original Gap:** Deskbrid used nmcli for WiFi only. Richer control was needed
+for connection profiles, signal strength, hotspots, ethernet, and VPN.
 
 ### Implementation
 
@@ -3891,7 +3911,7 @@ also applies `DESKBRID_ACTION_TIMEOUT_MS` as a default action timeout (60s by
 default, `0` disables). `wait.for` uses its requested wait timeout plus a small
 grace period when no request-level timeout override is provided.
 
-**What's Missing:** Some actions can hang indefinitely (screenshot on a locked
+**Original Gap:** Some actions can hang indefinitely (screenshot on a locked
 session, process.wait on a stuck process, terminal.read on a frozen PTY). No
 timeout mechanism.
 
@@ -4259,7 +4279,7 @@ DaemonPersistenceEnable {
 
 **Status:** ✅ Done (v0.13.0)
 
-**What's Missing:** Agents must query multiple endpoints to find something:
+**Original Gap:** Agents must query multiple endpoints to find something:
 - `windows.list` to find a window
 - `files.search` to find a file
 - `clipboard.history` to find a copied snippet
@@ -4357,7 +4377,11 @@ sandbox = { fs = ["read:/tmp"], net = false }
 
 ## 83. Event-Driven Triggers (Rules Engine)
 
-**What's Missing:** Cron covers time-based scheduling. But agents can't say:
+**Status:** ✅ Done. Deskbrid includes rule CRUD, event/time triggers, optional
+conditions, cooldowns, max fires, pause/resume, SQLite persistence, and a
+background event-driven evaluator.
+
+**Original Gap:** Cron covers time-based scheduling. But agents couldn't say:
 "when clipboard changes, run action X" or "when window Y closes, do Z."
 
 **Implementation:** A lightweight rules engine that listens to subscription events
@@ -4435,9 +4459,13 @@ Background vacuum.
 
 ## 85. MCP Server Mode
 
-**What's Missing:** Deskbrid speaks its own JSON protocol. Any MCP-compatible
-client (Claude Code, Codex CLI, Cursor) can't use it as a tool server without
-a custom bridge.
+**Status:** ✅ Done. Deskbrid ships an rmcp-backed stdio server via
+`deskbrid mcp` and a token-authenticated MCP TCP listener via
+`deskbrid daemon --mcp-port`, both sharing daemon dispatch and state.
+
+**Original Gap:** Deskbrid spoke its own JSON protocol. MCP-compatible clients
+(Claude Code, Codex CLI, Cursor) couldn't use it as a tool server without a
+custom bridge.
 
 **Implementation:** Run an MCP transport alongside the Unix socket. MCP tools
 map to Deskbrid actions:
@@ -4466,8 +4494,8 @@ map to Deskbrid actions:
 **Startup:**
 
 ```bash
-deskbrid daemon --mcp              # stdio mode (for Claude Code, Codex)
-deskbrid daemon --mcp-port 7891     # SSE mode (for remote MCP clients)
+deskbrid mcp                       # stdio mode (for Claude Code, Codex)
+deskbrid daemon --mcp-port 7891     # token-authenticated TCP mode
 ```
 
 **Capability mapping:** 90+ actions → 90+ MCP tools. Categories map to tool
@@ -4988,7 +5016,7 @@ storage.events.subscribe → "warning" at 90%, "critical" at 95%
 
 ### system.pressure
 
-**What's Missing:** Linux Pressure Stall Information (PSI) tells agents about
+**Original Gap:** Linux Pressure Stall Information (PSI) tells agents about
 CPU, memory, and IO pressure. Agents can use this to decide whether to
 proceed, back off, or retry.
 
@@ -5795,9 +5823,14 @@ synthetic desktop.
 
 ## 122. Mock Backend for Agent Testing
 
-**What's Missing:** No way to run Deskbrid actions against a simulated desktop
-without affecting the real one. Developers and agents need deterministic test
-environments.
+**Status:** ✅ Done. `deskbrid daemon --mock` starts a deterministic mock backend
+with fake windows, workspaces, monitors, clipboard, screenshots, keyboard layouts,
+audio, Bluetooth, notifications, and scenario loading through
+`DESKBRID_MOCK_SCENARIO`.
+
+**Original Gap:** There was no way to run Deskbrid actions against a simulated
+desktop without affecting the real one. Developers and agents needed deterministic
+test environments.
 
 **Implementation:** A `--mock` mode that replaces all DE backends with
 deterministic stubs:
@@ -5817,7 +5850,7 @@ deskbrid daemon --mock
 // scenario.json — define fake windows, a11y trees, clipboard state, screenshots
 // response_rules.json — define what each action returns
 
-// Mock-specific actions:
+// Runtime scenario actions remain future work:
 MockScenarioLoad { path: String },
 MockScenarioRun { name: String },        // play through a scenario deterministically
 MockScenarioTeardown,
@@ -5825,11 +5858,12 @@ MockActionRecord { duration_s: u64 },    // record all dispatched actions for re
 MockActionVerify { expected: Vec<MockAction> },  // verify the agent took the right actions
 ```
 
-**Mock backends override the normal dispatch:** Each real backend (GNOME, KDE,
-Hyprland) has a `MockBackend` counterpart that returns fixed data. The daemon
-operation is identical — only the backend drivers swap.
+**Mock backend override:** The daemon operation is identical — only the backend
+driver swaps. Scenario JSON can override the default windows, workspaces,
+monitors, clipboard, and keyboard layouts before startup.
 
-**Effort:** ~400 lines. Mock backend implementations + scenario format.
+**Implemented in:** `src/backend/mock.rs`, `src/backend/mod.rs`, and
+`src/daemon/mod.rs`.
 
 ---
 
@@ -5906,9 +5940,9 @@ startup, re-hydrate from this file.
 
 **Status:** ✅ Done — *TESTING NEEDED with an actual newer GitHub release and service-managed install*
 
-**What's Missing:** Full automatic crash rollback/history is still future work. The shipped implementation covers check/install with a binary backup (`deskbrid.old`) and user-service restart.
+**Remaining Scope:** Full automatic crash rollback/history is still future work. The shipped implementation covers check/install with a binary backup (`deskbrid.old`) and user-service restart.
 
-**Implementation:** Built-in update checker with rollback support:
+**Implementation:** Built-in update checker and installer with binary backup:
 
 ```rust
 UpdateCheck,
@@ -5918,17 +5952,16 @@ UpdateDownload { version: Option<String> },
 // Returns: { progress: 45, speed: "2.3 MB/s", estimated: "12s" }
 
 UpdateApply,
-// 1. Verify downloaded binary's GPG signature
-// 2. Back up current binary to ~/.local/share/deskbrid/backups/v0.6.0
+// 1. Verify checksum when available
+// 2. Back up current binary to deskbrid.old
 // 3. Swap binary
-// 4. Trigger graceful restart (Section 124)
-// 5. On crash within 60s: revert to backup automatically
+// 4. Restart the user service when requested
 
 UpdateRollback,
-// Returns: { rollback_to: "v0.6.0", reason: "v0.7.0 crashed within startup timeout" }
+// Future scope: automatic crash rollback/history
 
 UpdateHistory,
-// Returns: [{version: "v0.7.0", installed: "2026-06-02", status: "current"}, {version: "v0.6.0", installed: "2026-05-01", status: "backup"}]
+// Future scope: persisted install/rollback history
 ```
 
 **Version source:** GitHub Releases API (`https://api.github.com/repos/coe0718/deskbrid/releases`).
