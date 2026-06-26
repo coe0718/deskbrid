@@ -709,3 +709,56 @@ async fn mock_backend_dispatches_screenshot_and_input_without_real_desktop() {
     assert_eq!(clipboard["status"], "ok");
     assert_eq!(clipboard["data"]["text"], "mock clipboard");
 }
+
+#[tokio::test]
+async fn watch_actions_create_list_and_remove_with_mock_backend() {
+    let state = mock_protocol_state().await;
+
+    let region_create = dispatch_json_to_mock(
+        &state,
+        1,
+        r#"{"type":"region_watch.create","id":"region-create","name":"mock-region","region":{"x":0,"y":0,"width":20,"height":20},"interval_ms":10000,"change_threshold_pct":1.0}"#,
+    )
+    .await;
+    assert_eq!(region_create["status"], "ok");
+    assert_eq!(region_create["data"]["created"], "mock-region");
+
+    let region_list = dispatch_json_to_mock(
+        &state,
+        2,
+        r#"{"type":"region_watch.list","id":"region-list"}"#,
+    )
+    .await;
+    assert_eq!(region_list["status"], "ok");
+    assert_eq!(region_list["data"]["count"], 1);
+
+    let region_remove = dispatch_json_to_mock(
+        &state,
+        3,
+        r#"{"type":"region_watch.remove","id":"region-remove","name":"mock-region"}"#,
+    )
+    .await;
+    assert_eq!(region_remove["status"], "ok");
+
+    let text_create = dispatch_json_to_mock(
+        &state,
+        4,
+        r#"{"type":"text_watch.create","id":"text-create","name":"mock-text","region":{"x":0,"y":0,"width":40,"height":20},"interval_ms":10000,"notify_on_match":"Done","max_entries":3}"#,
+    )
+    .await;
+    assert_eq!(text_create["status"], "ok");
+    assert_eq!(text_create["data"]["created"], "mock-text");
+
+    let text_list =
+        dispatch_json_to_mock(&state, 5, r#"{"type":"text_watch.list","id":"text-list"}"#).await;
+    assert_eq!(text_list["status"], "ok");
+    assert_eq!(text_list["data"]["count"], 1);
+
+    let text_remove = dispatch_json_to_mock(
+        &state,
+        6,
+        r#"{"type":"text_watch.remove","id":"text-remove","name":"mock-text"}"#,
+    )
+    .await;
+    assert_eq!(text_remove["status"], "ok");
+}

@@ -144,6 +144,25 @@ pub(super) fn optional_u8(raw: &serde_json::Value, field: &str) -> anyhow::Resul
     Ok(Some(value as u8))
 }
 
+pub(super) fn optional_positive_u64(
+    raw: &serde_json::Value,
+    field: &str,
+) -> anyhow::Result<Option<u64>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if value == 0 {
+        anyhow::bail!("'{}' must be a positive integer", field);
+    }
+    Ok(Some(value))
+}
+
 pub(super) fn required_positive_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<f64> {
     let value = raw[field]
         .as_f64()

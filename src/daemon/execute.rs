@@ -25,6 +25,7 @@ use super::execute_system;
 use super::execute_system::execute_dbus_call;
 use super::execute_windows;
 use super::execute_workspace;
+use super::region_watch;
 
 pub async fn execute_action(
     action: Action,
@@ -154,6 +155,14 @@ pub async fn execute_action(
         Screenshot { .. } | ScreenshotOcr { .. } | ScreenshotDiff { .. } => {
             execute_screenshot::execute_screenshot(action, backend, state).await?
         }
+
+        RegionWatchCreate { .. }
+        | RegionWatchUpdate { .. }
+        | RegionWatchRemove { .. }
+        | RegionWatchList
+        | TextWatchCreate { .. }
+        | TextWatchRemove { .. }
+        | TextWatchList => region_watch::execute_watch_action(action, state).await?,
 
         ScreencastStart { .. } | ScreencastStop => {
             execute_screenshot::execute_screencast(action, backend).await?

@@ -54,6 +54,7 @@ pub(crate) mod mpris_convert;
 pub mod persistence;
 pub mod portal;
 mod rate_limit;
+pub(crate) mod region_watch;
 pub(crate) mod rules;
 pub(crate) mod schedule;
 pub mod search;

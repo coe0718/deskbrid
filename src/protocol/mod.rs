@@ -60,6 +60,13 @@ mod tests {
         assert!(actions.contains(&"wait.for"));
         assert!(actions.contains(&"screenshot.ocr"));
         assert!(actions.contains(&"screenshot.diff"));
+        assert!(actions.contains(&"region_watch.create"));
+        assert!(actions.contains(&"region_watch.update"));
+        assert!(actions.contains(&"region_watch.remove"));
+        assert!(actions.contains(&"region_watch.list"));
+        assert!(actions.contains(&"text_watch.create"));
+        assert!(actions.contains(&"text_watch.remove"));
+        assert!(actions.contains(&"text_watch.list"));
         assert!(actions.contains(&"audit.log"));
         assert!(actions.contains(&"clipboard.history"));
         assert!(actions.contains(&"apps.list"));
@@ -511,6 +518,56 @@ mod tests {
     }
 
     #[test]
+    fn parses_watch_actions() {
+        let (_, region) = Action::from_json(
+            r#"{"type":"region_watch.create","id":"r","name":"spinner","region":{"x":1,"y":2,"width":30,"height":40},"interval_ms":250,"change_threshold_pct":2.5,"notify_on_stable":true,"stable_duration_ms":500,"max_changes":3,"tolerance":4}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            region,
+            Action::RegionWatchCreate {
+                name,
+                interval_ms: Some(250),
+                change_threshold_pct: Some(2.5),
+                notify_on_change: true,
+                notify_on_stable: true,
+                stable_duration_ms: Some(500),
+                max_changes: Some(3),
+                tolerance: Some(4),
+                ..
+            } if name == "spinner"
+        ));
+
+        let (_, text) = Action::from_json(
+            r#"{"type":"text_watch.create","id":"t","name":"status","region":{"x":0,"y":0,"width":100,"height":20},"language":"eng","notify_on_match":"Done","notify_on_mismatch":"Loading","max_entries":5}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            text,
+            Action::TextWatchCreate {
+                name,
+                language: Some(language),
+                notify_on_match: Some(pattern),
+                notify_on_mismatch: Some(mismatch),
+                max_entries: Some(5),
+                ..
+            } if name == "status" && language == "eng" && pattern == "Done" && mismatch == "Loading"
+        ));
+
+        let (_, remove) =
+            Action::from_json(r#"{"type":"region_watch.remove","id":"x","name":"spinner"}"#)
+                .unwrap();
+        assert!(matches!(
+            remove,
+            Action::RegionWatchRemove { name } if name == "spinner"
+        ));
+        assert!(
+            Action::from_json(r#"{"type":"region_watch.create","id":"bad","name":"x","region":{"x":0,"y":0,"width":0,"height":1}}"#)
+                .is_err()
+        );
+    }
+
+    #[test]
     fn serializes_events_with_event_field() {
         let event = crate::protocol::DeskbridEvent::WaitMatched {
             wait_id: "wait-1".into(),
@@ -522,5 +579,38 @@ mod tests {
         let value = serde_json::to_value(event).unwrap();
         assert_eq!(value["event"], "wait.matched");
         assert_eq!(value["wait_id"], "wait-1");
+    }
+
+    #[test]
+    fn serializes_watch_events_with_event_field() {
+        let event = crate::protocol::DeskbridEvent::RegionChanged {
+            name: "spinner".into(),
+            changed_pct: 12.5,
+            bounding_boxes: vec![crate::protocol::Region {
+                x: 1,
+                y: 2,
+                width: 3,
+                height: 4,
+            }],
+            screenshot_path: None,
+            timestamp: 1,
+        };
+        let value = serde_json::to_value(event).unwrap();
+        assert_eq!(value["event"], "region.changed");
+
+        let event = crate::protocol::DeskbridEvent::TextMatched {
+            name: "status".into(),
+            text: "Done".into(),
+            pattern: "Done".into(),
+            region: crate::protocol::Region {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+            },
+            timestamp: 1,
+        };
+        let value = serde_json::to_value(event).unwrap();
+        assert_eq!(value["event"], "text.matched");
     }
 }

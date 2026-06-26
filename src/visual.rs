@@ -20,20 +20,20 @@ pub struct ScreenshotDiffRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct DiffStats {
-    width: u32,
-    height: u32,
-    total_pixels: u64,
-    changed_pixels: u64,
-    bbox: Option<BoundingBox>,
+pub(crate) struct DiffStats {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) total_pixels: u64,
+    pub(crate) changed_pixels: u64,
+    pub(crate) bbox: Option<BoundingBox>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct BoundingBox {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
+pub(crate) struct BoundingBox {
+    pub(crate) x: u32,
+    pub(crate) y: u32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 pub async fn screenshot_diff(
@@ -51,17 +51,9 @@ pub async fn screenshot_diff(
         }
     };
 
-    let tolerance = request.tolerance;
-    let before_for_diff = before_path.clone();
-    let after_for_diff = after_path.clone();
-    let (stats, diff_image) = tokio::task::spawn_blocking(move || {
-        let before = image::open(&before_for_diff)
-            .with_context(|| format!("failed to open image {}", before_for_diff.display()))?;
-        let after = image::open(&after_for_diff)
-            .with_context(|| format!("failed to open image {}", after_for_diff.display()))?;
-        diff_images(&before, &after, tolerance)
-    })
-    .await??;
+    let (stats, diff_image) =
+        diff_image_paths_with_image(before_path.clone(), after_path.clone(), request.tolerance)
+            .await?;
 
     let diff_path = if request.save_diff || request.diff_path.is_some() {
         let path = match request.diff_path {
@@ -109,7 +101,31 @@ pub async fn screenshot_diff(
     }))
 }
 
-fn diff_images(
+pub(crate) async fn diff_image_paths(
+    before_path: PathBuf,
+    after_path: PathBuf,
+    tolerance: u8,
+) -> anyhow::Result<DiffStats> {
+    let (stats, _) = diff_image_paths_with_image(before_path, after_path, tolerance).await?;
+    Ok(stats)
+}
+
+async fn diff_image_paths_with_image(
+    before_path: PathBuf,
+    after_path: PathBuf,
+    tolerance: u8,
+) -> anyhow::Result<(DiffStats, DiffImage)> {
+    tokio::task::spawn_blocking(move || {
+        let before = image::open(&before_path)
+            .with_context(|| format!("failed to open image {}", before_path.display()))?;
+        let after = image::open(&after_path)
+            .with_context(|| format!("failed to open image {}", after_path.display()))?;
+        diff_images(&before, &after, tolerance)
+    })
+    .await?
+}
+
+pub(crate) fn diff_images(
     before: &image::DynamicImage,
     after: &image::DynamicImage,
     tolerance: u8,

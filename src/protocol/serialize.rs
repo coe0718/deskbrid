@@ -22,6 +22,7 @@ mod rules;
 mod screenshot;
 mod sessions;
 mod system;
+mod watch;
 mod windows;
 
 pub use action_type::action_type;
@@ -83,8 +84,19 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         // Screenshot
         Action::Screenshot { .. }
         | Action::ScreenshotOcr { .. }
-        | Action::ScreenshotDiff { .. }
-        | Action::ScreencastStart { .. }
+        | Action::ScreenshotDiff { .. } => screenshot::serialize_screenshot(action, &id),
+
+        // Screen/text watching
+        Action::RegionWatchCreate { .. }
+        | Action::RegionWatchUpdate { .. }
+        | Action::RegionWatchRemove { .. }
+        | Action::RegionWatchList
+        | Action::TextWatchCreate { .. }
+        | Action::TextWatchRemove { .. }
+        | Action::TextWatchList => watch::serialize_watch(action, &id),
+
+        // Screencast / portal
+        Action::ScreencastStart { .. }
         | Action::ScreencastStop
         | Action::PortalScreenshot { .. }
         | Action::PortalScreencastStart { .. }

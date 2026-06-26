@@ -30,6 +30,7 @@ mod search;
 mod secrets;
 mod sessions;
 mod system;
+mod watch;
 mod windows;
 mod workspace_layout;
 
@@ -103,6 +104,11 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         // Screenshot
         s if s == "screenshot" || s.starts_with("screenshot.") => {
             screenshot::parse_screenshot(&raw, &id, s)?
+        }
+
+        // Screen/text watching
+        s if s.starts_with("region_watch.") || s.starts_with("text_watch.") => {
+            watch::parse_watch(&raw, &id, s)?
         }
 
         // Screencast

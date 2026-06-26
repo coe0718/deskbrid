@@ -144,4 +144,43 @@ pub enum DeskbridEvent {
         action_key: String,
         timestamp: u64,
     },
+    #[serde(rename = "region.changed")]
+    RegionChanged {
+        name: String,
+        changed_pct: f64,
+        bounding_boxes: Vec<crate::protocol::Region>,
+        screenshot_path: Option<String>,
+        timestamp: u64,
+    },
+    #[serde(rename = "region.stable")]
+    RegionStable {
+        name: String,
+        duration_ms: u64,
+        screenshot_path: Option<String>,
+        timestamp: u64,
+    },
+    #[serde(rename = "text.changed")]
+    TextChanged {
+        name: String,
+        old_text: Option<String>,
+        new_text: String,
+        region: crate::protocol::Region,
+        timestamp: u64,
+    },
+    #[serde(rename = "text.matched")]
+    TextMatched {
+        name: String,
+        text: String,
+        pattern: String,
+        region: crate::protocol::Region,
+        timestamp: u64,
+    },
+    #[serde(rename = "text.mismatched")]
+    TextMismatched {
+        name: String,
+        text: String,
+        pattern: String,
+        region: crate::protocol::Region,
+        timestamp: u64,
+    },
 }
