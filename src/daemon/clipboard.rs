@@ -122,11 +122,13 @@ pub(crate) async fn execute_clipboard_history_action(
 mod tests {
     use super::*;
 
+    fn isolated_state() -> DaemonState {
+        DaemonState::with_test_database(crate::daemon::persistence::Database::memory().unwrap())
+    }
+
     #[tokio::test]
     async fn clipboard_history_dedupes_consecutive_entries() {
-        let state = DaemonState::new();
-        // Clear stale on-disk entries from previous test runs.
-        state.database.lock().await.clear_clipboard().unwrap();
+        let state = isolated_state();
         record_clipboard_text(&state, "hello", "write").await;
         record_clipboard_text(&state, "hello", "read").await;
 

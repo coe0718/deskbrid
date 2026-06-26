@@ -224,6 +224,13 @@ impl DaemonState {
         daemon::audit::load_audit_from_db(self).await;
         daemon::clipboard::load_clipboard_from_db(self).await;
     }
+
+    #[cfg(test)]
+    pub(crate) fn with_test_database(database: Database) -> Self {
+        let mut state = Self::new();
+        state.database = Arc::new(Mutex::new(database));
+        state
+    }
 }
 
 impl Default for DaemonState {

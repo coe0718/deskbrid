@@ -1,7 +1,32 @@
 use crate::protocol::Action;
 use crate::protocol::WindowInfo;
+use std::path::{Path, PathBuf};
 
 use super::*;
+
+fn isolated_state() -> crate::DaemonState {
+    crate::DaemonState::with_test_database(crate::daemon::persistence::Database::memory().unwrap())
+}
+
+fn temp_db_path(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "deskbrid-{name}-{}-{}.db",
+        std::process::id(),
+        uuid::Uuid::new_v4()
+    ))
+}
+
+fn persistent_state(db_path: &Path) -> crate::DaemonState {
+    crate::DaemonState::with_test_database(
+        crate::daemon::persistence::Database::open_path(db_path).unwrap(),
+    )
+}
+
+fn remove_sqlite_files(db_path: &Path) {
+    let _ = std::fs::remove_file(db_path);
+    let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
+}
 
 fn window(id: &str, app_id: &str, title: &str) -> WindowInfo {
     WindowInfo {
@@ -104,9 +129,7 @@ fn gnome_x11_keeps_primary_monitor_capability_supported() {
 
 #[tokio::test]
 async fn audit_actions_work_without_desktop_backend() {
-    let state = crate::DaemonState::new();
-    // Clear stale on-disk entries from previous test runs.
-    state.database.lock().await.clear_audit().unwrap();
+    let state = isolated_state();
 
     let first = dispatch_action(
         "test",
@@ -142,9 +165,7 @@ async fn audit_actions_work_without_desktop_backend() {
 
 #[tokio::test]
 async fn dry_run_validates_permissions_without_backend() {
-    let state = crate::DaemonState::new();
-    // Clear stale on-disk entries from previous test runs.
-    state.database.lock().await.clear_audit().unwrap();
+    let state = isolated_state();
 
     let response = dispatch::dispatch_action_with_options(
         "test",
@@ -185,8 +206,7 @@ async fn dry_run_validates_permissions_without_backend() {
 
 #[tokio::test]
 async fn clipboard_cache_db_consistent_after_write() {
-    let state = crate::DaemonState::new();
-    state.database.lock().await.clear_clipboard().unwrap();
+    let state = isolated_state();
 
     // Write through the daemon API
     crate::daemon::clipboard::record_clipboard_text(&state, "test-one", "api").await;
@@ -216,8 +236,7 @@ async fn clipboard_cache_db_consistent_after_write() {
 
 #[tokio::test]
 async fn audit_cache_db_consistent_after_write() {
-    let state = crate::DaemonState::new();
-    state.database.lock().await.clear_audit().unwrap();
+    let state = isolated_state();
 
     // Write an audit entry through the daemon path
     dispatch_action(
@@ -260,8 +279,8 @@ async fn audit_cache_db_consistent_after_write() {
 
 #[tokio::test]
 async fn clipboard_entries_persist_across_state_instances() {
-    let state = crate::DaemonState::new();
-    state.database.lock().await.clear_clipboard().unwrap();
+    let db_path = temp_db_path("clipboard-persist");
+    let state = persistent_state(&db_path);
 
     crate::daemon::clipboard::record_clipboard_text(&state, "survivor", "test").await;
 
@@ -269,7 +288,7 @@ async fn clipboard_entries_persist_across_state_instances() {
     drop(state);
 
     // "Restart": create a new DaemonState — same on-disk DB should have the entry.
-    let state2 = crate::DaemonState::new();
+    let state2 = persistent_state(&db_path);
     crate::daemon::clipboard::load_clipboard_from_db(&state2).await;
 
     let response = crate::daemon::clipboard::execute_clipboard_history_action(
@@ -289,14 +308,14 @@ async fn clipboard_entries_persist_across_state_instances() {
         "survivor entry missing after restart"
     );
 
-    // Cleanup
-    state2.database.lock().await.clear_clipboard().unwrap();
+    drop(state2);
+    remove_sqlite_files(&db_path);
 }
 
 #[tokio::test]
 async fn audit_entries_persist_across_state_instances() {
-    let state = crate::DaemonState::new();
-    state.database.lock().await.clear_audit().unwrap();
+    let db_path = temp_db_path("audit-persist");
+    let state = persistent_state(&db_path);
 
     dispatch_action(
         "test",
@@ -322,7 +341,7 @@ async fn audit_entries_persist_across_state_instances() {
     drop(state);
 
     // "Restart": new DaemonState, load from DB, query directly
-    let state2 = crate::DaemonState::new();
+    let state2 = persistent_state(&db_path);
     crate::daemon::audit::load_audit_from_db(&state2).await;
 
     // Query via execute_audit_action directly — no new writes, no ID collision
@@ -341,8 +360,8 @@ async fn audit_entries_persist_across_state_instances() {
     assert!(!entries.is_empty(), "audit entries should survive restart");
     assert_eq!(entries[0]["action_type"], "audit.log");
 
-    // Cleanup
-    state2.database.lock().await.clear_audit().unwrap();
+    drop(state2);
+    remove_sqlite_files(&db_path);
 }
 
 // ── 3. Confirmation System ────────────────────────────────

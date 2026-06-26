@@ -1,5 +1,7 @@
 use anyhow::Context;
 use rusqlite::Connection;
+#[cfg(test)]
+use std::path::Path;
 
 /// Current database schema version. Increment when adding/altering tables.
 /// Migrations are applied sequentially from the stored version up to this number.
@@ -28,6 +30,22 @@ impl Database {
         db.init_db()?;
         db.run_migrations()?;
 
+        Ok(db)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn open_path(path: &Path) -> anyhow::Result<Self> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).context("failed to create test database directory")?;
+        }
+
+        let conn = Connection::open(path).context("failed to open test SQLite database")?;
+        conn.execute_batch("PRAGMA journal_mode=WAL;")
+            .context("failed to set WAL journal mode")?;
+
+        let db = Self { conn };
+        db.init_db()?;
+        db.run_migrations()?;
         Ok(db)
     }
 
