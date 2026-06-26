@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::net::UnixListener;
 use tracing::{debug, error, info, warn};
 
+pub(crate) mod agent_registry;
 pub(crate) mod apps;
 pub(crate) mod apps_parse;
 pub(crate) mod audit;
@@ -48,6 +49,7 @@ mod execute_windows;
 mod execute_workspace;
 pub(crate) mod helpers;
 mod layout;
+pub(crate) mod locks;
 pub(crate) mod macro_engine;
 mod mpris;
 pub(crate) mod mpris_convert;
@@ -196,6 +198,10 @@ pub async fn run(
 
     // Start confirmation TTL sweeper — purges expired pending confirmations
     execute_confirmation::spawn_confirmation_sweeper(Arc::clone(&state));
+
+    // Start coordination sweepers — heartbeat timeouts and stale lock TTLs
+    agent_registry::spawn_heartbeat_sweeper(Arc::clone(&state));
+    locks::spawn_lock_sweeper(Arc::clone(&state));
 
     // Start schedule engine — runs configured actions on a timer
     schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));

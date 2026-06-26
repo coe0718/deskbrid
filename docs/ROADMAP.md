@@ -60,6 +60,8 @@ it to the completed table below.
 
 || [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
 || [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
+|| [46. Lock / Mutex](#46-lock--mutex-primitives) | Atomic daemon lock table with TTL expiry, force-steal, wait timeout events, token-checked release, and disconnect cleanup | `src/daemon/locks.rs`, `src/daemon/dispatch.rs`, `src/protocol/` |
+|| [47. Agent Registry](#47-agent-registry) | Session auto-registration plus explicit agent register/list/get/heartbeat, liveness events, subscription counts, last action, and lock ownership reporting | `src/daemon/agent_registry.rs`, `src/daemon/client.rs`, `src/protocol/` |
 || [80. Unified Search](#80-unified-search) | Cross-surface search index (windows, files, clipboard, apps, audit log) with relevance scoring, async file scanning, MCP tools, dashboard card | `src/daemon/execute_search.rs`, `src/protocol/parse/search.rs`, `src/mcp/tools_search.rs` |
 || [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
 || [29. Keyring / Secrets](#29-keyring--secrets) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
@@ -132,8 +134,8 @@ These features exist in the codebase already for reference:
 43. [Text Change Events](#43-text-change-events-watched-regions)
 44. [Agent Messaging](#44-agent-to-agent-messaging)
 45. [✅ Shared Blackboard](#45-shared-blackboard-kv-store)
-46. [Lock / Mutex](#46-lock--mutex-primitives)
-47. [Agent Registry](#47-agent-registry)
+46. [✅ Lock / Mutex](#46-lock--mutex-primitives)
+47. [✅ Agent Registry](#47-agent-registry)
 48. [REPL Mode](#48-repl-mode)
 49. [Action Simulator](#49-action-simulator-replay-capture)
 50. [Protocol Fuzzer](#50-protocol-fuzzer)
@@ -2700,19 +2702,21 @@ blackboard.list  { namespace? }
 
 ---
 
-## 46. Lock / Mutex Primitives
+## 46. Lock / Mutex Primitives ✅
 
-**What's Missing:** Two agents can race for the same resource (window focus, input
-injection, keyboard). No coordination means conflicting operations.
+**Status:** ✅ Complete. `lock.acquire`, `lock.release`, and `lock.list` are
+implemented with an atomic daemon lock table, TTL expiry, force-steal, wait
+timeouts, token-checked release, subscription events, and automatic release on
+session disconnect.
 
-**Implementation:** Distributed lock over the blackboard (section 45):
+**Implementation:**
 
 ```rust
 LockAcquire {
     resource: String,             // "input.keyboard", "window.focus"
-    holder: String,               // session name (auto-filled if session exists)
-    ttl_ms: u64,                  // max hold time (default: 5000)
-    wait_ms: u64,                 // max wait to acquire (0 = fail-fast)
+    holder: Option<String>,       // defaults to current session
+    ttl_ms: Option<u64>,          // max hold time (default: 30000)
+    wait_ms: Option<u64>,         // max wait to acquire (0 = fail-fast)
     force: bool,                  // steal lock from current holder
 }
 
@@ -2722,39 +2726,43 @@ LockRelease {
 }
 
 LockList,
-// Returns: [{"resource":"input.keyboard","holder":"agent-alpha","acquired_at":...,"ttl_ms":5000}, ...]
+// Returns: [{"resource":"input.keyboard","holder":"agent-alpha","token":...,"expires_at":...}, ...]
 ```
 
-**Lock semantics:** Backed by blackboard keys (`_lock:input.keyboard`). Automatic
-release on session disconnect. Stale lock detection (TTL expired).
+**Lock semantics:** Stored in a daemon-managed mutex table so acquisition and
+release are atomic. Stale locks expire by TTL and lock ownership is released
+when a session disconnects.
 
 ### Subscription Events
 
 ```rust
-DeskbridEvent::LockAcquired { resource, holder, timestamp }
-DeskbridEvent::LockReleased { resource, holder, timestamp }
-DeskbridEvent::LockStolen { resource, old_holder, new_holder, timestamp }
-DeskbridEvent::LockTimeout { resource, holder, timestamp }
+DeskbridEvent::LockAcquired { resource, holder, token, expires_at, timestamp }
+DeskbridEvent::LockReleased { resource, holder, token, reason, timestamp }
+DeskbridEvent::LockStolen { resource, previous_holder, new_holder, token, timestamp }
+DeskbridEvent::LockTimeout { resource, holder, owner, reason, timestamp }
 ```
 
-**Effort:** ~200 lines. Blackboard-backed distributed lock.
+**Implemented in:** `src/daemon/locks.rs`, `src/daemon/client.rs`,
+`src/protocol/parse/locks.rs`, `src/protocol/serialize/extensions.rs`.
 
 ---
 
-## 47. Agent Registry
+## 47. Agent Registry ✅
 
-**What's Missing:** No way to discover what agents are connected, what they can do,
-or what they're doing. The `clients` CLI shows connection count but nothing more.
+**Status:** ✅ Complete. Sessions auto-register on connect, agents can register
+explicit metadata, and callers can list/get/heartbeat agent records. The
+registry tracks UID, session, capabilities, metadata, subscriptions, last action,
+heartbeat timeout state, and locked resources.
 
-**Implementation:** Each session registers on connect with metadata:
+**Implementation:**
 
 ```rust
 // Auto-registered on session connect
 AgentRegister {
     name: String,                 // session name
     agent_type: Option<String>,   // "codex", "praxis", "hermes"
-    capabilities: Option<Vec<String>>, // what this agent does
-    metadata: Option<HashMap<String, String>>,
+    capabilities: Vec<String>,    // what this agent does
+    metadata: Option<Value>,
     heartbeat_interval_ms: Option<u64>, // for liveness tracking
 }
 
@@ -2762,8 +2770,8 @@ AgentList,
 // Returns: [{
 //   "name": "agent-alpha", "connected_at": ..., "uid": 1000,
 //   "capabilities": ["code", "terminal", "browser"],
-//   "subscriptions": 5, "terminals": 2, "last_action": "windows.list",
-//   "last_seen_ms_ago": 200, "locked_resources": []
+//   "subscriptions": 5, "terminals": [], "last_action": "windows.list",
+//   "last_seen": ..., "heartbeat_timed_out": false, "locked_resources": []
 // }, ...]
 
 AgentGet { name: String },
@@ -2774,12 +2782,13 @@ AgentHeartbeat { name: String },  // automatic if heartbeat_interval set
 ### Subscription Events
 
 ```rust
-DeskbridEvent::AgentConnected { name, agent_type, timestamp }
-DeskbridEvent::AgentDisconnected { name, reason, uptime_secs, timestamp }
-DeskbridEvent::AgentHeartbeatTimeout { name, timestamp }
+DeskbridEvent::AgentConnected { name, session_id, uid, timestamp }
+DeskbridEvent::AgentDisconnected { name, session_id, uid, timestamp }
+DeskbridEvent::AgentHeartbeatTimeout { name, session_id, last_seen, timestamp }
 ```
 
-**Effort:** ~150 lines. Session metadata + liveness tracking.
+**Implemented in:** `src/daemon/agent_registry.rs`, `src/daemon/client.rs`,
+`src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`.
 
 ---
 

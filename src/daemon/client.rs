@@ -40,6 +40,13 @@ where
     let mut conn = ConnectionState::default();
     let mut line = String::new();
     let mut seq: u64 = 0;
+    if let Some(event) = state
+        .agent_registry
+        .connect_session(&conn.session_id, peer_uid)
+        .await
+    {
+        let _ = state.event_tx.send(event);
+    }
 
     let connected = serde_json::json!({
         "type": "connected",
@@ -111,33 +118,55 @@ where
                     && raw["type"].as_str() == Some("connect")
                 {
                     if let Some(session_name) = raw["session"].as_str() {
+                        let old_session = conn.session_id.clone();
                         let name = session_name.to_string();
+
                         // Create session if it doesn't exist
                         state.sessions.entry(name.clone()).or_insert_with(|| {
                             crate::SessionData::new(name.clone())
                         });
+
                         conn.session_id = name;
-                            let resp = serde_json::json!({
-                                "type": "response",
-                                "id": raw["id"].as_str().unwrap_or("?"),
-                                "seq": seq,
-                                "status": "ok",
-                                "data": { "session": conn.session_id }
-                            });
-                            writer
-                                .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
-                                .await?;
-                        } else {
-                            let err = serde_json::json!({
-                                "type": "response", "id": "?", "seq": seq, "status": "error",
-                                "error": { "code": "INVALID_PARAMS", "message": "connect requires 'session' field" }
-                            });
-                            writer
-                                .write_all(format!("{}\n", serde_json::to_string(&err)?).as_bytes())
-                                .await?;
+                        if old_session != conn.session_id {
+                            let removed = state.agent_registry.disconnect_session(&old_session).await;
+                            emit_agent_disconnects(state, &removed);
+                            let mut holders = vec![old_session];
+                            holders.extend(removed.iter().map(|record| record.name.clone()));
+                            state.locks.release_holders(holders, &state.event_tx).await;
+                            if let Some(event) = state
+                                .agent_registry
+                                .connect_session(&conn.session_id, peer_uid)
+                                .await
+                            {
+                                let _ = state.event_tx.send(event);
+                            }
+                            state
+                                .agent_registry
+                                .set_subscriptions(&conn.session_id, conn.subscriptions.len())
+                                .await;
                         }
-                        line.clear();
-                        continue;
+
+                        let resp = serde_json::json!({
+                            "type": "response",
+                            "id": raw["id"].as_str().unwrap_or("?"),
+                            "seq": seq,
+                            "status": "ok",
+                            "data": { "session": conn.session_id }
+                        });
+                        writer
+                            .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
+                            .await?;
+                    } else {
+                        let err = serde_json::json!({
+                            "type": "response", "id": "?", "seq": seq, "status": "error",
+                            "error": { "code": "INVALID_PARAMS", "message": "connect requires 'session' field" }
+                        });
+                        writer
+                            .write_all(format!("{}\n", serde_json::to_string(&err)?).as_bytes())
+                            .await?;
+                    }
+                    line.clear();
+                    continue;
                 }
 
                 let (request_id, action, options) = match Action::from_json_with_options(&line) {
@@ -177,6 +206,10 @@ where
                         for evt in &events {
                             conn.subscriptions.insert(evt.clone());
                         }
+                        state
+                            .agent_registry
+                            .set_subscriptions(&conn.session_id, conn.subscriptions.len())
+                            .await;
                         let resp = ok_response(&request_id, seq);
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
@@ -187,6 +220,10 @@ where
                         for evt in &events {
                             conn.subscriptions.remove(evt);
                         }
+                        state
+                            .agent_registry
+                            .set_subscriptions(&conn.session_id, conn.subscriptions.len())
+                            .await;
                         let resp = ok_response(&request_id, seq);
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
@@ -197,8 +234,28 @@ where
                     // Session switch updates the connection's active session so var
                     // ops resolve against the correct session after switching.
                     Action::SessionSwitch { ref name } => {
-                        conn.session_id = name.clone();
-                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &conn.session_id).await;
+                        let old_session = conn.session_id.clone();
+                        let next_session = name.clone();
+                        let resp = dispatch_action_with_options(&request_id, action, state, peer_uid, seq, options, &old_session).await;
+                        if resp["status"] == "ok" && old_session != next_session {
+                            conn.session_id = next_session;
+                            let removed = state.agent_registry.disconnect_session(&old_session).await;
+                            emit_agent_disconnects(state, &removed);
+                            let mut holders = vec![old_session];
+                            holders.extend(removed.iter().map(|record| record.name.clone()));
+                            state.locks.release_holders(holders, &state.event_tx).await;
+                            if let Some(event) = state
+                                .agent_registry
+                                .connect_session(&conn.session_id, peer_uid)
+                                .await
+                            {
+                                let _ = state.event_tx.send(event);
+                            }
+                            state
+                                .agent_registry
+                                .set_subscriptions(&conn.session_id, conn.subscriptions.len())
+                                .await;
+                        }
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
                             .await?;
@@ -254,9 +311,34 @@ where
 
     // Clean up rate limit buckets and other per-peer state to prevent
     // unbounded memory growth from accumulated disconnected clients.
+    let removed = state
+        .agent_registry
+        .disconnect_session(&conn.session_id)
+        .await;
+    emit_agent_disconnects(state, &removed);
+    let mut holders = vec![conn.session_id.clone()];
+    holders.extend(removed.iter().map(|record| record.name.clone()));
+    state.locks.release_holders(holders, &state.event_tx).await;
     state.rate_limit_store.remove_peer(peer_uid);
 
     Ok(())
+}
+
+fn emit_agent_disconnects(
+    state: &DaemonState,
+    records: &[crate::daemon::agent_registry::AgentRecord],
+) {
+    let timestamp = crate::daemon::agent_registry::now_secs();
+    for record in records {
+        let _ = state
+            .event_tx
+            .send(crate::protocol::DeskbridEvent::AgentDisconnected {
+                name: record.name.clone(),
+                session_id: record.session_id.clone(),
+                uid: record.uid,
+                timestamp,
+            });
+    }
 }
 
 /// Read a line from a buffered reader with a 10MB cap to prevent memory exhaustion.

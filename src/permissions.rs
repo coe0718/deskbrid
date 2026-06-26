@@ -131,6 +131,7 @@ impl Permissions {
                         "monitor.*".to_string(),
                         "search.*".to_string(),
                         "agent.*".to_string(),
+                        "lock.*".to_string(),
                         "macro.*".to_string(),
                         "process.*".to_string(),
                         "audit.*".to_string(),

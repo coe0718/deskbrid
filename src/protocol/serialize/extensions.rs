@@ -65,7 +65,85 @@ pub fn serialize_agent(action: &Action, id: &str) -> Value {
             "type": "agent.mailbox",
             "id": id,
         }),
+        Action::AgentRegister {
+            name,
+            agent_type,
+            capabilities,
+            metadata,
+            heartbeat_interval_ms,
+        } => {
+            let mut msg = json!({
+                "type": "agent.register",
+                "id": id,
+                "name": name,
+                "capabilities": capabilities,
+            });
+            if let Some(agent_type) = agent_type {
+                msg["agent_type"] = json!(agent_type);
+            }
+            if let Some(metadata) = metadata {
+                msg["metadata"] = metadata.clone();
+            }
+            if let Some(heartbeat_interval_ms) = heartbeat_interval_ms {
+                msg["heartbeat_interval_ms"] = json!(heartbeat_interval_ms);
+            }
+            msg
+        }
+        Action::AgentList => json!({
+            "type": "agent.list",
+            "id": id,
+        }),
+        Action::AgentGet { name } => json!({
+            "type": "agent.get",
+            "id": id,
+            "name": name,
+        }),
+        Action::AgentHeartbeat { name } => json!({
+            "type": "agent.heartbeat",
+            "id": id,
+            "name": name,
+        }),
         _ => serde_json::json!({"error": "not an agent action"}),
+    }
+}
+
+pub fn serialize_lock(action: &Action, id: &str) -> Value {
+    match action {
+        Action::LockAcquire {
+            resource,
+            holder,
+            ttl_ms,
+            wait_ms,
+            force,
+        } => {
+            let mut msg = json!({
+                "type": "lock.acquire",
+                "id": id,
+                "resource": resource,
+                "force": force,
+            });
+            if let Some(holder) = holder {
+                msg["holder"] = json!(holder);
+            }
+            if let Some(ttl_ms) = ttl_ms {
+                msg["ttl_ms"] = json!(ttl_ms);
+            }
+            if let Some(wait_ms) = wait_ms {
+                msg["wait_ms"] = json!(wait_ms);
+            }
+            msg
+        }
+        Action::LockRelease { resource, token } => json!({
+            "type": "lock.release",
+            "id": id,
+            "resource": resource,
+            "token": token,
+        }),
+        Action::LockList => json!({
+            "type": "lock.list",
+            "id": id,
+        }),
+        _ => serde_json::json!({"error": "not a lock action"}),
     }
 }
 

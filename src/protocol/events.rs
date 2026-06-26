@@ -183,4 +183,57 @@ pub enum DeskbridEvent {
         region: crate::protocol::Region,
         timestamp: u64,
     },
+    #[serde(rename = "agent.connected")]
+    AgentConnected {
+        name: String,
+        session_id: String,
+        uid: u32,
+        timestamp: u64,
+    },
+    #[serde(rename = "agent.disconnected")]
+    AgentDisconnected {
+        name: String,
+        session_id: String,
+        uid: u32,
+        timestamp: u64,
+    },
+    #[serde(rename = "agent.heartbeat_timeout")]
+    AgentHeartbeatTimeout {
+        name: String,
+        session_id: String,
+        last_seen: u64,
+        timestamp: u64,
+    },
+    #[serde(rename = "lock.acquired")]
+    LockAcquired {
+        resource: String,
+        holder: String,
+        token: String,
+        expires_at: u64,
+        timestamp: u64,
+    },
+    #[serde(rename = "lock.released")]
+    LockReleased {
+        resource: String,
+        holder: String,
+        token: String,
+        reason: String,
+        timestamp: u64,
+    },
+    #[serde(rename = "lock.stolen")]
+    LockStolen {
+        resource: String,
+        previous_holder: String,
+        new_holder: String,
+        token: String,
+        timestamp: u64,
+    },
+    #[serde(rename = "lock.timeout")]
+    LockTimeout {
+        resource: String,
+        holder: String,
+        owner: Option<String>,
+        reason: String,
+        timestamp: u64,
+    },
 }

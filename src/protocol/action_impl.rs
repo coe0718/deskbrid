@@ -222,6 +222,16 @@ impl Action {
             "secrets.list_collections",
             "secrets.get_secret",
             "secrets.store_secret",
+            "agent.message",
+            "agent.broadcast",
+            "agent.mailbox",
+            "agent.register",
+            "agent.list",
+            "agent.get",
+            "agent.heartbeat",
+            "lock.acquire",
+            "lock.release",
+            "lock.list",
         ]
     }
 

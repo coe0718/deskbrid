@@ -18,6 +18,7 @@ mod helpers;
 mod hotkeys;
 mod input;
 mod location;
+mod locks;
 mod macro_cmd;
 mod monitor;
 mod mpris;
@@ -214,6 +215,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
 
         // Agent messaging
         s if s.starts_with("agent.") => agent::parse_agent(&raw, &id, s)?,
+
+        // Lock / mutex primitives
+        s if s.starts_with("lock.") => locks::parse_lock(&raw, &id, s)?,
 
         // Unified search
         s if s.starts_with("search.") => search::parse_search(&raw, &id, s)?,

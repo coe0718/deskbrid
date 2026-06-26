@@ -78,6 +78,7 @@ pub async fn execute_agent(
     action: Action,
     state: &crate::DaemonState,
     session_id: &str,
+    peer_uid: u32,
 ) -> anyhow::Result<Value> {
     let now_ms = now_ms();
 
@@ -126,6 +127,80 @@ pub async fn execute_agent(
             let messages = state.agent_mailbox.get_for(session_id).await;
             Ok(json!({"messages": messages, "count": messages.len()}))
         }
+        Action::AgentRegister {
+            name,
+            agent_type,
+            capabilities,
+            metadata,
+            heartbeat_interval_ms,
+        } => {
+            let (record, inserted) = state
+                .agent_registry
+                .register(
+                    name,
+                    agent_type,
+                    capabilities,
+                    metadata,
+                    heartbeat_interval_ms,
+                    session_id,
+                    peer_uid,
+                )
+                .await;
+            if inserted {
+                let _ = state
+                    .event_tx
+                    .send(crate::protocol::DeskbridEvent::AgentConnected {
+                        name: record.name.clone(),
+                        session_id: record.session_id.clone(),
+                        uid: record.uid,
+                        timestamp: crate::daemon::agent_registry::now_secs(),
+                    });
+            }
+            Ok(json!({"registered": true, "agent": agent_to_json(state, record).await}))
+        }
+        Action::AgentList => {
+            let records = state.agent_registry.list().await;
+            let mut agents = Vec::with_capacity(records.len());
+            for record in records {
+                agents.push(agent_to_json(state, record).await);
+            }
+            let count = agents.len();
+            Ok(json!({"agents": agents, "count": count}))
+        }
+        Action::AgentGet { name } => match state.agent_registry.get(&name).await {
+            Some(record) => Ok(json!({"agent": agent_to_json(state, record).await, "found": true})),
+            None => Ok(json!({"agent": null, "found": false})),
+        },
+        Action::AgentHeartbeat { name } => {
+            let record = state.agent_registry.heartbeat(&name).await?;
+            Ok(json!({"ok": true, "agent": agent_to_json(state, record).await}))
+        }
         _ => anyhow::bail!("internal dispatch error: not an agent action"),
     }
+}
+
+pub(crate) fn is_agent_action(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::AgentMessage { .. }
+            | Action::AgentBroadcast { .. }
+            | Action::AgentMailbox
+            | Action::AgentRegister { .. }
+            | Action::AgentList
+            | Action::AgentGet { .. }
+            | Action::AgentHeartbeat { .. }
+    )
+}
+
+async fn agent_to_json(
+    state: &crate::DaemonState,
+    record: crate::daemon::agent_registry::AgentRecord,
+) -> Value {
+    let locked_resources = state
+        .locks
+        .resources_for_holders([record.name.clone(), record.session_id.clone()])
+        .await;
+    let mut value = serde_json::to_value(record).unwrap_or_else(|_| json!({}));
+    value["locked_resources"] = json!(locked_resources);
+    value
 }

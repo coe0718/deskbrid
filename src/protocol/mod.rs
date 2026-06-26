@@ -94,6 +94,13 @@ mod tests {
         assert!(actions.contains(&"network.dns.reset"));
         assert!(actions.contains(&"network.vpn.connect"));
         assert!(actions.contains(&"network.vpn.disconnect"));
+        assert!(actions.contains(&"agent.register"));
+        assert!(actions.contains(&"agent.list"));
+        assert!(actions.contains(&"agent.get"));
+        assert!(actions.contains(&"agent.heartbeat"));
+        assert!(actions.contains(&"lock.acquire"));
+        assert!(actions.contains(&"lock.release"));
+        assert!(actions.contains(&"lock.list"));
     }
 
     #[test]
@@ -215,6 +222,59 @@ mod tests {
 
         let (_, clear) = Action::from_json(r#"{"type":"audit.clear","id":"x"}"#).unwrap();
         assert!(matches!(clear, Action::AuditClear));
+    }
+
+    #[test]
+    fn parses_agent_registry_and_lock_actions() {
+        let (_, register) = Action::from_json(
+            r#"{"type":"agent.register","id":"a","name":"planner","agent_type":"llm","capabilities":["ocr","wait"],"metadata":{"role":"lead"},"heartbeat_interval_ms":1000}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            register,
+            Action::AgentRegister {
+                name,
+                agent_type: Some(agent_type),
+                capabilities,
+                heartbeat_interval_ms: Some(1000),
+                ..
+            } if name == "planner" && agent_type == "llm" && capabilities == vec!["ocr".to_string(), "wait".to_string()]
+        ));
+
+        let (_, get) =
+            Action::from_json(r#"{"type":"agent.get","id":"a","name":"planner"}"#).unwrap();
+        assert!(matches!(get, Action::AgentGet { name } if name == "planner"));
+
+        let (_, heartbeat) =
+            Action::from_json(r#"{"type":"agent.heartbeat","id":"a","name":"planner"}"#).unwrap();
+        assert!(matches!(heartbeat, Action::AgentHeartbeat { name } if name == "planner"));
+
+        let (_, acquire) = Action::from_json(
+            r#"{"type":"lock.acquire","id":"l","resource":"screen:main","holder":"planner","ttl_ms":5000,"wait_ms":250,"force":true}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            acquire,
+            Action::LockAcquire {
+                resource,
+                holder: Some(holder),
+                ttl_ms: Some(5000),
+                wait_ms: Some(250),
+                force: true,
+            } if resource == "screen:main" && holder == "planner"
+        ));
+
+        let (_, release) = Action::from_json(
+            r#"{"type":"lock.release","id":"l","resource":"screen:main","token":"tok"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            release,
+            Action::LockRelease { resource, token } if resource == "screen:main" && token == "tok"
+        ));
+
+        let (_, list) = Action::from_json(r#"{"type":"lock.list","id":"l"}"#).unwrap();
+        assert!(matches!(list, Action::LockList));
     }
 
     #[test]

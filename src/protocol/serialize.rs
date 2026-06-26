@@ -309,6 +309,13 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::AgentMessage { .. }
         | Action::AgentBroadcast { .. }
         | Action::AgentMailbox
+        | Action::AgentRegister { .. }
+        | Action::AgentList
+        | Action::AgentGet { .. }
+        | Action::AgentHeartbeat { .. }
+        | Action::LockAcquire { .. }
+        | Action::LockRelease { .. }
+        | Action::LockList
         | Action::UnifiedSearch { .. }
         | Action::UnifiedIndex
         | Action::SecretsListCollections
@@ -317,6 +324,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
             let at = action.action_type();
             if at.starts_with("agent.") {
                 extensions::serialize_agent(action, &id)
+            } else if at.starts_with("lock.") {
+                extensions::serialize_lock(action, &id)
             } else if at.starts_with("search.") {
                 extensions::serialize_search(action, &id)
             } else if at.starts_with("secrets.") {

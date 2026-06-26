@@ -202,6 +202,230 @@ async fn dry_run_validates_permissions_without_backend() {
     assert_eq!(audit["data"]["entries"][0]["dry_run"], true);
 }
 
+#[tokio::test]
+async fn agent_registry_actions_work_without_desktop_backend() {
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+
+    let register = dispatch::dispatch_action_with_options(
+        "agent-register",
+        Action::AgentRegister {
+            name: "planner".to_string(),
+            agent_type: Some("llm".to_string()),
+            capabilities: vec!["ocr".to_string(), "wait".to_string()],
+            metadata: Some(serde_json::json!({"role": "lead"})),
+            heartbeat_interval_ms: Some(1_000),
+        },
+        &state,
+        1000,
+        1,
+        Default::default(),
+        "planner-session",
+    )
+    .await;
+    assert_eq!(register["status"], "ok");
+    assert_eq!(register["data"]["agent"]["name"], "planner");
+    assert_eq!(register["data"]["agent"]["session_id"], "planner-session");
+
+    let heartbeat = dispatch::dispatch_action_with_options(
+        "agent-heartbeat",
+        Action::AgentHeartbeat {
+            name: "planner".to_string(),
+        },
+        &state,
+        1000,
+        2,
+        Default::default(),
+        "planner-session",
+    )
+    .await;
+    assert_eq!(heartbeat["status"], "ok");
+
+    let list = dispatch::dispatch_action_with_options(
+        "agent-list",
+        Action::AgentList,
+        &state,
+        1000,
+        3,
+        Default::default(),
+        "planner-session",
+    )
+    .await;
+    assert_eq!(list["status"], "ok");
+    assert_eq!(list["data"]["count"], 1);
+    assert_eq!(list["data"]["agents"][0]["name"], "planner");
+
+    let get = dispatch::dispatch_action_with_options(
+        "agent-get",
+        Action::AgentGet {
+            name: "planner".to_string(),
+        },
+        &state,
+        1000,
+        4,
+        Default::default(),
+        "planner-session",
+    )
+    .await;
+    assert_eq!(get["status"], "ok");
+    assert_eq!(get["data"]["found"], true);
+}
+
+#[tokio::test]
+async fn lock_actions_enforce_holder_and_token_without_desktop_backend() {
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+
+    let first = dispatch::dispatch_action_with_options(
+        "lock-first",
+        Action::LockAcquire {
+            resource: "window:editor".to_string(),
+            holder: Some("agent-a".to_string()),
+            ttl_ms: Some(5_000),
+            wait_ms: Some(0),
+            force: false,
+        },
+        &state,
+        1000,
+        1,
+        Default::default(),
+        "agent-a",
+    )
+    .await;
+    assert_eq!(first["status"], "ok");
+    assert_eq!(first["data"]["acquired"], true);
+    let first_token = first["data"]["lock"]["token"].as_str().unwrap().to_string();
+
+    let second = dispatch::dispatch_action_with_options(
+        "lock-second",
+        Action::LockAcquire {
+            resource: "window:editor".to_string(),
+            holder: Some("agent-b".to_string()),
+            ttl_ms: Some(5_000),
+            wait_ms: Some(0),
+            force: false,
+        },
+        &state,
+        1000,
+        2,
+        Default::default(),
+        "agent-b",
+    )
+    .await;
+    assert_eq!(second["status"], "ok");
+    assert_eq!(second["data"]["acquired"], false);
+    assert_eq!(second["data"]["owner"]["holder"], "agent-a");
+
+    let stolen = dispatch::dispatch_action_with_options(
+        "lock-steal",
+        Action::LockAcquire {
+            resource: "window:editor".to_string(),
+            holder: Some("agent-b".to_string()),
+            ttl_ms: Some(5_000),
+            wait_ms: Some(0),
+            force: true,
+        },
+        &state,
+        1000,
+        3,
+        Default::default(),
+        "agent-b",
+    )
+    .await;
+    assert_eq!(stolen["status"], "ok");
+    assert_eq!(stolen["data"]["acquired"], true);
+    assert_eq!(stolen["data"]["owner"]["holder"], "agent-a");
+    let stolen_token = stolen["data"]["lock"]["token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_ne!(first_token, stolen_token);
+
+    let wrong_release = dispatch::dispatch_action_with_options(
+        "lock-wrong-release",
+        Action::LockRelease {
+            resource: "window:editor".to_string(),
+            token: first_token,
+        },
+        &state,
+        1000,
+        4,
+        Default::default(),
+        "agent-a",
+    )
+    .await;
+    assert_eq!(wrong_release["status"], "ok");
+    assert_eq!(wrong_release["data"]["released"], false);
+    assert_eq!(wrong_release["data"]["reason"], "token_mismatch");
+
+    let release = dispatch::dispatch_action_with_options(
+        "lock-release",
+        Action::LockRelease {
+            resource: "window:editor".to_string(),
+            token: stolen_token,
+        },
+        &state,
+        1000,
+        5,
+        Default::default(),
+        "agent-b",
+    )
+    .await;
+    assert_eq!(release["status"], "ok");
+    assert_eq!(release["data"]["released"], true);
+
+    let list = dispatch::dispatch_action_with_options(
+        "lock-list",
+        Action::LockList,
+        &state,
+        1000,
+        6,
+        Default::default(),
+        "agent-b",
+    )
+    .await;
+    assert_eq!(list["status"], "ok");
+    assert_eq!(list["data"]["count"], 0);
+}
+
+#[tokio::test]
+async fn agent_mailbox_dispatch_uses_current_session() {
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+
+    let sent = dispatch::dispatch_action_with_options(
+        "agent-message",
+        Action::AgentMessage {
+            to_session: "target".to_string(),
+            subject: "heads-up".to_string(),
+            body: serde_json::json!({"ok": true}),
+            ttl_ms: None,
+            reply_to: None,
+        },
+        &state,
+        1000,
+        1,
+        Default::default(),
+        "source",
+    )
+    .await;
+    assert_eq!(sent["status"], "ok");
+
+    let mailbox = dispatch::dispatch_action_with_options(
+        "agent-mailbox",
+        Action::AgentMailbox,
+        &state,
+        1000,
+        2,
+        Default::default(),
+        "target",
+    )
+    .await;
+    assert_eq!(mailbox["status"], "ok");
+    assert_eq!(mailbox["data"]["count"], 1);
+    assert_eq!(mailbox["data"]["messages"][0]["from_session"], "source");
+}
+
 // ── 1.2 Cache/DB Consistency ──────────────────────────────
 
 #[tokio::test]

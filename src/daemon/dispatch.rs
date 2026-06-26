@@ -3,12 +3,14 @@ use crate::protocol::{Action, RequestOptions};
 
 use super::dispatch_helpers::*;
 use super::execute::execute_action;
+use super::execute_agent::{execute_agent, is_agent_action};
 use super::execute_blackboard::{execute_blackboard_action, is_blackboard_action};
 use super::execute_macro::{execute_macro_action, is_macro_action};
 use super::execute_rules::{execute_rules_action, is_rules_action};
 use super::execute_secrets::{execute_secrets_action, is_secrets_action};
 use super::execute_sessions::{execute_session_action, is_session_action};
 use super::helpers::{not_supported_response, permission_denied_response};
+use super::locks::{execute_lock_action, is_lock_action};
 use super::rate_limited_response;
 use super::system::{execute_system_control_action, is_system_control_action};
 use super::terminal::{execute_terminal_action, is_terminal_action};
@@ -198,6 +200,11 @@ pub async fn dispatch_action_with_options(
         return response;
     }
 
+    state
+        .agent_registry
+        .record_action(session_id, action.action_type())
+        .await;
+
     // Macro actions handled by their own executor
     if is_macro_action(&action) {
         return match execute_macro_action(&action, state, request_id, seq, peer_uid).await {
@@ -337,6 +344,32 @@ pub async fn dispatch_action_with_options(
             &action,
             action_timeout_ms,
             execute_session_action(action.clone(), state, &sid),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+    if is_agent_action(&action) {
+        let sid = session_id.to_string();
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_agent(action.clone(), state, &sid, peer_uid),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+    if is_lock_action(&action) {
+        let sid = session_id.to_string();
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            execute_lock_action(action.clone(), state, &sid),
         )
         .await;
         return action_response(

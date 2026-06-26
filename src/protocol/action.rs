@@ -843,6 +843,34 @@ pub enum Action {
         exclude_self: Option<bool>,
     },
     AgentMailbox,
+    AgentRegister {
+        name: String,
+        agent_type: Option<String>,
+        capabilities: Vec<String>,
+        metadata: Option<serde_json::Value>,
+        heartbeat_interval_ms: Option<u64>,
+    },
+    AgentList,
+    AgentGet {
+        name: String,
+    },
+    AgentHeartbeat {
+        name: String,
+    },
+
+    // ─── Lock / Mutex Primitives (#46) ───────────────────
+    LockAcquire {
+        resource: String,
+        holder: Option<String>,
+        ttl_ms: Option<u64>,
+        wait_ms: Option<u64>,
+        force: bool,
+    },
+    LockRelease {
+        resource: String,
+        token: String,
+    },
+    LockList,
 
     // ─── Unified Search (#80) ────────────────────────────
     UnifiedSearch {

@@ -77,7 +77,8 @@ fn unix_timestamp() -> u64 {
 /// `audit_log`, `clipboard_history` — standalone, never held with other locks.
 /// DashMap fields (`inhibitors`, `terminals`, `rate_limits`, `sessions`,
 /// `pending_confirmations`) are lock-free sharded maps — no ordering needed.
-/// `rate_limit_store`, `schedule`, `agent_mailbox`, `search_index` —
+/// `rate_limit_store`, `schedule`, `agent_mailbox`, `agent_registry`,
+/// `locks`, `search_index` —
 /// internally synchronized, never held with other DaemonState locks.
 pub struct DaemonState {
     pub backend: Arc<RwLock<Option<Box<dyn backend::DesktopBackend>>>>,
@@ -110,6 +111,8 @@ pub struct DaemonState {
     pub screencast_process: Arc<Mutex<Option<daemon::portal::ActiveScreencast>>>,
     pub pending_confirmations: DashMap<String, daemon::execute_confirmation::PendingConfirmation>,
     pub agent_mailbox: Arc<daemon::execute_agent::AgentMailboxStore>,
+    pub agent_registry: Arc<daemon::agent_registry::AgentRegistry>,
+    pub locks: Arc<daemon::locks::LockStore>,
     pub search_index: Arc<daemon::search::SearchIndex>,
     pub(crate) watchers: Arc<daemon::region_watch::WatchRegistry>,
     next_confirmation_id: AtomicU64,
@@ -182,6 +185,8 @@ impl DaemonState {
             screencast_process: Arc::new(Mutex::new(None)),
             pending_confirmations: DashMap::new(),
             agent_mailbox: Arc::new(daemon::execute_agent::AgentMailboxStore::new()),
+            agent_registry: Arc::new(daemon::agent_registry::AgentRegistry::new()),
+            locks: Arc::new(daemon::locks::LockStore::new()),
             search_index: Arc::new(daemon::search::SearchIndex::new()),
             watchers: Arc::new(daemon::region_watch::WatchRegistry::new()),
             next_confirmation_id: AtomicU64::new(1),

@@ -1,7 +1,6 @@
 use crate::DaemonState;
 use crate::protocol::Action;
 
-use super::execute_agent;
 use super::execute_audio;
 use super::execute_audit;
 use super::execute_bluetooth;
@@ -242,8 +241,19 @@ pub async fn execute_action(
                 "internal dispatch error: confirmation actions must be handled in dispatch, not execute"
             )
         }
-        AgentMessage { .. } | AgentBroadcast { .. } | AgentMailbox => {
-            execute_agent::execute_agent(action, state, "default").await?
+        AgentMessage { .. }
+        | AgentBroadcast { .. }
+        | AgentMailbox
+        | AgentRegister { .. }
+        | AgentList
+        | AgentGet { .. }
+        | AgentHeartbeat { .. }
+        | LockAcquire { .. }
+        | LockRelease { .. }
+        | LockList => {
+            anyhow::bail!(
+                "internal dispatch error: agent and lock actions must be handled in dispatch, not execute"
+            )
         }
         UnifiedSearch { .. } | UnifiedIndex => {
             execute_search::execute_search(action, state, backend).await?
