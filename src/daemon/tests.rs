@@ -602,3 +602,110 @@ async fn confirmation_rejects_wrong_peer_uid() {
     // Now it's gone
     assert!(!state.pending_confirmations.contains_key(&confirm_id));
 }
+
+async fn mock_protocol_state() -> crate::DaemonState {
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+    let backend = crate::backend::create_mock_backend(state.event_tx.clone())
+        .await
+        .unwrap();
+    *state.backend.write().await = Some(backend);
+    state
+}
+
+async fn dispatch_json_to_mock(
+    state: &crate::DaemonState,
+    seq: u64,
+    line: &str,
+) -> serde_json::Value {
+    let (id, action, options) = Action::from_json_with_options(line).unwrap();
+    dispatch::dispatch_action_with_options(&id, action, state, 1000, seq, options, "mock-test")
+        .await
+}
+
+#[tokio::test]
+async fn mock_backend_dispatches_core_protocol_actions() {
+    let state = mock_protocol_state().await;
+
+    let windows =
+        dispatch_json_to_mock(&state, 1, r#"{"type":"windows.list","id":"windows"}"#).await;
+    assert_eq!(windows["status"], "ok");
+    assert!(windows["data"].as_array().unwrap().len() >= 3);
+
+    let focus = dispatch_json_to_mock(
+        &state,
+        2,
+        r#"{"type":"windows.focus","id":"focus","window_id":"mock-browser"}"#,
+    )
+    .await;
+    assert_eq!(focus["status"], "ok");
+    assert_eq!(focus["data"]["focused"], "mock-browser");
+
+    let focused = dispatch_json_to_mock(
+        &state,
+        3,
+        r#"{"type":"windows.get","id":"get","window_id":"mock-browser"}"#,
+    )
+    .await;
+    assert_eq!(focused["status"], "ok");
+    assert_eq!(focused["data"]["is_focused"], true);
+
+    let switch = dispatch_json_to_mock(
+        &state,
+        4,
+        r#"{"type":"workspaces.switch","id":"workspace","workspace_id":2}"#,
+    )
+    .await;
+    assert_eq!(switch["status"], "ok");
+
+    let info = dispatch_json_to_mock(&state, 5, r#"{"type":"system.info","id":"info"}"#).await;
+    assert_eq!(info["status"], "ok");
+    assert_eq!(info["data"]["desktop"], "Mock");
+    assert_eq!(info["data"]["current_workspace"], 2);
+
+    let monitor = dispatch_json_to_mock(
+        &state,
+        6,
+        r#"{"type":"monitor.set_resolution","id":"monitor","output":"mock-0","width":1280,"height":720}"#,
+    )
+    .await;
+    assert_eq!(monitor["status"], "ok");
+
+    let monitors =
+        dispatch_json_to_mock(&state, 7, r#"{"type":"monitor.list","id":"monitors"}"#).await;
+    assert_eq!(monitors["status"], "ok");
+    assert_eq!(monitors["data"][0]["width"], 1280);
+    assert_eq!(monitors["data"][0]["height"], 720);
+}
+
+#[tokio::test]
+async fn mock_backend_dispatches_screenshot_and_input_without_real_desktop() {
+    let state = mock_protocol_state().await;
+
+    let input = dispatch_json_to_mock(
+        &state,
+        1,
+        r#"{"type":"input.keyboard","id":"keyboard","action":"type","text":"hello"}"#,
+    )
+    .await;
+    assert_eq!(input["status"], "ok");
+    assert_eq!(input["data"]["typed"], 5);
+
+    let screenshot = dispatch_json_to_mock(
+        &state,
+        2,
+        r#"{"type":"screenshot","id":"shot","region":{"x":0,"y":0,"width":9,"height":7}}"#,
+    )
+    .await;
+    assert_eq!(screenshot["status"], "ok");
+    assert_eq!(screenshot["data"]["width"], 9);
+    assert_eq!(screenshot["data"]["height"], 7);
+    let path = screenshot["data"]["path"].as_str().unwrap();
+    assert!(std::path::Path::new(path).exists());
+    let _ = std::fs::remove_file(path);
+
+    let clipboard =
+        dispatch_json_to_mock(&state, 3, r#"{"type":"clipboard.read","id":"clipboard"}"#).await;
+    assert_eq!(clipboard["status"], "ok");
+    assert_eq!(clipboard["data"]["text"], "mock clipboard");
+}

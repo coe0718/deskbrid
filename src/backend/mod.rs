@@ -5,6 +5,7 @@ pub(crate) mod gsettings_desktop;
 pub mod hyprland;
 pub mod kde;
 pub mod labwc;
+pub mod mock;
 pub mod niri;
 pub(crate) mod print;
 pub mod sway;
@@ -55,6 +56,15 @@ pub async fn create_backend(
             .await
             .map(|b| Box::new(b) as Box<dyn DesktopBackend>),
     }
+}
+
+/// Create a deterministic backend for protocol and agent testing.
+pub async fn create_mock_backend(
+    event_tx: tokio::sync::broadcast::Sender<crate::protocol::DeskbridEvent>,
+) -> anyhow::Result<Box<dyn DesktopBackend>> {
+    mock::MockBackend::new(event_tx)
+        .await
+        .map(|b| Box::new(b) as Box<dyn DesktopBackend>)
 }
 
 /// Detect which desktop environment is running.

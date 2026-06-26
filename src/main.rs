@@ -47,6 +47,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
     match args.command {
         cli::Command::Daemon {
             verbose: _,
+            mock,
             mcp_port,
             no_dashboard,
             dashboard_bind,
@@ -61,6 +62,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
                 tcp_token,
                 mcp_port,
                 mcp_token,
+                mock,
             )
             .await
         }

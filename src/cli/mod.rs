@@ -86,6 +86,10 @@ pub enum Command {
         #[arg(long)]
         verbose: bool,
 
+        /// Use a deterministic mock desktop backend for testing
+        #[arg(long)]
+        mock: bool,
+
         #[arg(long)]
         mcp_port: Option<u16>,
 

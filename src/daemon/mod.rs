@@ -136,6 +136,7 @@ pub async fn run(
     tcp_token: Option<String>,
     mcp_port: Option<u16>,
     mcp_token: Option<String>,
+    mock_backend: bool,
 ) -> anyhow::Result<()> {
     let sock = socket_path();
     let _ = tokio::fs::remove_file(&sock).await;
@@ -165,7 +166,12 @@ pub async fn run(
 
     // Load the desktop backend
     let backend_tx = state.event_tx.clone();
-    match crate::backend::create_backend(backend_tx).await {
+    let backend_result = if mock_backend {
+        crate::backend::create_mock_backend(backend_tx).await
+    } else {
+        crate::backend::create_backend(backend_tx).await
+    };
+    match backend_result {
         Ok(backend) => {
             let backend_name = backend
                 .system_info()
