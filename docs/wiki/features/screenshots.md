@@ -1,6 +1,11 @@
 # Screenshots & OCR
 
-Capture screenshots, analyze with OCR, and compare images.
+Capture screenshots, analyze with OCR, compare images, and pick colors.
+
+> **Note:** The canonical documentation for screenshots is in
+> [screenshot.md](screenshot.md) (includes OCR, diff, region watching).
+> Color picking is documented in [color_picker.md](color_picker.md).
+> This page is a convenience alias.
 
 ## Basic Screenshot
 

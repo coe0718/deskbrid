@@ -1,235 +1,214 @@
 # Network
 
-Query network status and WiFi information.
+Query and manage network interfaces, Wi-Fi connections, hotspots, DNS, VPNs,
+and WWAN (mobile broadband).
 
-## Network Status
+## Actions
+
+### network.status
+
+Return overall network status — connectivity state and primary interface.
 
 ```bash
-deskbrid network status
+deskbrid network.status
 ```
 
+No parameters.
+
 Response:
+
 ```json
 {
   "type": "response",
   "status": "ok",
   "data": {
-    "connected": true,
-    "interface": "wlan0",
-    "type": "wifi",
-    "ssid": "MyNetwork",
-    "signal": 85
+    "connectivity": "full",
+    "primary_interface": "wlp2s0",
+    "primary_ip": "192.168.1.42",
+    "gateway": "192.168.1.1"
   }
 }
 ```
 
-Protocol:
-```json
-{"type": "network.status"}
-```
+### network.interfaces
 
-## WiFi Networks
+List all network interfaces with their type, IP, and state.
 
 ```bash
-deskbrid network wifi
+deskbrid network.interfaces
 ```
 
 Response:
+
 ```json
 {
   "type": "response",
   "status": "ok",
   "data": [
-    {"ssid": "MyNetwork", "signal": 85, "secured": true},
-    {"ssid": "GuestNetwork", "signal": 42, "secured": false}
+    {"name": "lo", "type": "loopback", "state": "up", "ip": "127.0.0.1"},
+    {"name": "wlp2s0", "type": "wifi", "state": "up", "ip": "192.168.1.42"},
+    {"name": "enp3s0", "type": "ethernet", "state": "down", "ip": null}
   ]
 }
 ```
 
-Protocol:
-```json
-{"type": "network.wifi"}
-```
+### network.wifi_scan
 
-## Network Connections
+Scan for available Wi-Fi networks.
 
 ```bash
-deskbrid network connections
+deskbrid network.wifi_scan
 ```
 
+No parameters.
+
 Response:
+
 ```json
 {
   "type": "response",
   "status": "ok",
   "data": [
-    {
-      "name": "MyHomeWiFi",
-      "type": "wifi",
-      "device": "wlan0",
-      "state": "activated",
-      "ip4": "192.168.1.100",
-      "ip6": "fe80::abcd:ef01:2345:6789"
-    },
-    {
-      "name": "Ethernet",
-      "type": "ethernet",
-      "device": "eth0",
-      "state": "deactivated"
-    }
+    {"ssid": "Home Network", "signal": 85, "secured": true, "frequency": 5180},
+    {"ssid": "Guest WiFi", "signal": 60, "secured": false, "frequency": 2437}
   ]
 }
 ```
 
-Protocol:
-```json
-{"type": "network.connections.list"}
-```
+### network.wifi_connect
 
-## Connection Profiles
+Connect to a Wi-Fi network.
+
+| Parameter | Type    | Description               |
+|-----------|---------|---------------------------|
+| `ssid`    | string  | Network SSID              |
+| `password`| string? | WPA/WPA2 passphrase       |
 
 ```bash
-deskbrid network profiles
+deskbrid network.wifi_connect '{"ssid": "Home Network", "password": "mysecret"}'
 ```
 
-Response:
 ```json
 {
-  "type": "response",
-  "status": "ok",
-  "data": [
-    {
-      "name": "MyHomeWiFi",
-      "type": "wifi",
-      "autoconnect": true
-    },
-    {
-      "name": "WorkVPN",
-      "type": "vpn",
-      "autoconnect": false
-    }
-  ]
+  "type": "network.wifi_connect",
+  "ssid": "Home Network",
+  "password": "mysecret"
 }
 ```
 
-Protocol:
-```json
-{"type": "network.connections.profiles"}
-```
+### network.connection_list
 
-## Start Hotspot
+List active network connections with their details.
 
 ```bash
-deskbrid network hotspot start --ssid MyHotspot --password secret123
+deskbrid network.connection_list
 ```
 
-Protocol:
-```json
-{"type": "network.hotspot.start", "ssid": "MyHotspot", "password": "secret123"}
-```
+No parameters.
 
-## Stop Hotspot
+### network.connection_profiles
+
+List saved (configured) network connection profiles.
 
 ```bash
-deskbrid network hotspot stop
+deskbrid network.connection_profiles
 ```
 
-Protocol:
-```json
-{"type": "network.hotspot.stop"}
-```
+No parameters.
 
-## Enable/Disable WiFi
+### network.create_hotspot
+
+Create a Wi-Fi hotspot.
+
+| Parameter | Type    | Description           |
+|-----------|---------|-----------------------|
+| `ssid`    | string  | Hotspot SSID          |
+| `password`| string? | WPA2 passphrase       |
 
 ```bash
-deskbrid network wifi enable
-deskbrid network wifi disable
+deskbrid network.create_hotspot '{"ssid": "deskbrid-hotspot", "password": "temp1234"}'
 ```
 
-Protocol:
-```json
-{"type": "network.wifi.enable", "enabled": true}
-```
-```json
-{"type": "network.wifi.enable", "enabled": false}
-```
-
-## Set DNS
-
-```bash
-deskbrid network dns set --dns 8.8.8.8 --dns 8.8.4.4
-```
-
-Protocol:
-```json
-{"type": "network.dns.set", "dns": ["8.8.8.8", "8.8.4.4"]}
-```
-
-## Reset DNS
-
-```bash
-deskbrid network dns reset
-```
-
-Protocol:
-```json
-{"type": "network.dns.reset"}
-```
-
-## VPN Actions
-
-```bash
-deskbrid network vpn connect --profile WorkVPN
-deskbrid network vpn disconnect --profile WorkVPN
-```
-
-Protocol:
-```json
-{"type": "network.vpn.connect", "profile_name": "WorkVPN"}
-```
-```json
-{"type": "network.vpn.disconnect", "profile_name": "WorkVPN"}
-```
-
-## WWAN Enable/Disable
-
-```bash
-deskbrid network wwan enable
-deskbrid network wwan disable
-```
-
-Protocol:
-```json
-{"type": "network.wwan.enable", "enabled": true}
-```
-```json
-{"type": "network.wwan.enable", "enabled": false}
-```
-
-## TCP Mode
-
-Deskbrid can also listen on a TCP port for remote connections (requires `--tcp-port` and `--tcp-token` flags when starting the daemon).
-
-```bash
-deskbrid network tcp info
-```
-
-Response:
 ```json
 {
-  "type": "response",
-  "status": "ok",
-  "data": {
-    "listening": true,
-    "port": 18796,
-    "token_set": true
-  }
+  "type": "network.create_hotspot",
+  "ssid": "deskbrid-hotspot",
+  "password": "temp1234"
 }
 ```
 
-Protocol:
-```json
-{"type": "network.tcp.info"}
+### network.stop_hotspot
+
+Stop the currently active hotspot.
+
+```bash
+deskbrid network.stop_hotspot
+```
+
+No parameters.
+
+### network.wifi_enable
+
+Enable or disable the Wi-Fi radio.
+
+| Parameter | Type | Description          |
+|-----------|------|----------------------|
+| `enabled` | bool | `true` to enable Wi-Fi |
+
+```bash
+deskbrid network.wifi_enable '{"enabled": true}'
+```
+
+### network.wwan_enable
+
+Enable or disable the WWAN (mobile broadband) radio.
+
+| Parameter | Type | Description              |
+|-----------|------|--------------------------|
+| `enabled` | bool | `true` to enable WWAN    |
+
+```bash
+deskbrid network.wwan_enable '{"enabled": false}'
+```
+
+### network.dns_set
+
+Set custom DNS servers for the active connection.
+
+| Parameter | Type       | Description              |
+|-----------|------------|--------------------------|
+| `dns`     | string[]   | List of DNS server IPs   |
+
+```bash
+deskbrid network.dns_set '{"dns": ["1.1.1.1", "8.8.8.8"]}'
+```
+
+### network.dns_reset
+
+Reset DNS to automatic (DHCP) configuration.
+
+```bash
+deskbrid network.dns_reset
+```
+
+### network.vpn_connect
+
+Connect to a VPN by profile name.
+
+| Parameter      | Type   | Description            |
+|----------------|--------|------------------------|
+| `profile_name` | string | VPN profile name       |
+
+```bash
+deskbrid network.vpn_connect '{"profile_name": "Work VPN"}'
+```
+
+### network.vpn_disconnect
+
+Disconnect the active VPN connection.
+
+```bash
+deskbrid network.vpn_disconnect
 ```
 
 ## Python Example
@@ -239,21 +218,30 @@ from deskbrid import Deskbrid
 
 client = Deskbrid()
 
+# Check status
 status = client.network_status()
-if status["connected"]:
-    print(f"Connected to {status['ssid']}")
-else:
-    print("No network connection")
+print(f"Connected: {status['connectivity']}")
 
-wifi = client.network_wifi()
-for network in wifi:
-    print(f"{network['ssid']}: {network['signal']}%")
+# Scan Wi-Fi
+networks = client.network_wifi_scan()
+strongest = max(networks, key=lambda n: n["signal"])
+print(f"Strongest network: {strongest['ssid']} ({strongest['signal']}%)")
 
-connections = client.network_connections_list()
-for conn in connections:
-    print(f"{conn['name']} ({conn['type']}): {conn['state']}")
+# Connect
+client.network_wifi_connect(ssid=strongest["ssid"], password="mysecret")
 
-profiles = client.network_connections_profiles()
-for profile in profiles:
-    print(f"{profile['name']} ({profile['type']}): autoconnect={profile['autoconnect']}")
+# Custom DNS
+client.network_dns_set(dns=["1.1.1.1", "1.0.0.1"])
 ```
+
+## Requirements
+
+- NetworkManager (`nmcli` / D-Bus API) is required for all network operations.
+- `systemd-resolved` for DNS operations (or NetworkManager's built-in DNS).
+- VPN profiles must be pre-configured in NetworkManager.
+- Hotspots require a Wi-Fi adapter that supports AP mode.
+
+## Current Status
+
+**Stable** — network status, interfaces, Wi-Fi scan/connect.
+**Experimental** — hotspots, WWAN, DNS, VPN.

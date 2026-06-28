@@ -2,6 +2,9 @@
 
 Create and manage PTY sessions.
 
+> **Note:** The canonical documentation for terminal/PTY management is in
+> [terminal_pty.md](terminal_pty.md). This page is a convenience alias.
+
 ## Create Terminal
 
 ```bash

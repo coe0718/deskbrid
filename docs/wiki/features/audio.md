@@ -1,80 +1,153 @@
 # Audio
 
-List audio sinks and set sink volume via the unified backend protocol.
-
-This page covers the current v1.0.0 audio surface. Older docs in this repo may refer to audio as a separate `services.audio` module; audio is now exposed through unified backend actions and MCP tooling.
-
-## Requirements
-
-- PulseAudio or PipeWire must be active.
-- Most GNOME, KDE, Hyprland, and X11 sessions ship with the required `pactl` or PipeWire utilities by default.
+List, configure, and control audio sinks and sources via PulseAudio/PipeWire.
 
 ## Actions
 
-- `audio.list_sinks`
-- `audio.set_sink_volume`
+### audio.list_sinks
 
-## Usage
-
-### List sinks
-
-Request the current sinks from the daemon. The daemon returns the sink names and status reported by the active backend. If the backend does not expose audio sinks, the response is empty.
+List all audio output sinks (speakers, headphones, etc.).
 
 ```bash
-deskbrid audio list_sinks
+deskbrid audio.list_sinks
 ```
 
-Example response:
+No parameters.
+
+Response:
 
 ```json
 {
   "type": "response",
-  "id": "audio-1",
-  "seq": 1,
   "status": "ok",
   "data": [
-    {
-      "name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
-      "description": "Built-in Audio Analog Stereo",
-      "volume": 75,
-      "muted": false,
-      "default": true
-    }
+    {"id": 0, "name": "alsa_output.pci-0000_00_1f.3.analog-stereo", "description": "Built-in Audio Analog Stereo", "volume": 0.75, "muted": false, "default": true},
+    {"id": 1, "name": "bluez_sink.XX_XX_XX_XX_XX_XX.a2dp_sink", "description": "Sony WH-1000XM4", "volume": 0.50, "muted": false, "default": false}
   ]
 }
 ```
 
-### Set sink volume
+### audio.list_sources
 
-Set the volume for a named sink.
+List all audio input sources (microphones, line-in).
 
 ```bash
-deskbrid audio set_sink_volume --sink alsa_output.pci-0000_00_1f.3.analog-stereo --volume 50
+deskbrid audio.list_sources
 ```
 
-Expected response:
+No parameters.
 
 ```json
 {
   "type": "response",
-  "id": "audio-2",
-  "seq": 2,
   "status": "ok",
-  "data": {
-    "sink": "alsa_output.pci-0000_00_1f.3.analog-stereo",
-    "volume": 50
-  }
+  "data": [
+    {"id": 0, "name": "alsa_input.pci-0000_00_1f.3.analog-stereo", "description": "Built-in Audio Analog Stereo", "volume": 0.80, "muted": false, "default": true}
+  ]
 }
 ```
 
-If the requested sink name is not found, the action returns `NOT_FOUND`.
+### audio.set_sink_volume
 
-## MCP
+Set a specific sink's volume by its numeric ID.
 
-The MCP server exposes audio sink listing and control through tools derived from `audio.list_sinks` and `audio.set_sink_volume`. See `docs/PROTOCOL.md` and `docs/API.md` for the protocol forms used by the server.
+| Parameter | Type   | Description                                  |
+|-----------|--------|----------------------------------------------|
+| `sink_id` | uint   | Sink numeric ID (from audio.list_sinks)      |
+| `volume`  | float  | Volume level, 0.0 (mute) to 1.0 (max)        |
 
-## Notes
+```bash
+deskbrid audio.set_sink_volume '{"sink_id": 0, "volume": 0.5}'
+```
 
-- Sink identifiers are backend-reported and can change between desktop sessions or device reboots. Re-run `audio.list_sinks` before volume changes if you are scripting around a fixed sink name.
-- Desktop panels may briefly lag after a sink volume change, especially on GNOME.
-- Some backend targets do not implement this action. Confirm action availability with `system.capabilities` on your desktop.
+### audio.get_volume
+
+Get the volume level of a specific sink or source.
+
+| Parameter | Type   | Description                       |
+|-----------|--------|-----------------------------------|
+| `target`  | string | `"sink"` or `"source"`            |
+| `id`      | uint   | Device numeric ID                 |
+
+```bash
+deskbrid audio.get_volume '{"target": "sink", "id": 0}'
+```
+
+Response:
+
+```json
+{
+  "type": "response",
+  "status": "ok",
+  "data": {"target": "sink", "id": 0, "volume": 0.5}
+}
+```
+
+### audio.set_volume
+
+Set the volume of a specific sink or source.
+
+| Parameter | Type   | Description                       |
+|-----------|--------|-----------------------------------|
+| `target`  | string | `"sink"` or `"source"`            |
+| `id`      | uint   | Device numeric ID                 |
+| `volume`  | float  | Volume 0.0 to 1.0                 |
+
+```bash
+deskbrid audio.set_volume '{"target": "sink", "id": 0, "volume": 0.3}'
+```
+
+### audio.mute
+
+Mute or unmute a specific sink or source.
+
+| Parameter | Type   | Description                       |
+|-----------|--------|-----------------------------------|
+| `target`  | string | `"sink"` or `"source"`            |
+| `id`      | uint   | Device numeric ID                 |
+| `mute`    | bool   | `true` to mute, `false` to unmute |
+
+```bash
+deskbrid audio.mute '{"target": "sink", "id": 0, "mute": true}'
+```
+
+### audio.set_default
+
+Set the default sink or source by name.
+
+| Parameter | Type   | Description                                 |
+|-----------|--------|---------------------------------------------|
+| `target`  | string | `"sink"` or `"source"`                      |
+| `name`    | string | Device name (e.g. `alsa_output.pci-...`)     |
+
+```bash
+deskbrid audio.set_default '{"target": "sink", "name": "bluez_sink.XX_XX.a2dp_sink"}'
+```
+
+## Python Example
+
+```python
+from deskbrid import Deskbrid
+
+client = Deskbrid()
+
+# List and adjust volume
+sinks = client.audio_list_sinks()
+for s in sinks:
+    if s["default"]:
+        client.audio_set_sink_volume(sink_id=s["id"], volume=0.6)
+
+# Mute the default source
+sources = client.audio_list_sources()
+if sources:
+    client.audio_mute(target="source", id=sources[0]["id"], mute=True)
+```
+
+## Requirements
+
+- PulseAudio daemon (`pulseaudio`) or PipeWire with `pipewire-pulse` module.
+- Uses `pactl` under the hood for PulseAudio, or `pw-cli` for PipeWire.
+
+## Current Status
+
+**Stable** — list sinks/sources, set volume, mute, set default.

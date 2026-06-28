@@ -1,8 +1,10 @@
 # Macros
 
-Deskbrid v1.0.0 macros are recorded and replayed action sequences. Recordings
-are saved under `~/.local/share/deskbrid/macros/`. Macros capture the raw
-dispatch actions, not CLI subcommands.
+Record, replay, export, and import action macros.
+
+> **Note:** The canonical documentation for macro recording and replay is in
+> [macro_recording_replay.md](macro_recording_replay.md). This page is a
+> convenience alias.
 
 ## Overview
 

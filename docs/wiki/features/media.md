@@ -2,6 +2,10 @@
 
 Control media playback through MPRIS.
 
+> **Note:** The canonical documentation for MPRIS media control is in
+> [mpris_media_control.md](mpris_media_control.md). This page is a convenience
+> alias.
+
 ## List Players
 
 ```bash

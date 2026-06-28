@@ -1,7 +1,10 @@
 # Services
 
-Deskbrid v1.0.0 exposes service and timer control through `service.*` and
-`timer.*` actions. Journal access uses `journal.query`.
+Systemd service, timer, and journal control.
+
+> **Note:** The canonical documentation for service management is in
+> [systemd_units_journal_and_timers.md](systemd_units_journal_and_timers.md).
+> This page is a convenience alias.
 
 ## Service management
 

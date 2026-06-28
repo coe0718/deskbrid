@@ -183,11 +183,37 @@ The daemon also applies a per-UID token bucket. Configure it with
 | `system.capabilities` | — | Detailed capability matrix per backend |
 | `system.health` | — | Dependency health check with remediation suggestions |
 | `system.confinement` | — | Detect sandbox/container/security confinement context |
-| `system.remediate` | — | Auto-fix missing dependencies |
-| `system.normalize_coords` | `x` (number), `y` (number), `from` (object) | Convert monitor-relative coords to absolute |
+| `system.remediate` | `check` (string), `apply` (bool, optional) | Auto-fix missing dependencies |
+| `system.normalize_coords` | `x` (number), `y` (number) | Convert logical coords to absolute pixel coords |
+| `system.idle` | — | Milliseconds since last user input |
+| `system.power` | `action` (string) | `"suspend"` / `"hibernate"` / `"shutdown"` / `"reboot"` / `"lock"` / `"logout"` |
+| `system.battery` | — | Battery status for all batteries |
+| `system.inhibit` | `what` (string), `who` (string), `why` (string, optional) | Prevent idle/suspend/screen-blank |
+| `system.release_inhibit` | `inhibitor_id` (uint) | Release an inhibit lock |
+| `system.sessions` | — | List active logind sessions |
+| `system.lock_session` | `session_id` (string, optional) | Lock a session |
+| `system.switch_user` | `username` (string) | Fast-user-switch to another user |
+| `system.check_auth` | `action_id` (string) | Check if action requires authentication |
+| `system.elevate` | `action_id` (string), `reason` (string, optional) | Request elevation for a privileged action |
+| `system.backlight_list` | — | List backlight devices |
+| `system.backlight_get` | `device` (string, optional) | Get backlight brightness |
+| `system.backlight_set` | `device` (string, optional), `value` (string) | Set backlight brightness |
+| `system.print_list` | — | List installed printers |
+| `system.print_default` | `printer` (string, optional) | Get/set default printer |
+| `system.print_file` | `printer` (string), `path` (string) | Send file to printer |
+| `system.print_job_list` | — | List print jobs |
+| `system.print_job_cancel` | `job_id` (string) | Cancel a print job |
+| `system.print_job_pause` | `job_id` (string) | Pause a print job |
+| `system.print_job_resume` | `job_id` (string) | Resume a print job |
+| `system.pressure` | — | Pressure Stall Information (CPU, memory, I/O) |
+| `system.thermal_get` | — | Thermal zone temperatures |
+| `system.cpu_frequency` | — | Current CPU frequencies per core |
+| `system.cpu_governor` | — | Current CPU frequency governor |
+| `system.cpu_set_governor` | `governor` (string) | Set CPU frequency governor |
+| `system.update` | `check` (bool, optional), `force` (bool, optional) | Check for and apply updates |
 | `wait.for` | `condition` (string), `params` (object), `timeout_ms` (number), `interval_ms` (number, optional) | Wait for windows, clipboard, process, file, idle, or screenshot-stable conditions |
-| `audit.log` | `limit` (number, optional), `action_type` (string, optional), `status` (string, optional) | Query recent in-memory audit entries |
-| `audit.clear` | — | Clear the in-memory audit log |
+| `audit.log` | `limit` (number, optional), `action_type` (string, optional), `status` (string, optional) | Query recent audit entries |
+| `audit.clear` | — | Clear the audit log |
 
 Audit entries intentionally store action type and outcome metadata, not full action payloads, so clipboard contents and command text are not duplicated into the log.
 
@@ -344,15 +370,19 @@ clipboard.read, clipboard.write, clipboard.history, clipboard.history.clear
 apps.list, apps.search, apps.get
 mpris.list, mpris.get, mpris.control
 color.pick
-screenshot, screenshot.ocr, screenshot.diff
+screenshot, screenshot.ocr, screenshot.diff, screenshot.region_watch, screenshot.text_watch
 audit.log, audit.clear
 notification.send, notification.close
 system.info, system.idle, system.power, system.battery, system.capabilities, system.health, system.confinement, system.remediate, system.normalize_coords, wait.for
 system.inhibit, system.release_inhibit, system.sessions, system.lock_session, system.switch_user, system.check_auth, system.elevate
+system.backlight_list, system.backlight_get, system.backlight_set
+system.print_list, system.print_default, system.print_file, system.print_job_list, system.print_job_cancel, system.print_job_pause, system.print_job_resume
+system.pressure, system.thermal_get, system.cpu_frequency, system.cpu_governor, system.cpu_set_governor
+system.update
 service.status, service.start, service.stop, service.restart, service.enable, service.disable, service.list, journal.query, timer.list, timer.start, timer.stop
 network.status, network.interfaces, network.wifi_scan, network.wifi_connect
 bluetooth.list, bluetooth.scan, bluetooth.scan_stop, bluetooth.connect, bluetooth.disconnect, bluetooth.pair, bluetooth.forget
-files.watch, files.unwatch, files.search, files.read, files.write, files.copy, files.move, files.delete, files.mkdir, files.list
+files.watch, files.unwatch, files.search, files.read, files.write, files.copy, files.move, files.delete, files.mkdir, files.list, files.snapshot
 browser.list_tabs, browser.navigate, browser.evaluate, browser.screenshot_tab, browser.click
 a11y.tree, a11y.get_element, a11y.click_element, a11y.get_text
 process.list, process.start, process.stop, process.signal, process.exists, process.wait
@@ -362,6 +392,21 @@ audio.list_sinks, audio.set_sink_volume
 monitor.list, monitor.set_primary, monitor.set_resolution, monitor.set_scale, monitor.set_rotation, monitor.enable, monitor.disable, location.get
 ui.tree.get, ui.element.click, ui.element.set_text
 capabilities.list
+session.create, session.destroy, session.list, session.switch, session.var.set, session.var.get, session.var.list
+d_bus.call
+desktop.get, desktop.set, desktop.list_schemas
+portal.screenshot, portal.screencast.start, portal.screencast.stop
+screencast.list, screencast.start, screencast.stop
+connection.subscribe, connection.unsubscribe, connection.disconnect
+schedule.list, schedule.create, schedule.delete, schedule.event
+macro.record.start, macro.record.stop, macro.replay, macro.list, macro.export, macro.import
+rules.create, rules.list, rules.delete, rules.toggle, rules.run
+blackboard.get, blackboard.set, blackboard.delete, blackboard.list
+secrets.list, secrets.get, secrets.set, secrets.delete
+confirmations.get_config, confirmations.set_config, confirmations.confirm
+agent.message.send, agent.message.listen
+lock.acquire, lock.release, lock.list
+unified.search
 ```
 
 ## Error Handling

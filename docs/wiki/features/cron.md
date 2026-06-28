@@ -1,7 +1,12 @@
 # Cron
 
-Deskbrid v1.0.0 includes a cron engine for scheduling actions. The schema uses
-`rules.create` with `cron` triggers, not a separate `cron.*` namespace.
+Deskbrid uses `rules.create` with cron-style triggers and `schedule.*` actions
+for periodic task scheduling.
+
+> **Note:** The canonical documentation for scheduling is in
+> [schedule.md](schedule.md). The `rules.*` system is documented in
+> [rules.md](rules.md). This page is a convenience reference for cron-style
+> scheduling.
 
 ## Schedule events with cron
 

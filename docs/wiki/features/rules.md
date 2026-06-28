@@ -1,31 +1,58 @@
 # Rules Engine
 
-Deskbrid v1.0.0 provides a persistent, event-driven rules engine. Rules live in
-SQLite and survive daemon restarts. They react to desktop events using the same
-action strings the daemon dispatches over the socket.
+Define event-driven automation rules that trigger actions based on system
+events, conditions, and schedules.
 
-## Overview
+## Actions
 
-Rules are managed through the `rules.list`, `rules.create`, `rules.get`,
-`rules.update`, `rules.patch`, `rules.trigger`, `rules.pause`, `rules.resume`,
-and `rules.delete` actions. Each rule covers:
+### rule.create
 
-- `id` — auto-generated stable ID (`rules_<...>`) used for follow-up actions
-- `name` — human-readable label
-- `trigger` — event pattern (`window.focused`, `clipboard.changed`, `monitor.added`, ...)
-- `action_type` — dispatch target (`input.keyboard`, `notification.send`, ...)
-- `action_params` — optional JSON parameters for the action
-- `enabled` — boolean, `true` means the rule can fire
-- `cooldown_ms` — minimum interval between executions
-- `max_fires` — optional cap on total executions
-- `fires` — read-only execution counter
-- `last_fired` — read-only timestamp of most recent execution
+Create a new automation rule.
 
-## Listing rules
+| Parameter        | Type          | Description                                    |
+|-----------------|---------------|------------------------------------------------|
+| `name`          | string        | Human-readable rule name                       |
+| `trigger`       | EventTrigger  | Trigger definition (event type + params)       |
+| `condition`     | RuleCondition?| Optional condition for the rule to fire        |
+| `action_type`   | string        | Action to execute (e.g. `notification.send`)   |
+| `action_params` | JSON value    | Parameters to pass to the action               |
+| `enabled`       | bool          | Whether the rule starts enabled                |
+| `max_fires`     | uint?         | Max times the rule can fire (optional)         |
+| `cooldown_ms`   | uint?         | Min time between firings in ms                 |
 
 ```bash
-deskbrid rules.list
+deskbrid rule.create '{
+  "name": "notify-large-download",
+  "trigger": {"event": "file.created", "pattern": "*.iso"},
+  "action_type": "notification.send",
+  "action_params": {"summary": "Large download complete", "body": "{path}"},
+  "enabled": true
+}'
 ```
+
+```json
+{
+  "type": "rule.create",
+  "name": "notify-large-download",
+  "trigger": {"event": "file.created"},
+  "condition": null,
+  "action_type": "notification.send",
+  "action_params": {"summary": "File created", "body": "A new file appeared"},
+  "enabled": true,
+  "max_fires": null,
+  "cooldown_ms": 5000
+}
+```
+
+### rule.list
+
+List all configured automation rules.
+
+```bash
+deskbrid rule.list
+```
+
+No parameters.
 
 Response:
 
@@ -33,146 +60,102 @@ Response:
 {
   "type": "response",
   "status": "ok",
-  "data": {
-    "rules": [
-      {
-        "id": "rules_123",
-        "name": "focus-terminal",
-        "trigger": "window.focused",
-        "action_type": "input.keyboard",
-        "action_params": {"text": "alacritty\\n"},
-        "enabled": true,
-        "cooldown_ms": 1000,
-        "max_fires": 5,
-        "fires": 2,
-        "last_fired": "2026-05-30T10:30:00Z"
-      }
-    ]
-  }
+  "data": [
+    {"id": "rule-001", "name": "notify-large-download", "enabled": true, "trigger": "file.created", "action_type": "notification.send"},
+    {"id": "rule-002", "name": "auto-suspend", "enabled": false, "trigger": "idle.timeout", "action_type": "system.power"}
+  ]
 }
 ```
 
-## Creating a rule
+### rule.get
+
+Get the full configuration of a specific rule.
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `rule_id` | string | Rule ID     |
 
 ```bash
-deskbrid rules.create {
-  name: "focus-terminal",
-  trigger: "window.focused",
-  action_type: "input.keyboard",
-  action_params: { text: "alacritty\\n" },
-  enabled: true,
-  cooldown_ms: 1000,
-  max_fires: 5
-}
+deskbrid rule.get '{"rule_id": "rule-001"}'
 ```
 
-## Inspecting, pausing, resuming, and deleting
+### rule.delete
+
+Delete a rule permanently.
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `rule_id` | string | Rule ID     |
 
 ```bash
-deskbrid rules.get { rule_id: "rules_123" }
-deskbrid rules.patch { rule_id: "rules_123", enabled: true }
-deskbrid rules.pause { rule_id: "rules_123" }
-deskbrid rules.resume { rule_id: "rules_123" }
-deskbrid rules.delete { rule_id: "rules_123" }
+deskbrid rule.delete '{"rule_id": "rule-001"}'
 ```
 
-Use `patch` for partial updates (available in v1.0.0). Read-only fields (`fires`,
-`last_fired`) are not accepted on create.
+### rule.pause
 
-## Triggering manually
+Temporarily disable a rule without deleting it.
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `rule_id` | string | Rule ID     |
 
 ```bash
-deskbrid rules.trigger { rule_id: "rules_123" }
+deskbrid rule.pause '{"rule_id": "rule-001"}'
 ```
 
-Force a rule to execute once regardless of schedule/cooldown. Useful for
-debugging or ad-hoc automation.
+### rule.resume
 
-## Event patterns
+Re-enable a paused rule.
 
-| pattern | meaning |
-|---|---|
-| `window.focused` | window gained focus |
-| `window.created` | new window appeared |
-| `window.closed` | window closed |
-| `window.moved` | position changed |
-| `window.resized` | size changed |
-| `input.keyboard` | key pressed |
-| `input.mouse` | mouse movement/clicks |
-| `clipboard.changed` | clipboard content changed |
-| `monitor.added` | display connected |
-| `monitor.removed` | display disconnected |
-| `monitor.changed` | display settings changed |
-| `workspace.changed` | active workspace changed |
-| `*` | everything |
-
-Wildcards are supported, e.g. `window.*`.
-
-## Examples
-
-### Launch terminal on browser focus
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `rule_id` | string | Rule ID     |
 
 ```bash
-deskbrid rules.create {
-  name: "browser-terminal",
-  trigger: "window.focused",
-  action_type: "input.keyboard",
-  action_params: { text: "alacritty\\n" },
-  enabled: true,
-  cooldown_ms: 5000
-}
+deskbrid rule.resume '{"rule_id": "rule-001"}'
 ```
 
-### Clipboard URL detector with rate limit
-
-```bash
-deskbrid rules.create {
-  name: "url-notify",
-  trigger: "clipboard.changed",
-  action_type: "notification.send",
-  action_params: {
-    title: "URL Detected",
-    body: "Clipboard contains a URL"
-  },
-  enabled: true,
-  cooldown_ms: 60000
-}
-```
-
-### Workspace-based auto-launch
-
-```bash
-deskbrid rules.create {
-  name: "work-launch",
-  trigger: "workspace.changed",
-  action_type: "windows.activate_or_launch",
-  action_params: { app_id: "code", name: "VS Code" },
-  enabled: true
-}
-```
-
-## Python example
+## Python Example
 
 ```python
 from deskbrid import Deskbrid
 
 client = Deskbrid()
 
-rule_id = client.rules_create(
-    name="focus-notify",
-    trigger="window.focused",
+# Create a rule
+rule = client.rule_create(
+    name="low-battery-alert",
+    trigger={"event": "system.battery_low"},
     action_type="notification.send",
-    action_params={"title": "Window Focused", "body": "A window gained focus"},
-    enabled=True,
-    cooldown_ms=1000,
+    action_params={
+        "summary": "Battery low",
+        "body": "Connect charger soon",
+        "urgency": "critical"
+    },
+    enabled=True
 )
 
-rules = client.rules_list()
-for rule in rules["rules"]:
-    print(rule["name"], "->", rule["action_type"])
+print(f"Created rule: {rule['id']}")
 
-client.rules_pause(rule_id=rule_id)
-client.rules_trigger(rule_id=rule_id)
-client.rules_resume(rule_id=rule_id)
-client.rules_delete(rule_id=rule_id)
+# List rules
+for r in client.rule_list():
+    print(f"  {r['name']} - {'enabled' if r['enabled'] else 'disabled'}")
 ```
+
+## Requirements
+
+- Rules are evaluated by the Deskbrid daemon at runtime.
+- Trigger events depend on the event monitoring subsystem (inotify, D-Bus
+  signals, timer events).
+- Rules persist across daemon restarts (stored in the state directory).
+
+## Safety
+
+- Rules with destructive actions (power, file delete, etc.) may require
+  confirmation mode.
+- `max_fires` and `cooldown_ms` prevent accidental infinite loops.
+- Rules cannot create other rules (no recursion).
+
+## Current Status
+
+**Experimental** — v1.0.0 feature.

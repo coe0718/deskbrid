@@ -2,6 +2,10 @@
 
 Configure display settings.
 
+> **Note:** The canonical documentation for display configuration is in
+> [monitor.md](monitor.md) (using `monitor.*` actions). This page is a
+> convenience alias with the `monitors.*` CLI prefix.
+
 ## List Displays
 
 ```bash

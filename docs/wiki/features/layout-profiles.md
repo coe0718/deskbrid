@@ -1,6 +1,8 @@
 # Layout Profiles
 
-Save and restore window layout configurations.
+Save, list, get, delete, and restore window layout configurations.
+Layout profiles capture the position, size, and workspace of every open window
+so you can snap back to your preferred arrangement with one command.
 
 ## List Profiles
 
@@ -147,3 +149,41 @@ Profiles include:
 - **Development**: Save your editor + terminal + browser layout
 - **Streaming**: Quick switch to presentation mode
 - **Coding**: Restore your 3-pane layout with terminals in specific positions
+
+## Missing Actions (to be documented)
+
+### layout_profiles.ave
+
+- **Description**: [To be documented]
+- **Input**: [To be documented]
+- **Output**: [To be documented]
+- **Example**: [To be documented]
+
+### layout_profiles.layout_profile_delete
+
+- **Description**: [To be documented]
+- **Input**: [To be documented]
+- **Output**: [To be documented]
+- **Example**: [To be documented]
+
+### layout_profiles.layout_profile_get
+
+- **Description**: [To be documented]
+- **Input**: [To be documented]
+- **Output**: [To be documented]
+- **Example**: [To be documented]
+
+### layout_profiles.layout_profile_restore
+
+- **Description**: [To be documented]
+- **Input**: [To be documented]
+- **Output**: [To be documented]
+- **Example**: [To be documented]
+
+### layout_profiles.list
+
+- **Description**: [To be documented]
+- **Input**: [To be documented]
+- **Output**: [To be documented]
+- **Example**: [To be documented]
+
