@@ -2,7 +2,7 @@
 
 Deskbrid v1.0.0 exposes desktop control to AI coding agents through the MCP
 server, or directly by sending actions over the daemon socket. The daemon is
-the source of truth for available actions; see `docs/api-docs.md` for the
+the source of truth for available actions; see [`API.md`](../../API.md) for the
 canonical action map.
 
 ## MCP server

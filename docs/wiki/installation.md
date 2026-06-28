@@ -102,7 +102,7 @@ and a live audit log of agent actions.
 
 Deskbrid can check for updates on the configured channel. To change the
 default update channel or disable auto-update, see the `self_update`
-action documentation in `docs/API.md`.
+action documentation in [`../API.md`](../API.md).
 
 ## Uninstall
 

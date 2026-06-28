@@ -6,7 +6,7 @@ Wayfire, Labwc, X11 (generic — covers Xfce/MATE/Cinnamon/i3/bspwm/etc.)
 **Patterns used:** CLI subprocess, D-Bus (zbus), Wayland protocol helper binary, X11 XTest
 
 For the current method-by-method support table, see
-[`docs/BACKEND_PARITY.md`](docs/BACKEND_PARITY.md).
+[`BACKEND_PARITY.md`](BACKEND_PARITY.md).
 
 ---
 

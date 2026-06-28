@@ -28,12 +28,76 @@ client = Deskbrid()
 windows = client.list_windows()
 for w in windows:
     print(f"{w.app_id}: {w.title}")
+```
 
-# Focus VS Code
-client.focus_window(app_id="code")
+## API
 
-# Type something
-client.type_text("Hello from Python!")
+| Method | Action | Description |
+|--------|--------|-------------|
+| `list_windows()` | `windows.list` | List all open windows |
+| `focus_window(app_id=...)` | `windows.focus` | Focus a window by app_id |
+| `get_window(window_id=...)` | `windows.get` | Get window details |
+| `type_text(text)` | `input.keyboard` | Type text |
+| `press_key(combo)` | `input.keyboard` | Press key combination |
+| `read_clipboard()` | `clipboard.read` | Read clipboard contents |
+| `write_clipboard(text)` | `clipboard.write` | Write to clipboard |
+| `screenshot()` | `screenshot` | Take a screenshot |
+| `get_system_info()` | `system.info` | Get system information |
+| `send_notification(title, body)` | `notification.send` | Send a notification |
+| `list_monitors()` | `monitors.list` | List connected monitors |
+| `list_services()` | `service.list` | List systemd services |
+| `start_service(name)` | `service.start` | Start a systemd service |
+| `stop_service(name)` | `service.stop` | Stop a systemd service |
+
+## Full Example
+
+```python
+import asyncio
+from deskbrid import Deskbrid
+
+async def main():
+    client = Deskbrid()
+
+    # Get system info
+    info = await client.get_system_info()
+    print(f"Host: {info.hostname}")
+
+    # Take a screenshot
+    await client.screenshot(path="/tmp/desktop.png")
+
+    # List windows
+    windows = await client.list_windows()
+    for w in windows:
+        print(f"  {w.app_id}: {w.title}")
+
+    # Focus VS Code
+    await client.focus_window(app_id="code")
+
+    # Type and press enter
+    await client.type_text("Hello from Deskbrid!\\n")
+
+    # Read clipboard
+    clip = await client.read_clipboard()
+    print(f"Clipboard: {clip}")
+
+    # Subscribe to events
+    async for event, data in client.events(["window.*"]):
+        print(f"{event}: {data}")
+
+asyncio.run(main())
+```
+
+## Async API
+
+All methods have both sync and async versions:
+
+```python
+# Sync
+windows = client.list_windows()
+
+# Async
+windows = await client.list_windows_async()
+```
 ```
 
 ## Async Client

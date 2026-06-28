@@ -21,7 +21,7 @@ deskbrid daemon
 If you want it to start with your session, use the included systemd user unit:
 
 ```bash
-cp deploy/deskbrid.service ~/.config/systemd/user/
+cp ../../deploy/deskbrid.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now deskbrid
 ```

@@ -2,6 +2,11 @@
 
 Deskbrid's system design and internal structure.
 
+> **Note:** The canonical architecture document is [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md).
+> This page provides a lighter summary. For the full deep dive — component interaction,
+> data flow diagrams, concurrency model, backend abstraction, event streaming, and
+> security architecture — see the main document.
+
 ## Overview
 
 Deskbrid is organized into several key layers:

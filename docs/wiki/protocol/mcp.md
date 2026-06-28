@@ -56,6 +56,10 @@ MCP tools follow the daemon's action namespace. Each tool maps to one action.
 | `secrets.get` | `secrets.get` |
 | `query_records` | `query_records` |
 
+> **Note:** This table shows a representative subset of ~30 commonly-used tools.
+> For the complete list of 100+ MCP tools with full parameter schemas, see the
+> [feature documentation](./features/) or the [API reference](../../API.md).
+
 ## Configuration
 
 Claude Desktop, `claude_desktop_config.json`:
