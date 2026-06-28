@@ -2,8 +2,11 @@ name: Cleanup Old Workflow Runs
 
 on:
   schedule:
-    - cron: '0 4 * * 0'  # Every Sunday at 4am UTC
+    - cron: '0 4 * * *'  # Daily at 4am UTC
   workflow_dispatch:
+
+permissions:
+  actions: write
 
 jobs:
   cleanup:
