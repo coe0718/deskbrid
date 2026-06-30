@@ -1,3 +1,46 @@
+## v1.2.0 — Sandboxed Profiles & Auto-Suspend
+
+**Tuck · 19 commits · 147 files · +14,089 −1,894**
+
+Agent safety release. Named sandboxed profiles with allow/deny/confirm gates. Auto-suspend system with dangerous command blocking, burst detection, and heartbeat canary suspension. Agent registry and distributed lock primitives. Screen region watching with text-change detection.
+
+### 🛡️ Sandboxed Agent Profiles (#36)
+- **90586be** — Named `[profile.NAME]` blocks in `permissions.toml` with allow/deny/confirm lists, audit levels, and profile-scoped rate buckets.
+- **90586be** — Session profile binding on `session.create` and `connect`. Profile checks narrow (never widen) UID permissions.
+- **90586be** — Profile confirmation requirements — actions can require explicit approval per profile.
+- **90586be** — `PROFILE_DENIED` error responses at four dispatch gates: direct action, implied action, process starts, and confirmation mode.
+
+### ⚠️ Auto-Suspend Safety System (#38)
+- **90586be** — `src/daemon/auto_suspend.rs` — 216-line new module. Three suspension triggers:
+  - Dangerous process commands: `rm -rf`, `mkfs.*`, fork bombs (`:(){:|:&};:`), `dd if=`
+  - Suspicious action bursts: >10 `windows.focus` in 1s, >5 `files.delete` in 10s
+  - Heartbeat timeout canary: agents that miss registered heartbeat intervals get suspended
+- **90586be** — `AgentSuspended` / `AgentResumed` events emitted. Suspension bypass for resume, list, agent get, and confirmations.
+- **90586be** — Configurable via `[auto_suspend]` block in `permissions.toml` (enabled, suspend_on_heartbeat_timeout, suspend_actions).
+
+### 🤝 Agent Coordination
+- **fb45875** — Agent registry: session and agent tracking, heartbeat registration, timeout sweeper.
+- **fb45875** — Distributed lock primitives: acquire/release with token-based ownership. Token mismatch checking prevents one agent releasing another's lock.
+
+### 👁️ Screen Region Watching
+- **c6b213a** — `daemon/region_watch.rs` (722 lines): screen region monitoring with text-change detection, debounced via `DEFAULT_STABLE_DURATION_MS`. Async-correct, zero blocking calls.
+
+### 🧪 Testing Infrastructure
+- **6f13e8d** — Mock backend for protocol testing — enables zero-dependency daemon tests without a running desktop.
+- **990d9a5** — Isolated daemon persistence tests — no shared on-disk DB between test runs.
+
+### 🐛 Fixes
+- **9fafc41** — Fix blocking `std::fs::write` in async context (`cmd/update/github.rs:68`). Caught by Claude (Sonnet 5) pre-release review.
+- **723f39e** — Fix GitHub Actions workflow cleanup: add missing `actions:write` permission, run daily.
+- **ad24de2** — Fix MCP Registry duplicate version rejection (bump required before republish).
+- **56556f4** — Fix MCP `tools/list` returning empty — root cause was two bugs in tool registration.
+- **e1155fd** — Fix code review findings.
+
+### 📝 Docs & Polish
+- **928caaa, bb0de0d, 1912c85, d34bb94** — Hermes MCP integration skill, LobeHub badge, README sections.
+- **59ea607, 37157b9** — Quill: docs and wiki updates.
+- **5332720** — ROADMAP: mark items #36 and #38 as ✅ Done.
+
 ## v1.1.0 — Security Hardening
 
 **Tuck · 18 commits · 98 files · +3,756 −1,812**
