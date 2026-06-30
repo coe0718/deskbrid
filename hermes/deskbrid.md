@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v1.1.0)
+# Deskbrid Desktop Control (v1.2.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v1.1.0 highlights:** Security hardening release — all 6 Vex v2 review warnings + bonus resolved. Rules engine now blocked from dispatching HIGH_RISK actions (RULES_HIGH_RISK_BLOCKED), dispatch depth capped at 5 to prevent rule→rule cascades, secret-tool stderr sanitized (logged server-side, \"internal error\" to clients), migration atomicity via BEGIN EXCLUSIVE transaction, malformed audit JSON now warns instead of silently dropping. Protocol refactored (1505→481 lines), DaemonState Mutex→DashMap for lock ordering, all unreachable!() panics eliminated, a11y selector baseline framework added, capabilities report corrected (ui.tree.get was falsely marked unsupported). 18 commits · 98 files · +3,756 −1,812 since v1.0.0.
+**v1.2.0 highlights:** Sandboxed agent profiles — named `[profile.NAME]` blocks in `permissions.toml` with allow/deny/confirm gates, profile-scoped rate buckets, session profile binding. Auto-suspend safety system — dangerous process command blocking (`rm -rf`, `mkfs`, fork bombs), suspicious action burst detection (focus spam, file deletion sprees), heartbeat timeout canary suspension. Agent registry for multi-agent coordination. Distributed lock primitives with token-based ownership. Screen region watching with text-change detection. 18 commits · 143 files · +14,076 −1,886 since v1.1.0.
 
 **v0.12.1 highlights:** Async safety release — all blocking `std::fs` and `std::process::Command` calls in async execution paths converted to `tokio::fs`/`tokio::process::Command`. Path sandbox (`expand_path`) applied to `print-file` (prevents agent path traversal). 30+ blocking calls eliminated across 14 files. Claude code review catch.
 
