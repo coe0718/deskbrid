@@ -2354,7 +2354,7 @@ RateLimitGet,
 
 ## 36. Sandboxed Agent Profiles
 
-**Status:** ✅ Done. Deskbrid supports named `[profile.NAME]` blocks in
+**Status:** ✅ Done (v1.2.0). Deskbrid supports named `[profile.NAME]` blocks in
 `permissions.toml`, optional profile binding on `session.create` and `connect`,
 session list profile visibility, profile allow/deny checks after UID permissions,
 profile confirmation requirements, and profile-scoped rate buckets.
@@ -2420,7 +2420,7 @@ Client sends confirmation:
 
 ## 38. Canary Actions & Auto-Suspend
 
-**Status:** ✅ Done. Deskbrid now treats `agent.heartbeat` timeout as the canary
+**Status:** ✅ Done (v1.2.0). Deskbrid now treats `agent.heartbeat` timeout as the canary
 response path for agents that register `heartbeat_interval_ms`, suspends sessions
 on missed heartbeat canaries, suspends obvious suspicious action bursts, blocks
 dangerous `process.start` command patterns before execution, emits
