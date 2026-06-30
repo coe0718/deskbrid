@@ -65,7 +65,9 @@ pub(crate) async fn download(
         .bytes()
         .await
         .context("failed to read download body")?;
-    std::fs::write(path, &bytes).context("failed to write downloaded archive")?;
+    tokio::fs::write(path, &bytes)
+        .await
+        .context("failed to write downloaded archive")?;
     Ok(())
 }
 
