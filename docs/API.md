@@ -1585,7 +1585,7 @@ Remove a paired device. **Not yet supported in the backend trait.**
 ## UI Accessibility
 
 ### `a11y.tree`
-Get the accessibility tree. **Not yet implemented** — requires AT-SPI integration.
+Get the accessibility tree via AT-SPI2. Returns a BFS-traversed list of accessible elements with role, name, bounds, states, actions, and text data.
 
 **Request:**
 ```json
@@ -1596,14 +1596,39 @@ Get the accessibility tree. **Not yet implemented** — requires AT-SPI integrat
 ```json
 {
   "type": "response", "id": "req-1", "seq": 1, "status": "ok",
-  "data": { "supported": false, "reason": "AT-SPI not integrated yet", "nodes": [] }
+  "data": {
+    "elements": [
+      {
+        "role": "application",
+        "name": "Firefox",
+        "bounds": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
+        "states": ["active", "focusable", "visible"],
+        "actions": [],
+        "text": "",
+        "depth": 0,
+        "children": [
+          { "role": "panel", "name": "", "bounds": { "x": 0, "y": 0, "width": 1920, "height": 28 }, "states": ["visible"], "depth": 1 },
+          { "role": "push button", "name": "Reload", "bounds": { "x": 50, "y": 2, "width": 24, "height": 24 }, "states": ["enabled", "visible", "sensitive"], "depth": 2 },
+          { "role": "push button", "name": "Submit", "bounds": { "x": 400, "y": 200, "width": 80, "height": 30 }, "states": ["enabled", "visible", "sensitive"], "depth": 2 }
+        ]
+      }
+    ],
+    "count": 3
+  }
 }
 ```
+
+- Depth: the BFS depth from the root. The full tree is built recursively — each element's `children` array contains all nested accessible children at the next depth level.
+- `states` are AT-SPI state names (e.g. `"active"`, `"visible"`, `"enabled"`, `"sensitive"`, `"focusable"`, `"showing"`).
+- `actions` are AT-SPI action names exposed by the element (e.g., `"click"`, `"activate"`).
+- Pass the optional `depth` parameter to limit the tree depth (e.g., `"depth": 3`).
+
+**Error:** `AT-SPI bus unreachable` if the D-Bus session bus or a11y registry is not available.
 
 ---
 
 ### `a11y.get_element`
-Get an accessibility element by role, name, and/or index.
+Get an accessibility element by role, name, and/or index. Returns the element's full AT-SPI properties.
 
 **Request:**
 ```json
@@ -1615,19 +1640,24 @@ Get an accessibility element by role, name, and/or index.
 {
   "type": "response", "id": "req-2", "seq": 2, "status": "ok",
   "data": {
-    "role": "button",
     "name": "Submit",
-    "index": 0,
-    "screen_rectangle": { "x": 100, "y": 200, "width": 80, "height": 25 },
-    "children": []
+    "role": "push button",
+    "role_id": 56,
+    "description": "Submit the form",
+    "child_count": 0,
+    "states": ["enabled", "visible", "sensitive"],
+    "actions": ["click", "activate"],
+    "path": "/org/a11y/atspi/accessible/root3"
   }
 }
 ```
 
----
+Query by role, name, and/or index. The index parameter selects among multiple matches (e.g., `"index": 1` picks the second match for `"role": "push button"`).
+
+**Error:** `no element found matching role="push button" name="Submit"` if no match, or `index N out of range (M matches)` if the index exceeds available matches.
 
 ### `a11y.click_element`
-Click an accessibility element by role, name, and/or index.
+Click an accessibility element by role, name, and/or index. Uses the AT-SPI2 Action interface.
 
 **Request:**
 ```json
@@ -1638,14 +1668,23 @@ Click an accessibility element by role, name, and/or index.
 ```json
 {
   "type": "response", "id": "req-3", "seq": 3, "status": "ok",
-  "data": { "clicked": true }
+  "data": {
+    "clicked": true,
+    "element": {
+      "name": "Submit",
+      "role": "push button",
+      "path": "/org/a11y/atspi/accessible/root3"
+    },
+    "action": "click",
+    "success": true
+  }
 }
 ```
 
----
+**Error:** `element 'Submit' (push button) has no actions` if the element does not expose any AT-SPI actions, or `element not found` if the query matches nothing.
 
 ### `a11y.get_text`
-Get text from an accessibility element by role, name, and/or index.
+Get text from an accessibility element by role, name, and/or index. Uses the AT-SPI2 Text interface.
 
 **Request:**
 ```json
@@ -1656,9 +1695,19 @@ Get text from an accessibility element by role, name, and/or index.
 ```json
 {
   "type": "response", "id": "req-4", "seq": 4, "status": "ok",
-  "data": { "text": "Ready" }
+  "data": {
+    "text": "Ready",
+    "character_count": 5,
+    "caret_position": 0,
+    "element": {
+      "name": "Status",
+      "role": "label"
+    }
+  }
 }
 ```
+
+**Error:** `no text found for element matching role="label" name="Status"` if the element has no text interface, or `element not found` if the query matches nothing.
 
 ---
 
@@ -1740,162 +1789,6 @@ Take a screenshot of a browser tab.
 ```
 
 ---
-
-### `browser.click`
-Click an element in a browser tab using a CSS selector.
-
-**Request:**
-```json
-{"type": "browser.click", "id": "req-5", "tab_index": 0, "selector": "button.submit"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-5", "seq": 5, "status": "ok",
-  "data": { "tab_index": 0, "selector": "button.submit", "success": true }
-}
-```
-
-## `a11y.tree`
-Get the accessibility tree. **Not yet implemented** — requires AT-SPI integration.
-
-**Request:**
-```json
-{"type": "a11y.tree", "id": "req-1"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
-  "data": { "supported": false, "reason": "AT-SPI not integrated yet", "nodes": [] }
-}
-```
-
-### `a11y.get_element`
-Get an accessibility element by role, name, and/or index.
-
-**Request:**
-```json
-{"type": "a11y.get_element", "id": "req-2", "role": "button", "name": "Submit", "index": 0}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
-  "data": {
-    "role": "button",
-    "name": "Submit",
-    "index": 0,
-    "screen_rectangle": { "x": 100, "y": 200, "width": 80, "height": 25 },
-    "children": []
-  }
-}
-```
-
-### `a11y.click_element`
-Click an accessibility element by role, name, and/or index.
-
-**Request:**
-```json
-{"type": "a11y.click_element", "id": "req-3", "role": "button", "name": "Submit", "index": 0}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
-  "data": { "clicked": true }
-}
-```
-
-### `a11y.get_text`
-Get text from an accessibility element by role, name, and/or index.
-
-**Request:**
-```json
-{"type": "a11y.get_text", "id": "req-4", "role": "label", "name": "Status", "index": 0}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
-  "data": { "text": "Ready" }
-}
-```
-
-## Browser (Chrome DevTools Protocol)
-
-### `browser.list_tabs`
-List all browser tabs.
-
-**Request:**
-```json
-{"type": "browser.list_tabs", "id": "req-1"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-1", "seq": 1, "status": "ok",
-  "data": {
-    "tabs": [
-      { "index": 0, "title": "GitHub", "url": "https://github.com", "favicon": "https://github.com/favicon.ico" },
-      { "index": 1, "title": "Stack Overflow", "url": "https://stackoverflow.com", "favicon": "https://stackoverflow.com/favicon.ico" }
-    ]
-  }
-}
-
-### `browser.navigate`
-Navigate a browser tab to a URL.
-
-**Request:**
-```json
-{"type": "browser.navigate", "id": "req-2", "tab_index": 0, "url": "https://example.com"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-2", "seq": 2, "status": "ok",
-  "data": { "tab_index": 0, "url": "https://example.com", "success": true }
-}
-```
-
-### `browser.evaluate`
-Evaluate JavaScript in a browser tab.
-
-**Request:**
-```json
-{"type": "browser.evaluate", "id": "req-3", "tab_index": 0, "expression": "document.title", "await_promise": false}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-3", "seq": 3, "status": "ok",
-  "data": { "tab_index": 0, "result": "Example Domain", "type": "string" }
-}
-```
-
-### `browser.screenshot_tab`
-Take a screenshot of a browser tab.
-
-**Request:**
-```json
-{"type": "browser.screenshot_tab", "id": "req-4", "tab_index": 0}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-4", "seq": 4, "status": "ok",
-  "data": { "tab_index": 0, "screenshot": "/tmp/deskbrid/screenshot_12345.png", "width": 1920, "height": 1080 }
-}
-```
 
 ### `browser.click`
 Click an element in a browser tab using a CSS selector.
@@ -2250,9 +2143,7 @@ List all known actions with per-backend support status. Returns both the full ac
     "desktop": "gnome",
     "actions": ["windows.list", "windows.focus", "windows.get", ...],
     "supported": ["windows.list", "windows.focus", "workspaces.list", ...],
-    "unsupported": [
-      { "action": "ui.tree.get", "reason": "AT-SPI not integrated yet" }
-    ]
+    "unsupported": []
   }
 }
 ```
@@ -2261,30 +2152,14 @@ List all known actions with per-backend support status. Returns both the full ac
 
 ## UI Accessibility
 
-### `ui.tree.get`
+> **Note: Legacy `ui.*` Aliases** — The action names `ui.tree.get`, `ui.element.click`, and `ui.element.set_text` were part of an earlier naming convention. They are not registered as separate protocol actions. In the current API:
 
-Get the accessibility tree. **Not yet implemented** — requires AT-SPI integration.
-
-**Request:**
-```json
-{"type": "ui.tree.get", "id": "req-54"}
-```
-
-**Response:**
-```json
-{
-  "type": "response", "id": "req-54", "seq": 54, "status": "ok",
-  "data": { "supported": false, "reason": "AT-SPI not integrated yet", "nodes": [] }
-}
-```
-
-### `ui.element.click`
-
-Click a UI element by accessibility selector. **Not yet implemented.**
-
-### `ui.element.set_text`
-
-Set text on a UI element by accessibility selector. **Not yet implemented.**
+| Legacy Name | Use Instead | Backend |
+|---|---|---|
+| `ui.tree.get` | `a11y.tree` (above) | AT-SPI2 |
+| `ui.element.click` | `a11y.click_element` or `browser.click` | AT-SPI2 / CDP |
+| `ui.element.set_text` | `keyboard.type` for text input; `a11y.get_element` for inspection | Keyboard / AT-SPI2 |
+| `ui.element.get_text` | `a11y.get_text` | AT-SPI2 |
 
 ---
 

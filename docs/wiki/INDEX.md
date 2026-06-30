@@ -47,6 +47,7 @@ Full feature documentation by domain — every action, parameter, and example:
 | Persistence | `state.get`, `state.set`, `state.delete` | [Persistence](features/persistence.md) |
 | Print | `print.list`, `print.jobs`, `print.file` | [Print](features/print.md) |
 | Process | `process.list`, `process.kill` | [Process](features/process.md) |
+| Region Watch / Text Watch | `region.watch.create`, `region.watch.update`, `region.watch.remove`, `region.watch.list`, `text.watch.create`, `text.watch.remove`, `text.watch.list` | [Region / Text Watch](features/region_watch.md) |
 | Rules Engine | `rules.list`, `rules.create`, `rules.trigger` | [Rules](features/rules.md) |
 | Schedule | `schedule.list`, `schedule.add`, `schedule.remove` | [Schedule](features/schedule.md) |
 | Screenshot | `screenshot`, `screenshot.ocr`, `screenshot.diff` | [Screenshot](features/screenshot.md) |
