@@ -9,6 +9,9 @@ pub enum SessionCmd {
         /// Clone an existing session's variables
         #[arg(long)]
         clone_from: Option<String>,
+        /// Apply a named sandbox profile from permissions.toml
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Destroy a named session
     Destroy {
@@ -19,6 +22,19 @@ pub enum SessionCmd {
     List,
     /// Switch to a named session (connect alias)
     Switch {
+        /// Session name
+        name: String,
+    },
+    /// Suspend a named session until it is explicitly resumed
+    Suspend {
+        /// Session name
+        name: String,
+        /// Reason recorded in the suspension event
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Resume a suspended session
+    Resume {
         /// Session name
         name: String,
     },

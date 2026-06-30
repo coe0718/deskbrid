@@ -279,6 +279,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SessionDestroy { .. }
         | Action::SessionList
         | Action::SessionSwitch { .. }
+        | Action::SessionSuspend { .. }
+        | Action::SessionResume { .. }
         | Action::SessionVarSet { .. }
         | Action::SessionVarGet { .. }
         | Action::SessionVarList => sessions::serialize_sessions(action, &id),

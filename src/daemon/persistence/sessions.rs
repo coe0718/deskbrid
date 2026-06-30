@@ -1,12 +1,25 @@
 use anyhow::Context;
 use rusqlite::params;
+use serde::{Deserialize, Serialize};
 
 use super::Database;
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct PersistedSessionData {
+    #[serde(default)]
+    vars: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    profile: Option<String>,
+}
 
 impl Database {
     /// Upsert a session record.
     pub fn upsert_session(&self, session: &crate::SessionData) -> anyhow::Result<()> {
-        let vars_json = serde_json::to_string(&session.vars).unwrap_or_default();
+        let data_json = serde_json::to_string(&PersistedSessionData {
+            vars: session.vars.clone(),
+            profile: session.profile.clone(),
+        })
+        .unwrap_or_default();
         self.conn
             .execute(
                 "INSERT INTO sessions (name, data_json, created_at, last_active)
@@ -16,7 +29,7 @@ impl Database {
                      last_active = excluded.last_active",
                 params![
                     session.name,
-                    vars_json,
+                    data_json,
                     session.created_at as i64,
                     session.last_active as i64,
                 ],
@@ -53,15 +66,27 @@ impl Database {
         Ok(rows
             .into_iter()
             .map(|(name, data_json, created_at, last_active)| {
-                let vars: std::collections::HashMap<String, String> =
-                    serde_json::from_str(&data_json).unwrap_or_default();
+                let parsed = parse_session_data(&data_json);
                 crate::SessionData {
                     name,
-                    vars,
+                    vars: parsed.vars,
+                    profile: parsed.profile,
                     created_at: created_at as u64,
                     last_active: last_active as u64,
                 }
             })
             .collect())
+    }
+}
+
+fn parse_session_data(data_json: &str) -> PersistedSessionData {
+    if let Ok(parsed) = serde_json::from_str::<PersistedSessionData>(data_json) {
+        return parsed;
+    }
+    let vars: std::collections::HashMap<String, String> =
+        serde_json::from_str(data_json).unwrap_or_default();
+    PersistedSessionData {
+        vars,
+        profile: None,
     }
 }

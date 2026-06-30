@@ -90,6 +90,7 @@ pub(crate) fn rate_limited_response(seq: u64, hit: RateLimitHit) -> serde_json::
 
 // ── Per-namespace rate limiting (#129) ─────────────────────────────────────
 
+use crate::permissions::Permissions;
 use crate::protocol::Action;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -280,6 +281,97 @@ impl Default for RateLimitStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Per-profile, per-session rate limits from `[profile.NAME].rate_limits`.
+pub struct ProfileRateLimitStore {
+    configs: HashMap<String, HashMap<String, RateLimitConfig>>,
+    buckets: Mutex<HashMap<String, HashMap<String, RateBucket>>>,
+}
+
+impl ProfileRateLimitStore {
+    pub fn new(permissions: &Permissions) -> Self {
+        let mut configs = HashMap::new();
+        for profile_name in permissions.profile_names() {
+            let Some(profile) = permissions.profile(&profile_name) else {
+                continue;
+            };
+            let mut limits = HashMap::new();
+            for (key, value) in &profile.rate_limits {
+                if let Some(config) = parse_limit_string(value) {
+                    limits.insert(normalize_profile_limit_key(key), config);
+                }
+            }
+            if !limits.is_empty() {
+                configs.insert(profile_name, limits);
+            }
+        }
+        Self {
+            configs,
+            buckets: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub(crate) fn check(
+        &self,
+        profile_name: Option<&str>,
+        session_id: &str,
+        action: &Action,
+    ) -> Option<RateLimitHit> {
+        let profile_name = profile_name?;
+        let limits = self.configs.get(profile_name)?;
+        let action_type = action.action_type();
+        let generic_namespace = profile_namespace(action_type);
+        let known_namespace = action_namespace(action);
+        let config = limits
+            .get(action_type)
+            .or_else(|| limits.get(generic_namespace.as_str()))
+            .or_else(|| limits.get(known_namespace))
+            .or_else(|| limits.get(""))
+            .copied()?;
+        if config.per_second <= 0.0 {
+            return None;
+        }
+
+        let bucket_owner = format!("{profile_name}:{session_id}");
+        let bucket_name = if limits.contains_key(action_type) {
+            action_type
+        } else if limits.contains_key(generic_namespace.as_str()) {
+            generic_namespace.as_str()
+        } else if limits.contains_key(known_namespace) {
+            known_namespace
+        } else {
+            ""
+        };
+        let mut buckets = self.buckets.lock().unwrap();
+        let profile_buckets = buckets.entry(bucket_owner).or_default();
+        let bucket = profile_buckets
+            .entry(bucket_name.to_string())
+            .or_insert_with(|| RateBucket::new(config));
+        bucket.take(config)
+    }
+
+    pub fn remove_session(&self, session_id: &str) {
+        let mut buckets = self.buckets.lock().unwrap();
+        let suffix = format!(":{session_id}");
+        buckets.retain(|key, _| !key.ends_with(&suffix));
+    }
+}
+
+fn normalize_profile_limit_key(key: &str) -> String {
+    match key {
+        "default" | "default_rate" | "*" => String::new(),
+        other if other.ends_with('.') => other.to_string(),
+        other if Action::public_action_types().contains(&other) => other.to_string(),
+        other => format!("{}.", other.trim_end_matches(".*")),
+    }
+}
+
+fn profile_namespace(action_type: &str) -> String {
+    action_type
+        .split_once('.')
+        .map(|(prefix, _)| format!("{prefix}."))
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

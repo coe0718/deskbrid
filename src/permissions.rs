@@ -22,6 +22,12 @@ struct PermissionsInner {
     /// Rate limit overrides from permissions.toml [rate_limits]
     #[serde(default)]
     rate_limits: HashMap<String, String>,
+    /// Named per-agent/session profiles from permissions.toml [profile.NAME]
+    #[serde(default)]
+    profile: HashMap<String, ProfileEntry>,
+    /// Agent safety automation from permissions.toml [auto_suspend]
+    #[serde(default)]
+    auto_suspend: AutoSuspendConfig,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -32,11 +38,67 @@ struct PermissionEntry {
     deny: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ProfileEntry {
+    #[serde(default)]
+    pub allow: Vec<String>,
+    #[serde(default)]
+    pub deny: Vec<String>,
+    #[serde(default)]
+    pub confirm: Vec<String>,
+    #[serde(default)]
+    pub audit_level: Option<String>,
+    #[serde(default)]
+    pub rate_limits: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AutoSuspendConfig {
+    #[serde(default = "default_auto_suspend_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub suspend_on_heartbeat_timeout: bool,
+    #[serde(default = "default_true")]
+    pub suspend_actions: bool,
+}
+
+impl Default for AutoSuspendConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            suspend_on_heartbeat_timeout: true,
+            suspend_actions: true,
+        }
+    }
+}
+
+fn default_auto_suspend_enabled() -> bool {
+    true
+}
+
+fn default_true() -> bool {
+    true
+}
+
 impl Permissions {
     /// Rate limit overrides from permissions.toml [rate_limits] section.
     /// Keys are namespace prefixes (e.g. "secrets."), values are limit strings (e.g. "5/m").
     pub fn rate_limits(&self) -> &HashMap<String, String> {
         &self.inner.rate_limits
+    }
+
+    pub fn profile(&self, name: &str) -> Option<&ProfileEntry> {
+        self.inner.profile.get(name)
+    }
+
+    pub fn profile_names(&self) -> Vec<String> {
+        let mut names: Vec<_> = self.inner.profile.keys().cloned().collect();
+        names.sort();
+        names
+    }
+
+    pub fn auto_suspend(&self) -> &AutoSuspendConfig {
+        &self.inner.auto_suspend
     }
 
     /// Load from config file, or return safe defaults if no file exists.
@@ -91,6 +153,8 @@ impl Permissions {
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),
+                profile: HashMap::new(),
+                auto_suspend: AutoSuspendConfig::default(),
             }),
         }
     }
@@ -105,6 +169,8 @@ impl Permissions {
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),
+                profile: HashMap::new(),
+                auto_suspend: AutoSuspendConfig::default(),
             }),
         }
     }
@@ -166,6 +232,8 @@ impl Permissions {
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),
+                profile: HashMap::new(),
+                auto_suspend: AutoSuspendConfig::default(),
             }),
         }
     }
@@ -203,6 +271,58 @@ impl Permissions {
         // Default deny if no pattern matched
         false
     }
+
+    /// Check a named profile, when one is attached to a session. A profile is an
+    /// additional sandbox: it can only narrow the UID permissions already granted.
+    pub fn check_profile(&self, profile_name: Option<&str>, action: &Action) -> ProfileCheck {
+        let Some(profile_name) = profile_name else {
+            return ProfileCheck::Allowed;
+        };
+
+        let Some(profile) = self.inner.profile.get(profile_name) else {
+            return ProfileCheck::Denied {
+                profile: profile_name.to_string(),
+                reason: "profile is not defined".to_string(),
+            };
+        };
+
+        let action_name = action_name(action);
+        if matches_patterns(&profile.deny, action_name, false) {
+            return ProfileCheck::Denied {
+                profile: profile_name.to_string(),
+                reason: format!("action '{action_name}' denied by profile"),
+            };
+        }
+
+        if profile.allow.is_empty() || !matches_patterns(&profile.allow, action_name, true) {
+            return ProfileCheck::Denied {
+                profile: profile_name.to_string(),
+                reason: format!("action '{action_name}' not allowed by profile"),
+            };
+        }
+
+        ProfileCheck::Allowed
+    }
+
+    pub fn profile_requires_confirmation(
+        &self,
+        profile_name: Option<&str>,
+        action: &Action,
+    ) -> bool {
+        let Some(profile_name) = profile_name else {
+            return false;
+        };
+        let Some(profile) = self.inner.profile.get(profile_name) else {
+            return false;
+        };
+        matches_patterns(&profile.confirm, action_name(action), true)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProfileCheck {
+    Allowed,
+    Denied { profile: String, reason: String },
 }
 
 fn uid_key(uid: u32) -> String {
@@ -282,6 +402,18 @@ fn glob_match(pattern: &str, name: &str) -> bool {
             return true;
         }
         if name.starts_with(prefix) && name.as_bytes().get(prefix.len()) == Some(&b'.') {
+            return true;
+        }
+    }
+    false
+}
+
+fn matches_patterns(patterns: &[String], action_name: &str, high_risk_exact: bool) -> bool {
+    for pattern in patterns {
+        if glob_match(pattern, action_name) {
+            if high_risk_exact && is_high_risk(action_name) && pattern != action_name {
+                continue;
+            }
             return true;
         }
     }

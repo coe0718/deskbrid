@@ -120,11 +120,44 @@ where
                     if let Some(session_name) = raw["session"].as_str() {
                         let old_session = conn.session_id.clone();
                         let name = session_name.to_string();
+                        let requested_profile = raw["profile"].as_str().map(String::from);
+                        if let Some(profile_name) = &requested_profile
+                            && state.permissions.profile(profile_name).is_none()
+                        {
+                            let err = serde_json::json!({
+                                "type": "response",
+                                "id": raw["id"].as_str().unwrap_or("?"),
+                                "seq": seq,
+                                "status": "error",
+                                "error": {
+                                    "code": "UNKNOWN_PROFILE",
+                                    "message": format!("profile '{}' is not defined in permissions.toml", profile_name)
+                                }
+                            });
+                            writer
+                                .write_all(format!("{}\n", serde_json::to_string(&err)?).as_bytes())
+                                .await?;
+                            line.clear();
+                            continue;
+                        }
 
                         // Create session if it doesn't exist
-                        state.sessions.entry(name.clone()).or_insert_with(|| {
-                            crate::SessionData::new(name.clone())
-                        });
+                        if !state.sessions.contains_key(&name) {
+                            let mut data = crate::SessionData::new(name.clone());
+                            data.profile = requested_profile.clone();
+                            state.sessions.insert(name.clone(), data);
+                        } else if requested_profile.is_some()
+                            && let Some(mut session) = state.sessions.get_mut(&name)
+                        {
+                            session.profile = requested_profile.clone();
+                            session.touch();
+                        }
+                        let session_to_persist =
+                            state.sessions.get(&name).map(|session| session.value().clone());
+                        if let Some(session) = session_to_persist {
+                            let db = state.database.lock().await;
+                            let _ = db.upsert_session(&session);
+                        }
 
                         conn.session_id = name;
                         if old_session != conn.session_id {
@@ -146,12 +179,19 @@ where
                                 .await;
                         }
 
+                        let current_profile = state
+                            .sessions
+                            .get(&conn.session_id)
+                            .and_then(|session| session.profile.clone());
                         let resp = serde_json::json!({
                             "type": "response",
                             "id": raw["id"].as_str().unwrap_or("?"),
                             "seq": seq,
                             "status": "ok",
-                            "data": { "session": conn.session_id }
+                            "data": {
+                                "session": conn.session_id,
+                                "profile": current_profile
+                            }
                         });
                         writer
                             .write_all(format!("{}\n", serde_json::to_string(&resp)?).as_bytes())
@@ -320,6 +360,9 @@ where
     holders.extend(removed.iter().map(|record| record.name.clone()));
     state.locks.release_holders(holders, &state.event_tx).await;
     state.rate_limit_store.remove_peer(peer_uid);
+    state
+        .profile_rate_limit_store
+        .remove_session(&conn.session_id);
 
     Ok(())
 }

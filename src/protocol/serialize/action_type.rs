@@ -209,6 +209,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SessionDestroy { .. } => "session.destroy",
         Action::SessionList => "session.list",
         Action::SessionSwitch { .. } => "session.switch",
+        Action::SessionSuspend { .. } => "session.suspend",
+        Action::SessionResume { .. } => "session.resume",
         Action::SessionVarSet { .. } => "session.var.set",
         Action::SessionVarGet { .. } => "session.var.get",
         Action::SessionVarList => "session.var.list",

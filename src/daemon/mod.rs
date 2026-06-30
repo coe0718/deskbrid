@@ -10,6 +10,7 @@ pub(crate) mod agent_registry;
 pub(crate) mod apps;
 pub(crate) mod apps_parse;
 pub(crate) mod audit;
+pub(crate) mod auto_suspend;
 mod capabilities;
 mod client;
 pub(crate) mod clipboard;
@@ -101,8 +102,8 @@ pub use layout::{
 };
 pub(crate) use mpris::{execute_mpris_action, is_mpris_action};
 pub(crate) use rate_limit::{
-    RateBucket, RateLimitConfig, RateLimitHit, RateLimitStore, action_namespace, check_rate_limit,
-    rate_limit_from_env, rate_limited_response,
+    ProfileRateLimitStore, RateBucket, RateLimitConfig, RateLimitHit, RateLimitStore,
+    action_namespace, check_rate_limit, rate_limit_from_env, rate_limited_response,
 };
 pub(crate) use sysfs::{cpu_frequency, cpu_governor, cpu_set_governor, thermal_get};
 pub use system::{execute_system_control_action, is_system_control_action};

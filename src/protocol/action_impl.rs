@@ -206,6 +206,8 @@ impl Action {
             "session.destroy",
             "session.list",
             "session.switch",
+            "session.suspend",
+            "session.resume",
             "session.var.set",
             "session.var.get",
             "session.var.list",

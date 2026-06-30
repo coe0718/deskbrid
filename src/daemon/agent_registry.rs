@@ -224,7 +224,27 @@ pub fn spawn_heartbeat_sweeper(state: std::sync::Arc<crate::DaemonState>) {
         loop {
             interval.tick().await;
             for event in state.agent_registry.heartbeat_timeout_events().await {
+                let timeout_session = match &event {
+                    DeskbridEvent::AgentHeartbeatTimeout { session_id, .. } => {
+                        Some(session_id.clone())
+                    }
+                    _ => None,
+                };
                 let _ = state.event_tx.send(event);
+                if state.auto_suspend.suspend_on_heartbeat_timeout()
+                    && let Some(session_id) = timeout_session
+                    && let Some(suspend_event) = state
+                        .auto_suspend
+                        .suspend_session(
+                            &session_id,
+                            "missed heartbeat canary",
+                            "heartbeat_timeout",
+                            None,
+                        )
+                        .await
+                {
+                    let _ = state.event_tx.send(suspend_event);
+                }
             }
         }
     });

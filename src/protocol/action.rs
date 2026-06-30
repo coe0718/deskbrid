@@ -748,12 +748,20 @@ pub enum Action {
     SessionCreate {
         name: String,
         clone_from: Option<String>,
+        profile: Option<String>,
     },
     SessionDestroy {
         name: String,
     },
     SessionList,
     SessionSwitch {
+        name: String,
+    },
+    SessionSuspend {
+        name: String,
+        reason: Option<String>,
+    },
+    SessionResume {
         name: String,
     },
     SessionVarSet {

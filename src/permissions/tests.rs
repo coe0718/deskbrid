@@ -92,6 +92,8 @@ fn test_permissions_deny_screenshot() {
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -135,6 +137,8 @@ fn test_permissions_per_uid() {
         },
         permissions: per_uid,
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -181,6 +185,8 @@ fn test_permissions_ping_always_allowed_in_default_deny() {
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -235,6 +241,8 @@ fn test_high_risk_denied_by_category_wildcard() {
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -267,6 +275,8 @@ fn test_high_risk_explicitly_allowed() {
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -291,6 +301,8 @@ fn test_high_risk_deny_still_wins() {
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
+        profile: HashMap::new(),
+        auto_suspend: AutoSuspendConfig::default(),
     };
     let p = Permissions {
         inner: Arc::new(inner),
@@ -531,6 +543,47 @@ fn test_permissions_deny_all_blocks_everything_except_ping() {
             output: None,
         }
     ));
+}
+
+#[test]
+fn test_profile_narrows_uid_permissions_and_requires_explicit_high_risk() {
+    let mut profiles = HashMap::new();
+    profiles.insert(
+        "code-agent".into(),
+        ProfileEntry {
+            allow: vec!["windows.*".into(), "clipboard.read".into()],
+            deny: vec!["windows.close".into()],
+            confirm: vec!["clipboard.read".into()],
+            audit_level: Some("all".into()),
+            rate_limits: HashMap::new(),
+        },
+    );
+    let p = Permissions {
+        inner: Arc::new(PermissionsInner {
+            default: PermissionEntry {
+                allow: vec!["*".into(), "clipboard.read".into()],
+                deny: vec![],
+            },
+            permissions: HashMap::new(),
+            rate_limits: HashMap::new(),
+            profile: profiles,
+            auto_suspend: AutoSuspendConfig::default(),
+        }),
+    };
+
+    assert!(matches!(
+        p.check_profile(Some("code-agent"), &Action::WindowsList),
+        ProfileCheck::Allowed
+    ));
+    assert!(matches!(
+        p.check_profile(Some("code-agent"), &Action::WindowsClose("0x1".into())),
+        ProfileCheck::Denied { .. }
+    ));
+    assert!(matches!(
+        p.check_profile(Some("code-agent"), &Action::ClipboardRead),
+        ProfileCheck::Allowed
+    ));
+    assert!(p.profile_requires_confirmation(Some("code-agent"), &Action::ClipboardRead));
 }
 
 mod action_names;

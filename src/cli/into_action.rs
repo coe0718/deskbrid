@@ -93,13 +93,23 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
 
         // Sessions
         Command::Session { cmd } => Ok(match cmd {
-            SessionCmd::Create { name, clone_from } => protocol::Action::SessionCreate {
+            SessionCmd::Create {
+                name,
+                clone_from,
+                profile,
+            } => protocol::Action::SessionCreate {
                 name: name.clone(),
                 clone_from: clone_from.clone(),
+                profile: profile.clone(),
             },
             SessionCmd::Destroy { name } => protocol::Action::SessionDestroy { name: name.clone() },
             SessionCmd::List => protocol::Action::SessionList,
             SessionCmd::Switch { name } => protocol::Action::SessionSwitch { name: name.clone() },
+            SessionCmd::Suspend { name, reason } => protocol::Action::SessionSuspend {
+                name: name.clone(),
+                reason: reason.clone(),
+            },
+            SessionCmd::Resume { name } => protocol::Action::SessionResume { name: name.clone() },
             SessionCmd::Var { cmd: var_cmd } => match var_cmd {
                 VarCmd::Set { name, value } => protocol::Action::SessionVarSet {
                     name: name.clone(),

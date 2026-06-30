@@ -3,7 +3,7 @@
 **Purpose:** Catalog every mechanism Deskbrid can use to gain deeper control over Linux
 systems — beyond what the current DE backends already provide.
 
-**Current state:** v1.1.1. Security hardening release plus mock backend, region/text watchers, agent registry, and lock/mutex coordination.
+**Current state:** v1.1.1. Security hardening release plus mock backend, region/text watchers, agent registry, lock/mutex coordination, sandboxed profiles, and auto-suspend.
 
 ### Roadmap Status
 
@@ -45,6 +45,7 @@ it to the completed table below.
 | [33. Dry-Run Mode](#33-dry-run-mode) | Request-level `dry_run` option validates permissions and reports would-execute metadata without loading a backend | `src/protocol/parse.rs`, `src/daemon/dispatch.rs`, `src/client.rs`, `src/cli/` |
 | [34. Audit Log](#34-audit-log) | In-memory action ring buffer with query/clear actions, duration, status, UID, and error metadata | `src/daemon/audit.rs`, `src/daemon/dispatch.rs`, `src/protocol/`, `src/cli/`, `clients/python/` |
 | [35. Rate Limiting](#35-rate-limiting-per-client) | Per-UID token bucket with configurable rate/burst and audited `RATE_LIMITED` responses | `src/daemon/rate_limit.rs`, `src/daemon/dispatch.rs` |
+| [36. Sandboxed Profiles](#36-sandboxed-agent-profiles) | Named profile blocks in `permissions.toml`, session profile binding, profile allow/deny/confirm gates, and profile-scoped rate buckets | `src/permissions.rs`, `src/daemon/dispatch.rs`, `src/daemon/execute_sessions.rs`, `src/daemon/rate_limit.rs` |
 | [71. Action Timeouts](#71-action-timeouts-with-kill-guarantees) | Request-level/default timeout wrapper around dispatched actions, with `wait.for` preserving its own deadline | `src/daemon/dispatch.rs`, `src/protocol/parse.rs`, `src/client.rs`, `src/cli/` |
 | [17. Screen Recording](#17-screen-recording-finish-half-built-implementation) | PipeWire screencast start/stop via GNOME backend, Python client, MCP tools, ScreencastFrame/ScreencastStopped events | `src/backend/gnome/`, `src/protocol/`, `src/mcp/`, `clients/python/` |
 | [10. Desktop Portal Integration](#10-desktop-portal-integration-xdg-portals) | XDG Screenshot/ScreenCast portal via zbus with request/response signal handling, CLI, Python client, MCP tools | `src/daemon/portal.rs`, `src/protocol/`, `src/mcp/`, `clients/python/` |
@@ -63,6 +64,7 @@ it to the completed table below.
 | [61. Notification History](#61-notification-history--action-buttons) | D-Bus notification interception, SQLite history storage, query with filters, notification watch subscription, action invocation | `src/daemon/execute_notification.rs` (extended) |
 | [62. NetworkManager D-Bus](#62-networkmanager-d-bus) | nmcli-backed: connection profiles, hotspot create/stop, WiFi/WWAN toggle, DNS set/reset, VPN connect/disconnect | `src/daemon/execute_network.rs` (extended) |
 | [37. Action Confirmation Mode](#37-action-confirmation-mode) | Destructive-action gating with pending confirmation queue, background TTL sweeper, MCP tools, dashboard card | `src/daemon/execute_confirmation.rs`, `src/protocol/parse/confirmation.rs`, `src/mcp/tools_confirmation.rs`, `src/daemon/dashboard/render_data.rs` |
+| [38. Canary Actions & Auto-Suspend](#38-canary-actions--auto-suspend) | Heartbeat-timeout canary suspension, suspicious action burst detection, dangerous process command suspension, manual suspend/resume, and suspension events | `src/daemon/auto_suspend.rs`, `src/daemon/agent_registry.rs`, `src/daemon/dispatch.rs`, `src/protocol/` |
 | [44. Agent-to-Agent Messaging](#44-agent-to-agent-messaging) | In-process agent mailbox with TTL expiry, send/broadcast/mailbox MCP tools, dashboard card | `src/daemon/execute_agent.rs`, `src/protocol/parse/agent.rs`, `src/mcp/tools_agent.rs` |
 | [45. Shared Blackboard](#45-shared-blackboard-kv-store) | SQLite-backed namespaced key/value store with set/get/delete/list protocol actions | `src/daemon/execute_blackboard.rs`, `src/daemon/persistence/blackboard.rs`, `src/protocol/parse/blackboard.rs` |
 | [46. Lock / Mutex](#46-lock--mutex-primitives) | Atomic daemon lock table with TTL expiry, force-steal, wait timeout events, token-checked release, and disconnect cleanup | `src/daemon/locks.rs`, `src/daemon/dispatch.rs`, `src/protocol/` |
@@ -129,9 +131,9 @@ roadmap sections above with expanded shipped scope.
 33. [✅ Dry-Run Mode](#33-dry-run-mode)
 34. [✅ Audit Log](#34-audit-log)
 35. [✅ Rate Limiting](#35-rate-limiting-per-client)
-36. [Sandboxed Profiles](#36-sandboxed-agent-profiles)
+36. [✅ Sandboxed Profiles](#36-sandboxed-agent-profiles)
 37. [✅ Action Confirmation](#37-action-confirmation-mode)
-38. [Canary Actions](#38-canary-actions--auto-suspend)
+38. [✅ Canary Actions](#38-canary-actions--auto-suspend)
 39. [User Presence](#39-user-presence-events)
 40. [Time & Location](#40-time-of-day--location-awareness)
 41. [CV Element Detection](#41-element-detection-via-screenshot-cv)
@@ -2352,10 +2354,14 @@ RateLimitGet,
 
 ## 36. Sandboxed Agent Profiles
 
-**What's Missing:** Permissions.toml is global glob patterns. Agents can't have
+**Status:** ✅ Done. Deskbrid supports named `[profile.NAME]` blocks in
+`permissions.toml`, optional profile binding on `session.create` and `connect`,
+session list profile visibility, profile allow/deny checks after UID permissions,
+profile confirmation requirements, and profile-scoped rate buckets.
+
+**Original Gap:** Permissions.toml was global glob patterns. Agents couldn't have
 named profiles with explicit allow/deny sets, action types, rate limit overrides,
-and audit scoping — all bundled into a portable "profile" that can be applied to
-a named session.
+and audit scoping bundled into a portable profile applied to a named session.
 
 **Implementation:** Extend permissions.toml with profile blocks:
 
@@ -2363,16 +2369,22 @@ a named session.
 [profile.code-agent]
 allow = ["windows.*", "input.*", "clipboard.*", "files.read", "files.write", "terminal.*", "process.start"]
 deny = ["files.delete", "system.power", "bluetooth.*", "dbus.*"]
+confirm = ["files.delete", "process.stop"]
 audit_level = "all"  # "all", "destructive", "none"
-rate_limits = { default_rate = 30, screenshot = { rate = 2, burst = 3 } }
+rate_limits = { default = "30/s", screenshot = "2/s" }
 ```
 
 Named sessions (section 31) reference a profile on creation:
 `SessionCreate { name: "agent-alpha", profile: "code-agent" }`.
 
-**Protocol:** Same as existing permission actions. Profiles are server-side config.
+**Protocol:** `session.create` accepts optional `profile`; `connect` accepts
+optional `profile` when joining/creating a session. Profiles are server-side
+config and narrow, never widen, UID-level permissions. High-risk actions still
+require exact action names in profile allow lists.
 
-**Effort:** ~200 lines. Profile parsing + session→profile binding.
+**Implemented in:** `src/permissions.rs`, `src/daemon/dispatch.rs`,
+`src/daemon/execute_sessions.rs`, `src/daemon/rate_limit.rs`, and
+`src/daemon/client.rs`.
 
 ---
 
@@ -2408,31 +2420,40 @@ Client sends confirmation:
 
 ## 38. Canary Actions & Auto-Suspend
 
-**What's Missing:** No way to detect if an agent is malfunctioning or compromised.
-A buggy agent could hammer the daemon indefinitely.
+**Status:** ✅ Done. Deskbrid now treats `agent.heartbeat` timeout as the canary
+response path for agents that register `heartbeat_interval_ms`, suspends sessions
+on missed heartbeat canaries, suspends obvious suspicious action bursts, blocks
+dangerous `process.start` command patterns before execution, emits
+`agent.suspended` / `agent.resumed`, and exposes `session.suspend` /
+`session.resume`.
 
-**Implementation:** Periodically inject a "canary" action that the agent is expected
-to respond to (respond in <2s with a specific nonce). If the agent misses N canaries
-in a row:
+**Original Gap:** There was no way to detect if an agent was malfunctioning or
+compromised. A buggy agent could hammer the daemon indefinitely.
+
+**Implementation:** The shipped canary path uses existing heartbeat registration:
+agents set `heartbeat_interval_ms`, then keep sending `agent.heartbeat`. If the
+heartbeat timeout sweeper marks the agent timed out, the owning session is
+suspended. Suspicious action patterns can also suspend immediately:
 1. Log the incident to audit
 2. Suspend the agent's session
-3. Notify the user (desktop notification)
+3. Emit `agent.suspended`
 4. Require explicit `SessionResume { name }` to reactivate
 
 ```rust
-auto_suspend = {
-    canary_interval_ms = 30000,  // check every 30s
-    missed_threshold = 3,        // suspend after 3 missed
-    suspend_actions = true,       // also suspend on suspicious action patterns
-    suspicious_patterns = [
-        ">10 windows.focus in 1s",   // focus spam
-        ">5 files.delete in 10s",    // deletion spree
-        "process.start with rm -rf", // dangerous command
-    ]
-}
+[auto_suspend]
+enabled = true
+suspend_on_heartbeat_timeout = true
+suspend_actions = true
+
+// Built-in suspicious patterns:
+// - >10 windows.focus in 1s
+// - >5 files.delete in 10s
+// - process.start with rm -rf, mkfs.*, fork bomb, or dd if=
 ```
 
-**Effort:** ~250 lines. Canary timer, pattern detection, auto-suspend state.
+**Implemented in:** `src/daemon/auto_suspend.rs`,
+`src/daemon/agent_registry.rs`, `src/daemon/dispatch.rs`,
+`src/daemon/execute_sessions.rs`, and `src/protocol/events.rs`.
 
 ---
 

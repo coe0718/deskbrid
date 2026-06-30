@@ -9,6 +9,7 @@ pub(super) fn parse_session(raw: &Value, _id: &str, type_str: &str) -> anyhow::R
                 .ok_or_else(|| anyhow::anyhow!("session.create requires 'name'"))?
                 .to_string(),
             clone_from: raw["clone_from"].as_str().map(String::from),
+            profile: raw["profile"].as_str().map(String::from),
         },
         "session.destroy" => Action::SessionDestroy {
             name: raw["name"]
@@ -21,6 +22,19 @@ pub(super) fn parse_session(raw: &Value, _id: &str, type_str: &str) -> anyhow::R
             name: raw["name"]
                 .as_str()
                 .ok_or_else(|| anyhow::anyhow!("session.switch requires 'name'"))?
+                .to_string(),
+        },
+        "session.suspend" => Action::SessionSuspend {
+            name: raw["name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("session.suspend requires 'name'"))?
+                .to_string(),
+            reason: raw["reason"].as_str().map(String::from),
+        },
+        "session.resume" => Action::SessionResume {
+            name: raw["name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("session.resume requires 'name'"))?
                 .to_string(),
         },
         "session.var.set" => Action::SessionVarSet {

@@ -11,12 +11,24 @@ pub(crate) async fn execute_session_action(
     session_id: &str,
 ) -> anyhow::Result<Value> {
     match action {
-        Action::SessionCreate { name, clone_from } => {
+        Action::SessionCreate {
+            name,
+            clone_from,
+            profile,
+        } => {
             if state.sessions.contains_key(&name) {
                 anyhow::bail!("session '{}' already exists", name);
             }
+            if let Some(profile_name) = &profile
+                && state.permissions.profile(profile_name).is_none()
+            {
+                anyhow::bail!(
+                    "profile '{}' is not defined in permissions.toml",
+                    profile_name
+                );
+            }
 
-            let data = if let Some(ref source_name) = clone_from {
+            let mut data = if let Some(ref source_name) = clone_from {
                 match state.sessions.get(source_name) {
                     Some(source) => {
                         let mut cloned = source.value().clone();
@@ -28,6 +40,9 @@ pub(crate) async fn execute_session_action(
             } else {
                 SessionData::new(name.clone())
             };
+            if profile.is_some() {
+                data.profile = profile.clone();
+            }
 
             // Persist to database
             {
@@ -60,13 +75,26 @@ pub(crate) async fn execute_session_action(
         Action::SessionList => {
             let mut list: Vec<Value> = Vec::new();
             for entry in state.sessions.iter() {
-                let s = entry.value();
+                let (name, var_count, profile, created_at, last_active) = {
+                    let s = entry.value();
+                    (
+                        s.name.clone(),
+                        s.vars.len(),
+                        s.profile.clone(),
+                        s.created_at,
+                        s.last_active,
+                    )
+                };
+                let suspension = state.auto_suspend.is_suspended(&name).await;
                 list.push(serde_json::json!({
-                    "name": s.name,
-                    "var_count": s.vars.len(),
-                    "created_at": s.created_at,
-                    "last_active": s.last_active,
-                    "active": s.name == session_id,
+                    "name": name.clone(),
+                    "var_count": var_count,
+                    "profile": profile,
+                    "created_at": created_at,
+                    "last_active": last_active,
+                    "active": name == session_id,
+                    "suspended": suspension.is_some(),
+                    "suspension": suspension,
                 }));
             }
             list.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
@@ -84,6 +112,31 @@ pub(crate) async fn execute_session_action(
                     name
                 )
             }
+        }
+        Action::SessionSuspend { name, reason } => {
+            if !state.sessions.contains_key(&name) {
+                anyhow::bail!("session '{}' not found", name);
+            }
+            let event = state
+                .auto_suspend
+                .suspend_session(
+                    &name,
+                    reason.unwrap_or_else(|| "manual suspension".to_string()),
+                    "manual",
+                    None,
+                )
+                .await;
+            if let Some(event) = event {
+                let _ = state.event_tx.send(event);
+            }
+            Ok(serde_json::json!({"ok": true, "session": name, "suspended": true}))
+        }
+        Action::SessionResume { name } => {
+            let event = state.auto_suspend.resume_session(&name).await;
+            if let Some(event) = event {
+                let _ = state.event_tx.send(event);
+            }
+            Ok(serde_json::json!({"ok": true, "session": name, "suspended": false}))
         }
 
         Action::SessionVarSet { name, value } => {
@@ -152,6 +205,8 @@ pub(crate) fn is_session_action(action: &Action) -> bool {
             | Action::SessionDestroy { .. }
             | Action::SessionList
             | Action::SessionSwitch { .. }
+            | Action::SessionSuspend { .. }
+            | Action::SessionResume { .. }
             | Action::SessionVarSet { .. }
             | Action::SessionVarGet { .. }
             | Action::SessionVarList
@@ -184,12 +239,20 @@ mod tests {
         assert!(is_session_action(&Action::SessionList));
         assert!(is_session_action(&Action::SessionCreate {
             name: "x".into(),
-            clone_from: None
+            clone_from: None,
+            profile: None,
         }));
         assert!(is_session_action(&Action::SessionDestroy {
             name: "x".into()
         }));
         assert!(is_session_action(&Action::SessionSwitch {
+            name: "x".into()
+        }));
+        assert!(is_session_action(&Action::SessionSuspend {
+            name: "x".into(),
+            reason: None,
+        }));
+        assert!(is_session_action(&Action::SessionResume {
             name: "x".into()
         }));
         assert!(is_session_action(&Action::SessionVarSet {

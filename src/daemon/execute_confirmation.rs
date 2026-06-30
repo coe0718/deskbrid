@@ -33,6 +33,15 @@ pub async fn execute_confirmation(
                 );
             }
             if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
+                if let Some(suspension) = state.auto_suspend.is_suspended(&entry.session_id).await {
+                    return Ok(json!({
+                        "status": "blocked",
+                        "id": id,
+                        "error": "session is suspended",
+                        "session": entry.session_id,
+                        "reason": suspension.reason,
+                    }));
+                }
                 let backend = state.backend.read().await;
                 let backend_ref = backend.as_ref().map(|b| b.as_ref());
                 let result = match backend_ref {

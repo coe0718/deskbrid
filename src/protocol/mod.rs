@@ -289,6 +289,38 @@ mod tests {
     }
 
     #[test]
+    fn parses_session_profile_and_suspend_resume() {
+        let (_, create) = Action::from_json(
+            r#"{"type":"session.create","id":"s","name":"agent-a","profile":"code-agent"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            create,
+            Action::SessionCreate {
+                name,
+                profile: Some(profile),
+                ..
+            } if name == "agent-a" && profile == "code-agent"
+        ));
+
+        let (_, suspend) = Action::from_json(
+            r#"{"type":"session.suspend","id":"s","name":"agent-a","reason":"canary"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            suspend,
+            Action::SessionSuspend {
+                name,
+                reason: Some(reason),
+            } if name == "agent-a" && reason == "canary"
+        ));
+
+        let (_, resume) =
+            Action::from_json(r#"{"type":"session.resume","id":"s","name":"agent-a"}"#).unwrap();
+        assert!(matches!(resume, Action::SessionResume { name } if name == "agent-a"));
+    }
+
+    #[test]
     fn rejects_empty_window_ids() {
         assert!(Action::from_json(r#"{"type":"windows.close","id":"x"}"#).is_err());
         assert!(Action::from_json(r#"{"type":"windows.close","id":"x","window_id":""}"#).is_err());

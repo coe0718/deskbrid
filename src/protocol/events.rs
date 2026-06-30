@@ -204,6 +204,16 @@ pub enum DeskbridEvent {
         last_seen: u64,
         timestamp: u64,
     },
+    #[serde(rename = "agent.suspended")]
+    AgentSuspended {
+        session_id: String,
+        reason: String,
+        trigger: String,
+        action_type: Option<String>,
+        timestamp: u64,
+    },
+    #[serde(rename = "agent.resumed")]
+    AgentResumed { session_id: String, timestamp: u64 },
     #[serde(rename = "lock.acquired")]
     LockAcquired {
         resource: String,

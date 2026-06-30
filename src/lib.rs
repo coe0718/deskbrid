@@ -37,6 +37,7 @@ use crate::daemon::rules::RuleEngine;
 pub struct SessionData {
     pub name: String,
     pub vars: HashMap<String, String>,
+    pub profile: Option<String>,
     pub created_at: u64,
     pub last_active: u64,
 }
@@ -47,6 +48,7 @@ impl SessionData {
         Self {
             name,
             vars: HashMap::new(),
+            profile: None,
             created_at: now,
             last_active: now,
         }
@@ -98,6 +100,7 @@ pub struct DaemonState {
     pub(crate) rate_limit: Option<daemon::RateLimitConfig>,
     /// Per-namespace, per-UID rate limiting (#129)
     pub rate_limit_store: Arc<daemon::RateLimitStore>,
+    pub profile_rate_limit_store: Arc<daemon::ProfileRateLimitStore>,
     pub clipboard_history: Arc<Mutex<VecDeque<protocol::ClipboardHistoryEntry>>>,
     pub clipboard_history_capacity: usize,
     pub schedule: Arc<daemon::schedule::ScheduleState>,
@@ -113,6 +116,7 @@ pub struct DaemonState {
     pub agent_mailbox: Arc<daemon::execute_agent::AgentMailboxStore>,
     pub agent_registry: Arc<daemon::agent_registry::AgentRegistry>,
     pub locks: Arc<daemon::locks::LockStore>,
+    pub auto_suspend: Arc<daemon::auto_suspend::AutoSuspendStore>,
     pub search_index: Arc<daemon::search::SearchIndex>,
     pub(crate) watchers: Arc<daemon::region_watch::WatchRegistry>,
     next_confirmation_id: AtomicU64,
@@ -162,6 +166,8 @@ impl DaemonState {
         // Initialize rate limit store with hardcoded defaults, then override from permissions.toml
         let mut rate_limit_store = daemon::RateLimitStore::new();
         rate_limit_store.load_overrides(permissions.rate_limits());
+        let profile_rate_limit_store = daemon::ProfileRateLimitStore::new(&permissions);
+        let auto_suspend_config = permissions.auto_suspend().clone();
 
         Self {
             backend: Arc::new(RwLock::new(None)),
@@ -175,6 +181,7 @@ impl DaemonState {
             rate_limits: DashMap::new(),
             rate_limit: daemon::rate_limit_from_env(),
             rate_limit_store: Arc::new(rate_limit_store),
+            profile_rate_limit_store: Arc::new(profile_rate_limit_store),
             clipboard_history: Arc::new(Mutex::new(VecDeque::new())),
             clipboard_history_capacity: daemon::clipboard_history_capacity_from_env(),
             schedule: Arc::new(daemon::schedule::ScheduleState::new()),
@@ -187,6 +194,9 @@ impl DaemonState {
             agent_mailbox: Arc::new(daemon::execute_agent::AgentMailboxStore::new()),
             agent_registry: Arc::new(daemon::agent_registry::AgentRegistry::new()),
             locks: Arc::new(daemon::locks::LockStore::new()),
+            auto_suspend: Arc::new(daemon::auto_suspend::AutoSuspendStore::new(
+                auto_suspend_config,
+            )),
             search_index: Arc::new(daemon::search::SearchIndex::new()),
             watchers: Arc::new(daemon::region_watch::WatchRegistry::new()),
             next_confirmation_id: AtomicU64::new(1),

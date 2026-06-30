@@ -51,9 +51,47 @@ pub async fn dispatch_action_with_options(
 ) -> serde_json::Value {
     let started = std::time::Instant::now();
     let action_timeout_ms = effective_timeout_ms(&action, state, &options);
+    let session_profile = state
+        .sessions
+        .get(session_id)
+        .and_then(|session| session.profile.clone());
+
+    if let Some(suspension) = state.auto_suspend.is_suspended(session_id).await
+        && !session_suspension_bypass(&action)
+    {
+        let response = serde_json::json!({
+            "type": "response",
+            "id": request_id,
+            "seq": seq,
+            "status": "error",
+            "error": {
+                "code": "SESSION_SUSPENDED",
+                "message": format!(
+                    "session '{}' is suspended: {}",
+                    session_id,
+                    suspension.reason
+                ),
+                "session": session_id,
+                "reason": suspension.reason,
+                "trigger": suspension.trigger,
+            }
+        });
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
 
     // Per-namespace rate limit check (#129) — runs before global check
     if let Some(hit) = state.rate_limit_store.check(peer_uid, &action) {
+        let response = namespace_rate_limited_response(&action, seq, &hit);
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
+
+    if let Some(hit) =
+        state
+            .profile_rate_limit_store
+            .check(session_profile.as_deref(), session_id, &action)
+    {
         let response = namespace_rate_limited_response(&action, seq, &hit);
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;
         return response;
@@ -68,6 +106,15 @@ pub async fn dispatch_action_with_options(
     // Check permissions first
     if !state.permissions.check(peer_uid, &action) {
         let response = permission_denied_response(request_id, action.action_type(), seq);
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
+    }
+
+    if let crate::permissions::ProfileCheck::Denied { profile, reason } = state
+        .permissions
+        .check_profile(session_profile.as_deref(), &action)
+    {
+        let response = profile_denied_response(request_id, seq, &profile, &reason);
         audit_response(state, &action, peer_uid, seq, &response, started, None).await;
         return response;
     }
@@ -102,6 +149,14 @@ pub async fn dispatch_action_with_options(
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }
+        if let crate::permissions::ProfileCheck::Denied { profile, reason } = state
+            .permissions
+            .check_profile(session_profile.as_deref(), &implied_action)
+        {
+            let response = profile_denied_response(request_id, seq, &profile, &reason);
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
+        }
     }
     if let Action::WindowsActivateOrLaunch {
         command,
@@ -120,6 +175,35 @@ pub async fn dispatch_action_with_options(
             audit_response(state, &action, peer_uid, seq, &response, started, None).await;
             return response;
         }
+        if let crate::permissions::ProfileCheck::Denied { profile, reason } = state
+            .permissions
+            .check_profile(session_profile.as_deref(), &process_start)
+        {
+            let response = profile_denied_response(request_id, seq, &profile, &reason);
+            audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+            return response;
+        }
+    }
+
+    if let Some(event) = state.auto_suspend.record_action(session_id, &action).await {
+        let reason = match &event {
+            crate::protocol::DeskbridEvent::AgentSuspended { reason, .. } => reason.clone(),
+            _ => "session suspended".to_string(),
+        };
+        let _ = state.event_tx.send(event);
+        let response = serde_json::json!({
+            "type": "response",
+            "id": request_id,
+            "seq": seq,
+            "status": "error",
+            "error": {
+                "code": "SESSION_SUSPENDED",
+                "message": reason,
+                "session": session_id,
+            }
+        });
+        audit_response(state, &action, peer_uid, seq, &response, started, None).await;
+        return response;
     }
 
     // Record action if macro recording is active.
@@ -161,7 +245,10 @@ pub async fn dispatch_action_with_options(
     }
 
     // Handle confirmation gate (#37)
-    if options.require_confirmation == Some(true) {
+    let profile_requires_confirmation = state
+        .permissions
+        .profile_requires_confirmation(session_profile.as_deref(), &action);
+    if options.require_confirmation == Some(true) || profile_requires_confirmation {
         let confirm_id = state.next_confirmation_id();
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -186,6 +273,7 @@ pub async fn dispatch_action_with_options(
             "status": "action_requires_confirmation",
             "confirmation_id": confirm_id,
             "action_type": action.action_type(),
+            "profile_required": profile_requires_confirmation,
         });
         audit_response(
             state,
@@ -540,5 +628,35 @@ fn is_a11y_action(action: &Action) -> bool {
             | Action::A11yDoctor
             | Action::A11ySetupAccessibility
             | Action::A11yClickElementByRef { .. }
+    )
+}
+
+fn profile_denied_response(
+    request_id: &str,
+    seq: u64,
+    profile: &str,
+    reason: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "type": "response",
+        "id": request_id,
+        "seq": seq,
+        "status": "error",
+        "error": {
+            "code": "PROFILE_DENIED",
+            "message": reason,
+            "profile": profile,
+        }
+    })
+}
+
+fn session_suspension_bypass(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::SessionResume { .. }
+            | Action::SessionList
+            | Action::AgentList
+            | Action::AgentGet { .. }
+            | Action::ConfirmationList
     )
 }
