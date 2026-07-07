@@ -31,6 +31,7 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             obj
         }
         Action::SystemIdle => json!({"type": "system.idle", "id": id}),
+        Action::PresenceGet => json!({"type": "system.presence.get", "id": id}),
         Action::SystemPower { action } => {
             json!({"type": "system.power", "id": id, "action": action})
         }

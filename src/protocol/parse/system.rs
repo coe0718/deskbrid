@@ -31,6 +31,7 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             interval_ms: raw["interval_ms"].as_u64(),
         },
         "system.idle" => Action::SystemIdle,
+        "system.presence.get" => Action::PresenceGet,
         "system.power" => Action::SystemPower {
             action: raw["action"].as_str().unwrap_or("").into(),
         },

@@ -72,6 +72,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemNormalizeCoords { .. } => "system.normalize_coords",
         Action::WaitFor { .. } => "wait.for",
         Action::SystemIdle => "system.idle",
+        Action::PresenceGet => "system.presence.get",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
         Action::SystemBacklightList => "system.backlight_list",

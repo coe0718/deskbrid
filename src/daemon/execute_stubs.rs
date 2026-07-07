@@ -8,7 +8,7 @@ use super::{build_system_capabilities, run_system_remediation};
 pub(crate) async fn execute_stubs(
     action: Action,
     backend: &dyn DesktopBackend,
-    _state: &DaemonState,
+    state: &DaemonState,
 ) -> anyhow::Result<Value> {
     use Action::*;
     Ok(match action {
@@ -17,6 +17,10 @@ pub(crate) async fn execute_stubs(
         SystemCapabilities => serde_json::json!(build_system_capabilities(backend).await?),
         SystemConfinement => serde_json::json!(crate::daemon::build_confinement_report().await?),
         SystemIdle => serde_json::json!({"idle_seconds": backend.idle_seconds().await?}),
+        PresenceGet => {
+            let snapshot = crate::daemon::presence::current_snapshot(state).await;
+            snapshot.to_json()
+        }
         SystemRemediate { ref check, apply } => {
             serde_json::json!(run_system_remediation(check, apply).await?)
         }

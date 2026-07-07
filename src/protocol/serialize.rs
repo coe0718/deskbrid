@@ -121,6 +121,7 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemNormalizeCoords { .. }
         | Action::WaitFor { .. }
         | Action::SystemIdle
+        | Action::PresenceGet
         | Action::SystemPower { .. }
         | Action::SystemBattery
         | Action::SystemBacklightList

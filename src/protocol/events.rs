@@ -246,4 +246,22 @@ pub enum DeskbridEvent {
         reason: String,
         timestamp: u64,
     },
+    #[serde(rename = "presence.active")]
+    PresenceActive {
+        state: String,
+        idle_seconds: u64,
+        timestamp: u64,
+    },
+    #[serde(rename = "presence.idle")]
+    PresenceIdle {
+        state: String,
+        idle_seconds: u64,
+        timestamp: u64,
+    },
+    #[serde(rename = "presence.sleep")]
+    PresenceSleep {
+        state: String,
+        idle_seconds: u64,
+        timestamp: u64,
+    },
 }

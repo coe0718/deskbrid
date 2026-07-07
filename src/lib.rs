@@ -117,6 +117,7 @@ pub struct DaemonState {
     pub agent_registry: Arc<daemon::agent_registry::AgentRegistry>,
     pub locks: Arc<daemon::locks::LockStore>,
     pub auto_suspend: Arc<daemon::auto_suspend::AutoSuspendStore>,
+    pub presence: daemon::presence::PresenceStore,
     pub search_index: Arc<daemon::search::SearchIndex>,
     pub(crate) watchers: Arc<daemon::region_watch::WatchRegistry>,
     next_confirmation_id: AtomicU64,
@@ -197,6 +198,7 @@ impl DaemonState {
             auto_suspend: Arc::new(daemon::auto_suspend::AutoSuspendStore::new(
                 auto_suspend_config,
             )),
+            presence: daemon::presence::PresenceStore::default(),
             search_index: Arc::new(daemon::search::SearchIndex::new()),
             watchers: Arc::new(daemon::region_watch::WatchRegistry::new()),
             next_confirmation_id: AtomicU64::new(1),

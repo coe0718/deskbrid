@@ -54,8 +54,9 @@ pub(crate) mod locks;
 pub(crate) mod macro_engine;
 mod mpris;
 pub(crate) mod mpris_convert;
-pub mod persistence;
+pub(crate) mod persistence;
 pub mod portal;
+pub(crate) mod presence;
 mod rate_limit;
 pub(crate) mod region_watch;
 pub(crate) mod rules;
@@ -211,6 +212,9 @@ pub async fn run(
     rules::spawn_rules_engine(Arc::clone(&state));
     // Start TimeRange rules evaluator — checks TimeRange triggers on a 60s timer
     rules::spawn_timerange_evaluator(Arc::clone(&state));
+
+    // Start presence monitor — polls idle and broadcasts presence.* events
+    presence::spawn_presence_monitor(Arc::clone(&state));
 
     // Start TCP listener if configured
     if let Some(bind) = tcp_bind {

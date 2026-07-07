@@ -70,6 +70,7 @@ impl Action {
             "system.normalize_coords",
             "wait.for",
             "system.idle",
+            "system.presence.get",
             "system.power",
             "system.battery",
             "system.backlight_list",

@@ -280,6 +280,10 @@ pub enum Action {
         interval_ms: Option<u64>,
     },
     SystemIdle,
+    /// Get current user presence state (active, idle, sleep).
+    /// Returns {"state": "active"|"idle"|"sleep", "idle_seconds": u64}
+    /// Also available as push event via subscribe "presence.*"
+    PresenceGet,
     SystemPower {
         action: String,
     },
