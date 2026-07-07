@@ -32,6 +32,10 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
         },
         "system.idle" => Action::SystemIdle,
         "system.presence.get" => Action::PresenceGet,
+        "system.presence.config" => Action::PresenceConfig {
+            idle_threshold_secs: raw.get("idle_threshold_secs").and_then(|v| v.as_u64()),
+            away_threshold_secs: raw.get("away_threshold_secs").and_then(|v| v.as_u64()),
+        },
         "system.power" => Action::SystemPower {
             action: raw["action"].as_str().unwrap_or("").into(),
         },

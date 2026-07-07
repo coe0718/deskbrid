@@ -71,6 +71,7 @@ impl Action {
             "wait.for",
             "system.idle",
             "system.presence.get",
+            "system.presence.config",
             "system.power",
             "system.battery",
             "system.backlight_list",

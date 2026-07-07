@@ -176,6 +176,7 @@ pub async fn execute_action(
         | SystemConfinement
         | SystemIdle
         | PresenceGet
+        | PresenceConfig { .. }
         | SystemRemediate { .. }
         | LocationGet
         | UiTreeGet

@@ -21,6 +21,18 @@ pub(crate) async fn execute_stubs(
             let snapshot = crate::daemon::presence::current_snapshot(state).await;
             snapshot.to_json()
         }
+        PresenceConfig {
+            idle_threshold_secs,
+            away_threshold_secs,
+        } => {
+            let new_cfg = crate::daemon::presence::update_config(
+                state,
+                idle_threshold_secs,
+                away_threshold_secs,
+            )
+            .await;
+            new_cfg.to_json()
+        }
         SystemRemediate { ref check, apply } => {
             serde_json::json!(run_system_remediation(check, apply).await?)
         }

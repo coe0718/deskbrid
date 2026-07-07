@@ -258,6 +258,16 @@ pub enum DeskbridEvent {
         idle_seconds: u64,
         timestamp: u64,
     },
+    #[serde(rename = "presence.returned")]
+    PresenceReturned {
+        /// Seconds the user was idle before returning.
+        idle_duration_secs: u64,
+        timestamp: u64,
+    },
+    #[serde(rename = "presence.locked")]
+    PresenceLocked { timestamp: u64 },
+    #[serde(rename = "presence.unlocked")]
+    PresenceUnlocked { timestamp: u64 },
     #[serde(rename = "presence.sleep")]
     PresenceSleep {
         state: String,

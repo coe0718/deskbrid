@@ -32,6 +32,19 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
         }
         Action::SystemIdle => json!({"type": "system.idle", "id": id}),
         Action::PresenceGet => json!({"type": "system.presence.get", "id": id}),
+        Action::PresenceConfig {
+            idle_threshold_secs,
+            away_threshold_secs,
+        } => {
+            let mut obj = json!({"type":"system.presence.config","id":id});
+            if let Some(v) = idle_threshold_secs {
+                obj["idle_threshold_secs"] = json!(v);
+            }
+            if let Some(v) = away_threshold_secs {
+                obj["away_threshold_secs"] = json!(v);
+            }
+            obj
+        }
         Action::SystemPower { action } => {
             json!({"type": "system.power", "id": id, "action": action})
         }

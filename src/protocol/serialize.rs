@@ -120,9 +120,10 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemRemediate { .. }
         | Action::SystemNormalizeCoords { .. }
         | Action::WaitFor { .. }
+        | Action::SystemPower { .. }
         | Action::SystemIdle
         | Action::PresenceGet
-        | Action::SystemPower { .. }
+        | Action::PresenceConfig { .. }
         | Action::SystemBattery
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }

@@ -73,6 +73,7 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::WaitFor { .. } => "wait.for",
         Action::SystemIdle => "system.idle",
         Action::PresenceGet => "system.presence.get",
+        Action::PresenceConfig { .. } => "system.presence.config",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
         Action::SystemBacklightList => "system.backlight_list",

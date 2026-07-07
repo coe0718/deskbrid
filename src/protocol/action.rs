@@ -284,6 +284,13 @@ pub enum Action {
     /// Returns {"state": "active"|"idle"|"sleep", "idle_seconds": u64}
     /// Also available as push event via subscribe "presence.*"
     PresenceGet,
+    /// Read/update presence-monitor thresholds. With no args: returns current
+    /// config. With `idle_threshold_secs` / `away_threshold_secs`: updates those
+    /// thresholds (None preserves the existing value). Returns the new config.
+    PresenceConfig {
+        idle_threshold_secs: Option<u64>,
+        away_threshold_secs: Option<u64>,
+    },
     SystemPower {
         action: String,
     },
