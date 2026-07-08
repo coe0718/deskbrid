@@ -43,10 +43,7 @@ pub(crate) async fn execute_stubs(
             format_24h,
         } => {
             let new_cfg = crate::daemon::presence::update_time_of_day_config(
-                state,
-                latitude,
-                longitude,
-                format_24h,
+                state, latitude, longitude, format_24h,
             )
             .await;
             new_cfg.to_json()

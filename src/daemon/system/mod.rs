@@ -91,25 +91,31 @@ pub async fn execute_system_control_action(
             let snapshot = crate::daemon::presence::current_snapshot(state).await;
             Ok(snapshot.to_json())
         }
-        Action::PresenceConfig { idle_threshold_secs, away_threshold_secs } => {
+        Action::PresenceConfig {
+            idle_threshold_secs,
+            away_threshold_secs,
+        } => {
             let new_cfg = crate::daemon::presence::update_config(
                 state,
                 idle_threshold_secs,
                 away_threshold_secs,
-            ).await;
+            )
+            .await;
             Ok(new_cfg.to_json())
         }
         Action::TimeOfDay => {
             let snapshot = crate::daemon::presence::current_time_of_day_snapshot(state).await;
             Ok(snapshot.to_json())
         }
-        Action::TimeOfDayConfig { latitude, longitude, format_24h } => {
+        Action::TimeOfDayConfig {
+            latitude,
+            longitude,
+            format_24h,
+        } => {
             let new_cfg = crate::daemon::presence::update_time_of_day_config(
-                state,
-                latitude,
-                longitude,
-                format_24h,
-            ).await;
+                state, latitude, longitude, format_24h,
+            )
+            .await;
             Ok(new_cfg.to_json())
         }
         _ => anyhow::bail!(

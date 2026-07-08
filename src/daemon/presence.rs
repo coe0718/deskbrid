@@ -272,7 +272,7 @@ pub(crate) async fn current_time_of_day_snapshot(state: &DaemonState) -> TimeOfD
 
 /// Build the time-of-day snapshot from config. Separated for testability.
 fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
-    use chrono::{Local, Utc, Timelike, Datelike, Offset};
+    use chrono::{Datelike, Local, Offset, Timelike, Utc};
 
     let now_local = Local::now();
     let now_utc = Utc::now();
@@ -285,7 +285,11 @@ fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
     // Uptime from /proc/uptime
     let uptime_seconds = std::fs::read_to_string("/proc/uptime")
         .ok()
-        .and_then(|s| s.split_whitespace().next().and_then(|p| p.parse::<f64>().ok()))
+        .and_then(|s| {
+            s.split_whitespace()
+                .next()
+                .and_then(|p| p.parse::<f64>().ok())
+        })
         .map(|s| s as u64)
         .unwrap_or(0);
     let boot_time = unix_ts - uptime_seconds as i64;
@@ -307,7 +311,10 @@ fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
     // Sunrise/sunset if lat/lon configured
     let (sunrise, sunset) = if let (Some(lat), Some(lon)) = (cfg.latitude, cfg.longitude) {
         let (sr, ss) = calculate_sun_times(lat, lon, now_local.date_naive());
-        (Some(sr.format("%H:%M:%S").to_string()), Some(ss.format("%H:%M:%S").to_string()))
+        (
+            Some(sr.format("%H:%M:%S").to_string()),
+            Some(ss.format("%H:%M:%S").to_string()),
+        )
     } else {
         (None, None)
     };
@@ -330,12 +337,20 @@ fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
 
 /// Calculate sunrise/sunset for a given date and coordinates.
 /// Uses the standard NOAA solar position algorithm (simplified).
-fn calculate_sun_times(lat: f64, lon: f64, date: chrono::NaiveDate) -> (chrono::NaiveTime, chrono::NaiveTime) {
-    use chrono::{NaiveTime, Datelike, Local, Offset};
+fn calculate_sun_times(
+    lat: f64,
+    lon: f64,
+    date: chrono::NaiveDate,
+) -> (chrono::NaiveTime, chrono::NaiveTime) {
+    use chrono::{Datelike, Local, NaiveTime, Offset};
 
     // Solar declination angle
     let day_of_year = date.ordinal() as f64;
-    let decl: f64 = -23.44 * (360.0 / 365.0 * (day_of_year + 10.0)).to_radians().cos().to_degrees();
+    let decl: f64 = -23.44
+        * (360.0 / 365.0 * (day_of_year + 10.0))
+            .to_radians()
+            .cos()
+            .to_degrees();
     let decl_rad = decl.to_radians();
     let lat_rad = lat.to_radians();
 
@@ -361,7 +376,8 @@ fn calculate_sun_times(lat: f64, lon: f64, date: chrono::NaiveDate) -> (chrono::
         let hour = h.floor() as u32;
         let minute = ((h - hour as f64) * 60.0).round() as u32;
         let second = (((h - hour as f64) * 60.0 - minute as f64) * 60.0).round() as u32;
-        NaiveTime::from_hms_opt(hour, minute.min(59), second.min(59)).unwrap_or(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+        NaiveTime::from_hms_opt(hour, minute.min(59), second.min(59))
+            .unwrap_or(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
     };
 
     (norm(sunrise_local), norm(sunset_local))
