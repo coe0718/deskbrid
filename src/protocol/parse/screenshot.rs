@@ -52,6 +52,27 @@ pub(super) fn parse_screenshot(raw: &Value, _id: &str, type_str: &str) -> anyhow
             }),
             window_id: raw["window_id"].as_str().map(String::from),
         },
+        "vision.find_element" => Action::VisionFindElement {
+            template_path: required_non_empty_string(raw, "template_path")?,
+            screenshot: optional_non_empty_string(raw, "screenshot")?,
+            min_confidence: optional_f64(raw, "min_confidence")?,
+            max_results: optional_u32(raw, "max_results")?,
+        },
+        "vision.find_by_text" => Action::VisionFindByText {
+            text: required_non_empty_string(raw, "text")?,
+            screenshot: optional_non_empty_string(raw, "screenshot")?,
+        },
+        "vision.detect_state" => Action::VisionDetectState {
+            screenshot: optional_non_empty_string(raw, "screenshot")?,
+            checks: raw["checks"]
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect()
+                })
+                .unwrap_or_default(),
+        },
         _ => anyhow::bail!("unknown screenshot type: {type_str}"),
     })
 }

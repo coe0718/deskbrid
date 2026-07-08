@@ -46,6 +46,7 @@ pub(crate) mod execute_secrets;
 mod execute_sessions;
 mod execute_stubs;
 mod execute_system;
+mod execute_vision;
 mod execute_windows;
 mod execute_workspace;
 pub(crate) mod helpers;

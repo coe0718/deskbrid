@@ -22,6 +22,7 @@ mod rules;
 mod screenshot;
 mod sessions;
 mod system;
+mod vision;
 mod watch;
 mod windows;
 
@@ -94,6 +95,11 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::TextWatchCreate { .. }
         | Action::TextWatchRemove { .. }
         | Action::TextWatchList => watch::serialize_watch(action, &id),
+
+        // Vision / element detection
+        Action::VisionFindElement { .. }
+        | Action::VisionFindByText { .. }
+        | Action::VisionDetectState { .. } => vision::serialize_vision(action, &id),
 
         // Screencast / portal
         Action::ScreencastStart { .. }

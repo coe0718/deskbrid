@@ -1,6 +1,15 @@
 use super::rules_types::{EventTrigger, RuleCondition};
 use super::types::Region;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VisionStateCheck {
+    pub kind: String,
+    pub expected: Option<serde_json::Value>,
+    pub region: Option<Region>,
+    pub template_path: Option<String>,
+    pub min_confidence: Option<f64>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
     Ping,
@@ -166,6 +175,23 @@ pub enum Action {
         monitor: Option<u32>,
         region: Option<Region>,
         window_id: Option<String>,
+    },
+    /// Find UI element(s) by visual template matching.
+    VisionFindElement {
+        template_path: String,
+        screenshot: Option<String>,
+        min_confidence: Option<f64>,
+        max_results: Option<u32>,
+    },
+    /// Find element by text label (hybrid OCR + position).
+    VisionFindByText {
+        text: String,
+        screenshot: Option<String>,
+    },
+    /// Detect UI state via multiple visual checks.
+    VisionDetectState {
+        screenshot: Option<String>,
+        checks: Vec<VisionStateCheck>,
     },
     RegionWatchCreate {
         name: String,

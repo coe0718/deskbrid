@@ -22,6 +22,7 @@ use super::execute_search;
 use super::execute_stubs;
 use super::execute_system;
 use super::execute_system::execute_dbus_call;
+use super::execute_vision;
 use super::execute_windows;
 use super::execute_workspace;
 use super::region_watch;
@@ -153,6 +154,10 @@ pub async fn execute_action(
 
         Screenshot { .. } | ScreenshotOcr { .. } | ScreenshotDiff { .. } => {
             execute_screenshot::execute_screenshot(action, backend, state).await?
+        }
+
+        VisionFindElement { .. } | VisionFindByText { .. } | VisionDetectState { .. } => {
+            execute_vision::execute_vision(action, backend, state).await?
         }
 
         RegionWatchCreate { .. }

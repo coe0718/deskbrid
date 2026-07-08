@@ -194,6 +194,103 @@ fn temp_diff_path() -> PathBuf {
     PathBuf::from("/tmp/deskbrid").join(format!("diff_{ts}.png"))
 }
 
+/// Vision element detection request types
+pub struct VisionFindElementRequest {
+    pub template_path: String,
+    pub screenshot: Option<String>,
+    pub min_confidence: Option<f64>,
+    pub max_results: Option<u32>,
+}
+
+pub struct VisionFindByTextRequest {
+    pub text: String,
+    pub screenshot: Option<String>,
+}
+
+pub struct VisionDetectStateRequest {
+    pub screenshot: Option<String>,
+    pub checks: Vec<crate::protocol::VisionStateCheck>,
+}
+
+/// Find UI element(s) by visual template matching.
+pub async fn vision_find_element(
+    backend: &dyn DesktopBackend,
+    request: VisionFindElementRequest,
+) -> anyhow::Result<serde_json::Value> {
+    let template_path = expand_path(&request.template_path)?;
+    let screenshot_path = match request.screenshot {
+        Some(s) => expand_path(&s)?,
+        None => {
+            let screenshot = backend.screenshot(None, None, None).await?;
+            PathBuf::from(screenshot.path)
+        }
+    };
+
+    // TODO: Implement actual template matching
+    // For now, return a stub response
+    Ok(serde_json::json!({
+        "elements": [],
+        "template_path": template_path.to_string_lossy(),
+        "screenshot": screenshot_path.to_string_lossy(),
+        "min_confidence": request.min_confidence.unwrap_or(0.8),
+        "max_results": request.max_results.unwrap_or(10),
+        "note": "template matching not yet implemented"
+    }))
+}
+
+/// Find element by text label (hybrid OCR + position).
+pub async fn vision_find_by_text(
+    backend: &dyn DesktopBackend,
+    request: VisionFindByTextRequest,
+) -> anyhow::Result<serde_json::Value> {
+    let screenshot_path = match request.screenshot {
+        Some(s) => expand_path(&s)?,
+        None => {
+            let screenshot = backend.screenshot(None, None, None).await?;
+            PathBuf::from(screenshot.path)
+        }
+    };
+
+    // TODO: Implement actual OCR + text matching
+    // For now, return a stub response
+    Ok(serde_json::json!({
+        "elements": [],
+        "text": request.text,
+        "screenshot": screenshot_path.to_string_lossy(),
+        "note": "OCR text finding not yet implemented"
+    }))
+}
+
+/// Detect UI state via multiple visual checks.
+pub async fn vision_detect_state(
+    backend: &dyn DesktopBackend,
+    request: VisionDetectStateRequest,
+) -> anyhow::Result<serde_json::Value> {
+    let screenshot_path = match request.screenshot {
+        Some(s) => expand_path(&s)?,
+        None => {
+            let screenshot = backend.screenshot(None, None, None).await?;
+            PathBuf::from(screenshot.path)
+        }
+    };
+
+    // TODO: Implement actual state detection
+    // For now, return a stub response
+    let mut results = Vec::new();
+    for check in request.checks {
+        results.push(serde_json::json!({
+            "kind": check.kind,
+            "passed": false,
+            "note": "state detection not yet implemented"
+        }));
+    }
+
+    Ok(serde_json::json!({
+        "screenshot": screenshot_path.to_string_lossy(),
+        "results": results
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

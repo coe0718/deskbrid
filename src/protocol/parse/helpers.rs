@@ -202,6 +202,22 @@ pub(super) fn optional_positive_f64(
     Ok(Some(value))
 }
 
+pub(super) fn optional_f64(raw: &serde_json::Value, field: &str) -> anyhow::Result<Option<f64>> {
+    let Some(value) = raw.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let value = value
+        .as_f64()
+        .ok_or_else(|| anyhow::anyhow!("invalid '{}' field", field))?;
+    if !value.is_finite() {
+        anyhow::bail!("'{}' must be a finite number", field);
+    }
+    Ok(Some(value))
+}
+
 pub(super) fn required_rotation(raw: &serde_json::Value, field: &str) -> anyhow::Result<String> {
     let value = required_non_empty_string(raw, field)?;
     match value.as_str() {
