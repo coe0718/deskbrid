@@ -36,6 +36,12 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             idle_threshold_secs: raw.get("idle_threshold_secs").and_then(|v| v.as_u64()),
             away_threshold_secs: raw.get("away_threshold_secs").and_then(|v| v.as_u64()),
         },
+        "system.time_of_day" => Action::TimeOfDay,
+        "system.time_of_day.config" => Action::TimeOfDayConfig {
+            latitude: raw.get("latitude").and_then(|v| v.as_f64()),
+            longitude: raw.get("longitude").and_then(|v| v.as_f64()),
+            format_24h: raw.get("format_24h").and_then(|v| v.as_bool()),
+        },
         "system.power" => Action::SystemPower {
             action: raw["action"].as_str().unwrap_or("").into(),
         },

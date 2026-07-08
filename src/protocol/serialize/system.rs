@@ -45,6 +45,24 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::TimeOfDay => json!({"type": "system.time_of_day", "id": id}),
+        Action::TimeOfDayConfig {
+            latitude,
+            longitude,
+            format_24h,
+        } => {
+            let mut obj = json!({"type":"system.time_of_day.config","id":id});
+            if let Some(v) = latitude {
+                obj["latitude"] = json!(v);
+            }
+            if let Some(v) = longitude {
+                obj["longitude"] = json!(v);
+            }
+            if let Some(v) = format_24h {
+                obj["format_24h"] = json!(v);
+            }
+            obj
+        }
         Action::SystemPower { action } => {
             json!({"type": "system.power", "id": id, "action": action})
         }

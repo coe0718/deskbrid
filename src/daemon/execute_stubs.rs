@@ -33,6 +33,24 @@ pub(crate) async fn execute_stubs(
             .await;
             new_cfg.to_json()
         }
+        TimeOfDay => {
+            let snapshot = crate::daemon::presence::current_time_of_day_snapshot(state).await;
+            snapshot.to_json()
+        }
+        TimeOfDayConfig {
+            latitude,
+            longitude,
+            format_24h,
+        } => {
+            let new_cfg = crate::daemon::presence::update_time_of_day_config(
+                state,
+                latitude,
+                longitude,
+                format_24h,
+            )
+            .await;
+            new_cfg.to_json()
+        }
         SystemRemediate { ref check, apply } => {
             serde_json::json!(run_system_remediation(check, apply).await?)
         }

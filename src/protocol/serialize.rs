@@ -124,6 +124,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemIdle
         | Action::PresenceGet
         | Action::PresenceConfig { .. }
+        | Action::TimeOfDay
+        | Action::TimeOfDayConfig { .. }
         | Action::SystemBattery
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }

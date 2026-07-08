@@ -32,6 +32,11 @@ pub fn is_system_control_action(action: &Action) -> bool {
             | Action::TimerList
             | Action::TimerStart { .. }
             | Action::TimerStop { .. }
+            | Action::SystemIdle
+            | Action::PresenceGet
+            | Action::PresenceConfig { .. }
+            | Action::TimeOfDay
+            | Action::TimeOfDayConfig { .. }
     )
 }
 
@@ -74,6 +79,39 @@ pub async fn execute_system_control_action(
         Action::TimerList => service_list(Some("timer")).await,
         Action::TimerStart { name } => systemctl_unit("start", &name).await,
         Action::TimerStop { name } => systemctl_unit("stop", &name).await,
+        Action::SystemIdle => {
+            let guard = state.backend.read().await;
+            let backend = guard
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("no backend loaded — cannot read idle seconds"))?;
+            let idle = backend.idle_seconds().await?;
+            Ok(serde_json::json!({"idle_seconds": idle}))
+        }
+        Action::PresenceGet => {
+            let snapshot = crate::daemon::presence::current_snapshot(state).await;
+            Ok(snapshot.to_json())
+        }
+        Action::PresenceConfig { idle_threshold_secs, away_threshold_secs } => {
+            let new_cfg = crate::daemon::presence::update_config(
+                state,
+                idle_threshold_secs,
+                away_threshold_secs,
+            ).await;
+            Ok(new_cfg.to_json())
+        }
+        Action::TimeOfDay => {
+            let snapshot = crate::daemon::presence::current_time_of_day_snapshot(state).await;
+            Ok(snapshot.to_json())
+        }
+        Action::TimeOfDayConfig { latitude, longitude, format_24h } => {
+            let new_cfg = crate::daemon::presence::update_time_of_day_config(
+                state,
+                latitude,
+                longitude,
+                format_24h,
+            ).await;
+            Ok(new_cfg.to_json())
+        }
         _ => anyhow::bail!(
             "internal dispatch error: non-system action passed to system control dispatcher"
         ),

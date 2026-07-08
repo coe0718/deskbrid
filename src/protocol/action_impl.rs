@@ -72,6 +72,8 @@ impl Action {
             "system.idle",
             "system.presence.get",
             "system.presence.config",
+            "system.time_of_day",
+            "system.time_of_day.config",
             "system.power",
             "system.battery",
             "system.backlight_list",

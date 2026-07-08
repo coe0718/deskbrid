@@ -66,6 +66,81 @@ impl PresenceConfig {
     }
 }
 
+/// Time-of-day runtime config. Mutable via `system.time_of_day.config` action.
+#[derive(Debug, Clone, Copy)]
+pub struct TimeOfDayConfig {
+    /// Latitude for solar calculations (sunrise/sunset). Default: None.
+    pub latitude: Option<f64>,
+    /// Longitude for solar calculations. Default: None.
+    pub longitude: Option<f64>,
+    /// Display time in 24-hour format. Default: true.
+    pub format_24h: bool,
+}
+
+impl Default for TimeOfDayConfig {
+    fn default() -> Self {
+        Self {
+            latitude: None,
+            longitude: None,
+            format_24h: true,
+        }
+    }
+}
+
+impl TimeOfDayConfig {
+    pub(crate) fn to_json(self) -> serde_json::Value {
+        let mut obj = serde_json::json!({"format_24h": self.format_24h});
+        if let Some(lat) = self.latitude {
+            obj["latitude"] = serde_json::json!(lat);
+        }
+        if let Some(lon) = self.longitude {
+            obj["longitude"] = serde_json::json!(lon);
+        }
+        obj
+    }
+}
+
+/// Snapshot returned from `system.time_of_day`.
+#[derive(Debug, Clone)]
+pub struct TimeOfDaySnapshot {
+    pub local_time: String,
+    pub unix_timestamp: i64,
+    pub timezone: String,
+    pub timezone_offset: i32,
+    pub dst_active: bool,
+    pub uptime_seconds: u64,
+    pub boot_time: i64,
+    pub day_of_week: u8,
+    pub hour_of_day: u8,
+    pub is_business_hours: bool,
+    pub sunrise: Option<String>,
+    pub sunset: Option<String>,
+}
+
+impl TimeOfDaySnapshot {
+    pub(crate) fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::json!({
+            "local_time": self.local_time,
+            "unix_timestamp": self.unix_timestamp,
+            "timezone": self.timezone,
+            "timezone_offset": self.timezone_offset,
+            "dst_active": self.dst_active,
+            "uptime_seconds": self.uptime_seconds,
+            "boot_time": self.boot_time,
+            "day_of_week": self.day_of_week,
+            "hour_of_day": self.hour_of_day,
+            "is_business_hours": self.is_business_hours,
+        });
+        if let Some(sr) = &self.sunrise {
+            obj["sunrise"] = serde_json::json!(sr);
+        }
+        if let Some(ss) = &self.sunset {
+            obj["sunset"] = serde_json::json!(ss);
+        }
+        obj
+    }
+}
+
 /// Discrete presence state for a given moment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PresenceState {
@@ -124,6 +199,7 @@ impl PresenceSnapshot {
 pub struct PresenceStore {
     pub snapshot: RwLock<Option<PresenceSnapshot>>,
     pub config: Mutex<PresenceConfig>,
+    pub time_of_day_config: Mutex<TimeOfDayConfig>,
 }
 
 /// Read the current presence snapshot without taking the backend.
@@ -158,6 +234,137 @@ pub(crate) async fn update_config(
         cfg.away_threshold_secs = away;
     }
     *cfg
+}
+
+/// Read the current runtime time-of-day config.
+#[allow(dead_code)] // exposed for future use when config is queried standalone
+pub(crate) async fn current_time_of_day_config(state: &DaemonState) -> TimeOfDayConfig {
+    *state.presence.time_of_day_config.lock().await
+}
+
+/// Apply a config update from the `system.time_of_day.config` action.
+/// `None` fields preserve the existing value. Returns the new config.
+pub(crate) async fn update_time_of_day_config(
+    state: &DaemonState,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    format_24h: Option<bool>,
+) -> TimeOfDayConfig {
+    let mut cfg = state.presence.time_of_day_config.lock().await;
+    if let Some(lat) = latitude {
+        cfg.latitude = Some(lat);
+    }
+    if let Some(lon) = longitude {
+        cfg.longitude = Some(lon);
+    }
+    if let Some(f24) = format_24h {
+        cfg.format_24h = f24;
+    }
+    *cfg
+}
+
+/// Build a `TimeOfDaySnapshot` for the `system.time_of_day` action.
+/// Uses the configured latitude/longitude for solar times.
+pub(crate) async fn current_time_of_day_snapshot(state: &DaemonState) -> TimeOfDaySnapshot {
+    let cfg = *state.presence.time_of_day_config.lock().await;
+    build_time_of_day_snapshot(cfg)
+}
+
+/// Build the time-of-day snapshot from config. Separated for testability.
+fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
+    use chrono::{Local, Utc, Timelike, Datelike, Offset};
+
+    let now_local = Local::now();
+    let now_utc = Utc::now();
+    let unix_ts = now_utc.timestamp();
+    let timezone = now_local.offset().to_string();
+    let offset = now_local.offset().fix().local_minus_utc();
+    // FixedOffset has no DST; it's always standard time
+    let dst_active = false;
+
+    // Uptime from /proc/uptime
+    let uptime_seconds = std::fs::read_to_string("/proc/uptime")
+        .ok()
+        .and_then(|s| s.split_whitespace().next().and_then(|p| p.parse::<f64>().ok()))
+        .map(|s| s as u64)
+        .unwrap_or(0);
+    let boot_time = unix_ts - uptime_seconds as i64;
+
+    // Day of week (0=Mon...6=Sun for chrono, but we output 0=Sun...6=Sat)
+    let day_of_week = ((now_local.weekday().num_days_from_monday() + 1) % 7) as u8;
+    let hour_of_day = now_local.hour() as u8;
+
+    // Business hours: Mon-Fri 9-17 local
+    let is_business_hours = (1..=5).contains(&day_of_week) && (9..17).contains(&hour_of_day);
+
+    // Local time string
+    let local_time = if cfg.format_24h {
+        now_local.format("%Y-%m-%d %H:%M:%S").to_string()
+    } else {
+        now_local.format("%Y-%m-%d %I:%M:%S %p").to_string()
+    };
+
+    // Sunrise/sunset if lat/lon configured
+    let (sunrise, sunset) = if let (Some(lat), Some(lon)) = (cfg.latitude, cfg.longitude) {
+        let (sr, ss) = calculate_sun_times(lat, lon, now_local.date_naive());
+        (Some(sr.format("%H:%M:%S").to_string()), Some(ss.format("%H:%M:%S").to_string()))
+    } else {
+        (None, None)
+    };
+
+    TimeOfDaySnapshot {
+        local_time,
+        unix_timestamp: unix_ts,
+        timezone,
+        timezone_offset: offset,
+        dst_active,
+        uptime_seconds,
+        boot_time,
+        day_of_week,
+        hour_of_day,
+        is_business_hours,
+        sunrise,
+        sunset,
+    }
+}
+
+/// Calculate sunrise/sunset for a given date and coordinates.
+/// Uses the standard NOAA solar position algorithm (simplified).
+fn calculate_sun_times(lat: f64, lon: f64, date: chrono::NaiveDate) -> (chrono::NaiveTime, chrono::NaiveTime) {
+    use chrono::{NaiveTime, Datelike, Local, Offset};
+
+    // Solar declination angle
+    let day_of_year = date.ordinal() as f64;
+    let decl: f64 = -23.44 * (360.0 / 365.0 * (day_of_year + 10.0)).to_radians().cos().to_degrees();
+    let decl_rad = decl.to_radians();
+    let lat_rad = lat.to_radians();
+
+    // Hour angle at sunrise/sunset
+    let cos_h = (-lat_rad.tan() * decl_rad.tan()).clamp(-1.0, 1.0);
+    let h = cos_h.acos().to_degrees(); // degrees
+
+    // Solar noon at this longitude
+    let solar_noon_utc = 12.0 - lon / 15.0; // hours
+
+    // Sunrise/sunset in UTC hours
+    let sunrise_utc = solar_noon_utc - h / 15.0;
+    let sunset_utc = solar_noon_utc + h / 15.0;
+
+    // Convert to local time
+    let tz_offset = Local::now().offset().fix().local_minus_utc() as f64 / 3600.0;
+    let sunrise_local = sunrise_utc + tz_offset;
+    let sunset_local = sunset_utc + tz_offset;
+
+    // Normalize to 0-24 and create NaiveTime
+    let norm = |h: f64| -> NaiveTime {
+        let h = (h % 24.0 + 24.0) % 24.0;
+        let hour = h.floor() as u32;
+        let minute = ((h - hour as f64) * 60.0).round() as u32;
+        let second = (((h - hour as f64) * 60.0 - minute as f64) * 60.0).round() as u32;
+        NaiveTime::from_hms_opt(hour, minute.min(59), second.min(59)).unwrap_or(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+    };
+
+    (norm(sunrise_local), norm(sunset_local))
 }
 
 /// Spawn the background presence monitor. Returns immediately; the monitor

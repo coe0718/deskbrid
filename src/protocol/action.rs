@@ -291,6 +291,14 @@ pub enum Action {
         idle_threshold_secs: Option<u64>,
         away_threshold_secs: Option<u64>,
     },
+    /// Get current time-of-day info (local time, timezone, UTC offset, sunrise/sunset if lat/lon configured).
+    TimeOfDay,
+    /// Read/update time-of-day config (latitude/longitude for solar times, display format).
+    TimeOfDayConfig {
+        latitude: Option<f64>,
+        longitude: Option<f64>,
+        format_24h: Option<bool>,
+    },
     SystemPower {
         action: String,
     },

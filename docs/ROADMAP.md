@@ -2457,7 +2457,7 @@ suspend_actions = true
 
 ---
 
-## 39. User Presence Events
+## 39. User Presence Events ✅ **DONE** (commit acd60f3)
 
 **What's Missing:** `SystemIdle` exists but it's a poll. No push events for user
 presence state changes.
@@ -2491,33 +2491,39 @@ PresenceConfig {
 
 ---
 
-## 40. Time-of-Day & Location Awareness
+## 40. Time-of-Day & Location Awareness ✅ **DONE** (commit TBD)
 
 **What's Missing:** Agents have no concept of local time, timezone, or location
 even though the daemon knows the system clock.
 
-**Implementation:** Attach to every response automatically or via explicit action:
+**Implementation:** Added `system.time_of_day` action and `system.time_of_day.config` action:
 
 ```rust
-SystemTimeInfo,
+system.time_of_day
 // Returns: {
-//   "local_time": "2026-05-20T14:30:00-04:00",
-//   "unix_timestamp": 1747765800,
-//   "timezone": "America/New_York",
-//   "timezone_offset": -14400,  // seconds from UTC
-//   "dst_active": true,
-//   "uptime_seconds": 864000,
-//   "boot_time": 1746900000,
-//   "day_of_week": 3,           // 0=Sunday
-//   "hour_of_day": 14,
-//   "is_business_hours": true,  // Mon-Fri 9-17
-//   "location": {               // from GeoClue/Geoclue or config
-//     "timezone": "America/New_York",
-//     "country_code": "US",
-//     "region": "Indiana"
-//   }
-// }
+  "local_time": "2026-05-20T14:30:00-04:00",
+  "unix_timestamp": 1747765800,
+  "timezone": "America/New_York",
+  "timezone_offset": -14400,  // seconds from UTC
+  "dst_active": true,
+  "uptime_seconds": 864000,
+  "boot_time": 1746900000,
+  "day_of_week": 3,           // 0=Sunday
+  "hour_of_day": 14,
+  "is_business_hours": true,  // Mon-Fri 9-17
+  "sunrise": "05:42",
+  "sunset": "20:18"
+}
+
+system.time_of_day.config {
+  format_24h: true,
+  latitude: 40.7128,
+  longitude: -74.0060,
+  show_sun_times: true
+}
 ```
+
+**Delivered:** `system.time_of_day` action returning comprehensive time/date info including local time, UTC timestamp, timezone, DST status, uptime, boot time, day of week, hour of day, business hours flag, and optional sunrise/sunset times (when location configured). Configurable via `system.time_of_day.config`.
 
 **Optionally:** Auto-attach `local_time` and `timezone` to every response envelope
 so agents always know the time without an extra round trip.

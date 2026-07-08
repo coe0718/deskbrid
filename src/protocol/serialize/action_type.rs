@@ -74,6 +74,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemIdle => "system.idle",
         Action::PresenceGet => "system.presence.get",
         Action::PresenceConfig { .. } => "system.presence.config",
+        Action::TimeOfDay => "system.time_of_day",
+        Action::TimeOfDayConfig { .. } => "system.time_of_day.config",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
         Action::SystemBacklightList => "system.backlight_list",
