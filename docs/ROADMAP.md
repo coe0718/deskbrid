@@ -6065,8 +6065,17 @@ prevent clients from growing the buffer beyond the allocated size.
 
 ## 127. Locale / Timezone Change Events
 
-**What's Missing:** Locale or timezone changes silently break agent assumptions
-about time formatting, language, or date calculations. No event for these changes.
+**Status:** ✅ Done (partial). Shipped 4 actions: `locale.get`,
+`locale.set`, `timezone.get`, `timezone.set`. Reads resolve from both
+process env (LANG) and `/etc/locale.conf` (other LC_*) and report the
+source. Timezone reads resolve /etc/localtime (symlink or regular file)
+against /usr/share/zoneinfo, plus compute UTC offset and a DST-active
+heuristic from `date +%z` / `+ %Z`. Writes target /etc/locale.conf and
+the /etc/localtime symlink; on non-root systems writes fail cleanly
+with `requires_root:true` and a Permission denied error. Path traversal
+is rejected. **Not yet shipped:** locale/timezone change events
+(requires D-Bus signal listener on `org.freedesktop.locale1` + event
+plumbing via `DeskbridEvent`).
 
 **Implementation:** Watch for locale/timezone changes and broadcast events:
 

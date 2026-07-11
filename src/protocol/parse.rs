@@ -167,6 +167,11 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             system::parse_system(&raw, &id, msg_type.as_str())?
         }
 
+        // Locale — locale/timezone read & write (no D-Bus signal listener yet)
+        s if s.starts_with("locale.") || s.starts_with("timezone.") => {
+            system::parse_system(&raw, &id, msg_type.as_str())?
+        }
+
         // Network
         s if s.starts_with("network.") => network::parse_network(&raw, &id, s)?,
 

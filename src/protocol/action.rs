@@ -366,6 +366,33 @@ pub enum Action {
         device: Option<String>,
         value: String,
     },
+    /// Read current locale settings (lang + all LC_* vars).
+    /// Returns: {"lang":"en_US.UTF-8","lc_time":"en_DK.UTF-8","lc_numeric":...,
+    ///          "source":"process"|"/etc/locale.conf", "available":[...]}
+    /// `source` indicates where the values came from: process env or the
+    /// persistent config file. `available` lists well-known keys we check.
+    LocaleGet,
+    /// Set one or more LC_* / LANG values persistently in /etc/locale.conf.
+    /// On most modern systems this requires root; non-root callers get a
+    /// clear error. Persistent takes effect on next shell / login session.
+    /// Returns: {"written": {"LANG": "en_US.UTF-8"}, "source": "/etc/locale.conf",
+    ///          "requires_root": true}
+    LocaleSet {
+        vars: Vec<(String, String)>,
+    },
+    /// Read current timezone. Returns: {"timezone": "America/Indiana/Indianapolis",
+    ///          "utc_offset_minutes": -240, "dst_active": true,
+    ///          "is_utc": false, "symlink": "/usr/share/zoneinfo/..."}
+    /// Timezone is read from /etc/localtime (resolved via realpath) and
+    /// cross-checked against /etc/timezone when present.
+    TimezoneGet,
+    /// Set timezone by writing /etc/timezone and replacing the /etc/localtime
+    /// symlink. Validates against /usr/share/zoneinfo/{name}. Requires root.
+    /// Returns: {"timezone": "...", "previous": "...", "symlink_target": "...",
+    ///          "requires_root": true}
+    TimezoneSet {
+        timezone: String,
+    },
     SystemPrintList,
     SystemPrintDefault {
         printer: Option<String>,

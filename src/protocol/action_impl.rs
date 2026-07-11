@@ -248,6 +248,10 @@ impl Action {
             "lock.list",
             "env.get",
             "env.set",
+            "locale.get",
+            "locale.set",
+            "timezone.get",
+            "timezone.set",
         ]
     }
 

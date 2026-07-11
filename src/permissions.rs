@@ -219,6 +219,10 @@ impl Permissions {
                         "battery.threshold.set".to_string(),
                         "env.get".to_string(),
                         "env.set".to_string(),
+                        "locale.get".to_string(),
+                        "locale.set".to_string(),
+                        "timezone.get".to_string(),
+                        "timezone.set".to_string(),
                         // Explicit — require exact naming because they're in HIGH_RISK_ACTIONS
                         "screenshot".to_string(),
                         "screenshot.ocr".to_string(),

@@ -60,6 +60,17 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
                 .and_then(|v| v.as_str())
                 .map(String::from),
         },
+        "locale.get" => Action::LocaleGet,
+        "locale.set" => Action::LocaleSet {
+            vars: parse_locale_vars(raw)?,
+        },
+        "timezone.get" => Action::TimezoneGet,
+        "timezone.set" => Action::TimezoneSet {
+            timezone: raw["timezone"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("timezone.set requires 'timezone'"))?
+                .to_string(),
+        },
         "system.backlight_list" => Action::SystemBacklightList,
         "system.backlight_get" => Action::SystemBacklightGet {
             device: raw["device"].as_str().map(String::from),
@@ -178,4 +189,50 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
         "clients.list" => Action::ClientsList,
         _ => anyhow::bail!("unknown system type: {type_str}"),
     })
+}
+
+/// Parse the `vars` field of a `locale.set` request.
+/// Accepts either:
+///
+/// - `"vars": {"LANG": "en_US.UTF-8", "LC_TIME": "en_DK.UTF-8"}`  (object)
+/// - `"vars": [["LANG","en_US.UTF-8"], ...]`  (array of pairs)
+///
+/// Returns an empty Vec if `vars` is missing.
+fn parse_locale_vars(raw: &serde_json::Value) -> anyhow::Result<Vec<(String, String)>> {
+    let Some(v) = raw.get("vars") else {
+        return Ok(Vec::new());
+    };
+    if v.is_null() {
+        return Ok(Vec::new());
+    }
+    if let Some(obj) = v.as_object() {
+        let mut out = Vec::with_capacity(obj.len());
+        for (k, val) in obj {
+            let s = val
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("locale.set: var {:?} must be a string", k))?;
+            out.push((k.clone(), s.to_string()));
+        }
+        return Ok(out);
+    }
+    if let Some(arr) = v.as_array() {
+        let mut out = Vec::with_capacity(arr.len());
+        for (i, item) in arr.iter().enumerate() {
+            let pair = item
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("locale.set: vars[{}] must be [name, value]", i))?;
+            if pair.len() != 2 {
+                anyhow::bail!("locale.set: vars[{}] must be exactly [name, value]", i);
+            }
+            let name = pair[0]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("locale.set: vars[{}][0] must be a string", i))?;
+            let value = pair[1]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("locale.set: vars[{}][1] must be a string", i))?;
+            out.push((name.to_string(), value.to_string()));
+        }
+        return Ok(out);
+    }
+    anyhow::bail!("locale.set: 'vars' must be an object or array of pairs")
 }

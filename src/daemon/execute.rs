@@ -199,6 +199,10 @@ pub async fn execute_action(
         | SystemBattery
         | EnvGet { .. }
         | EnvSet { .. }
+        | LocaleGet
+        | LocaleSet { .. }
+        | TimezoneGet
+        | TimezoneSet { .. }
         | SystemBacklightList
         | SystemBacklightGet { .. }
         | SystemBacklightSet { .. }

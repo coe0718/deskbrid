@@ -1,5 +1,6 @@
 mod battery_threshold;
 mod command;
+mod locale_timezone;
 mod logind;
 mod polkit;
 mod power_profiles;
@@ -8,12 +9,12 @@ mod systemd;
 use crate::DaemonState;
 use crate::protocol::Action;
 
+use battery_threshold::{get as bt_get, set as bt_set};
+use locale_timezone as tz;
 use logind::{inhibit, list_sessions, lock_session, release_inhibit, switch_user};
 use polkit::check_auth;
 use power_profiles::{get as pp_get, list as pp_list, set as pp_set};
 use systemd::{journal_query, service_list, service_status, systemctl_enable, systemctl_unit};
-
-use battery_threshold::{get as bt_get, set as bt_set};
 
 pub fn is_system_control_action(action: &Action) -> bool {
     matches!(
@@ -42,6 +43,10 @@ pub fn is_system_control_action(action: &Action) -> bool {
             | Action::PresenceConfig { .. }
             | Action::TimeOfDay
             | Action::TimeOfDayConfig { .. }
+            | Action::LocaleGet
+            | Action::LocaleSet { .. }
+            | Action::TimezoneGet
+            | Action::TimezoneSet { .. }
             | Action::PowerProfileList
             | Action::PowerProfileGet
             | Action::PowerProfileSet { .. }
@@ -137,6 +142,10 @@ pub async fn execute_system_control_action(
             end,
             profile,
         } => bt_set(start, end, profile).await,
+        Action::LocaleGet => Ok(tz::locale_get()),
+        Action::LocaleSet { ref vars } => Ok(tz::locale_set(vars)),
+        Action::TimezoneGet => Ok(tz::timezone_get()),
+        Action::TimezoneSet { ref timezone } => Ok(tz::timezone_set(timezone)),
         _ => anyhow::bail!(
             "internal dispatch error: non-system action passed to system control dispatcher"
         ),
