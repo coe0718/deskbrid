@@ -63,6 +63,11 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::PowerProfileList => json!({"type": "power.profile.list", "id": id}),
+        Action::PowerProfileGet => json!({"type": "power.profile.get", "id": id}),
+        Action::PowerProfileSet { profile } => {
+            json!({"type": "power.profile.set", "id": id, "profile": profile})
+        }
         Action::SystemPower { action } => {
             json!({"type": "system.power", "id": id, "action": action})
         }

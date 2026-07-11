@@ -3292,6 +3292,12 @@ BatteryThresholdSet {
 
 ## 57. Power Profiles Daemon
 
+**Status:** ✅ Done. `power.profile.list`, `power.profile.get`, and
+`power.profile.set` are implemented via the system-bus `net.hadess.PowerProfiles`
+service. DESKbrid reads the active profile and available list, and switches
+profiles with `Properties.Set("ActiveProfile", ...)`. Validation against the
+available list catches unknown profile names with a clean error.
+
 **What's Missing:** Desktop environments have power profiles (performance/balanced/
 power-saver). Deskbrid can't switch them.
 

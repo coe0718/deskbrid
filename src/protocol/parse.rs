@@ -228,6 +228,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         // D-Bus raw call — escape hatch, doesn't fit a prefix group
         "dbus.call" => system::parse_system(&raw, &id, msg_type.as_str())?,
 
+        // Power profiles daemon — talks to net.hadess.PowerProfiles via system bus
+        s if s.starts_with("power.profile.") => system::parse_system(&raw, &id, msg_type.as_str())?,
+
         _ => anyhow::bail!("unknown action type: {}", msg_type),
     };
 

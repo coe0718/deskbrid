@@ -132,6 +132,9 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::PresenceConfig { .. }
         | Action::TimeOfDay
         | Action::TimeOfDayConfig { .. }
+        | Action::PowerProfileList
+        | Action::PowerProfileGet
+        | Action::PowerProfileSet { .. }
         | Action::SystemBattery
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }

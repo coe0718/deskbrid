@@ -212,6 +212,9 @@ impl Permissions {
                         "schedule.*".to_string(),
                         "a11y.*".to_string(),
                         "hotkeys.*".to_string(),
+                        "power.profile.list".to_string(),
+                        "power.profile.get".to_string(),
+                        "power.profile.set".to_string(),
                         // Explicit — require exact naming because they're in HIGH_RISK_ACTIONS
                         "screenshot".to_string(),
                         "screenshot.ocr".to_string(),

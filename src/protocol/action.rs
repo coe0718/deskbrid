@@ -325,6 +325,20 @@ pub enum Action {
         longitude: Option<f64>,
         format_24h: Option<bool>,
     },
+    /// List available power profiles ("performance", "balanced", "power-saver", etc.)
+    /// Reported by power-profiles-daemon via `org.freedesktop.UPower.PowerProfiles`.
+    /// Returns: {"profiles": ["performance", "balanced", "power-saver"]}
+    PowerProfileList,
+    /// Get the active power profile + available profiles.
+    /// Returns: {"active": "balanced", "profiles": ["performance", "balanced", "power-saver"]}
+    /// `active` is null if power-profiles-daemon isn't running on this machine.
+    PowerProfileGet,
+    /// Switch the active power profile. `profile` must be one of the values
+    /// reported by `power.profile.list`.
+    /// Returns: {"active": "performance", "previous": "balanced"}
+    PowerProfileSet {
+        profile: String,
+    },
     SystemPower {
         action: String,
     },

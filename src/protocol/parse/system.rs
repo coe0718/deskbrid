@@ -42,6 +42,11 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             longitude: raw.get("longitude").and_then(|v| v.as_f64()),
             format_24h: raw.get("format_24h").and_then(|v| v.as_bool()),
         },
+        "power.profile.list" => Action::PowerProfileList,
+        "power.profile.get" => Action::PowerProfileGet,
+        "power.profile.set" => Action::PowerProfileSet {
+            profile: required_non_empty_string(raw, "profile")?,
+        },
         "system.power" => Action::SystemPower {
             action: raw["action"].as_str().unwrap_or("").into(),
         },
