@@ -136,6 +136,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::PowerProfileGet
         | Action::PowerProfileSet { .. }
         | Action::SystemBattery
+        | Action::BatteryThresholdGet
+        | Action::BatteryThresholdSet { .. }
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }
         | Action::SystemBacklightSet { .. }

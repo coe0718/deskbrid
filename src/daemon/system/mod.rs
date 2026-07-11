@@ -1,3 +1,4 @@
+mod battery_threshold;
 mod command;
 mod logind;
 mod polkit;
@@ -11,6 +12,8 @@ use logind::{inhibit, list_sessions, lock_session, release_inhibit, switch_user}
 use polkit::check_auth;
 use power_profiles::{get as pp_get, list as pp_list, set as pp_set};
 use systemd::{journal_query, service_list, service_status, systemctl_enable, systemctl_unit};
+
+use battery_threshold::{get as bt_get, set as bt_set};
 
 pub fn is_system_control_action(action: &Action) -> bool {
     matches!(
@@ -42,6 +45,8 @@ pub fn is_system_control_action(action: &Action) -> bool {
             | Action::PowerProfileList
             | Action::PowerProfileGet
             | Action::PowerProfileSet { .. }
+            | Action::BatteryThresholdGet
+            | Action::BatteryThresholdSet { .. }
     )
 }
 
@@ -126,6 +131,12 @@ pub async fn execute_system_control_action(
         Action::PowerProfileList => pp_list().await,
         Action::PowerProfileGet => pp_get().await,
         Action::PowerProfileSet { profile } => pp_set(&profile).await,
+        Action::BatteryThresholdGet => bt_get().await,
+        Action::BatteryThresholdSet {
+            start,
+            end,
+            profile,
+        } => bt_set(start, end, profile).await,
         _ => anyhow::bail!(
             "internal dispatch error: non-system action passed to system control dispatcher"
         ),

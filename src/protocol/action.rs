@@ -343,6 +343,21 @@ pub enum Action {
         action: String,
     },
     SystemBattery,
+    /// Read current battery charge threshold settings (start/end %).
+    /// Returns: {"start": 0, "end": 80, "supported": true, "vendor": "Lenovo", "battery": "BAT0"}
+    /// `supported: false` when the daemon can't find a writable threshold
+    /// sysfs node (desktop, non-threshold-supporting laptop, etc.).
+    BatteryThresholdGet,
+    /// Set battery charge start/end thresholds. `start` and `end` are 0-100.
+    /// Either is optional. The values are validated against the kernel's
+    /// monotonic constraint (start <= end) and the device's accepted range.
+    /// `profile` is optional: "daily" → (50, 80), "travel" → (90, 100), "full" → (0, 100).
+    /// Returns: same as `Get` after applying.
+    BatteryThresholdSet {
+        start: Option<u32>,
+        end: Option<u32>,
+        profile: Option<String>,
+    },
     SystemBacklightList,
     SystemBacklightGet {
         device: Option<String>,

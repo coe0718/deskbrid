@@ -81,6 +81,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::PowerProfileSet { .. } => "power.profile.set",
         Action::SystemPower { .. } => "system.power",
         Action::SystemBattery => "system.battery",
+        Action::BatteryThresholdGet => "battery.threshold.get",
+        Action::BatteryThresholdSet { .. } => "battery.threshold.set",
         Action::SystemBacklightList => "system.backlight_list",
         Action::SystemBacklightGet { .. } => "system.backlight_get",
         Action::SystemBacklightSet { .. } => "system.backlight_set",

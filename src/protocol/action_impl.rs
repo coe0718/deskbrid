@@ -76,6 +76,8 @@ impl Action {
             "system.time_of_day.config",
             "system.power",
             "system.battery",
+            "battery.threshold.get",
+            "battery.threshold.set",
             "system.backlight_list",
             "system.backlight_get",
             "system.backlight_set",

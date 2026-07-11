@@ -51,6 +51,15 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             action: raw["action"].as_str().unwrap_or("").into(),
         },
         "system.battery" => Action::SystemBattery,
+        "battery.threshold.get" => Action::BatteryThresholdGet,
+        "battery.threshold.set" => Action::BatteryThresholdSet {
+            start: raw.get("start").and_then(|v| v.as_u64()).map(|n| n as u32),
+            end: raw.get("end").and_then(|v| v.as_u64()).map(|n| n as u32),
+            profile: raw
+                .get("profile")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+        },
         "system.backlight_list" => Action::SystemBacklightList,
         "system.backlight_get" => Action::SystemBacklightGet {
             device: raw["device"].as_str().map(String::from),

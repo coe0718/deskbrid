@@ -3248,6 +3248,14 @@ GpuSetGraphicsMode { mode: String },       // "integrated", "hybrid", "nvidia"
 
 ## 56. Battery Charge Threshold Management
 
+**Status:** ✅ Done. `battery.threshold.get` and `battery.threshold.set` are
+implemented via sysfs (`charge_control_start_threshold` /
+`charge_control_end_threshold`). Vendor inferred from sysfs presence
+(Lenovo / Linux). On unsupported hardware (desktops, non-threshold
+drivers), `get` returns `supported: false` with a `reason` string and
+`set` returns a clean error. Three convenience profiles: `daily` (50/80),
+`travel` (90/100), `full` (0/100).
+
 **What's Missing:** Laptop battery longevity requires charge limits (80% for daily
 use, 100% for travel). Deskbrid has `SystemBattery` (current percentage) but no
 threshold control.

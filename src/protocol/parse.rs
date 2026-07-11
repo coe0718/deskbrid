@@ -158,6 +158,14 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
             system::parse_system(&raw, &id, s)?
         }
 
+        // Power profiles daemon — talks to net.hadess.PowerProfiles via system bus
+        s if s.starts_with("power.profile.") => system::parse_system(&raw, &id, msg_type.as_str())?,
+
+        // Battery charge threshold — reads/writes sysfs nodes (desktop path: not-supported)
+        s if s.starts_with("battery.threshold.") => {
+            system::parse_system(&raw, &id, msg_type.as_str())?
+        }
+
         // Network
         s if s.starts_with("network.") => network::parse_network(&raw, &id, s)?,
 
