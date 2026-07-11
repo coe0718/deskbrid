@@ -626,7 +626,7 @@ mod tests {
         let snap = PresenceSnapshot::empty_active();
         assert_eq!(snap.state, PresenceState::Active);
         assert_eq!(snap.idle_seconds, 0);
-        assert_eq!(snap.locked, false);
+        assert!(!snap.locked);
         assert!(snap.last_active > 0); // epoch seconds, non-zero
     }
 

@@ -104,6 +104,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             }
             deskbrid::mcp::server::run_mcp(state).await
         }
+        cli::Command::Repl { sock } => deskbrid::cli::repl::run(sock).await,
         _ => {
             let action = cli::into_action(args.command)?;
             client::send_one_shot_with_options(action, request_options).await

@@ -15,6 +15,7 @@ mod mpris;
 mod network;
 mod notify;
 mod portal;
+pub mod repl;
 mod secrets;
 mod sessions;
 mod system;
@@ -454,6 +455,14 @@ pub enum Command {
     Session {
         #[command(subcommand)]
         cmd: SessionCmd,
+    },
+
+    /// Interactive REPL for exploring the daemon's capabilities
+    #[command(name = "repl")]
+    Repl {
+        /// Daemon socket path override (default: $XDG_RUNTIME_DIR/deskbrid.sock)
+        #[arg(long)]
+        sock: Option<String>,
     },
 }
 

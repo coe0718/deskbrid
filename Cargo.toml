@@ -16,6 +16,8 @@ tokio = { version = "1", features = ["fs", "process", "sync", "time", "io-util",
 
 # CLI
 clap = { version = "4", features = ["derive"] }
+rustyline = "15"
+colored = "2"
 
 # Protocol
 serde = { version = "1", features = ["derive"] }

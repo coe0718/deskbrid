@@ -2828,38 +2828,27 @@ DeskbridEvent::AgentHeartbeatTimeout { name, session_id, last_seen, timestamp }
 
 ---
 
-## 48. REPL Mode
+## 48. REPL Mode ✅ **DONE** (commit TBD)
 
-**What's Missing:** Testing actions requires writing code or crafting JSON. No
-interactive way to explore the daemon's capabilities.
+**Status:** Done. `deskbrid repl` opens an interactive rustyline loop that
+dispatches actions against a running daemon via the existing socket/TCP
+transport. The loop supports flag and `key=value` parameter syntax, tab
+completion over all 250+ public action types, per-action flag hints
+(`describe <action>`), inline JSON / numeric / boolean coercion, dry-run
+session flags, colored output, and persistent history at
+`$XDG_RUNTIME_DIR/../local/share/deskbrid/repl_history`.
 
-**Implementation:** Built into the CLI:
+Built-ins: `help`/`?`, `actions [prefix]`, `describe <action>`, `set`/`unset`/`state`,
+`exit`/`quit`/`:q`.
 
-```bash
-deskbrid repl
-# deskbrid> windows.list
-# → [{id: "0x1", title: "Terminal", app_id: "gnome-terminal"}, ...]
-# deskbrid> system.info
-# → {desktop: "GNOME", version: "47", ...}
-# deskbrid> !bash command       # escape to shell
-# deskbrid> !!repeat 5          # repeat last action 5 times
-# deskbrid> ?                   # show available commands
-# deskbrid> help windows.list   # show action schema
-```
+The REPL doesn't mirror the `Action` enum — it builds raw JSON envelopes and
+sends them through a new `client::send_raw(action_type, data, options)`
+helper, so any action the daemon understands is dispatchable from the prompt
+without code changes.
 
-**Features:** History (readline), tab completion, inline JSON, session management,
-colorized output, pipe to `jq` filter, macro recording mode.
-
-**Relevant crates:** `rustyline` (readline), `colored` (output).
-
-**Effort:** ~300 lines. Readline loop + protocol client. Exists as `deskbrid repl`.
-
-### Protocol (for remote REPL)
-
-```rust
-// Connect to daemon, send actions, receive responses in real-time
-// Same protocol, just a human-friendly CLI wrapper.
-```
+**Files:** `src/cli/repl.rs` (new), `src/cli/mod.rs`, `src/main.rs`,
+`src/client.rs` (`send_raw` + `send_raw_unix` + `send_raw_tcp` +
+`run_raw`). 17 new tests; 186 total pass, 0 clippy warnings.
 
 ---
 

@@ -135,3 +135,111 @@ async fn run_one_shot<R: tokio::io::AsyncRead + Unpin, W: tokio::io::AsyncWrite 
 
     Ok(())
 }
+
+/// Send a raw action envelope by name + data JSON and return the parsed response.
+///
+/// Used by the REPL so it can dispatch any of the 250+ action types without
+/// having to mirror the `Action` enum. Returns the daemon's parsed response
+/// envelope (caller pretty-prints). TCP/Unix transport and auth are handled
+/// the same way as `send_one_shot`.
+pub async fn send_raw(
+    action_type: &str,
+    data: serde_json::Value,
+    options: RequestOptions,
+) -> anyhow::Result<serde_json::Value> {
+    if let (Some(addr), Some(token)) = (tcp_addr(), tcp_token()) {
+        return send_raw_tcp(action_type, data, options, &addr, token).await;
+    }
+    send_raw_unix(action_type, data, options).await
+}
+
+async fn send_raw_unix(
+    action_type: &str,
+    data: serde_json::Value,
+    options: RequestOptions,
+) -> anyhow::Result<serde_json::Value> {
+    let sock = socket_path();
+    let stream = UnixStream::connect(&sock).await.context(format!(
+        "cannot connect to daemon at {}. Is deskbrid running?",
+        sock
+    ))?;
+    let (reader, mut writer) = stream.into_split();
+    let mut reader = BufReader::new(reader);
+    run_raw(&mut reader, &mut writer, action_type, data, options).await
+}
+
+async fn send_raw_tcp(
+    action_type: &str,
+    data: serde_json::Value,
+    options: RequestOptions,
+    addr: &str,
+    token: String,
+) -> anyhow::Result<serde_json::Value> {
+    let stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .context(format!("cannot connect to daemon at {}", addr))?;
+    let (reader, mut writer) = tokio::io::split(stream);
+    let mut reader = BufReader::new(reader);
+
+    let auth = serde_json::json!({"type": "auth", "token": token});
+    writer
+        .write_all(format!("{}\n", serde_json::to_string(&auth)?).as_bytes())
+        .await?;
+    let mut auth_response = String::new();
+    reader.read_line(&mut auth_response).await?;
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&auth_response)
+        && parsed.get("status") == Some(&serde_json::Value::String("error".into()))
+    {
+        let msg = parsed["error"]["message"]
+            .as_str()
+            .unwrap_or("authentication failed");
+        anyhow::bail!("TCP auth failed: {}", msg);
+    }
+    run_raw(&mut reader, &mut writer, action_type, data, options).await
+}
+
+async fn run_raw<R: tokio::io::AsyncRead + Unpin, W: tokio::io::AsyncWrite + Unpin>(
+    reader: &mut BufReader<R>,
+    writer: &mut W,
+    action_type: &str,
+    data: serde_json::Value,
+    options: RequestOptions,
+) -> anyhow::Result<serde_json::Value> {
+    // Read handshake
+    let mut handshake = String::new();
+    reader.read_line(&mut handshake).await?;
+
+    // Build envelope
+    let id = format!("repl-{}", uuid_like());
+    let mut envelope = serde_json::json!({
+        "type": action_type,
+        "id": id,
+        "data": data,
+    });
+    if options.dry_run {
+        envelope["dry_run"] = serde_json::json!(true);
+    }
+    if let Some(timeout_ms) = options.timeout_ms {
+        envelope["timeout_ms"] = serde_json::json!(timeout_ms);
+    }
+    writer
+        .write_all(format!("{}\n", serde_json::to_string(&envelope)?).as_bytes())
+        .await?;
+
+    // Read response
+    let mut response = String::new();
+    reader.read_line(&mut response).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&response)?;
+    Ok(parsed)
+}
+
+/// Tiny non-cryptographic ID for tracing REPL requests. Doesn't need to be unique
+/// across processes — just unique within this REPL session.
+fn uuid_like() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("{:x}", nanos)
+}
