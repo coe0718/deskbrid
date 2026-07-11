@@ -2828,7 +2828,7 @@ DeskbridEvent::AgentHeartbeatTimeout { name, session_id, last_seen, timestamp }
 
 ---
 
-## 48. REPL Mode ✅ **DONE** (commit TBD)
+## 48. REPL Mode ✅ **DONE** (commit 6ba7a85)
 
 **Status:** Done. `deskbrid repl` opens an interactive rustyline loop that
 dispatches actions against a running daemon via the existing socket/TCP
