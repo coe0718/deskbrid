@@ -17,6 +17,8 @@ pub(crate) mod clipboard;
 mod dashboard;
 mod dispatch;
 mod dispatch_helpers;
+mod env;
+
 pub(crate) mod execute;
 mod execute_a11y;
 pub(crate) mod execute_agent;

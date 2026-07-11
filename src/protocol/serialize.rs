@@ -138,6 +138,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemBattery
         | Action::BatteryThresholdGet
         | Action::BatteryThresholdSet { .. }
+        | Action::EnvGet { .. }
+        | Action::EnvSet { .. }
         | Action::SystemBacklightList
         | Action::SystemBacklightGet { .. }
         | Action::SystemBacklightSet { .. }

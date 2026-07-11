@@ -25,6 +25,11 @@ pub(crate) async fn execute_system(
             serde_json::json!({"power": action})
         }
         SystemBattery => serde_json::json!(backend.battery_status().await?),
+        EnvGet { ref name } => serde_json::json!(crate::daemon::env::env_get(name.as_deref())),
+        EnvSet {
+            ref name,
+            ref value,
+        } => serde_json::json!(crate::daemon::env::env_set(name, value)),
         SystemBacklightList => serde_json::json!(backend.backlight_list().await?),
         SystemBacklightGet { ref device } => {
             serde_json::json!(backend.backlight_get(device.as_deref()).await?)

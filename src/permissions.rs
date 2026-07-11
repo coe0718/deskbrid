@@ -217,6 +217,8 @@ impl Permissions {
                         "power.profile.set".to_string(),
                         "battery.threshold.get".to_string(),
                         "battery.threshold.set".to_string(),
+                        "env.get".to_string(),
+                        "env.set".to_string(),
                         // Explicit — require exact naming because they're in HIGH_RISK_ACTIONS
                         "screenshot".to_string(),
                         "screenshot.ocr".to_string(),

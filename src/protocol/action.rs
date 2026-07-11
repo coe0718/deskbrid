@@ -831,6 +831,27 @@ pub enum Action {
     SessionSwitch {
         name: String,
     },
+    /// Get one or all environment variables from this process.
+    /// If `name` is provided, returns just that var. Otherwise returns
+    /// a serialized map of the whole environment. Values are strings;
+    /// multi-line or non-UTF8 values are returned as base64 strings.
+    /// Returns: {"name": "PATH", "value": "...", "found": true}
+    /// or for `name` absent: {"vars": {"PATH": "...", ...}, "count": 87}
+    /// This reads from `std::env` of the running daemon — which is also
+    /// the env that any spawned child process inherits.
+    EnvGet {
+        name: Option<String>,
+    },
+    /// Set an environment variable in the daemon's process environment.
+    /// Children spawned afterwards will see the new value; the daemon itself
+    /// and already-running children will not (Linux limitation).
+    /// Returns: {"name": "EDITOR", "previous": "vi", "value": "nvim", "set": true}
+    /// `name` and `value` are required; on validation failure or unset
+    /// errors (e.g. name contains `=`), returns a clean error.
+    EnvSet {
+        name: String,
+        value: String,
+    },
     SessionSuspend {
         name: String,
         reason: Option<String>,

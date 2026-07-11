@@ -13,6 +13,7 @@ mod clipboard;
 mod color_pick;
 mod confirmation;
 mod desktop;
+mod env;
 mod files;
 mod helpers;
 mod hotkeys;
@@ -181,8 +182,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         // Accessibility
         s if s.starts_with("a11y.") => a11y::parse_a11y(&raw, &id, s)?,
 
-        // Desktop Settings
+        // Desktop Settings + Environment
         s if s.starts_with("desktop.") => desktop::parse_desktop(&raw, &id, s)?,
+        s if s.starts_with("env.") => env::parse_env(&raw, &id, s)?,
 
         // Process / Terminal
         s if s.starts_with("process.") || s.starts_with("terminal.") => {

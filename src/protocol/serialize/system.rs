@@ -3,6 +3,8 @@ use serde_json::json;
 
 pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
     match action {
+        Action::EnvGet { .. } => json!({"type": "env.get", "id": id}),
+        Action::EnvSet { .. } => json!({"type": "env.set", "id": id}),
         // System
         Action::SystemInfo => json!({"type": "system.info", "id": id}),
         Action::SystemCapabilities => json!({"type": "system.capabilities", "id": id}),

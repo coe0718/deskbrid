@@ -197,6 +197,8 @@ pub async fn execute_action(
         | SystemNormalizeCoords { .. }
         | SystemPower { .. }
         | SystemBattery
+        | EnvGet { .. }
+        | EnvSet { .. }
         | SystemBacklightList
         | SystemBacklightGet { .. }
         | SystemBacklightSet { .. }

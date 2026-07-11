@@ -5652,9 +5652,17 @@ DisplayManagerSetAutoLogin { username: Option<String> },
 
 ## 116. Session Environment Variable Management
 
-**What's Missing:** No way to read or modify environment variables in the
-user's session. Agents that need to set `$EDITOR`, `$BROWSER`, or `$PATH`
-have no programmatic way.
+**Status:** ✅ Done (partial). Shipped `env.get` and `env.set` actions
+operating on the daemon's process environment. `env.get {name}` reads one
+var or all vars (returns `{vars: {}, count: N, non_utf8_count: M}` for the
+"all" call); `env.set {name, value}` writes to the daemon's environment
+and returns the prior value. Children spawned AFTER the set see the new
+value; already-running children do not (Linux limitation, documented in
+the env.rs module doc comment). Validation rejects names containing `=`
+or NUL at parse time. Non-UTF8 values are returned as `value_bytes`
+arrays. **Not yet shipped:** persistent writes to
+`~/.config/environment.d/*.conf`, environment-restore action
+(`~/.profile` reload), and unset. These can land in a follow-up commit.
 
 **Implementation:**
 

@@ -246,6 +246,8 @@ impl Action {
             "lock.acquire",
             "lock.release",
             "lock.list",
+            "env.get",
+            "env.set",
         ]
     }
 
