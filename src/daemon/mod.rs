@@ -18,6 +18,7 @@ mod dashboard;
 mod dispatch;
 mod dispatch_helpers;
 mod env;
+mod locale_monitor;
 
 pub(crate) mod execute;
 mod execute_a11y;
@@ -218,6 +219,11 @@ pub async fn run(
 
     // Start presence monitor — polls idle and broadcasts presence.* events
     presence::spawn_presence_monitor(Arc::clone(&state));
+
+    // Start locale + timezone monitors — subscribe to D-Bus PropertiesChanged
+    // signals on org.freedesktop.locale1 / timedate1 and broadcast
+    // locale.changed / timezone.changed events.
+    locale_monitor::spawn_locale_timezone_monitors(Arc::clone(&state));
 
     // Start TCP listener if configured
     if let Some(bind) = tcp_bind {

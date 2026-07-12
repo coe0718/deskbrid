@@ -6065,17 +6065,24 @@ prevent clients from growing the buffer beyond the allocated size.
 
 ## 127. Locale / Timezone Change Events
 
-**Status:** ✅ Done (partial). Shipped 4 actions: `locale.get`,
-`locale.set`, `timezone.get`, `timezone.set`. Reads resolve from both
-process env (LANG) and `/etc/locale.conf` (other LC_*) and report the
-source. Timezone reads resolve /etc/localtime (symlink or regular file)
-against /usr/share/zoneinfo, plus compute UTC offset and a DST-active
-heuristic from `date +%z` / `+ %Z`. Writes target /etc/locale.conf and
-the /etc/localtime symlink; on non-root systems writes fail cleanly
-with `requires_root:true` and a Permission denied error. Path traversal
-is rejected. **Not yet shipped:** locale/timezone change events
-(requires D-Bus signal listener on `org.freedesktop.locale1` + event
-plumbing via `DeskbridEvent`).
+**Status:** ✅ Done. Shipped 4 actions (`locale.get`, `locale.set`,
+`timezone.get`, `timezone.set`) and 2 push events (`locale.changed`,
+`timezone.changed`). Reads resolve from both process env and
+`/etc/locale.conf`, and from `/etc/localtime` symlink +
+`/usr/share/zoneinfo` for timezone. Writes target `/etc/locale.conf`
+and the `/etc/localtime` symlink; on non-root systems writes fail
+cleanly with `requires_root:true`. Path traversal is rejected. Change
+monitoring: two tokio tasks subscribe to `org.freedesktop.locale1` and
+`org.freedesktop.timedate1` `PropertiesChanged` signals on the system
+bus. On each signal the monitor re-reads via GetAll and diffs against
+the last seen value — emitting `DeskbridEvent::LocaleChanged` /
+`DeskbridEvent::TimezoneChanged` via the daemon's broadcast channel
+when there's a real change. Initial values are seeded at startup to
+avoid spurious events for the pre-existing state. Live-tested end-to-end:
+`localectl set-locale LANG=C.UTF-8` → `{"event":"locale.changed","locale":["LANG=C.UTF-8"]}`
+delivered to a subscribed client; `timedatectl set-timezone America/Los_Angeles`
+→ `{"event":"timezone.changed","timezone":"America/Los_Angeles"}`
+delivered within ~1 second.
 
 **Implementation:** Watch for locale/timezone changes and broadcast events:
 

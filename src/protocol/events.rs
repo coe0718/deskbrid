@@ -274,4 +274,13 @@ pub enum DeskbridEvent {
         idle_seconds: u64,
         timestamp: u64,
     },
+    /// System locale changed. `locale` is the array of `KEY=VALUE` strings
+    /// as reported by `org.freedesktop.locale1.Locale` (e.g.
+    /// `["LANG=en_US.UTF-8", "LC_TIME=en_DK.UTF-8"]`).
+    #[serde(rename = "locale.changed")]
+    LocaleChanged { locale: Vec<String>, timestamp: u64 },
+    /// System timezone changed. `timezone` is the IANA tz name (e.g.
+    /// `"America/Indiana/Indianapolis"`).
+    #[serde(rename = "timezone.changed")]
+    TimezoneChanged { timezone: String, timestamp: u64 },
 }
