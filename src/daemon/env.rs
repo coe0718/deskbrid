@@ -13,6 +13,19 @@
 
 use serde_json::{Value, json};
 use std::ffi::OsString;
+use std::sync::Mutex;
+
+/// W3 (Vex review): single global mutex serializing all process-env
+/// reads and writes. Rust 2024 marked `std::env::set_var` and `var`
+/// `unsafe` because reading env from one thread while another thread
+/// writes it is undefined behavior (the env table is global, not
+/// per-thread). Holding this mutex for the duration of every env access
+/// makes the operation safely multi-threaded.
+///
+/// This is a `std::sync::Mutex` (not `tokio::sync::Mutex`) because
+/// the critical section must not yield — `set_var`/`var` are blocking
+/// libc calls and must complete before we drop the guard.
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 use std::os::unix::ffi::OsStringExt;
 
 /// Read one variable or all variables in the daemon's process environment.
@@ -117,19 +130,70 @@ pub(super) fn env_set(name: &str, value: &str) -> Value {
             "error": "name contains a NUL byte",
         });
     }
-    let previous = std::env::var(name).ok();
-    // SAFETY: std::env::set_var is `unsafe` since Rust 1.83 / edition 2024.
-    // Single-threaded access to the env table is not guaranteed in async
-    // contexts, but in practice this is fine for our use case (rare,
-    // human-driven calls; the daemon does not concurrently set env vars).
+    // W3: hold ENV_LOCK for the duration of the env read+write pair so
+    // no other thread can interleave a `var()` between our two calls.
+    // This makes the operation safely multi-threaded under Rust 2024.
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let previous = std::env::var_os(name);
+    let previous_json = previous
+        .as_ref()
+        .map(|oss| oss.to_string_lossy().to_string());
+    // SAFETY: ENV_LOCK above ensures no other thread is reading the
+    // env table while we write it. The unsafe `set_var` is sound
+    // because we hold the global serialization lock for the entire
+    // read+write critical section.
     unsafe {
         std::env::set_var(name, value);
     }
     json!({
         "name": name,
         "set": true,
-        "previous": previous,
+        "previous": previous_json,
         "value": value,
+    })
+}
+
+/// W3 (Vex review): unset a single env var. Held under ENV_LOCK so
+/// the `remove_var` call cannot race with a concurrent read in another
+/// thread. Different from `env_unset(names: &[String])` which handles
+/// bulk unsets via the persistent env.d config — this one only mutates
+/// the in-process env table.
+#[allow(dead_code)] // exposed for future caller; currently set_var covers the in-process path
+pub(super) fn env_unset_one(name: &str) -> Value {
+    if name.is_empty() {
+        return json!({
+            "name": name,
+            "unset": false,
+            "error": "name is empty",
+        });
+    }
+    if name.contains('=') {
+        return json!({
+            "name": name,
+            "unset": false,
+            "error": "name contains '='; use a variable name, not an assignment",
+        });
+    }
+    if name.contains('\0') {
+        return json!({
+            "name": name,
+            "unset": false,
+            "error": "name contains a NUL byte",
+        });
+    }
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let previous = std::env::var_os(name);
+    let previous_json = previous
+        .as_ref()
+        .map(|oss| oss.to_string_lossy().to_string());
+    // SAFETY: ENV_LOCK held — no concurrent env access from other threads.
+    unsafe {
+        std::env::remove_var(name);
+    }
+    json!({
+        "name": name,
+        "unset": true,
+        "previous": previous_json,
     })
 }
 

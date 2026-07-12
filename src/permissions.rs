@@ -50,6 +50,35 @@ pub struct ProfileEntry {
     pub audit_level: Option<String>,
     #[serde(default)]
     pub rate_limits: HashMap<String, String>,
+
+    /// W24 (Vex review): list of rate_limit keys that failed validation.
+    /// Populated by `validate_rate_limits()` after TOML parse. Empty means
+    /// every rate_limit string parsed cleanly. The daemon logs these at
+    /// startup and continues with `default` namespace as a safe fallback
+    /// for each invalid key — invalid entries never silently disable
+    /// rate limiting entirely.
+    #[serde(skip)]
+    pub invalid_rate_limits: Vec<String>,
+}
+
+impl ProfileEntry {
+    /// W24: validate every `rate_limits` value against
+    /// `crate::daemon::parse_limit_string`. Records invalid entries in
+    /// `invalid_rate_limits` so the daemon can warn at load time.
+    pub fn validate_rate_limits(&mut self) {
+        use crate::daemon::parse_limit_string;
+        let mut invalid = Vec::new();
+        self.rate_limits.retain(|key, value| {
+            match parse_limit_string(value) {
+                Some(_) => true,
+                None => {
+                    invalid.push(format!("{key}={value}"));
+                    false
+                }
+            }
+        });
+        self.invalid_rate_limits = invalid;
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -126,7 +155,19 @@ impl Permissions {
         };
 
         match toml::from_str::<PermissionsInner>(&content) {
-            Ok(inner) => {
+            Ok(mut inner) => {
+                // W24: validate every profile's rate_limits after parse.
+                // Invalid entries are dropped and recorded in
+                // `ProfileEntry.invalid_rate_limits` for diagnostic logging.
+                for (name, profile) in &mut inner.profile {
+                    profile.validate_rate_limits();
+                    if !profile.invalid_rate_limits.is_empty() {
+                        warn!(
+                            "Profile '{}' has invalid rate_limit entries: {:?} — these entries will be dropped and the namespace will use defaults",
+                            name, profile.invalid_rate_limits
+                        );
+                    }
+                }
                 info!("Loaded permissions from {}", path.display());
                 Self {
                     inner: Arc::new(inner),

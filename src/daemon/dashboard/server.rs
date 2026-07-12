@@ -113,19 +113,28 @@ fn parse_request_line(line: &str) -> Option<(&str, &str)> {
     Some((method, path))
 }
 
-fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
-    let status_text = match status {
-        200 => "OK",
-        404 => "Not Found",
-        _ => "Internal Server Error",
-    };
-    let header = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        status,
-        status_text,
-        content_type,
-        body.len()
-    );
+// S3 (Vex review): emit a strict Content-Security-Policy on every
+    // response so a compromised template can't exfiltrate data to
+    // arbitrary origins. `default-src 'self'` covers img/style/script;
+//     `'unsafe-inline'` is permitted for style because the dashboard
+    // templates use inline <style> blocks. `connect-src 'self'` is
+    // required so SSE event-stream URLs still work.
+    const CSP_HEADER: &str = "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'\r\n";
+
+    fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
+        let status_text = match status {
+            200 => "OK",
+            404 => "Not Found",
+            _ => "Internal Server Error",
+        };
+        let header = format!(
+            "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n",
+            status,
+            status_text,
+            content_type,
+            body.len(),
+            CSP_HEADER
+        );
     let mut response = header.into_bytes();
     response.extend_from_slice(body);
     response

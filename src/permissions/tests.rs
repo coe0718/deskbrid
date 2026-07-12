@@ -556,6 +556,7 @@ fn test_profile_narrows_uid_permissions_and_requires_explicit_high_risk() {
             confirm: vec!["clipboard.read".into()],
             audit_level: Some("all".into()),
             rate_limits: HashMap::new(),
+            invalid_rate_limits: Vec::new(),
         },
     );
     let p = Permissions {
