@@ -95,6 +95,30 @@ pub(crate) async fn execute_dbus_call(action: &Action) -> anyhow::Result<Value> 
         _ => anyhow::bail!("not a dbus.call action"),
     };
 
+    // W1: validate D-Bus address components. These are not shell-expanded
+    // (dbus-send args are passed individually, not to a shell), but a
+    // malicious value could inject dbus-send flags (--print-reply, --dest,
+    // etc.) or exploit D-Bus escaping. Reject anything containing `=`,
+    // whitespace, or `--` — real D-Bus names use reverse-domain notation
+    // and object paths, neither of which contain those characters.
+    fn validate_dbus_component(kind: &str, value: &str) -> anyhow::Result<()> {
+        if value.contains('=') || value.contains(char::is_whitespace) || value.starts_with("--") {
+            anyhow::bail!(
+                "invalid dbus {} '{}': expected reverse-domain or object-path format",
+                kind,
+                value
+            );
+        }
+        if value.is_empty() {
+            anyhow::bail!("dbus {} must not be empty", kind);
+        }
+        Ok(())
+    }
+    validate_dbus_component("service", service)?;
+    validate_dbus_component("path", path)?;
+    validate_dbus_component("interface", interface)?;
+    validate_dbus_component("method", method)?;
+
     let bus_flag = match bus.as_deref() {
         Some("system") => "--system",
         _ => "--session",

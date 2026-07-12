@@ -434,7 +434,17 @@ fn matches_patterns(patterns: &[String], action_name: &str, high_risk_exact: boo
     false
 }
 
-/// Extract the peer UID from a Unix socket connection (Linux SO_PEERCRED).
+/// Extract the peer UID from a Unix socket connection.
+///
+/// Uses Linux `SO_PEERCRED` — unavailable on macOS / BSD / Windows.
+/// On non-Linux targets this function is a compile-time stub returning
+/// `None`. The caller (`client.rs` connection handler) falls back to
+/// a no-auth default (UID 0 / root) when peer-UID lookup fails,
+/// which effectively disables per-UID permissions on those platforms —
+/// all connections are treated as root. Installations on non-Linux
+/// hosts should gate access at the socket level (filesystem permissions,
+/// firewall, or SSH tunnel) instead.
+#[cfg(target_os = "linux")]
 pub fn socket_peer_uid(stream: &tokio::net::UnixStream) -> Option<u32> {
     use std::os::unix::io::AsRawFd;
 
@@ -461,6 +471,14 @@ pub fn socket_peer_uid(stream: &tokio::net::UnixStream) -> Option<u32> {
     } else {
         None
     }
+}
+
+/// Non-Linux stub — SO_PEERCRED is unavailable.
+/// Returns `None`, which causes `client.rs` to fall back to UID 0 (root).
+/// See the doc on the Linux version above for implications.
+#[cfg(not(target_os = "linux"))]
+pub fn socket_peer_uid(_stream: &tokio::net::UnixStream) -> Option<u32> {
+    None
 }
 
 #[cfg(test)]

@@ -23,7 +23,7 @@ use permissions::Permissions;
 use protocol::DeskbridEvent;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tracing::{info, warn};
@@ -120,6 +120,17 @@ pub struct DaemonState {
     pub presence: daemon::presence::PresenceStore,
     pub search_index: Arc<daemon::search::SearchIndex>,
     pub(crate) watchers: Arc<daemon::region_watch::WatchRegistry>,
+    /// W7 (Vex review): graceful shutdown flag. Background tasks
+    /// (confirmation sweeper, etc.) check this flag at the top of
+    /// their loop and exit cleanly when the daemon is terminating.
+    /// Set to `true` from the shutdown signal handler; checked via
+    /// `Relaxed` ordering since exact timing is not critical.
+    pub shutdown: Arc<AtomicBool>,
+    /// W7: handles to background tasks spawned by `daemon::run()`.
+    /// The graceful-shutdown path walks this list and either aborts
+    /// or awaits each handle, giving long-lived loops a chance to
+    /// exit cleanly instead of being orphaned.
+    pub background_tasks: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
     next_confirmation_id: AtomicU64,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
@@ -201,6 +212,8 @@ impl DaemonState {
             presence: daemon::presence::PresenceStore::default(),
             search_index: Arc::new(daemon::search::SearchIndex::new()),
             watchers: Arc::new(daemon::region_watch::WatchRegistry::new()),
+            shutdown: Arc::new(AtomicBool::new(false)),
+            background_tasks: std::sync::Mutex::new(Vec::new()),
             next_confirmation_id: AtomicU64::new(1),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),

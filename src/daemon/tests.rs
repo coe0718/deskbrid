@@ -986,3 +986,139 @@ async fn watch_actions_create_list_and_remove_with_mock_backend() {
     .await;
     assert_eq!(text_remove["status"], "ok");
 }
+
+// W4 regression: every high-risk action produces an audit entry under the
+// default_safe profile. Audit is enforced separately from permissions — the
+// rule check decides if the action runs, but the audit log records what
+// happened. This test pins down that contract for files.write.
+#[tokio::test]
+async fn files_write_emits_audit_entry() {
+    use crate::protocol::Action;
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let target = dir.path().join("w4_regression.txt");
+
+    let write = dispatch_action(
+        "w4-write",
+        Action::FilesWrite {
+            path: target.to_string_lossy().to_string(),
+            content: "audit-me".to_string(),
+            append: false,
+        },
+        &state,
+        1000,
+        1,
+    )
+    .await;
+    let _ = write;
+
+    if target.exists() {
+        let read_back = std::fs::read_to_string(&target).expect("read");
+        assert_eq!(read_back, "audit-me");
+    }
+
+    let audit = dispatch_action(
+        "w4-audit",
+        Action::AuditLog {
+            limit: Some(50),
+            action_type: Some("files.write".to_string()),
+            status: None,
+        },
+        &state,
+        1000,
+        2,
+    )
+    .await;
+    assert_eq!(audit["status"], "ok");
+    let entries = audit["data"]["entries"].as_array().expect("entries array");
+    assert!(
+        !entries.is_empty(),
+        "files.write must produce an audit entry, got: {audit}",
+    );
+}
+
+// W4 regression: secrets.get is a high-risk action that must always be
+// audited, regardless of profile. The audit pipeline must not have a
+// mode that skips secrets.get logging.
+//
+// Even when the profile denies secrets.get, the dispatch layer must
+// still emit an audit entry recording the denied attempt — this is
+// the security property Vex called out.
+#[tokio::test]
+async fn secrets_get_produces_audit_entry() {
+    use crate::protocol::Action;
+    use std::collections::HashMap;
+    let mut state = isolated_state();
+
+    // Set up a minimal TOML that allows only audit.* — so the dispatch
+    // can query the audit log, while secrets.get is denied.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let toml_path = dir.path().join("permissions.toml");
+    std::fs::write(
+        &toml_path,
+        r#"[default]
+allow = ["audit.*"]
+deny = []
+"#,
+    )
+    .unwrap();
+    // permissions::load() reads from $XDG_CONFIG_HOME/deskbrid/permissions.toml.
+    let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    unsafe {
+        std::env::set_var("XDG_CONFIG_HOME", dir.path());
+    }
+    state.permissions = crate::permissions::Permissions::load();
+    // Restore env after load.
+    match prev_xdg {
+        Some(v) => unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", v);
+        },
+        None => unsafe {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        },
+    }
+
+    let mut attrs = HashMap::new();
+    attrs.insert("service".to_string(), "w4test".to_string());
+    attrs.insert("account".to_string(), "ci".to_string());
+
+    let get = dispatch_action(
+        "w4-secrets",
+        Action::SecretsGetSecret { attributes: attrs },
+        &state,
+        1000,
+        1,
+    )
+    .await;
+    // Permission denied is the expected outcome.
+    assert_eq!(
+        get["status"], "error",
+        "minimal profile should reject secrets.get, got: {get}"
+    );
+    assert_eq!(
+        get["error"]["code"], "PERMISSION_DENIED",
+        "must produce PERMISSION_DENIED, got: {get}"
+    );
+
+    // Audit must still have an entry for the attempt.
+    let audit = dispatch_action(
+        "w4-audit2",
+        Action::AuditLog {
+            limit: Some(50),
+            action_type: Some("secrets.get_secret".to_string()),
+            status: None,
+        },
+        &state,
+        1000,
+        2,
+    )
+    .await;
+    assert_eq!(audit["status"], "ok");
+    let entries = audit["data"]["entries"].as_array().expect("entries array");
+    assert!(
+        !entries.is_empty(),
+        "secrets.get_secret must produce an audit entry even when denied, got: {audit}",
+    );
+}

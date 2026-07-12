@@ -204,8 +204,15 @@ pub async fn run(
     // Start periodic update checker — polls GitHub for new releases
     update_check::spawn_update_checker(Arc::clone(&state));
 
-    // Start confirmation TTL sweeper — purges expired pending confirmations
-    execute_confirmation::spawn_confirmation_sweeper(Arc::clone(&state));
+    // Start confirmation TTL sweeper — purges expired pending confirmations.
+    // W7 (Vex review): returned JoinHandle stored for graceful shutdown.
+    let confirmation_sweeper_handle =
+        execute_confirmation::spawn_confirmation_sweeper(Arc::clone(&state));
+    state
+        .background_tasks
+        .lock()
+        .expect("background_tasks mutex poisoned")
+        .push(confirmation_sweeper_handle);
 
     // Start coordination sweepers — heartbeat timeouts and stale lock TTLs
     agent_registry::spawn_heartbeat_sweeper(Arc::clone(&state));

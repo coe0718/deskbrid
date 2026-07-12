@@ -110,9 +110,21 @@ pub async fn execute_confirmation(
 
 /// Spawn a background task that sweeps expired pending confirmations.
 /// Runs every SWEEP_INTERVAL_SECS, purging entries older than CONFIRMATION_TTL_MS.
-pub fn spawn_confirmation_sweeper(state: std::sync::Arc<crate::DaemonState>) {
+///
+/// W7 (Vex review): returns the JoinHandle so callers (graceful shutdown
+/// path) can abort the sweeper when the daemon is terminating. Previously
+/// this loop ran forever with no way to stop it — a leaked background task.
+pub fn spawn_confirmation_sweeper(
+    state: std::sync::Arc<crate::DaemonState>,
+) -> tokio::task::JoinHandle<()> {
+    let shutdown = state.shutdown.clone();
     tokio::spawn(async move {
         loop {
+            // Sleep first so a fresh shutdown can abort before we do work.
+            if shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+                tracing::debug!("confirmation sweeper received shutdown signal, exiting");
+                break;
+            }
             tokio::time::sleep(std::time::Duration::from_secs(SWEEP_INTERVAL_SECS)).await;
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -131,7 +143,7 @@ pub fn spawn_confirmation_sweeper(state: std::sync::Arc<crate::DaemonState>) {
                 );
             }
         }
-    });
+    })
 }
 
 pub struct PendingConfirmation {

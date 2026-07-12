@@ -208,23 +208,50 @@ fn default_namespace_limits() -> HashMap<String, RateLimitConfig> {
 
 /// Per-namespace, per-UID rate limiting store.
 ///
-/// `configs` is populated at startup and is read-only thereafter.
-/// `buckets` is the only mutable state.
+/// ... etc
+/// In addition to per-UID buckets, this store maintains an optional
+/// *_global* bucket that caps total throughput across ALL peers.
+/// ... etc
 pub struct RateLimitStore {
     pub configs: HashMap<String, RateLimitConfig>,
     buckets: Mutex<HashMap<u32, HashMap<String, RateBucket>>>,
+    /// W14: global bucket shared across all peers — prevents one
+    /// high-throughput UID from starving others while staying within
+    /// its own per-UID limit. Defaults to the wildcard namespace
+    /// config (120/min = 2/sec, burst=8). Set to `None` or
+    /// `per_second=0` to disable.
+    global: Mutex<RateBucket>,
+    global_config: RateLimitConfig,
 }
 
 impl RateLimitStore {
     pub fn new() -> Self {
+        let defaults = default_namespace_limits();
+        let global_config = defaults.get("").copied().unwrap_or(RateLimitConfig {
+            per_second: 2.0,
+            burst: 8.0,
+        });
         Self {
-            configs: default_namespace_limits(),
+            configs: defaults,
             buckets: Mutex::new(HashMap::new()),
+            global: Mutex::new(RateBucket::new(global_config)),
+            global_config,
         }
     }
 
     pub fn set_config(&mut self, namespace: String, config: RateLimitConfig) {
         self.configs.insert(namespace, config);
+    }
+
+    /// W14 helper: disable the global throughput cap. Sets the global
+    /// bucket's per_second to 0, which causes `check()` to skip it.
+    /// Used by tests and by operators who want only per-namespace
+    /// throttling.
+    pub fn disable_global(&mut self) {
+        self.global_config = RateLimitConfig {
+            per_second: 0.0,
+            burst: 0.0,
+        };
     }
 
     pub fn load_overrides(&mut self, overrides: &HashMap<String, String>) {
@@ -237,7 +264,21 @@ impl RateLimitStore {
 
     /// Check if an action is rate-limited for the given peer UID.
     /// Returns None if allowed, Some(RateLimitHit) if throttled.
+    ///
+    /// W14: The *global* bucket is checked first — if the overall
+    /// system throughput cap is exhausted, the request is rejected
+    /// regardless of the per-UID bucket status. This prevents a
+    /// single high-volume peer from exhausting system resources
+    /// while staying within its own per-UID limit.
     pub(crate) fn check(&self, peer_uid: u32, action: &Action) -> Option<RateLimitHit> {
+        // Global bucket first (W14).
+        if self.global_config.per_second > 0.0 {
+            let mut global = self.global.lock().unwrap();
+            if let hit @ Some(_) = global.take(self.global_config) {
+                return hit;
+            }
+        }
+
         let namespace = action_namespace(action);
         let config = self
             .configs
@@ -487,6 +528,9 @@ mod tests {
                 burst: 0.0,
             },
         );
+        // W14: also disable the global bucket so the test only
+        // exercises the per-namespace disable path.
+        store.disable_global();
         let action = Action::SecretsGetSecret {
             attributes: HashMap::new(),
         };
