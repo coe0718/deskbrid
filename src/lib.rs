@@ -131,6 +131,12 @@ pub struct DaemonState {
     /// or awaits each handle, giving long-lived loops a chance to
     /// exit cleanly instead of being orphaned.
     pub background_tasks: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
+    /// W5 (Vex review): rule-dispatch cycle detection. Rules engine
+    /// pushes its rule.name onto this stack before dispatching an
+    /// action; the dispatch layer (or the rules engine itself)
+    /// rejects re-entry if the same rule is already on the stack.
+    /// Empty in non-rule-dispatch paths.
+    pub rule_dispatch_chain: std::sync::Mutex<Vec<String>>,
     next_confirmation_id: AtomicU64,
     next_inhibitor_id: AtomicU32,
     next_terminal_id: AtomicU32,
@@ -214,6 +220,7 @@ impl DaemonState {
             watchers: Arc::new(daemon::region_watch::WatchRegistry::new()),
             shutdown: Arc::new(AtomicBool::new(false)),
             background_tasks: std::sync::Mutex::new(Vec::new()),
+            rule_dispatch_chain: std::sync::Mutex::new(Vec::new()),
             next_confirmation_id: AtomicU64::new(1),
             next_inhibitor_id: AtomicU32::new(1),
             next_terminal_id: AtomicU32::new(1),

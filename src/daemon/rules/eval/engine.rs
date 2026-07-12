@@ -48,6 +48,27 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                     };
 
                     for (rule, action) in to_dispatch {
+                        // W5 (Vex review): cycle detection via the rule
+                        // dispatch chain. If the same rule name is
+                        // already on the stack (A→B→A), reject
+                        // immediately rather than burning through the
+                        // depth budget.
+                        {
+                            let chain = state
+                                .rule_dispatch_chain
+                                .lock()
+                                .unwrap_or_else(|p| p.into_inner());
+                            if chain.iter().any(|name| name == &rule.name) {
+                                warn!(
+                                    "Rule '{}' would re-enter itself (chain: {:?}) — skipping action '{}' to prevent cycle",
+                                    rule.name,
+                                    chain,
+                                    action.action_type()
+                                );
+                                continue;
+                            }
+                        }
+
                         // Check dispatch depth to prevent rule→action→event→rule loops (W4).
                         let depth = state
                             .rule_dispatch_depth
@@ -73,7 +94,18 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                         match Action::from_json(&action_str) {
                             Ok((request_id, parsed_action)) => {
                                 let state = Arc::clone(&state);
+                                let rule_name = rule.name.clone();
                                 tokio::spawn(async move {
+                                    // W5: push the rule name onto the chain before dispatch,
+                                    // pop after. Held for the duration of the dispatch so a
+                                    // re-entrant rule firing from the same chain is rejected.
+                                    {
+                                        let mut chain = state
+                                            .rule_dispatch_chain
+                                            .lock()
+                                            .unwrap_or_else(|p| p.into_inner());
+                                        chain.push(rule_name.clone());
+                                    }
                                     let seq = crate::daemon::helpers::unix_timestamp();
                                     state
                                         .rule_dispatch_depth
@@ -89,9 +121,18 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                                     state
                                         .rule_dispatch_depth
                                         .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                                    {
+                                        let mut chain = state
+                                            .rule_dispatch_chain
+                                            .lock()
+                                            .unwrap_or_else(|p| p.into_inner());
+                                        if chain.last() == Some(&rule_name) {
+                                            chain.pop();
+                                        }
+                                    }
                                     debug!(
                                         "Rule '{}' action completed: {:?}",
-                                        rule.name,
+                                        rule_name,
                                         result.get("status")
                                     );
                                 });

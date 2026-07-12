@@ -1,5 +1,13 @@
 // TESTING_NEEDED: This feature requires manual testing with actual GitHub releases
 //! Self-update command: download latest release and replace the deskbrid binary.
+//!
+//! S4 (Vex review): we currently shell out to `cargo install --git` or
+//! fetch a release tarball and copy the binary. A future migration to
+//! the `self_update` crate (https://crates.io/crates/self_update) would
+//! give us signed-update verification and atomic binary replacement.
+//! Skipped for v1.2.0 because the current approach is functional and
+//! the manual `cargo install --path .` workflow works for our release
+//! cadence. Tagged here so the future refactor has a reference point.
 
 mod github;
 mod install;

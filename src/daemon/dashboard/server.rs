@@ -1,5 +1,7 @@
 use crate::DaemonState;
+use dashmap::DashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
@@ -12,6 +14,26 @@ use super::{
 };
 
 const HTML_PAGE: &str = include_str!("template.html");
+
+// W21 (Vex review): per-IP SSE connection cap. Each dashboard SSE
+// connection polls 17 volatile cards every 3 seconds, which is real
+// work. Without a cap, a single IP can open many connections and
+// monopolize the daemon's render thread. The cap is global (one
+// process-wide count) since the dashboard binds to loopback by default;
+// if it's bound to a non-loopback address, the operator already opted
+// into exposure via --dashboard-token, and a few extra concurrent
+// streams per IP doesn't add meaningful risk.
+//
+// Default cap: 16 concurrent SSE connections per IP. Configurable
+// via DESKBRID_SSE_MAX_PER_IP.
+const DEFAULT_SSE_MAX_PER_IP: usize = 16;
+
+/// W21: per-IP live SSE connection count.
+static SSE_PER_IP: std::sync::OnceLock<DashMap<String, AtomicUsize>> = std::sync::OnceLock::new();
+
+fn sse_per_ip() -> &'static DashMap<String, AtomicUsize> {
+    SSE_PER_IP.get_or_init(DashMap::new)
+}
 
 /// Max request-line size (64 KB) — rejects oversized HTTP requests.
 const MAX_REQUEST_LINE: u64 = 65536;
@@ -114,27 +136,27 @@ fn parse_request_line(line: &str) -> Option<(&str, &str)> {
 }
 
 // S3 (Vex review): emit a strict Content-Security-Policy on every
-    // response so a compromised template can't exfiltrate data to
-    // arbitrary origins. `default-src 'self'` covers img/style/script;
+// response so a compromised template can't exfiltrate data to
+// arbitrary origins. `default-src 'self'` covers img/style/script;
 //     `'unsafe-inline'` is permitted for style because the dashboard
-    // templates use inline <style> blocks. `connect-src 'self'` is
-    // required so SSE event-stream URLs still work.
-    const CSP_HEADER: &str = "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'\r\n";
+// templates use inline <style> blocks. `connect-src 'self'` is
+// required so SSE event-stream URLs still work.
+const CSP_HEADER: &str = "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'\r\n";
 
-    fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
-        let status_text = match status {
-            200 => "OK",
-            404 => "Not Found",
-            _ => "Internal Server Error",
-        };
-        let header = format!(
-            "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n",
-            status,
-            status_text,
-            content_type,
-            body.len(),
-            CSP_HEADER
-        );
+fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
+    let status_text = match status {
+        200 => "OK",
+        404 => "Not Found",
+        _ => "Internal Server Error",
+    };
+    let header = format!(
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n",
+        status,
+        status_text,
+        content_type,
+        body.len(),
+        CSP_HEADER
+    );
     let mut response = header.into_bytes();
     response.extend_from_slice(body);
     response
@@ -213,6 +235,15 @@ pub(crate) async fn handle_request(
     state: Arc<DaemonState>,
     token: Option<String>,
 ) -> anyhow::Result<()> {
+    // W21 (Vex review): capture peer IP before splitting the stream,
+    // because `stream.split()` borrows stream mutably for the
+    // write-half and we still need to read peer_addr() for the SSE
+    // per-IP cap.
+    let peer_ip = stream
+        .peer_addr()
+        .ok()
+        .map(|a| a.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     let (read_half, mut write_half) = stream.split();
 
     // Cap the total request body at 64KB — prevents memory exhaustion.
@@ -290,6 +321,42 @@ pub(crate) async fn handle_request(
 
     // SSE event stream — polls cards every 3 seconds
     if method == "GET" && path == "/events" {
+        // W21 (Vex review): enforce per-IP connection cap before
+        // opening a new SSE stream. Each stream is a 3s polling loop
+        // over 17 cards — unlimited concurrency would let one IP
+        // monopolize the daemon. Increment first; if it exceeds the
+        // cap, decrement and reject. Decrement on stream drop via
+        // RAII guard so a panic in the loop doesn't leak the slot.
+        let max_per_ip: usize = std::env::var("DESKBRID_SSE_MAX_PER_IP")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_SSE_MAX_PER_IP);
+        let counter = sse_per_ip()
+            .entry(peer_ip.clone())
+            .or_insert_with(|| AtomicUsize::new(0));
+        let prev = counter.value().fetch_add(1, Ordering::Relaxed);
+        if prev >= max_per_ip {
+            counter.value().fetch_sub(1, Ordering::Relaxed);
+            let _ = send_error(&mut write_half, 429, "Too Many SSE connections").await;
+            return Ok(());
+        }
+        // W21 RAII: ensure the slot is freed when the stream exits.
+        struct SseGuard {
+            map: &'static DashMap<String, AtomicUsize>,
+            key: String,
+        }
+        impl Drop for SseGuard {
+            fn drop(&mut self) {
+                if let Some(c) = self.map.get(&self.key) {
+                    c.value().fetch_sub(1, Ordering::Relaxed);
+                }
+            }
+        }
+        let _guard = SseGuard {
+            map: sse_per_ip(),
+            key: peer_ip,
+        };
+
         let header = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n";
         write_half.write_all(header.as_bytes()).await?;
         write_half.flush().await?;

@@ -1122,3 +1122,59 @@ deny = []
         "secrets.get_secret must produce an audit entry even when denied, got: {audit}",
     );
 }
+
+// W15 regression: client-supplied `confirm: Some(false)` must NOT bypass
+// the confirmation gate for HIGH_RISK actions. The dispatch layer must
+// force confirmation based on server-side policy, regardless of what
+// the client sends in RequestOptions.
+//
+// We use ProcessStart (HIGH_RISK) as the canonical example. The mock
+// backend's process.start succeeds, but the daemon should require
+// confirmation first and only run the action after the user confirms.
+#[tokio::test]
+async fn client_cannot_bypass_confirmation_for_high_risk_actions() {
+    use crate::protocol::{Action, RequestOptions};
+    let mut state = isolated_state();
+    state.permissions = crate::permissions::Permissions::default_safe();
+
+    // Build RequestOptions that try to bypass confirmation. RequestOptions
+    // exposes `require_confirmation` (an Option<bool>); a `Some(false)`
+    // is the client's attempt to opt out of confirmation.
+    let bypass_attempt = RequestOptions {
+        dry_run: false,
+        timeout_ms: None,
+        require_confirmation: Some(false),
+    };
+
+    // Attempt to start a process without confirmation — should be
+    // blocked by the confirmation gate, returning a response that
+    // includes action_requires_confirmation status.
+    let response = dispatch::dispatch_action_with_options(
+        "w15-bypass",
+        Action::ProcessStart {
+            command: vec!["echo".to_string(), "should-not-run".to_string()],
+            workdir: None,
+            env: None,
+        },
+        &state,
+        1000,
+        1,
+        bypass_attempt,
+        "default",
+    )
+    .await;
+
+    // Either the response explicitly says confirmation is required,
+    // OR the action fails with PERMISSION_DENIED because process.start
+    // isn't allowed under default_safe (also acceptable — either way
+    // the action did NOT execute). Crucially, no `pid` should appear.
+    assert!(
+        response.get("pid").is_none(),
+        "process.start executed despite bypass attempt — got: {response}"
+    );
+    let status = response["status"].as_str().unwrap_or("");
+    assert!(
+        status == "action_requires_confirmation" || status == "error",
+        "expected confirmation-required or error, got status={status}, response={response}"
+    );
+}

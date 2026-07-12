@@ -38,14 +38,55 @@ const TIMEDATE1_SERVICE: &str = "org.freedesktop.timedate1";
 pub fn spawn_locale_timezone_monitors(state: Arc<DaemonState>) {
     let locale_state = Arc::clone(&state);
     tokio::spawn(async move {
-        if let Err(e) = run_locale_monitor(locale_state).await {
-            tracing::warn!("locale monitor exited: {}", e);
+        // W6 (Vex review): reconnect loop with exponential backoff.
+        // If the D-Bus connection drops, the monitor task exits silently
+        // — but now we respawn it. Backoff: 1s, 2s, 4s, 8s, 16s, 30s cap.
+        let mut backoff_ms = 1000u64;
+        loop {
+            if locale_state
+                .shutdown
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                break;
+            }
+            match run_locale_monitor(Arc::clone(&locale_state)).await {
+                Ok(()) => {
+                    tracing::info!("locale monitor exited cleanly; reconnecting");
+                    backoff_ms = 1000;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "locale monitor error: {e}; reconnecting in {}ms",
+                        backoff_ms
+                    );
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                    backoff_ms = (backoff_ms * 2).min(30_000);
+                }
+            }
         }
     });
     let tz_state = Arc::clone(&state);
     tokio::spawn(async move {
-        if let Err(e) = run_timezone_monitor(tz_state).await {
-            tracing::warn!("timezone monitor exited: {}", e);
+        // W6 (Vex review): same reconnect pattern for the timezone monitor.
+        let mut backoff_ms = 1000u64;
+        loop {
+            if tz_state.shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            match run_timezone_monitor(Arc::clone(&tz_state)).await {
+                Ok(()) => {
+                    tracing::info!("timezone monitor exited cleanly; reconnecting");
+                    backoff_ms = 1000;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "timezone monitor error: {e}; reconnecting in {}ms",
+                        backoff_ms
+                    );
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                    backoff_ms = (backoff_ms * 2).min(30_000);
+                }
+            }
         }
     });
 }

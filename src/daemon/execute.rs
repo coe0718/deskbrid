@@ -1,4 +1,13 @@
-use crate::DaemonState;
+//! Top-level action router. Each arm of `execute_action`'s match is a
+//! thin pass-through to a dedicated submodule (`execute_audio`,
+//! `execute_browser`, etc.). Adding a new namespace = adding a new arm.
+//!
+//! reason: file is 295 lines (over the 250-line AGENTS.md cap). Cannot
+//! easily split further because the match is the entire purpose of this
+//! module — splitting per-arm would fragment the dispatch table across
+//! files and make it harder to see the full action routing at a glance.
+//! `execute_schedule` was already extracted to `schedule.rs` (W18).
+
 use crate::protocol::Action;
 
 use super::execute_audio;
@@ -25,7 +34,9 @@ use super::execute_system::execute_dbus_call;
 use super::execute_vision;
 use super::execute_windows;
 use super::execute_workspace;
+use super::portal;
 use super::region_watch;
+use super::schedule;
 
 pub async fn execute_action(
     action: Action,
@@ -173,7 +184,7 @@ pub async fn execute_action(
         }
 
         PortalScreenshot { .. } | PortalScreencastStart { .. } | PortalScreencastStop => {
-            execute_portal(action, state).await?
+            portal::execute_portal(action, state).await?
         }
 
         SystemInfo
@@ -224,7 +235,7 @@ pub async fn execute_action(
         DbusCall { .. } => execute_dbus_call(&action).await?,
 
         ScheduleList | ScheduleAdd { .. } | ScheduleRemove { .. } => {
-            execute_schedule(action, state).await?
+            schedule::execute_schedule(action, state).await?
         }
 
         WindowsList
@@ -277,59 +288,4 @@ pub async fn execute_action(
 
         _ => execute_stubs::execute_stubs(action, backend, state).await?,
     })
-}
-
-async fn execute_portal(action: Action, state: &DaemonState) -> anyhow::Result<serde_json::Value> {
-    use Action::*;
-    Ok(match action {
-        PortalScreenshot { interactive } => super::portal::portal_screenshot(interactive).await?,
-        PortalScreencastStart { output_path } => {
-            super::portal::portal_screencast_start(&output_path, &state.screencast_process).await?
-        }
-        PortalScreencastStop => {
-            super::portal::portal_screencast_stop(&state.screencast_process).await?
-        }
-        _ => anyhow::bail!("internal dispatch error: not a portal action"),
-    })
-}
-
-async fn execute_schedule(
-    action: Action,
-    state: &DaemonState,
-) -> anyhow::Result<serde_json::Value> {
-    let mut sched = state.schedule.schedule.lock().await;
-    match action {
-        Action::ScheduleList => Ok(serde_json::json!({ "entries": *sched.entries })),
-        Action::ScheduleAdd {
-            name,
-            interval_secs,
-            action_type,
-            action_params,
-        } => {
-            // Don't allow duplicates
-            if sched.entries.iter().any(|e| e.name == name) {
-                anyhow::bail!("schedule entry '{}' already exists", name);
-            }
-            let entry = crate::daemon::schedule::ScheduleEntry {
-                name: name.clone(),
-                interval_secs,
-                action_type: action_type.clone(),
-                action_params: action_params.unwrap_or(serde_json::json!({})),
-                last_run: 0,
-            };
-            sched.entries.push(entry);
-            sched.save().await?;
-            Ok(serde_json::json!({ "added": name }))
-        }
-        Action::ScheduleRemove { name } => {
-            let len_before = sched.entries.len();
-            sched.entries.retain(|e| e.name != name);
-            if sched.entries.len() == len_before {
-                anyhow::bail!("schedule entry '{}' not found", name);
-            }
-            sched.save().await?;
-            Ok(serde_json::json!({ "removed": name }))
-        }
-        _ => anyhow::bail!("internal dispatch error: not a schedule action"),
-    }
 }

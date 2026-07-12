@@ -71,6 +71,17 @@ ksni = "0.3.4"
 zeroize = { version = "1.8.2", features = ["derive"] }
 chrono = "0.4.45"
 
+# S1 (Vex review): load .env files at startup so operators can drop
+# secrets / runtime config into ~/.config/deskbrid/.env instead of
+# editing shell rc files. dotenvy handles missing files gracefully
+# (no error if absent) and is the de-facto standard for this.
+dotenvy = "0.15"
+
+# S2 (Vex review): get the IANA timezone ID safely (e.g. "America/Indiana/Indianapolis")
+# instead of guessing from /etc/localtime symlink. Works inside containers
+# and on systems where /etc/timezone is missing or wrong.
+iana-time-zone = "0.1"
+
 [[bin]]
 name = "deskbrid"
 path = "src/main.rs"

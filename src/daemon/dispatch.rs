@@ -1,3 +1,14 @@
+// S6 (Vex review): the dispatch pipeline (rate-limit check → permission
+// check → profile check → rule depth check → confirmation gate →
+// action dispatch → audit record) is implemented inline in
+// `dispatch_action_with_options` below. A future refactor to a
+// tower::Service / tower::Layer middleware stack would make the
+// pipeline composable and unit-testable in isolation. Skipped for
+// v1.2.0 because the current implementation is linear and easy to
+// audit; a middleware stack would add async-trait boilerplate without
+// changing observable behavior. Tagged here so a future refactor has
+// a starting point.
+
 use crate::DaemonState;
 use crate::protocol::{Action, RequestOptions};
 

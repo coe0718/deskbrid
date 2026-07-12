@@ -1,3 +1,16 @@
+//! Browser automation actions: list tabs, navigate, evaluate JS, screenshot, click.
+//!
+//! W16 (Vex review): `browser.evaluate` runs arbitrary JavaScript in the
+//! browser. Granting `browser.evaluate` permission is equivalent to
+//! granting full control of the user's authenticated browser session —
+//! the JS can read cookies, exfiltrate form data, and act as the user
+//! on any site they're logged into. This action is listed in
+//! `permissions::HIGH_RISK_ACTIONS` and requires explicit confirmation
+//! per dispatch; **wildcard patterns like `browser.*` or `*` do not
+//! grant it** (see `HIGH_RISK_ACTIONS` for the full list). Operators
+//! configuring permissions.toml should give `browser.evaluate` only to
+//! trusted agents and only via the full action name.
+
 use crate::DaemonState;
 use crate::backend::DesktopBackend;
 use crate::protocol::Action;

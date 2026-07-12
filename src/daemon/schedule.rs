@@ -180,3 +180,48 @@ pub fn spawn_schedule_engine(schedule_state: Arc<ScheduleState>, daemon_state: A
         }
     });
 }
+
+/// W18 (Vex review): extracted from `daemon/execute.rs` to keep that
+/// file under the 250-line AGENTS.md cap. Dispatches
+/// `ScheduleList`/`ScheduleAdd`/`ScheduleRemove` against the
+/// in-memory schedule. Called from the central action router.
+pub async fn execute_schedule(
+    action: Action,
+    state: &DaemonState,
+) -> anyhow::Result<serde_json::Value> {
+    let mut sched = state.schedule.schedule.lock().await;
+    match action {
+        Action::ScheduleList => Ok(serde_json::json!({ "entries": *sched.entries })),
+        Action::ScheduleAdd {
+            name,
+            interval_secs,
+            action_type,
+            action_params,
+        } => {
+            // Don't allow duplicates
+            if sched.entries.iter().any(|e| e.name == name) {
+                anyhow::bail!("schedule entry '{name}' already exists");
+            }
+            let entry = ScheduleEntry {
+                name: name.clone(),
+                interval_secs,
+                action_type: action_type.clone(),
+                action_params: action_params.unwrap_or(serde_json::json!({})),
+                last_run: 0,
+            };
+            sched.entries.push(entry);
+            sched.save().await?;
+            Ok(serde_json::json!({ "added": name }))
+        }
+        Action::ScheduleRemove { name } => {
+            let len_before = sched.entries.len();
+            sched.entries.retain(|e| e.name != name);
+            if sched.entries.len() == len_before {
+                anyhow::bail!("schedule entry '{name}' not found");
+            }
+            sched.save().await?;
+            Ok(serde_json::json!({ "removed": name }))
+        }
+        _ => anyhow::bail!("internal dispatch error: not a schedule action"),
+    }
+}

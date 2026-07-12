@@ -89,6 +89,7 @@ fn test_permissions_deny_screenshot() {
         default: PermissionEntry {
             allow: vec!["*".into()],
             deny: vec!["screenshot".into()],
+            audit_level: None,
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
@@ -120,6 +121,7 @@ fn test_permissions_per_uid() {
         PermissionEntry {
             allow: vec!["*".into(), "screenshot".into()],
             deny: vec![],
+            audit_level: None,
         },
     );
     per_uid.insert(
@@ -127,6 +129,7 @@ fn test_permissions_per_uid() {
         PermissionEntry {
             allow: vec!["windows.*".into(), "clipboard.read".into()],
             deny: vec!["screenshot".into()],
+            audit_level: None,
         },
     );
 
@@ -134,6 +137,7 @@ fn test_permissions_per_uid() {
         default: PermissionEntry {
             allow: vec![],
             deny: vec!["*".into()],
+            audit_level: None,
         },
         permissions: per_uid,
         rate_limits: HashMap::new(),
@@ -182,6 +186,7 @@ fn test_permissions_ping_always_allowed_in_default_deny() {
         default: PermissionEntry {
             allow: vec![],
             deny: vec!["*".into()],
+            audit_level: None,
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
@@ -238,6 +243,7 @@ fn test_high_risk_denied_by_category_wildcard() {
         default: PermissionEntry {
             allow: vec!["browser.*".into()],
             deny: vec![],
+            audit_level: None,
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
@@ -272,6 +278,7 @@ fn test_high_risk_explicitly_allowed() {
         default: PermissionEntry {
             allow: vec!["browser.evaluate".into(), "browser.*".into()],
             deny: vec![],
+            audit_level: None,
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
@@ -298,6 +305,7 @@ fn test_high_risk_deny_still_wins() {
         default: PermissionEntry {
             allow: vec!["browser.evaluate".into()],
             deny: vec!["browser.evaluate".into()],
+            audit_level: None,
         },
         permissions: HashMap::new(),
         rate_limits: HashMap::new(),
@@ -564,6 +572,7 @@ fn test_profile_narrows_uid_permissions_and_requires_explicit_high_risk() {
             default: PermissionEntry {
                 allow: vec!["*".into(), "clipboard.read".into()],
                 deny: vec![],
+                audit_level: None,
             },
             permissions: HashMap::new(),
             rate_limits: HashMap::new(),

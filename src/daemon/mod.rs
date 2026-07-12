@@ -219,6 +219,9 @@ pub async fn run(
     agent_registry::spawn_heartbeat_sweeper(Arc::clone(&state));
     locks::spawn_lock_sweeper(Arc::clone(&state));
 
+    // W17 (Vex review): TTL-cleanup of stale screenshot temp files.
+    helpers::spawn_screenshot_cleaner(Arc::clone(&state));
+
     // Start schedule engine — runs configured actions on a timer
     schedule::spawn_schedule_engine(Arc::clone(&state.schedule), Arc::clone(&state));
 

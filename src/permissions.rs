@@ -36,6 +36,14 @@ struct PermissionEntry {
     allow: Vec<String>,
     #[serde(default)]
     deny: Vec<String>,
+    /// S5 (Vex review): per-UID audit level override. Set this in
+    /// `[permissions."uid:1000"]` (or any uid:N entry) to override
+    /// the default audit verbosity for that UID. Allowed values:
+    /// `"none"` (skip audit), `"errors"` (only error events), `"all"`
+    /// (every action). `None` means use the daemon-wide default
+    /// (currently "all").
+    #[serde(default)]
+    audit_level: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -68,15 +76,14 @@ impl ProfileEntry {
     pub fn validate_rate_limits(&mut self) {
         use crate::daemon::parse_limit_string;
         let mut invalid = Vec::new();
-        self.rate_limits.retain(|key, value| {
-            match parse_limit_string(value) {
+        self.rate_limits
+            .retain(|key, value| match parse_limit_string(value) {
                 Some(_) => true,
                 None => {
                     invalid.push(format!("{key}={value}"));
                     false
                 }
-            }
-        });
+            });
         self.invalid_rate_limits = invalid;
     }
 }
@@ -118,6 +125,16 @@ impl Permissions {
 
     pub fn profile(&self, name: &str) -> Option<&ProfileEntry> {
         self.inner.profile.get(name)
+    }
+
+    /// S5 (Vex review): per-UID audit level override. Returns the
+    /// configured level ("none" / "errors" / "all") if set for this
+    /// UID, otherwise None to fall back to the daemon-wide default.
+    pub fn uid_audit_level(&self, uid: u32) -> Option<&str> {
+        self.inner
+            .permissions
+            .get(&format!("uid:{uid}"))
+            .and_then(|p| p.audit_level.as_deref())
     }
 
     pub fn profile_names(&self) -> Vec<String> {
@@ -191,6 +208,7 @@ impl Permissions {
                 default: PermissionEntry {
                     allow: vec!["*".to_string()],
                     deny: vec![],
+                    audit_level: None,
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),
@@ -207,6 +225,7 @@ impl Permissions {
                 default: PermissionEntry {
                     allow: vec![],
                     deny: vec!["*".to_string()],
+                    audit_level: None,
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),
@@ -284,6 +303,7 @@ impl Permissions {
                         "input.mouse.drag".to_string(),
                     ],
                     deny: vec![],
+                    audit_level: None,
                 },
                 permissions: HashMap::new(),
                 rate_limits: HashMap::new(),

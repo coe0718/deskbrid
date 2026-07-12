@@ -225,6 +225,12 @@ fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
 /// Read the current timezone. Resolves /etc/localtime (realpath) and
 /// cross-references /etc/timezone when present. Computes UTC offset by
 /// calling `date +%z` against the system clock.
+///
+/// S2 (Vex review): falls back to `iana_time_zone::get_timezone()`
+/// (which uses `/etc/localtime` + tzdata lookups under the hood, works
+/// inside containers and distros without `/etc/timezone`) before
+/// declaring the timezone unknown. The iana_time_zone call is a fast
+/// libc-level probe — no subprocess spawn.
 pub(super) fn timezone_get() -> Value {
     let (resolved, symlink_target) = resolve_localtime();
 
@@ -234,10 +240,13 @@ pub(super) fn timezone_get() -> Value {
         .filter(|s| !s.is_empty());
 
     // Prefer /etc/timezone when present (it carries the canonical name),
-    // otherwise use the realpath-derived name.
+    // otherwise use the realpath-derived name. S2: fall back to the
+    // iana-time-zone crate as a last resort — it consults tzdata directly
+    // and works on minimal container images where /etc/timezone is missing.
     let timezone = from_file
         .clone()
         .or_else(|| resolved.clone())
+        .or_else(|| iana_time_zone::get_timezone().ok())
         .unwrap_or_default();
 
     let (utc_offset_minutes, dst_active, is_utc) = compute_offset_and_dst();
@@ -250,6 +259,7 @@ pub(super) fn timezone_get() -> Value {
         "symlink_target": symlink_target,
         "resolved_from_localtime": resolved,
         "from_etc_timezone": from_file,
+        "iana_time_zone_fallback": from_file.is_none() && resolved.is_none(),
     })
 }
 
@@ -361,6 +371,16 @@ fn resolve_localtime() -> (Option<String>, Option<String>) {
 
 /// Compute UTC offset and DST flag using `date +%z` and `date +%Z`.
 /// Falls back to 0/UTC if `date` is unavailable.
+///
+/// W20 (Vex review): DST detection here is intentionally heuristic
+/// (looks for 'D' or 'S' in the tz name) — accurate DST tracking
+/// requires a tzdata library like `chrono-tz`. The result is exposed
+/// in `timezone.get` as `dst_active` (boolean) and is suitable for
+/// display but should NOT be used for any calculation that depends on
+/// precise DST transitions (cron-style scheduling, time arithmetic,
+/// etc.). Callers needing exact DST transitions should consult tzdata
+/// directly. Documented at the protocol level so clients understand
+/// the limitation.
 fn compute_offset_and_dst() -> (i32, bool, bool) {
     let offset_out = Command::new("date").arg("+%z").output().ok();
     let name_out = Command::new("date").arg("+%Z").output().ok();

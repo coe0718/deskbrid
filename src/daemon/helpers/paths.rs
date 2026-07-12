@@ -92,6 +92,80 @@ pub fn screenshot_temp_path() -> String {
         .to_string()
 }
 
+/// W17 (Vex review): delete screenshot temp files older than
+/// `max_age_secs`. Default 1 hour — gives clients plenty of time to
+/// download, while keeping the runtime directory bounded on long-running
+/// daemons. Returns the number of files removed.
+///
+/// Called by `spawn_screenshot_cleaner` periodically.
+pub fn cleanup_stale_screenshots(max_age_secs: u64) -> usize {
+    let dir = std::env::var("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = home_dir().to_string_lossy().to_string();
+            PathBuf::from(home).join(".cache")
+        })
+        .join("deskbrid");
+
+    if !dir.is_dir() {
+        return 0;
+    }
+
+    let now = std::time::SystemTime::now();
+    let max_age = std::time::Duration::from_secs(max_age_secs);
+    let mut removed = 0usize;
+
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // Only clean up files we created (prefix "screenshot_" or "diff_").
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let is_ours = name.starts_with("screenshot_") || name.starts_with("diff_");
+        if !is_ours {
+            continue;
+        }
+        let Ok(meta) = entry.metadata() else { continue };
+        let Ok(mtime) = meta.modified() else { continue };
+        if now.duration_since(mtime).unwrap_or_default() > max_age
+            && std::fs::remove_file(&path).is_ok()
+        {
+            removed += 1;
+        }
+    }
+    removed
+}
+
+/// W17: spawn a background task that calls `cleanup_stale_screenshots`
+/// every `interval_secs` (default 5 min). The handle is stored in
+/// `DaemonState.background_tasks` so graceful shutdown aborts it.
+pub fn spawn_screenshot_cleaner(state: std::sync::Arc<crate::DaemonState>) {
+    tokio::spawn(async move {
+        let interval_secs: u64 = std::env::var("DESKBRID_SCREENSHOT_CLEANUP_INTERVAL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(300);
+        let max_age_secs: u64 = std::env::var("DESKBRID_SCREENSHOT_TTL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(3600);
+        loop {
+            if state.shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            let removed = cleanup_stale_screenshots(max_age_secs);
+            if removed > 0 {
+                tracing::debug!("screenshot cleaner: removed {removed} stale file(s)");
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

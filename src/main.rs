@@ -3,6 +3,11 @@ use deskbrid::client;
 use deskbrid::daemon;
 
 fn main() -> anyhow::Result<()> {
+    // S1 (Vex review): load .env files BEFORE parsing CLI so values
+    // like DESKBRID_LOG / DESKBRID_RATE_LIMIT_PER_SEC show up via env.
+    // Search order: $XDG_CONFIG_HOME/deskbrid/.env, then ~/.config/deskbrid/.env.
+    // Missing files are silently ignored — .env is optional.
+    load_dotenv_files();
     let args = cli::parse();
     if let cli::Command::Daemon { verbose: true, .. } = &args.command {
         // SAFETY: called in single-threaded fn main before tokio runtime starts
@@ -12,6 +17,33 @@ fn main() -> anyhow::Result<()> {
     }
     ensure_xdg_runtime_dir();
     runtime(args)
+}
+
+/// S1: try to load .env files from the standard config locations.
+/// Both paths are optional — dotenvy silently returns Ok(()) when the
+/// file doesn't exist. We probe both because the XDG variable might
+/// not be set on a fresh install.
+fn load_dotenv_files() {
+    // 1) $XDG_CONFIG_HOME/deskbrid/.env (if XDG_CONFIG_HOME is set)
+    if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+        let path = std::path::PathBuf::from(xdg).join("deskbrid").join(".env");
+        match dotenvy::from_path(&path) {
+            Ok(_) => {}
+            Err(dotenvy::Error::Io(ref io)) if io.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => tracing::warn!("failed to load {}: {e}", path.display()),
+        }
+    }
+    // 2) ~/.config/deskbrid/.env (always probed — handles systems
+    // without XDG_CONFIG_HOME and Linux distros where the user's
+    // HOME doesn't match getuid-derived dirs).
+    if let Some(home) = dirs::config_dir() {
+        let path = home.join("deskbrid").join(".env");
+        match dotenvy::from_path_override(&path) {
+            Ok(_) => {}
+            Err(dotenvy::Error::Io(ref io)) if io.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => tracing::warn!("failed to load {}: {e}", path.display()),
+        }
+    }
 }
 
 fn ensure_xdg_runtime_dir() {
