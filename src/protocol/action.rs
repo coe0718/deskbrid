@@ -879,6 +879,23 @@ pub enum Action {
         name: String,
         value: String,
     },
+    /// Persist one or more env vars to `~/.config/environment.d/deskbrid.conf`.
+    /// This is the systemd user-session standard: shells and apps launched
+    /// after the next login inherit the values. Vars are validated the same
+    /// way as `env.set` (no `=` in name, non-empty).
+    /// Returns: {"written":{"LANG":"en_US.UTF-8"},"source":"...","preserved":N}
+    EnvPersist {
+        vars: Vec<(String, String)>,
+    },
+    /// Remove one or more persisted env vars from the deskbrid config file.
+    /// Missing vars are reported but do not error.
+    /// Returns: {"removed":["FOO","BAR"],"not_found":["BAZ"],"source":"..."}
+    EnvUnset {
+        names: Vec<String>,
+    },
+    /// List all persisted env vars from the deskbrid config file.
+    /// Returns: {"vars":{"FOO":"bar"},"count":N,"source":"...","exists":true}
+    EnvListPersisted,
     SessionSuspend {
         name: String,
         reason: Option<String>,

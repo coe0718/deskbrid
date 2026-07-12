@@ -199,6 +199,9 @@ pub async fn execute_action(
         | SystemBattery
         | EnvGet { .. }
         | EnvSet { .. }
+        | EnvPersist { .. }
+        | EnvUnset { .. }
+        | EnvListPersisted
         | LocaleGet
         | LocaleSet { .. }
         | TimezoneGet

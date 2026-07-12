@@ -30,6 +30,9 @@ pub(crate) async fn execute_system(
             ref name,
             ref value,
         } => serde_json::json!(crate::daemon::env::env_set(name, value)),
+        EnvPersist { ref vars } => serde_json::json!(crate::daemon::env::env_persist(vars)),
+        EnvUnset { ref names } => serde_json::json!(crate::daemon::env::env_unset(names)),
+        EnvListPersisted => serde_json::json!(crate::daemon::env::env_list_persisted()),
         SystemBacklightList => serde_json::json!(backend.backlight_list().await?),
         SystemBacklightGet { ref device } => {
             serde_json::json!(backend.backlight_get(device.as_deref()).await?)

@@ -5652,17 +5652,30 @@ DisplayManagerSetAutoLogin { username: Option<String> },
 
 ## 116. Session Environment Variable Management
 
-**Status:** ✅ Done (partial). Shipped `env.get` and `env.set` actions
-operating on the daemon's process environment. `env.get {name}` reads one
-var or all vars (returns `{vars: {}, count: N, non_utf8_count: M}` for the
-"all" call); `env.set {name, value}` writes to the daemon's environment
-and returns the prior value. Children spawned AFTER the set see the new
-value; already-running children do not (Linux limitation, documented in
-the env.rs module doc comment). Validation rejects names containing `=`
-or NUL at parse time. Non-UTF8 values are returned as `value_bytes`
-arrays. **Not yet shipped:** persistent writes to
-`~/.config/environment.d/*.conf`, environment-restore action
-(`~/.profile` reload), and unset. These can land in a follow-up commit.
+**Status:** ✅ Done. Shipped 5 actions: `env.get`, `env.set`,
+`env.persist`, `env.unset`, `env.list_persisted`.
+
+- `env.get` reads one var (or all) from the daemon's process
+  environment, handling non-UTF8 values as `value_bytes` arrays.
+- `env.set` writes to the daemon's process env. Children spawned
+  after the set inherit; already-running children do not (Linux
+  limitation — documented in env.rs).
+- `env.persist` writes to `~/.config/environment.d/deskbrid.conf`
+  (systemd user-session standard, no root needed). Atomically writes
+  to `.conf.tmp` then renames. Preserves existing keys not in the
+  request. Accepts both `vars: {K: V}` object and `vars: [[K, V]]`
+  array shapes (same as `locale.set`).
+- `env.unset` removes named vars from the persisted file. Missing
+  vars reported but don't error. Empty request no-ops cleanly.
+- `env.list_persisted` reads the file and returns `{vars, count,
+  exists}`. Un-escapes systemd-style `\"` and `\\` on read so values
+  round-trip correctly through escape sequences.
+
+Validation at parse time: names must be non-empty and must not
+contain `=` or NUL. Atomic writes via `.tmp` rename prevent
+half-written configs if the daemon is killed mid-write. Live-tested:
+all 6 scenarios (list empty, persist new, list populated, persist
+overwrite with preserved, unset mixed, list after unset).
 
 **Implementation:**
 

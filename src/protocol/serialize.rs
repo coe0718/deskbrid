@@ -140,6 +140,9 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::BatteryThresholdSet { .. }
         | Action::EnvGet { .. }
         | Action::EnvSet { .. }
+        | Action::EnvPersist { .. }
+        | Action::EnvUnset { .. }
+        | Action::EnvListPersisted
         | Action::LocaleGet
         | Action::LocaleSet { .. }
         | Action::TimezoneGet
