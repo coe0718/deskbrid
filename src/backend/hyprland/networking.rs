@@ -115,9 +115,9 @@ pub(super) async fn wifi_connect(
                 let _ = stdin.write_all(pw.as_bytes());
                 let _ = stdin.write_all(b"\n");
             }
-            let output = child.wait_with_output().map_err(|e| {
-                anyhow::anyhow!("failed to read nmcli output: {e}")
-            })?;
+            let output = child
+                .wait_with_output()
+                .map_err(|e| anyhow::anyhow!("failed to read nmcli output: {e}"))?;
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 anyhow::bail!("nmcli wifi connect failed: {}", redact_wifi_error(&stderr));

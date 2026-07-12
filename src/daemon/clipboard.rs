@@ -64,9 +64,7 @@ pub(crate) fn looks_like_secret(text: &str) -> bool {
     // JWT (header.payload.signature — three base64url segments)
     if trimmed.split('.').count() == 3 {
         let parts: Vec<&str> = trimmed.split('.').collect();
-        if parts.iter().all(|p| p.len() > 8 && !p.is_empty())
-            && parts[0].starts_with("eyJ")
-        {
+        if parts.iter().all(|p| p.len() > 8 && !p.is_empty()) && parts[0].starts_with("eyJ") {
             return true;
         }
     }
@@ -254,7 +252,8 @@ mod tests {
     // W8 (docs/CODE_REVIEW_VEX.md) tests — secret detection before persistence
     #[test]
     fn looks_like_secret_detects_pem_key() {
-        let pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
+        let pem =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
         assert!(looks_like_secret(pem));
     }
 
@@ -291,7 +290,9 @@ mod tests {
     #[test]
     fn looks_like_secret_allows_normal_text() {
         assert!(!looks_like_secret("hello world"));
-        assert!(!looks_like_secret("the quick brown fox jumps over the lazy dog"));
+        assert!(!looks_like_secret(
+            "the quick brown fox jumps over the lazy dog"
+        ));
         assert!(!looks_like_secret("https://example.com/path"));
     }
 
@@ -311,7 +312,8 @@ mod tests {
         let fake_aws = "AKIAIOSFODNN7EXAMPLE";
         record_clipboard_text(&state, fake_aws, "write").await;
         // PEM key — should NOT persist
-        let pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
+        let pem =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
         record_clipboard_text(&state, pem, "write").await;
 
         let response = execute_clipboard_history_action(
