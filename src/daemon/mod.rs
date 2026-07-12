@@ -138,9 +138,11 @@ pub(crate) fn socket_path() -> String {
 }
 
 /// Start the Unix socket daemon and accept connections.
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     no_dashboard: bool,
     dashboard_bind: String,
+    dashboard_token: Option<String>,
     tcp_bind: Option<String>,
     tcp_token: Option<String>,
     mcp_port: Option<u16>,
@@ -169,7 +171,7 @@ pub async fn run(
     if !no_dashboard {
         let dash_state = Arc::clone(&state);
         tokio::spawn(async move {
-            dashboard::start(dash_state, dashboard_bind).await;
+            dashboard::start(dash_state, dashboard_bind, dashboard_token).await;
         });
     }
 

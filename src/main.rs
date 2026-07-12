@@ -51,6 +51,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             mcp_port,
             no_dashboard,
             dashboard_bind,
+            dashboard_token,
             tcp_port,
             tcp_token,
             mcp_token,
@@ -58,6 +59,7 @@ async fn runtime(args: cli::Args) -> anyhow::Result<()> {
             daemon::run(
                 no_dashboard,
                 dashboard_bind,
+                dashboard_token,
                 tcp_port,
                 tcp_token,
                 mcp_port,

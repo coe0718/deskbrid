@@ -24,41 +24,51 @@ pub async fn execute_confirmation(
 ) -> anyhow::Result<Value> {
     match action {
         Action::ConfirmAction { id } => {
-            // Ownership check BEFORE removal — wrong peer must not consume the entry.
-            if let Some(entry) = state.pending_confirmations.get(&id)
-                && entry.value().peer_uid != caller_uid
-            {
+            // Remove-then-check — closes the TOCTOU window where a
+            // second request could remove the entry between our
+            // ownership check and our removal. If the entry doesn't
+            // exist, we can't authoritatively check ownership, so we
+            // report not-found (don't fall through to a removal of a
+            // foreign entry that was already consumed).
+            let removed = state.pending_confirmations.remove(&id);
+            let Some((_, entry)) = removed else {
+                return Ok(
+                    json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}),
+                );
+            };
+            if entry.peer_uid != caller_uid {
+                // Re-insert the entry so the rightful owner can still
+                // confirm it; we just consumed one of our own pending
+                // requests here. (Caller is told "denied".)
+                state.pending_confirmations.insert(id.clone(), entry);
                 return Ok(
                     json!({"status": "denied", "id": id, "error": "confirmation ownership mismatch"}),
                 );
             }
-            if let Some((_, entry)) = state.pending_confirmations.remove(&id) {
-                if let Some(suspension) = state.auto_suspend.is_suspended(&entry.session_id).await {
-                    return Ok(json!({
-                        "status": "blocked",
-                        "id": id,
-                        "error": "session is suspended",
-                        "session": entry.session_id,
-                        "reason": suspension.reason,
-                    }));
-                }
-                let backend = state.backend.read().await;
-                let backend_ref = backend.as_ref().map(|b| b.as_ref());
-                let result = match backend_ref {
-                    Some(b) => crate::daemon::execute::execute_action(entry.action, b, state).await,
-                    None => Ok(serde_json::json!({
-                        "error": "no desktop backend available",
-                        "headless": true,
-                    })),
-                };
-                match result {
-                    Ok(value) => Ok(json!({"status": "confirmed", "id": id, "result": value})),
-                    Err(e) => Ok(json!({"status": "confirmed", "id": id, "error": e.to_string()})),
-                }
-            } else {
-                Ok(
-                    json!({"status": "not_found", "id": id, "error": "no pending confirmation with that id"}),
-                )
+            if let Some(suspension) = state.auto_suspend.is_suspended(&entry.session_id).await {
+                // Same — put it back so the suspended-state resolves later.
+                let session = entry.session_id.clone();
+                state.pending_confirmations.insert(id.clone(), entry);
+                return Ok(json!({
+                    "status": "blocked",
+                    "id": id,
+                    "error": "session is suspended",
+                    "session": session,
+                    "reason": suspension.reason,
+                }));
+            }
+            let backend = state.backend.read().await;
+            let backend_ref = backend.as_ref().map(|b| b.as_ref());
+            let result = match backend_ref {
+                Some(b) => crate::daemon::execute::execute_action(entry.action, b, state).await,
+                None => Ok(serde_json::json!({
+                    "error": "no desktop backend available",
+                    "headless": true,
+                })),
+            };
+            match result {
+                Ok(value) => Ok(json!({"status": "confirmed", "id": id, "result": value})),
+                Err(e) => Ok(json!({"status": "confirmed", "id": id, "error": e.to_string()})),
             }
         }
         Action::DenyAction { id } => {

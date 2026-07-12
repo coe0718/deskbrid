@@ -112,6 +112,36 @@ async fn nm_wifi_scan() -> anyhow::Result<Value> {
     Ok(serde_json::json!({"networks": networks}))
 }
 
+/// Strip password/secret-looking strings from error messages before
+/// they propagate to callers or the audit log. nmcli and similar tools
+/// rarely echo credentials in stderr, but defense-in-depth: any
+/// 8+ char run of non-whitespace characters appearing on a line that
+/// also contains a known sensitive keyword is replaced with `[REDACTED]`.
+/// Conservative — false positives are acceptable; false negatives are not.
+fn redact_secrets(text: &str) -> String {
+    // The "password" here is the value, not the function name — keep as is.
+    const SENSITIVE_KEYWORDS: &[&str] =
+        &["password", "psk", "passphrase", "secret", "wifi-password"];
+    let lower = text.to_ascii_lowercase();
+    if !SENSITIVE_KEYWORDS.iter().any(|k| lower.contains(k)) {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    for line in text.lines() {
+        let line_lower = line.to_ascii_lowercase();
+        let contains_sensitive = SENSITIVE_KEYWORDS.iter().any(|k| line_lower.contains(k));
+        if !contains_sensitive {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        // Replace the line with [REDACTED line: <first 80 chars of kind>]
+        let prefix: String = line.chars().take(80).collect();
+        out.push_str(&format!("[REDACTED] (orig: {})\n", prefix));
+    }
+    out
+}
+
 async fn nm_wifi_connect(ssid: &str, password: Option<&str>) -> anyhow::Result<Value> {
     // Use --ask to avoid exposing password in /proc/<pid>/cmdline
     if let Some(pw) = password {
@@ -128,7 +158,12 @@ async fn nm_wifi_connect(ssid: &str, password: Option<&str>) -> anyhow::Result<V
         let output = child.wait_with_output().await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("nmcli wifi connect failed: {}", stderr.trim());
+            // W23: redact before propagating — password should never reach the
+            // audit log even via error messages.
+            anyhow::bail!(
+                "nmcli wifi connect failed: {}",
+                redact_secrets(&stderr).trim()
+            );
         }
     } else {
         run_nmcli(&["device", "wifi", "connect", ssid]).await?;

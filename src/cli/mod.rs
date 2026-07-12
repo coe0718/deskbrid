@@ -106,6 +106,12 @@ pub enum Command {
         #[arg(long, default_value = "127.0.0.1")]
         dashboard_bind: String,
 
+        /// Required bearer token when the dashboard is bound to anything
+        /// other than loopback. If unset and the bind is non-loopback,
+        /// the dashboard refuses to start with a clear error.
+        #[arg(long)]
+        dashboard_token: Option<String>,
+
         /// TCP bind address for network access (e.g. 0.0.0.0:7890)
         #[arg(long)]
         tcp_port: Option<String>,

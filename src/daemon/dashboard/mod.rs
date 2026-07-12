@@ -16,7 +16,29 @@ use render_data::{
     render_notifications, render_rules, render_search, render_secrets, render_sessions,
 };
 
-pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
+#[allow(clippy::too_many_arguments)]
+pub async fn start(state: Arc<DaemonState>, bind_ip: String, token: Option<String>) {
+    // When bound to anything other than loopback, REQUIRE a token. This
+    // is a hard fail — earlier this only printed a warning, leaving the
+    // dashboard open to anyone on the network.
+    let is_loopback = matches!(bind_ip.as_str(), "127.0.0.1" | "::1" | "localhost" | "");
+    let effective_token: Option<String> = if is_loopback {
+        // Loopback: token is optional. If provided, we'll check it.
+        token
+    } else {
+        match token {
+            Some(t) if !t.is_empty() => Some(t),
+            _ => {
+                error!(
+                    "Dashboard bound to non-loopback address {} but no --dashboard-token \
+                     was provided. Refusing to start — pass --dashboard-token <secret> to \
+                     expose the dashboard over the network.",
+                    bind_ip
+                );
+                return;
+            }
+        }
+    };
     let addr = format!("{}:{}", bind_ip, DASHBOARD_PORT);
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
@@ -26,12 +48,8 @@ pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
         }
     };
     info!("Dashboard: http://{}", addr);
-    if bind_ip != "127.0.0.1" && bind_ip != "::1" && bind_ip != "localhost" {
-        warn!(
-            "Dashboard bound to {} — exposed to network with NO authentication. \
-             Anyone on the network can see clipboard, screenshots, audit log, and window titles.",
-            bind_ip
-        );
+    if !is_loopback {
+        info!("Dashboard: non-loopback bind — bearer token required for all requests");
     }
     let semaphore = Arc::new(Semaphore::new(MAX_DASHBOARD_CONNECTIONS));
     loop {
@@ -49,9 +67,10 @@ pub async fn start(state: Arc<DaemonState>, bind_ip: String) {
                     }
                 };
                 let state = Arc::clone(&state);
+                let token = effective_token.clone();
                 tokio::spawn(async move {
                     let _permit = permit; // hold until handler finishes
-                    if let Err(e) = server::handle_request(stream, state).await {
+                    if let Err(e) = server::handle_request(stream, state, token).await {
                         warn!("Dashboard: {}", e);
                     }
                 });

@@ -9,6 +9,16 @@ use crate::DaemonState;
 // ─── Recording State ──────────────────────────────────
 
 /// An in-progress macro recording — stored in DaemonState while active.
+///
+/// W8 (Vex review): recording captures all input events including any
+/// passwords the user types while the recorder is active. The
+/// `redact_secrets` flag defaults to `true` to encourage callers to
+/// opt in to secret capture explicitly. When `true`, well-known
+/// secret-bearing actions (`input.type_text`, `terminal.write`) have
+/// their `text` parameter replaced with a `[REDACTED]` placeholder in
+/// the recorded JSON. The flag does NOT protect against secret values
+/// typed into OTHER applications during recording — those still leak.
+/// Callers should warn users before recording.
 #[derive(Debug)]
 pub struct ActiveRecording {
     pub name: String,
@@ -17,17 +27,37 @@ pub struct ActiveRecording {
     pub actions: Vec<RecordedAction>,
     /// Tracks elapsed time from start for each recorded action
     last_recorded_at: u64,
+    /// When true (the default), redact well-known secret-bearing
+    /// params (e.g. `input.type_text`'s `text` field) in recorded JSON.
+    /// Set to `false` only if the user has explicitly acknowledged the
+    /// risk and intends to capture full input.
+    pub redact_secrets: bool,
 }
 
 impl ActiveRecording {
     pub fn new(name: String, description: Option<String>) -> Self {
         let now = unix_ms();
+        // W8: warn loudly on every recording start — recording is an
+        // explicit opt-in but users may not realize it captures ALL
+        // input including any passwords typed during the recording.
+        warn!(
+            "Macro recording '{}' STARTED — this will capture ALL input events including \
+             passwords typed into ANY application. Stop the recording immediately if any \
+             secret is typed. Recorded macros persist to disk and are replayable.",
+            name
+        );
+        info!(
+            "Macro recording '{}': secret redaction is ENABLED by default. Pass \
+             redact_secrets=false to capture full input (not recommended).",
+            name
+        );
         Self {
             name,
             description,
             started_at: now,
             actions: Vec::new(),
             last_recorded_at: now,
+            redact_secrets: true,
         }
     }
 
@@ -35,6 +65,17 @@ impl ActiveRecording {
     pub fn push(&mut self, action_type: &str, params: serde_json::Value) {
         let now = unix_ms();
         let seq = self.actions.len() as u64;
+        // W8: when redact_secrets is enabled (the default), mask the
+        // params of well-known secret-bearing actions so the persisted
+        // macro file doesn't contain plaintext secrets typed into the
+        // agent itself. (Note: keystrokes typed into OTHER apps are not
+        // captured here at all — this only protects secrets the user
+        // sent TO the daemon via input.type_text / terminal.write.)
+        let params = if self.redact_secrets {
+            redact_recorded_params(action_type, params)
+        } else {
+            params
+        };
         self.actions.push(RecordedAction {
             seq,
             timestamp: now,
@@ -44,6 +85,38 @@ impl ActiveRecording {
         });
         self.last_recorded_at = now;
     }
+}
+
+/// Action types whose `params` contain well-known secret fields.
+/// When redact_secrets is true, these fields are replaced with
+/// `"[REDACTED]"` in the recorded macro JSON.
+const SECRET_PARAM_FIELDS: &[(&str, &[&str])] = &[
+    ("input.type_text", &["text"]),
+    ("input.key", &["text"]), // for keys with literal character payloads
+    ("terminal.write", &["data"]),
+    ("clipboard.set", &["text"]),
+];
+
+/// Mask known secret-bearing fields in `params`. Returns the original
+/// value unchanged if no rule applies to this action type.
+fn redact_recorded_params(action_type: &str, mut params: serde_json::Value) -> serde_json::Value {
+    let Some((_, fields)) = SECRET_PARAM_FIELDS
+        .iter()
+        .find(|(name, _)| *name == action_type)
+    else {
+        return params;
+    };
+    if let Some(obj) = params.as_object_mut() {
+        for field in *fields {
+            if obj.contains_key(*field) {
+                obj.insert(
+                    (*field).to_string(),
+                    serde_json::Value::String("[REDACTED]".to_string()),
+                );
+            }
+        }
+    }
+    params
 }
 
 // ─── Macro File (Disk Format) ─────────────────────────

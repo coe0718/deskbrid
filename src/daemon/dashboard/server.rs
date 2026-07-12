@@ -2,7 +2,6 @@ use crate::DaemonState;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
-use tracing::warn;
 
 use super::{
     base64_encode, error_box_html, render_agent_mailbox, render_audio, render_audit,
@@ -192,26 +191,6 @@ async fn sse_card_html(card: &str, state: &DaemonState) -> String {
 }
 
 /// Parse HTTP headers with size and count limits. Returns an error string
-/// if limits are exceeded, or completes normally.
-async fn read_headers(
-    reader: &mut BufReader<&mut tokio::io::Take<tokio::net::tcp::ReadHalf<'_>>>,
-) -> Result<(), String> {
-    for _header_count in 0..MAX_HEADERS {
-        let mut line = String::new();
-        reader
-            .read_line(&mut line)
-            .await
-            .map_err(|e| format!("header read error: {e}"))?;
-        if line.len() > MAX_HEADER_LINE as usize {
-            return Err("header line too large".into());
-        }
-        if line.trim().is_empty() {
-            return Ok(()); // end of headers
-        }
-    }
-    Err("too many headers".into())
-}
-
 /// Send a simple HTTP error response and close the connection.
 async fn send_error(writer: &mut tokio::net::tcp::WriteHalf<'_>, status: u16, msg: &str) {
     let body = format!("{} {}\n", status, msg);
@@ -223,6 +202,7 @@ async fn send_error(writer: &mut tokio::net::tcp::WriteHalf<'_>, status: u16, ms
 pub(crate) async fn handle_request(
     mut stream: TcpStream,
     state: Arc<DaemonState>,
+    token: Option<String>,
 ) -> anyhow::Result<()> {
     let (read_half, mut write_half) = stream.split();
 
@@ -243,11 +223,60 @@ pub(crate) async fn handle_request(
     let (method, path) = parse_request_line(request_line.trim()).unwrap_or(("GET", "/"));
 
     // Read headers with bounds
-    if let Err(e) = read_headers(&mut reader).await {
-        warn!("Dashboard header error: {}", e);
-        let status = if e.contains("too large") { 431 } else { 400 };
-        send_error(&mut write_half, status, &e).await;
-        return Ok(());
+    let mut auth_header: Option<String> = None;
+    let mut header_count = 0;
+    loop {
+        let mut line = String::new();
+        match reader.read_line(&mut line).await {
+            Ok(0) => break,
+            Ok(_) => {}
+            Err(_) => {
+                send_error(&mut write_half, 400, "Bad Request").await;
+                return Ok(());
+            }
+        }
+        if line == "\r\n" || line == "\n" {
+            break;
+        }
+        if line.len() > MAX_HEADER_LINE as usize {
+            let _ = send_error(&mut write_half, 431, "Request Header Fields Too Large").await;
+            return Ok(());
+        }
+        if let Some(rest) = line.to_ascii_lowercase().strip_prefix("authorization:") {
+            auth_header = Some(rest.trim().to_string());
+        }
+        header_count += 1;
+        if header_count > MAX_HEADERS {
+            let _ = send_error(&mut write_half, 431, "Too Many Headers").await;
+            return Ok(());
+        }
+    }
+
+    // Auth gate: if a token is configured, the request MUST carry
+    // `Authorization: Bearer <token>`. This is what W2 was missing —
+    // the dashboard was reachable to anyone on the network.
+    if let Some(expected) = token.as_deref() {
+        let presented = auth_header
+            .as_deref()
+            .and_then(|h| {
+                h.strip_prefix("Bearer ")
+                    .or_else(|| h.strip_prefix("bearer "))
+            })
+            .unwrap_or("");
+        // Constant-time-ish compare (good enough; not for crypto secrets).
+        let presented_bytes = presented.as_bytes();
+        let expected_bytes = expected.as_bytes();
+        let ok = presented_bytes.len() == expected_bytes.len()
+            && presented_bytes
+                .iter()
+                .zip(expected_bytes.iter())
+                .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+                == 0
+            && !presented.is_empty();
+        if !ok {
+            let _ = send_error(&mut write_half, 401, "Unauthorized").await;
+            return Ok(());
+        }
     }
 
     // SSE event stream — polls cards every 3 seconds

@@ -146,8 +146,7 @@ pub(super) fn locale_set(vars: &[(String, String)]) -> Value {
     }
 
     let content = out_lines.join("\n") + "\n";
-
-    match fs::write(LOCALE_CONF, &content) {
+    match atomic_write(Path::new(LOCALE_CONF), &content) {
         Ok(()) => {
             let written: serde_json::Map<String, Value> = vars
                 .iter()
@@ -201,6 +200,24 @@ fn quote_value(v: &str) -> String {
         }
     }
     s
+}
+
+/// Atomic write: write to `path.tmp` (in the same directory so the
+/// rename is on the same filesystem and atomic), then rename into
+/// place. Prevents leaving a half-written config file if the daemon
+/// is killed mid-write (SIGKILL, OOM, power loss).
+fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    // Pick a unique tmp name in the same directory so the rename
+    // is atomic on POSIX (same filesystem required).
+    let tmp = parent.join(format!(
+        ".{}.tmp",
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("deskbrid")
+    ));
+    fs::write(&tmp, content)?;
+    fs::rename(&tmp, path)
 }
 
 // ---------- Timezone ----------
@@ -269,10 +286,9 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
         .cloned()
         .unwrap_or(Value::Null);
 
-    // Write /etc/timezone first (atomic-ish — both writes are needed for
-    // consistency, but if the second fails we still record what we tried).
-    let write_tz = fs::write(ETC_TIMEZONE, format!("{}\n", timezone));
-    if let Err(e) = write_tz {
+    // Stage 1: write /etc/timezone atomically (tmp + rename).
+    let tz_path = Path::new(ETC_TIMEZONE);
+    if let Err(e) = atomic_write(tz_path, &format!("{}\n", timezone)) {
         return json!({
             "set": false,
             "previous": previous,
@@ -280,12 +296,26 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
             "requires_root": true,
         });
     }
-    // Replace /etc/localtime symlink
-    if Path::new(ETC_LOCALTIME).exists() || Path::new(ETC_LOCALTIME).is_symlink() {
-        let _ = fs::remove_file(ETC_LOCALTIME);
+    // Stage 2: create /etc/localtime as a fresh symlink in a tmp name,
+    // then atomically rename it into place. If the rename fails, the
+    // /etc/timezone write has already landed — that's the unavoidable
+    // ordering, but at least /etc/localtime is not left in a half-state
+    // (we never delete the old symlink before the new one is in place).
+    let lt_path = Path::new(ETC_LOCALTIME);
+    let lt_tmp = Path::new("/etc/.localtime.tmp");
+    // Clean up any stale tmp from a prior failed attempt
+    let _ = fs::remove_file(lt_tmp);
+    let link_result = symlink(&target, lt_tmp);
+    if let Err(e) = link_result {
+        return json!({
+            "set": false,
+            "previous": previous,
+            "note": format!("{} was written, but {} symlink failed", ETC_TIMEZONE, ETC_LOCALTIME),
+            "error": format!("symlink {} failed (likely needs root): {}", lt_tmp.display(), e),
+            "requires_root": true,
+        });
     }
-    let link_result = symlink(&target, ETC_LOCALTIME);
-    match link_result {
+    match fs::rename(lt_tmp, lt_path) {
         Ok(()) => json!({
             "set": true,
             "previous": previous,
@@ -293,12 +323,17 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
             "symlink_target": target.display().to_string(),
             "requires_root": true,
         }),
-        Err(e) => json!({
-            "set": false,
-            "previous": previous,
-            "error": format!("symlink {} failed (likely needs root): {}", ETC_LOCALTIME, e),
-            "requires_root": true,
-        }),
+        Err(e) => {
+            // Roll back the staged symlink so we don't leak it
+            let _ = fs::remove_file(lt_tmp);
+            json!({
+                "set": false,
+                "previous": previous,
+                "note": format!("{} was written, but {} rename failed", ETC_TIMEZONE, ETC_LOCALTIME),
+                "error": format!("rename to {} failed: {}", ETC_LOCALTIME, e),
+                "requires_root": true,
+            })
+        }
     }
 }
 
