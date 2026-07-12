@@ -149,6 +149,18 @@ pub struct DaemonState {
 
 /// Maximum depth for rule-triggered dispatch chains (W4).
 /// Prevents rule A → action → event → rule B → action → ... infinite loops.
+///
+/// W26 (CODE_REVIEW_VEX_V1.md): no longer a hardcoded magic number —
+/// configurable via `DESKBRID_MAX_RULE_DISPATCH_DEPTH` (default 5).
+pub fn max_rule_dispatch_depth() -> u32 {
+    std::env::var("DESKBRID_MAX_RULE_DISPATCH_DEPTH")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(5)
+}
+
+/// Backwards-compatible re-export of the default value.
 pub const MAX_RULE_DISPATCH_DEPTH: u32 = 5;
 
 impl DaemonState {

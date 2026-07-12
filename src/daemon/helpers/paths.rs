@@ -2,10 +2,27 @@
 
 use std::path::PathBuf;
 
+/// Resolve the user's home directory.
+///
+/// W13 (docs/CODE_REVIEW_VEX.md): prefers `dirs::home_dir()` (which reads
+/// `/etc/passwd` + `HOME`), then `HOME`, then logs a warning and falls
+/// back to `/tmp` instead of `/root` so a misconfigured systemd unit
+/// doesn't silently write private data to root's home.
 pub fn home_dir() -> PathBuf {
-    dirs::home_dir()
-        .or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
-        .unwrap_or_else(|| PathBuf::from("/root"))
+    if let Some(dir) = dirs::home_dir() {
+        return dir;
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let path = PathBuf::from(home);
+        if !path.as_os_str().is_empty() {
+            return path;
+        }
+    }
+    tracing::warn!(
+        "could not resolve user home directory (HOME unset, no entry in /etc/passwd); \
+         falling back to /tmp — deskbrid may not function correctly"
+    );
+    PathBuf::from("/tmp")
 }
 
 pub fn unix_timestamp() -> u64 {

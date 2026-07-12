@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
 use crate::DaemonState;
-use crate::MAX_RULE_DISPATCH_DEPTH;
+use crate::max_rule_dispatch_depth;
 use crate::protocol::{Action, Rule};
 
 use super::matching::resolve_event_app_id;
@@ -70,14 +70,17 @@ pub fn spawn_rules_engine(state: Arc<DaemonState>) {
                         }
 
                         // Check dispatch depth to prevent rule→action→event→rule loops (W4).
+                        // W26 (CODE_REVIEW_VEX_V1.md): depth cap is env-configurable
+                        // via DESKBRID_MAX_RULE_DISPATCH_DEPTH.
                         let depth = state
                             .rule_dispatch_depth
                             .load(std::sync::atomic::Ordering::Relaxed);
-                        if depth >= MAX_RULE_DISPATCH_DEPTH {
+                        let max_depth = max_rule_dispatch_depth();
+                        if depth >= max_depth {
                             warn!(
                                 "Rule dispatch depth {} reached max {} — blocking rule '{}' action '{}'",
                                 depth,
-                                MAX_RULE_DISPATCH_DEPTH,
+                                max_depth,
                                 rule.name,
                                 action.action_type()
                             );

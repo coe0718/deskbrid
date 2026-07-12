@@ -38,12 +38,14 @@ pub(crate) async fn execute_capabilities(
             // High-risk actions that require explicit allow-listing (never authorized by wildcards)
             let high_risk: Vec<&str> = crate::permissions::HIGH_RISK_ACTIONS.to_vec();
 
-            // Sandbox: file access is restricted to these colon-separated directories
+            // Sandbox: file access is restricted to these colon-separated directories.
+            // W13 (docs/CODE_REVIEW_VEX.md): fall back to /tmp rather than /root so a
+            // daemon running without HOME set doesn't expose root's home directory.
             let sandbox_dirs: Vec<String> = std::env::var("DESKBRID_ALLOWED_DIRS")
                 .unwrap_or_else(|_| {
                     let home = dirs::home_dir()
                         .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "/root".to_string());
+                        .unwrap_or_else(|| "/tmp".to_string());
                     format!("{}:/tmp", home)
                 })
                 .split(':')

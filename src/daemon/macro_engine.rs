@@ -6,6 +6,26 @@ use tracing::{debug, info, warn};
 use super::helpers::home_dir;
 use crate::DaemonState;
 
+/// W27 (CODE_REVIEW_VEX_V1.md): cap macro recording at this many actions
+/// to prevent unbounded memory growth from a runaway recording session.
+/// Defaults to 10,000 actions; override with `DESKBRID_MAX_MACRO_ACTIONS`.
+pub fn max_macro_actions() -> usize {
+    std::env::var("DESKBRID_MAX_MACRO_ACTIONS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(10_000)
+}
+
+/// W27: cap macro recording duration in seconds. Defaults to 1 hour.
+pub fn max_macro_duration_secs() -> u64 {
+    std::env::var("DESKBRID_MAX_MACRO_DURATION_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(3_600)
+}
+
 // ─── Recording State ──────────────────────────────────
 
 /// An in-progress macro recording — stored in DaemonState while active.
@@ -63,6 +83,26 @@ impl ActiveRecording {
 
     /// Record one action. Called from the dispatch layer.
     pub fn push(&mut self, action_type: &str, params: serde_json::Value) {
+        // W27 (CODE_REVIEW_VEX_V1.md): enforce bounds on macro size/duration.
+        let max_actions = max_macro_actions();
+        let max_secs = max_macro_duration_secs();
+        let elapsed_secs = (unix_ms().saturating_sub(self.started_at)) / 1000;
+
+        if self.actions.len() >= max_actions {
+            warn!(
+                "Macro '{}' reached max action count ({}) — refusing to record more",
+                self.name, max_actions
+            );
+            return;
+        }
+        if elapsed_secs >= max_secs {
+            warn!(
+                "Macro '{}' reached max duration ({}s) — refusing to record more",
+                self.name, max_secs
+            );
+            return;
+        }
+
         let now = unix_ms();
         let seq = self.actions.len() as u64;
         // W8: when redact_secrets is enabled (the default), mask the
@@ -389,4 +429,86 @@ fn unix_ms() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::max_rule_dispatch_depth;
+
+    /// W27 (CODE_REVIEW_VEX_V1.md): regression test that macro recording
+    /// refuses to grow past the configured bound.
+    #[test]
+    fn macro_push_enforces_action_bound() {
+        let prev = std::env::var("DESKBRID_MAX_MACRO_ACTIONS").ok();
+        // SAFETY: tests in this module mutate environment variables serially;
+        // --test-threads=1 in CI prevents races with other env-mutating tests.
+        unsafe {
+            std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", "3");
+        }
+
+        let mut rec = ActiveRecording::new("test".to_string(), None);
+        rec.push("test.action", serde_json::json!({}));
+        rec.push("test.action", serde_json::json!({}));
+        rec.push("test.action", serde_json::json!({}));
+        // 4th push should be rejected
+        rec.push("test.action", serde_json::json!({}));
+
+        assert_eq!(rec.actions.len(), 3);
+
+        // Restore env
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", v),
+                None => std::env::remove_var("DESKBRID_MAX_MACRO_ACTIONS"),
+            }
+        }
+    }
+
+    /// W27: bounds functions return env-overridable default values.
+    #[test]
+    fn max_macro_bounds_default_values() {
+        unsafe {
+            std::env::remove_var("DESKBRID_MAX_MACRO_ACTIONS");
+            std::env::remove_var("DESKBRID_MAX_MACRO_DURATION_SECS");
+        }
+        assert_eq!(max_macro_actions(), 10_000);
+        assert_eq!(max_macro_duration_secs(), 3_600);
+    }
+
+    /// W27: zero/garbage env falls back to default.
+    #[test]
+    fn max_macro_bounds_handles_zero_or_garbage() {
+        unsafe {
+            std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", "0");
+        }
+        assert_eq!(max_macro_actions(), 10_000);
+        unsafe {
+            std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", "garbage");
+        }
+        assert_eq!(max_macro_actions(), 10_000);
+        unsafe {
+            std::env::remove_var("DESKBRID_MAX_MACRO_ACTIONS");
+        }
+    }
+
+    /// W26 (CODE_REVIEW_VEX_V1.md): rule dispatch depth cap is configurable.
+    #[test]
+    fn max_rule_dispatch_depth_default_and_override() {
+        unsafe {
+            std::env::remove_var("DESKBRID_MAX_RULE_DISPATCH_DEPTH");
+        }
+        assert_eq!(max_rule_dispatch_depth(), 5);
+        unsafe {
+            std::env::set_var("DESKBRID_MAX_RULE_DISPATCH_DEPTH", "20");
+        }
+        assert_eq!(max_rule_dispatch_depth(), 20);
+        unsafe {
+            std::env::set_var("DESKBRID_MAX_RULE_DISPATCH_DEPTH", "0");
+        }
+        assert_eq!(max_rule_dispatch_depth(), 5);
+        unsafe {
+            std::env::remove_var("DESKBRID_MAX_RULE_DISPATCH_DEPTH");
+        }
+    }
 }

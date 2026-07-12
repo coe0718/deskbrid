@@ -100,9 +100,28 @@ pub(super) async fn wifi_connect(
 ) -> anyhow::Result<()> {
     match password {
         Some(pw) => {
-            backend
-                .sh("nmcli", &["dev", "wifi", "connect", ssid, "password", pw])
-                .await?;
+            // W24 (docs/CODE_REVIEW_VEX.md): pass password via stdin instead
+            // of argv so it does not appear in /proc/<pid>/cmdline for any
+            // user on the system to read.
+            let mut child = std::process::Command::new("nmcli")
+                .args(["device", "wifi", "connect", ssid, "--ask"])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+                .map_err(|e| anyhow::anyhow!("failed to spawn nmcli: {e}"))?;
+            if let Some(mut stdin) = child.stdin.take() {
+                use std::io::Write;
+                let _ = stdin.write_all(pw.as_bytes());
+                let _ = stdin.write_all(b"\n");
+            }
+            let output = child.wait_with_output().map_err(|e| {
+                anyhow::anyhow!("failed to read nmcli output: {e}")
+            })?;
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                anyhow::bail!("nmcli wifi connect failed: {}", redact_wifi_error(&stderr));
+            }
         }
         None => {
             backend
@@ -111,4 +130,17 @@ pub(super) async fn wifi_connect(
         }
     }
     Ok(())
+}
+
+/// W24 (docs/CODE_REVIEW_VEX.md): scrub anything that looks like a password
+/// from nmcli error output before propagating it. nmcli sometimes echoes
+/// back the SSID or a fragment of the password in failure messages.
+fn redact_wifi_error(s: &str) -> String {
+    s.chars()
+        .filter(|c| !matches!(*c, '"' | '\'' | '\\'))
+        .collect::<String>()
+        .lines()
+        .filter(|line| !line.to_lowercase().contains("password"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
