@@ -95,7 +95,7 @@ pub(crate) fn check_process_exists(params: &Value) -> anyhow::Result<CheckOutcom
 pub(crate) async fn check_file_exists(params: &Value) -> anyhow::Result<CheckOutcome> {
     let path = param_string(params, &["path"])
         .ok_or_else(|| anyhow::anyhow!("file_exists requires params.path"))?;
-    let path = expand_path(&path)?;
+    let path = expand_path(&path).await?;
     let exists = tokio::fs::metadata(&path).await.is_ok();
     Ok(CheckOutcome {
         matched: exists,
@@ -108,7 +108,7 @@ pub(crate) async fn check_file_content(params: &Value) -> anyhow::Result<CheckOu
         .ok_or_else(|| anyhow::anyhow!("file_content requires params.path"))?;
     let pattern = param_string(params, &["pattern", "contains", "text"])
         .ok_or_else(|| anyhow::anyhow!("file_content requires params.pattern"))?;
-    let path = expand_path(&path)?;
+    let path = expand_path(&path).await?;
     let metadata = match tokio::fs::metadata(&path).await {
         Ok(metadata) => metadata,
         Err(_) => {

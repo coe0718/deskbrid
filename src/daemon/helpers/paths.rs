@@ -36,77 +36,92 @@ pub fn unix_timestamp() -> u64 {
 /// Canonicalizes existent paths (resolves symlinks, `..`, `.`).
 /// For non-existent paths, canonicalizes the parent directory.
 /// Then verifies the result is within the allowed sandbox dirs.
-pub fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
-    let expanded = if path.starts_with('~') {
-        let home = home_dir();
-        PathBuf::from(path.replacen('~', &home.to_string_lossy(), 1))
-    } else {
-        PathBuf::from(path)
-    };
+pub async fn expand_path(path: &str) -> anyhow::Result<PathBuf> {
+    let path = path.to_string();
+    tokio::task::spawn_blocking(move || {
+        let expanded = if path.starts_with('~') {
+            let home = home_dir();
+            PathBuf::from(path.replacen('~', &home.to_string_lossy(), 1))
+        } else {
+            PathBuf::from(path.as_str())
+        };
 
-    // Canonicalize to resolve symlinks and `../` traversal
-    let canonical = match std::fs::canonicalize(&expanded) {
-        Ok(p) => p,
-        Err(_) => {
-            // Path doesn't exist yet — canonicalize parent instead
-            if let Some(parent) = expanded.parent() {
-                let canon_parent = std::fs::canonicalize(parent)
-                    .map_err(|_| anyhow::anyhow!("invalid path: {path}"))?;
-                let file_name = expanded
-                    .file_name()
-                    .ok_or_else(|| anyhow::anyhow!("invalid path: {path}"))?;
-                canon_parent.join(file_name)
-            } else {
-                anyhow::bail!("invalid path: {path}");
+        // Canonicalize to resolve symlinks and `../` traversal
+        let canonical = match std::fs::canonicalize(&expanded) {
+            Ok(p) => p,
+            Err(_) => {
+                // Path doesn't exist yet — canonicalize parent instead
+                if let Some(parent) = expanded.parent() {
+                    let canon_parent = std::fs::canonicalize(parent)
+                        .map_err(|_| anyhow::anyhow!("invalid path: {path}"))?;
+                    let file_name = expanded
+                        .file_name()
+                        .ok_or_else(|| anyhow::anyhow!("invalid path: {path}"))?;
+                    canon_parent.join(file_name)
+                } else {
+                    anyhow::bail!("invalid path: {path}");
+                }
             }
+        };
+
+        // Sandbox check: verify path is within allowed directories
+        let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS").unwrap_or_else(|_| {
+            let home = home_dir().to_string_lossy().to_string();
+            format!("{}:/tmp", home)
+        });
+        let allowed: Vec<PathBuf> = allowed_dirs
+            .split(':')
+            .map(|d| {
+                let p = PathBuf::from(d);
+                // Canonicalize each allowed dir for comparison
+                std::fs::canonicalize(&p).unwrap_or(p)
+            })
+            .collect();
+
+        let is_allowed = allowed.iter().any(|dir| canonical.starts_with(dir));
+        if !is_allowed {
+            anyhow::bail!(
+                "access denied: path {} is outside allowed directories",
+                canonical.display()
+            );
         }
-    };
 
-    // Sandbox check: verify path is within allowed directories
-    let allowed_dirs = std::env::var("DESKBRID_ALLOWED_DIRS").unwrap_or_else(|_| {
-        let home = home_dir().to_string_lossy().to_string();
-        format!("{}:/tmp", home)
-    });
-    let allowed: Vec<PathBuf> = allowed_dirs
-        .split(':')
-        .map(|d| {
-            let p = PathBuf::from(d);
-            // Canonicalize each allowed dir for comparison
-            std::fs::canonicalize(&p).unwrap_or(p)
-        })
-        .collect();
-
-    let is_allowed = allowed.iter().any(|dir| canonical.starts_with(dir));
-    if !is_allowed {
-        anyhow::bail!(
-            "access denied: path {} is outside allowed directories",
-            canonical.display()
-        );
-    }
-
-    Ok(canonical)
+        Ok(canonical)
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("blocking task failed: {}", e))?
 }
 
 /// Generate a safe temporary path for screenshots.
 /// Uses XDG_RUNTIME_DIR or ~/.cache/deskbrid with UUID filenames
 /// instead of predictable /tmp paths with world-readable permissions.
-pub fn screenshot_temp_path() -> String {
-    let dir = std::env::var("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = home_dir().to_string_lossy().to_string();
-            PathBuf::from(home).join(".cache")
-        })
-        .join("deskbrid");
-    let _ = std::fs::create_dir_all(&dir);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
-    }
-    dir.join(format!("screenshot_{}.png", uuid::Uuid::new_v4()))
-        .to_string_lossy()
-        .to_string()
+pub async fn screenshot_temp_path() -> String {
+    tokio::task::spawn_blocking(|| {
+        let dir = std::env::var("XDG_RUNTIME_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                let home = home_dir().to_string_lossy().to_string();
+                PathBuf::from(home).join(".cache")
+            })
+            .join("deskbrid");
+        let _ = std::fs::create_dir_all(&dir);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+        }
+        dir.join(format!("screenshot_{}.png", uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .to_string()
+    })
+    .await
+    .unwrap_or_else(|e| {
+        tracing::warn!("blocking task for screenshot_temp_path failed: {e}");
+        PathBuf::from("/tmp/deskbrid")
+            .join(format!("screenshot_{}.png", uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .to_string()
+    })
 }
 
 /// W17 (Vex review): delete screenshot temp files older than
@@ -187,10 +202,10 @@ pub fn spawn_screenshot_cleaner(state: std::sync::Arc<crate::DaemonState>) {
 mod tests {
     use super::*;
 
-    #[test]
-    fn expand_path_allows_home_dir() {
+    #[tokio::test]
+    async fn expand_path_allows_home_dir() {
         let home = home_dir().to_string_lossy().to_string();
-        let result = expand_path(&format!("{}/.bashrc", home));
+        let result = expand_path(&format!("{}/.bashrc", home)).await;
         assert!(
             result.is_ok(),
             "path in HOME should be allowed: {:?}",
@@ -198,15 +213,15 @@ mod tests {
         );
     }
 
-    #[test]
-    fn expand_path_allows_tmp() {
-        let result = expand_path("/tmp/test-file");
+    #[tokio::test]
+    async fn expand_path_allows_tmp() {
+        let result = expand_path("/tmp/test-file").await;
         assert!(result.is_ok(), "/tmp should be allowed: {:?}", result.err());
     }
 
-    #[test]
-    fn expand_path_blocks_etc_passwd() {
-        let result = expand_path("/etc/passwd");
+    #[tokio::test]
+    async fn expand_path_blocks_etc_passwd() {
+        let result = expand_path("/etc/passwd").await;
         assert!(result.is_err(), "/etc/passwd should be blocked");
         let msg = result.unwrap_err().to_string();
         assert!(
@@ -215,10 +230,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn expand_path_blocks_traversal_into_etc() {
+    #[tokio::test]
+    async fn expand_path_blocks_traversal_into_etc() {
         let traversal = "/tmp/../../../etc/passwd";
-        let result = expand_path(traversal);
+        let result = expand_path(traversal).await;
         assert!(
             result.is_err(),
             "../../../etc/passwd traversal should be blocked"
@@ -230,19 +245,19 @@ mod tests {
         );
     }
 
-    #[test]
-    fn expand_path_blocks_traversal_into_root() {
+    #[tokio::test]
+    async fn expand_path_blocks_traversal_into_root() {
         let traversal = "/tmp/../../../etc/shadow";
-        let result = expand_path(traversal);
+        let result = expand_path(traversal).await;
         assert!(
             result.is_err(),
             "/etc/shadow via traversal should be blocked"
         );
     }
 
-    #[test]
-    fn expand_path_tilde_expands_to_home() {
-        let result = expand_path("~/.bashrc");
+    #[tokio::test]
+    async fn expand_path_tilde_expands_to_home() {
+        let result = expand_path("~/.bashrc").await;
         assert!(
             result.is_ok(),
             "~ expansion should work: {:?}",
@@ -252,19 +267,19 @@ mod tests {
         assert!(result.unwrap().starts_with(&home));
     }
 
-    #[test]
-    fn expand_path_tilde_traversal_blocked() {
-        let result = expand_path("~/../../../etc/passwd");
+    #[tokio::test]
+    async fn expand_path_tilde_traversal_blocked() {
+        let result = expand_path("~/../../../etc/passwd").await;
         assert!(result.is_err(), "~/../../../etc/passwd should be blocked");
     }
 
-    #[test]
-    fn expand_path_allows_existing_files_in_home() {
+    #[tokio::test]
+    async fn expand_path_allows_existing_files_in_home() {
         let home = home_dir().to_string_lossy().to_string();
         // .bashrc typically exists
         let path = format!("{}/.bashrc", home);
         if std::path::Path::new(&path).exists() {
-            let result = expand_path(&path);
+            let result = expand_path(&path).await;
             assert!(
                 result.is_ok(),
                 "existing .bashrc should be allowed: {:?}",

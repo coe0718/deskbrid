@@ -40,9 +40,9 @@ pub async fn screenshot_diff(
     backend: &dyn DesktopBackend,
     request: ScreenshotDiffRequest<'_>,
 ) -> anyhow::Result<serde_json::Value> {
-    let before_path = expand_path(request.before_path)?;
+    let before_path = expand_path(request.before_path).await?;
     let after_path = match request.after_path {
-        Some(path) => expand_path(path)?,
+        Some(path) => expand_path(path).await?,
         None => {
             let screenshot = backend
                 .screenshot(request.monitor, request.region, request.window_id)
@@ -57,7 +57,7 @@ pub async fn screenshot_diff(
 
     let diff_path = if request.save_diff || request.diff_path.is_some() {
         let path = match request.diff_path {
-            Some(path) => expand_path(path)?,
+            Some(path) => expand_path(path).await?,
             None => temp_diff_path(),
         };
         if let Some(parent) = path.parent() {
@@ -217,9 +217,9 @@ pub async fn vision_find_element(
     backend: &dyn DesktopBackend,
     request: VisionFindElementRequest,
 ) -> anyhow::Result<serde_json::Value> {
-    let template_path = expand_path(&request.template_path)?;
+    let template_path = expand_path(&request.template_path).await?;
     let screenshot_path = match request.screenshot {
-        Some(s) => expand_path(&s)?,
+        Some(s) => expand_path(&s).await?,
         None => {
             let screenshot = backend.screenshot(None, None, None).await?;
             PathBuf::from(screenshot.path)
@@ -244,7 +244,7 @@ pub async fn vision_find_by_text(
     request: VisionFindByTextRequest,
 ) -> anyhow::Result<serde_json::Value> {
     let screenshot_path = match request.screenshot {
-        Some(s) => expand_path(&s)?,
+        Some(s) => expand_path(&s).await?,
         None => {
             let screenshot = backend.screenshot(None, None, None).await?;
             PathBuf::from(screenshot.path)
@@ -267,7 +267,7 @@ pub async fn vision_detect_state(
     request: VisionDetectStateRequest,
 ) -> anyhow::Result<serde_json::Value> {
     let screenshot_path = match request.screenshot {
-        Some(s) => expand_path(&s)?,
+        Some(s) => expand_path(&s).await?,
         None => {
             let screenshot = backend.screenshot(None, None, None).await?;
             PathBuf::from(screenshot.path)

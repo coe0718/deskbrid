@@ -46,7 +46,10 @@ pub(crate) async fn create_terminal(
             known_shells.join(", ")
         );
     }
-    let cwd_path = cwd.as_deref().map(expand_path).transpose()?;
+    let cwd_path = match cwd.as_deref() {
+        Some(p) => Some(expand_path(p).await?),
+        None => None,
+    };
 
     let mut master_fd = -1;
     let mut slave_fd = -1;

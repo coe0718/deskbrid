@@ -7,7 +7,7 @@ pub(super) async fn screenshot(
     region: Option<protocol::Region>,
     window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let path = crate::daemon::helpers::screenshot_temp_path();
+    let path = crate::daemon::helpers::screenshot_temp_path().await;
     if let Some(ref wid) = window_id {
         let info = windows::window_get(backend, wid).await?;
         if let Some(geo) = info.geometry {

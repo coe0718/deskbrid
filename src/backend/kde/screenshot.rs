@@ -7,8 +7,8 @@ pub(super) async fn screenshot(
     _region: Option<protocol::Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let raw_path = crate::daemon::helpers::screenshot_temp_path();
-    let out_path = crate::daemon::helpers::screenshot_temp_path();
+    let raw_path = crate::daemon::helpers::screenshot_temp_path().await;
+    let out_path = crate::daemon::helpers::screenshot_temp_path().await;
 
     if let Some(ref wid) = _window_id {
         let info = crate::backend::DesktopBackend::window_get(backend, wid).await?;

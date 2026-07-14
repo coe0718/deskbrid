@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v1.2.0)
+# Deskbrid Desktop Control (v1.3.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v1.2.0 highlights:** Sandboxed agent profiles — named `[profile.NAME]` blocks in `permissions.toml` with allow/deny/confirm gates, profile-scoped rate buckets, session profile binding. Auto-suspend safety system — dangerous process command blocking (`rm -rf`, `mkfs`, fork bombs), suspicious action burst detection (focus spam, file deletion sprees), heartbeat timeout canary suspension. Agent registry for multi-agent coordination. Distributed lock primitives with token-based ownership. Screen region watching with text-change detection. 18 commits · 143 files · +14,076 −1,886 since v1.1.0.
+**v1.3.0 highlights:** Interactive REPL mode (#48) with tab completion over 250+ action types. Power profile management (#57) via D-Bus (Performance/Balanced/Power-saver). Battery charge threshold control (#56) via sysfs (daily/travel/full profiles). Locale/timezone get/set (#127) — reads resolve from process env + system files, writes to /etc/locale.conf + /etc/localtime symlink, with DBus change-event monitoring. Environment variable get/set/persist (#116) — read process env, set for spawned children, persist to ~/.config/environment.d/ deskbrid.conf. Full presence system (#39/#138) — idle detection, locked state, presence.returned/presence.locked/presence.unlocked push events. System time_of_day (#40). Vision action stubs (#41). 22 commits · 60 files · +6,680 −1,463 since v1.2.0.
 
 **v0.12.1 highlights:** Async safety release — all blocking `std::fs` and `std::process::Command` calls in async execution paths converted to `tokio::fs`/`tokio::process::Command`. Path sandbox (`expand_path`) applied to `print-file` (prevents agent path traversal). 30+ blocking calls eliminated across 14 files. Claude code review catch.
 

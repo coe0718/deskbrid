@@ -13,7 +13,9 @@
 
 use serde_json::{Value, json};
 use std::ffi::OsString;
+use std::path::PathBuf;
 use std::sync::Mutex;
+use tokio::fs;
 
 /// W3 (Vex review): single global mutex serializing all process-env
 /// reads and writes. Rust 2024 marked `std::env::set_var` and `var`
@@ -287,18 +289,16 @@ mod tests {
 
     // ===== Persistent env (env.persist / env.unset / env.list_persisted) =====
 
-    #[test]
-    fn list_persisted_handles_missing_file() {
+    #[tokio::test]
+    async fn list_persisted_handles_missing_file() {
         // Just verify it doesn't panic and returns exists:false or a map.
-        let v = env_list_persisted();
+        let v = env_list_persisted().await;
         // Either exists:false or a populated vars map — both are valid.
         assert!(v.get("source").is_some());
     }
 }
 
 // ===== Persistent env =====
-
-use std::path::PathBuf;
 
 /// Lock used by the test suite to serialize HOME-mutating tests.
 /// Not held by production code (production is single-threaded for
@@ -320,7 +320,7 @@ fn persisted_env_path() -> PathBuf {
 /// request but already exist in the file are preserved. Vars whose
 /// values are invalid (empty name, contains '=' or NUL) are rejected
 /// at parse time, so by the time we get here all names are clean.
-pub(super) fn env_persist(vars: &[(String, String)]) -> Value {
+pub(super) async fn env_persist(vars: &[(String, String)]) -> Value {
     if vars.is_empty() {
         return json!({
             "written": {},
@@ -331,7 +331,7 @@ pub(super) fn env_persist(vars: &[(String, String)]) -> Value {
     }
     let path = persisted_env_path();
     // Ensure parent directory exists; bail out with a clean error if not.
-    if let Err(e) = ensure_parent_dir(&path) {
+    if let Err(e) = fs::create_dir_all(path.parent().unwrap_or(std::path::Path::new("/"))).await {
         return json!({
             "written": {},
             "preserved": 0,
@@ -340,7 +340,7 @@ pub(super) fn env_persist(vars: &[(String, String)]) -> Value {
         });
     }
     // Read existing lines (if any)
-    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let existing = fs::read_to_string(&path).await.unwrap_or_default();
     let existing_lines: Vec<String> = existing.lines().map(String::from).collect();
     let mut out_lines: Vec<String> = Vec::with_capacity(existing_lines.len());
     let mut preserved = 0usize;
@@ -373,7 +373,7 @@ pub(super) fn env_persist(vars: &[(String, String)]) -> Value {
     }
 
     let content = out_lines.join("\n") + "\n";
-    match atomic_write(&path, &content) {
+    match atomic_write(&path, &content).await {
         Ok(()) => {
             let written: serde_json::Map<String, Value> = vars
                 .iter()
@@ -396,7 +396,7 @@ pub(super) fn env_persist(vars: &[(String, String)]) -> Value {
 
 /// Remove the named vars from the persisted file. Missing vars are
 /// reported but do not error.
-pub(super) fn env_unset(names: &[String]) -> Value {
+pub(super) async fn env_unset(names: &[String]) -> Value {
     if names.is_empty() {
         return json!({
             "removed": [],
@@ -406,16 +406,16 @@ pub(super) fn env_unset(names: &[String]) -> Value {
         });
     }
     let path = persisted_env_path();
-    if !path.exists() {
-        return json!({
-            "removed": [],
-            "not_found": names,
-            "source": path.display().to_string(),
-            "exists": false,
-        });
-    }
-    let existing = match std::fs::read_to_string(&path) {
+    let existing = match fs::read_to_string(&path).await {
         Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return json!({
+                "removed": [],
+                "not_found": names,
+                "source": path.display().to_string(),
+                "exists": false,
+            });
+        }
         Err(e) => {
             return json!({
                 "removed": [],
@@ -441,7 +441,7 @@ pub(super) fn env_unset(names: &[String]) -> Value {
         out_lines.push(line.to_string());
     }
     let content = out_lines.join("\n") + if out_lines.is_empty() { "" } else { "\n" };
-    match atomic_write(&path, &content) {
+    match atomic_write(&path, &content).await {
         Ok(()) => json!({
             "removed": removed,
             "not_found": not_found,
@@ -457,18 +457,18 @@ pub(super) fn env_unset(names: &[String]) -> Value {
 }
 
 /// Read the persisted env vars from the deskbrid config file.
-pub(super) fn env_list_persisted() -> Value {
+pub(super) async fn env_list_persisted() -> Value {
     let path = persisted_env_path();
-    if !path.exists() {
-        return json!({
-            "vars": {},
-            "count": 0,
-            "source": path.display().to_string(),
-            "exists": false,
-        });
-    }
-    let content = match std::fs::read_to_string(&path) {
+    let content = match fs::read_to_string(&path).await {
         Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return json!({
+                "vars": {},
+                "count": 0,
+                "source": path.display().to_string(),
+                "exists": false,
+            });
+        }
         Err(e) => {
             return json!({
                 "vars": {},
@@ -546,25 +546,27 @@ fn unescape_environ_d(s: &str) -> String {
 /// Create the parent directory of `path` if it doesn't already exist.
 /// Returns Ok(()) if the parent exists or was created successfully.
 /// Returns Err only when creation is needed AND fails.
-fn ensure_parent_dir(path: &std::path::Path) -> std::io::Result<()> {
-    match path.parent() {
-        Some(parent) if !parent.exists() => std::fs::create_dir_all(parent),
-        _ => Ok(()),
-    }
-}
-
 /// Atomic write: write to `path.tmp` then rename. Avoids leaving a
 /// half-written config file if the daemon is killed mid-write.
-fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+async fn atomic_write(path: &std::path::Path, content: &str) -> std::io::Result<()> {
     let tmp = path.with_extension("conf.tmp");
-    std::fs::write(&tmp, content)?;
-    std::fs::rename(&tmp, path)?;
+    fs::write(&tmp, content).await?;
+    fs::rename(&tmp, path).await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod persist_tests {
     use super::*;
+
+    /// Helper: run an async fn in a single-threaded tokio runtime
+    fn block_on<F: std::future::Future>(f: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(f)
+    }
 
     /// Use a unique tmp dir per test so we don't collide with each other
     /// or with the real ~/.config/environment.d/deskbrid.conf. Holds
@@ -596,9 +598,9 @@ mod persist_tests {
     #[test]
     fn persist_writes_new_file() {
         with_tmp_home(|| {
-            let r = env_persist(&[("FOO".into(), "bar".into())]);
+            let r = block_on(env_persist(&[("FOO".into(), "bar".into())]));
             assert_eq!(r["written"]["FOO"], "bar");
-            let g = env_list_persisted();
+            let g = block_on(env_list_persisted());
             assert_eq!(g["vars"]["FOO"], "bar");
         });
     }
@@ -606,9 +608,12 @@ mod persist_tests {
     #[test]
     fn persist_preserves_existing_keys() {
         with_tmp_home(|| {
-            env_persist(&[("FOO".into(), "1".into()), ("BAR".into(), "2".into())]);
-            env_persist(&[("FOO".into(), "3".into())]);
-            let g = env_list_persisted();
+            block_on(env_persist(&[
+                ("FOO".into(), "1".into()),
+                ("BAR".into(), "2".into()),
+            ]));
+            block_on(env_persist(&[("FOO".into(), "3".into())]));
+            let g = block_on(env_list_persisted());
             assert_eq!(g["vars"]["FOO"], "3");
             assert_eq!(g["vars"]["BAR"], "2");
         });
@@ -617,7 +622,7 @@ mod persist_tests {
     #[test]
     fn persist_handles_empty_request() {
         with_tmp_home(|| {
-            let r = env_persist(&[]);
+            let r = block_on(env_persist(&[]));
             assert!(r["note"].as_str().unwrap().contains("no vars"));
         });
     }
@@ -625,15 +630,15 @@ mod persist_tests {
     #[test]
     fn unset_removes_named_vars() {
         with_tmp_home(|| {
-            env_persist(&[
+            block_on(env_persist(&[
                 ("FOO".into(), "1".into()),
                 ("BAR".into(), "2".into()),
                 ("BAZ".into(), "3".into()),
-            ]);
-            let r = env_unset(&["FOO".into(), "BAZ".into(), "MISSING".into()]);
+            ]));
+            let r = block_on(env_unset(&["FOO".into(), "BAZ".into(), "MISSING".into()]));
             assert_eq!(r["removed"], serde_json::json!(["FOO", "BAZ"]));
             assert_eq!(r["not_found"], serde_json::json!(["MISSING"]));
-            let g = env_list_persisted();
+            let g = block_on(env_list_persisted());
             assert_eq!(g["count"].as_u64().unwrap(), 1);
             assert_eq!(g["vars"]["BAR"], "2");
         });
@@ -642,7 +647,7 @@ mod persist_tests {
     #[test]
     fn unset_handles_missing_file() {
         with_tmp_home(|| {
-            let r = env_unset(&["FOO".into()]);
+            let r = block_on(env_unset(&["FOO".into()]));
             assert_eq!(r["exists"], false);
             assert_eq!(r["not_found"], serde_json::json!(["FOO"]));
         });
@@ -651,7 +656,7 @@ mod persist_tests {
     #[test]
     fn unset_handles_empty_request() {
         with_tmp_home(|| {
-            let r = env_unset(&[]);
+            let r = block_on(env_unset(&[]));
             assert!(r["note"].as_str().unwrap().contains("no names"));
         });
     }
@@ -659,7 +664,7 @@ mod persist_tests {
     #[test]
     fn list_persisted_returns_exists_false_when_no_file() {
         with_tmp_home(|| {
-            let r = env_list_persisted();
+            let r = block_on(env_list_persisted());
             assert_eq!(r["exists"], false);
             assert_eq!(r["count"], 0);
         });
@@ -668,8 +673,11 @@ mod persist_tests {
     #[test]
     fn persist_escapes_quotes_and_backslashes() {
         with_tmp_home(|| {
-            env_persist(&[("VAL".into(), "with \"quote\" and \\ back".into())]);
-            let r = env_list_persisted();
+            block_on(env_persist(&[(
+                "VAL".into(),
+                "with \"quote\" and \\ back".into(),
+            )]));
+            let r = block_on(env_list_persisted());
             assert_eq!(r["vars"]["VAL"], "with \"quote\" and \\ back");
         });
     }

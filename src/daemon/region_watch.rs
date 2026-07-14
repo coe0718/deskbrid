@@ -619,7 +619,7 @@ async fn save_frame(
     let Some(auto_save) = auto_save else {
         return Ok(None);
     };
-    let dir = crate::daemon::expand_path(auto_save)?;
+    let dir = crate::daemon::expand_path(auto_save).await?;
     tokio::fs::create_dir_all(&dir).await?;
     let target = dir.join(format!("{}-{}.png", safe_name(name), unix_now_millis()));
     tokio::fs::copy(source_path, &target).await?;

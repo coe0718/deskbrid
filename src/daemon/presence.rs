@@ -17,6 +17,7 @@ use crate::DaemonState;
 use crate::protocol::DeskbridEvent;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::fs;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::interval;
 use tracing::{debug, info, warn};
@@ -267,11 +268,11 @@ pub(crate) async fn update_time_of_day_config(
 /// Uses the configured latitude/longitude for solar times.
 pub(crate) async fn current_time_of_day_snapshot(state: &DaemonState) -> TimeOfDaySnapshot {
     let cfg = *state.presence.time_of_day_config.lock().await;
-    build_time_of_day_snapshot(cfg)
+    build_time_of_day_snapshot(cfg).await
 }
 
 /// Build the time-of-day snapshot from config. Separated for testability.
-fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
+async fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
     use chrono::{Datelike, Local, Offset, Timelike, Utc};
 
     let now_local = Local::now();
@@ -283,7 +284,8 @@ fn build_time_of_day_snapshot(cfg: TimeOfDayConfig) -> TimeOfDaySnapshot {
     let dst_active = false;
 
     // Uptime from /proc/uptime
-    let uptime_seconds = std::fs::read_to_string("/proc/uptime")
+    let uptime_seconds = fs::read_to_string("/proc/uptime")
+        .await
         .ok()
         .and_then(|s| {
             s.split_whitespace()

@@ -12,7 +12,7 @@ impl GnomeBackend {
         region: Option<Region>,
         window_id: Option<String>,
     ) -> anyhow::Result<protocol::ScreenshotResult> {
-        let path = crate::daemon::helpers::screenshot_temp_path();
+        let path = crate::daemon::helpers::screenshot_temp_path().await;
 
         // Fast path: use existing Mutter ScreenCast PipeWire stream (no dialogs)
         if monitor.is_none()

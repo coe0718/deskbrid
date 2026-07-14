@@ -31,7 +31,7 @@ pub async fn screenshot_ocr(
     request: OcrRequest<'_>,
 ) -> anyhow::Result<serde_json::Value> {
     let source_path = match request.path {
-        Some(path) => expand_path(path)?,
+        Some(path) => expand_path(path).await?,
         None => {
             let screenshot = backend
                 .screenshot(request.monitor, request.region, request.window_id)

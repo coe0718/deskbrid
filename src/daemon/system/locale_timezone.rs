@@ -12,10 +12,10 @@
 
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
-use std::fs;
-use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
+use tokio::fs;
+use tokio::fs::symlink;
 
 /// Canonical list of locale variables we read & report on.
 const LOCALE_KEYS: &[&str] = &[
@@ -47,8 +47,8 @@ const ZONEINFO_DIR: &str = "/usr/share/zoneinfo";
 /// back to /etc/locale.conf for anything missing. Reports both sources
 /// so callers can distinguish "what my process sees" from "what the
 /// persistent config says".
-pub(super) fn locale_get() -> Value {
-    let persistent = read_locale_conf().unwrap_or_default();
+pub(super) async fn locale_get() -> Value {
+    let persistent = read_locale_conf().await.unwrap_or_default();
     let mut values = serde_json::Map::with_capacity(LOCALE_KEYS.len());
     let mut sources = serde_json::Map::with_capacity(LOCALE_KEYS.len());
     for &k in LOCALE_KEYS {
@@ -81,7 +81,7 @@ pub(super) fn locale_get() -> Value {
 
 /// Write locale vars to /etc/locale.conf. Caller must pass an
 /// allow-list — keys outside `LOCALE_KEYS` are rejected.
-pub(super) fn locale_set(vars: &[(String, String)]) -> Value {
+pub(super) async fn locale_set(vars: &[(String, String)]) -> Value {
     if vars.is_empty() {
         return json!({
             "written": {},
@@ -100,7 +100,7 @@ pub(super) fn locale_set(vars: &[(String, String)]) -> Value {
         }
     }
     // Read existing persistent file (if any) to preserve unknown lines
-    let existing_lines: Vec<String> = match fs::read_to_string(LOCALE_CONF) {
+    let existing_lines: Vec<String> = match fs::read_to_string(LOCALE_CONF).await {
         Ok(s) => s.lines().map(String::from).collect(),
         Err(_) => Vec::new(),
     };
@@ -146,7 +146,7 @@ pub(super) fn locale_set(vars: &[(String, String)]) -> Value {
     }
 
     let content = out_lines.join("\n") + "\n";
-    match atomic_write(Path::new(LOCALE_CONF), &content) {
+    match atomic_write(Path::new(LOCALE_CONF), &content).await {
         Ok(()) => {
             let written: serde_json::Map<String, Value> = vars
                 .iter()
@@ -169,8 +169,10 @@ pub(super) fn locale_set(vars: &[(String, String)]) -> Value {
 }
 
 /// Parse a `KEY="value"` or `KEY=value` file into a map.
-fn read_locale_conf() -> Result<std::collections::HashMap<String, String>> {
-    let s = fs::read_to_string(LOCALE_CONF).context("read locale.conf")?;
+async fn read_locale_conf() -> Result<std::collections::HashMap<String, String>> {
+    let s = fs::read_to_string(LOCALE_CONF)
+        .await
+        .context("read locale.conf")?;
     let mut out = std::collections::HashMap::new();
     for line in s.lines() {
         let trimmed = line.trim();
@@ -206,7 +208,7 @@ fn quote_value(v: &str) -> String {
 /// rename is on the same filesystem and atomic), then rename into
 /// place. Prevents leaving a half-written config file if the daemon
 /// is killed mid-write (SIGKILL, OOM, power loss).
-fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
+async fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     // Pick a unique tmp name in the same directory so the rename
     // is atomic on POSIX (same filesystem required).
@@ -216,8 +218,8 @@ fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
             .and_then(|n| n.to_str())
             .unwrap_or("deskbrid")
     ));
-    fs::write(&tmp, content)?;
-    fs::rename(&tmp, path)
+    fs::write(&tmp, content).await?;
+    fs::rename(&tmp, path).await
 }
 
 // ---------- Timezone ----------
@@ -231,10 +233,11 @@ fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
 /// inside containers and distros without `/etc/timezone`) before
 /// declaring the timezone unknown. The iana_time_zone call is a fast
 /// libc-level probe — no subprocess spawn.
-pub(super) fn timezone_get() -> Value {
-    let (resolved, symlink_target) = resolve_localtime();
+pub(super) async fn timezone_get() -> Value {
+    let (resolved, symlink_target) = resolve_localtime().await;
 
     let from_file = fs::read_to_string(ETC_TIMEZONE)
+        .await
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
@@ -265,7 +268,7 @@ pub(super) fn timezone_get() -> Value {
 
 /// Set the timezone by writing /etc/timezone and re-pointing
 /// /etc/localtime at /usr/share/zoneinfo/{name}. Requires root.
-pub(super) fn timezone_set(timezone: &str) -> Value {
+pub(super) async fn timezone_set(timezone: &str) -> Value {
     if timezone.is_empty() {
         return json!({
             "set": false,
@@ -292,13 +295,14 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
     }
 
     let previous = timezone_get()
+        .await
         .pointer("/timezone")
         .cloned()
         .unwrap_or(Value::Null);
 
     // Stage 1: write /etc/timezone atomically (tmp + rename).
     let tz_path = Path::new(ETC_TIMEZONE);
-    if let Err(e) = atomic_write(tz_path, &format!("{}\n", timezone)) {
+    if let Err(e) = atomic_write(tz_path, &format!("{}\n", timezone)).await {
         return json!({
             "set": false,
             "previous": previous,
@@ -314,8 +318,8 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
     let lt_path = Path::new(ETC_LOCALTIME);
     let lt_tmp = Path::new("/etc/.localtime.tmp");
     // Clean up any stale tmp from a prior failed attempt
-    let _ = fs::remove_file(lt_tmp);
-    let link_result = symlink(&target, lt_tmp);
+    let _ = fs::remove_file(lt_tmp).await;
+    let link_result = symlink(&target, lt_tmp).await;
     if let Err(e) = link_result {
         return json!({
             "set": false,
@@ -325,7 +329,7 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
             "requires_root": true,
         });
     }
-    match fs::rename(lt_tmp, lt_path) {
+    match fs::rename(lt_tmp, lt_path).await {
         Ok(()) => json!({
             "set": true,
             "previous": previous,
@@ -335,7 +339,7 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
         }),
         Err(e) => {
             // Roll back the staged symlink so we don't leak it
-            let _ = fs::remove_file(lt_tmp);
+            let _ = fs::remove_file(lt_tmp).await;
             json!({
                 "set": false,
                 "previous": previous,
@@ -348,23 +352,25 @@ pub(super) fn timezone_set(timezone: &str) -> Value {
 }
 
 /// Resolve /etc/localtime → /usr/share/zoneinfo/Region/City
-fn resolve_localtime() -> (Option<String>, Option<String>) {
+async fn resolve_localtime() -> (Option<String>, Option<String>) {
     let p = Path::new(ETC_LOCALTIME);
     let target = if p.is_symlink() {
-        std::fs::read_link(p).ok()
+        tokio::fs::read_link(p).await.ok()
     } else {
         // Some systems have a regular file (copied, not symlinked).
         // We can still report the path; offset is computed via `date`.
         Some(p.to_path_buf())
     };
-    let resolved = target.as_ref().and_then(|t| {
-        // If the resolved path lives under ZONEINFO_DIR, return its suffix
-        t.canonicalize()
+    let resolved = if let Some(t) = target.as_ref() {
+        tokio::fs::canonicalize(t)
+            .await
             .ok()
             .and_then(|canonical| canonical.to_str().map(String::from))
             .and_then(|rest| rest.strip_prefix(ZONEINFO_DIR).map(|s| s.to_string()))
             .map(|stripped| stripped.trim_start_matches('/').to_string())
-    });
+    } else {
+        None
+    };
     let target_str = target.and_then(|t| t.to_str().map(String::from));
     (resolved, target_str)
 }
@@ -445,11 +451,11 @@ mod tests {
         assert_eq!(quote_value("back\\slash"), "back\\\\slash");
     }
 
-    #[test]
-    fn read_locale_conf_handles_missing_file() {
+    #[tokio::test]
+    async fn read_locale_conf_handles_missing_file() {
         // /etc/locale.conf may or may not exist on the test machine;
         // both branches must return Ok (empty map or parsed map).
-        let res = read_locale_conf();
+        let res = read_locale_conf().await;
         match res {
             Ok(_) => {}
             Err(e) => {
@@ -459,9 +465,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn locale_get_returns_all_keys() {
-        let v = locale_get();
+    #[tokio::test]
+    async fn locale_get_returns_all_keys() {
+        let v = locale_get().await;
         let values = v.get("values").and_then(|x| x.as_object()).unwrap();
         for k in LOCALE_KEYS {
             assert!(values.contains_key(*k), "missing key {}", k);

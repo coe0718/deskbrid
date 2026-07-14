@@ -1,3 +1,47 @@
+## v1.3.0 — REPL, Power Profiles & Environment Control
+
+**22 commits · 60 files · +6,680 −1,463 since v1.2.0**
+
+Feature release: interactive REPL mode, power management, locale/timezone/env control, presence system with push events, and batch security hardening from Vex review.
+
+### 🖥️ Interactive REPL (#48)
+- **6ba7a85** — `deskbrid repl` with rustyline loop, tab completion over 250+ action types. `dry_run` and `timeout` flags. Persistent history across sessions. Uses `client::send_raw` to dispatch arbitrary daemon actions without enum routing.
+
+### 🔋 Power & Battery (#56, #57)
+- **39712ec** — `power.profile.list/get/set` over `net.hadess.PowerProfiles` D-Bus. Validates profile names, switches via `Properties.Set`. Permissions allow-list updated for the 3 actions.
+- **34b488e** — `battery.threshold.get/set` via sysfs (`charge_control_start_threshold` / `charge_control_end_threshold`). Vendor auto-detect (Lenovo vs Linux). Three convenience profiles: `daily`, `travel`, `full`. Graceful `supported:false` on unsupported hardware.
+
+### 🌍 Locale & Timezone (#127)
+- **b19b14f** — `locale.get/set` — reads resolve from process env + `/etc/locale.conf`. Reports `source` per key. Writes target `/etc/locale.conf`. Path traversal rejected. Non-root fails cleanly with `requires_root:true`.
+- **b19b14f** — `timezone.get/set` — reads `/etc/localtime` against `/usr/share/zoneinfo`, computes UTC offset + DST. Writes `/etc/localtime` symlink.
+- **38f9c10** — `locale.changed` / `timezone.changed` push events via DBus `PropertiesChanged` signal monitors. Tokio monitors in `daemon/locale_monitor.rs` subscribe to `org.freedesktop.locale1` and `org.freedesktop.timedate1`. Initial value seeded at startup to avoid spurious events.
+
+### 📝 Environment Variables (#116)
+- **75d6a69** — `env.get/set` on daemon's process environment. Returns `{found, value, kind, byte_len}` for one var or `{vars, count, non_utf8_count}` for all. Validates names (rejects empty, `=`, NUL).
+- **6bb7845** — `env.persist/unset/list_persisted` — writes to `~/.config/environment.d/deskbrid.conf` (systemd user-session standard, no root). Atomic writes (tmp file + rename). Preserves existing keys not in the request. Reads back with systemd-style `\"`/`\\` un-escaping for round-trip correctness.
+
+### 👤 Presence System (#39, #138)
+- **4bffa9b** — `system.presence.get` action: reads idle seconds via backend, returns `{state, idle_seconds}`. Background monitor polls idle every 5s, emits on state transitions.
+- **acd60f3** — Full presence spec: `presence.returned` (`idle_duration_secs`), `presence.locked`, `presence.unlocked` push events. `PresenceSnapshot` carries `last_active` (epoch) + `locked` fields. `PresenceConfig` action with runtime-editable idle/away thresholds. Logind `LockedHint` detection. `PresenceStore` on `DaemonState` for lock-free snapshot reads.
+
+### 🕐 Time of Day (#40)
+- **256d46f** — `system.time_of_day` action with configurable sunrise/sunset times, business hours detection, uptime, boot time, day of week, hour of day.
+
+### 👁️ Vision Action Stubs (#41)
+- **bd33c2c** — `vision.find_element`, `vision.find_by_text`, `vision.detect_state` actions with protocol parsing, serialization, and stub execution handlers. Template matching and ML detection stubbed for future implementation.
+
+### 🔒 Vex Security Hardening
+- **0589c29** — Batch 1: atomic locale/tz writes, dashboard auth, TOCTOU fix, PSK redaction, macro secret redaction.
+- **7bf9c89** — Batch 2: DBus validation, OS guard, global rate bucket, audit regression tests, sweeper abort handle.
+- **55f0f6a** — Batch 3: `ENV_LOCK` serialization, rate limit validation, CSP header.
+- **84900da** — Batch 4: rule cycle detection, monitor reconnect, SSE per-IP cap, 12 assorted hardening items.
+- **b02435a** — All findings addressed: W8 clipboard redaction, W13 `/tmp` fallback, W24 nmcli stdin password, W26 env-configurable rule depth, W27 macro bounds, remaining V1 findings.
+
+### 🧹 Housekeeping
+- **490f8af** — Quill docs update
+- **d0adef5** — Removed all 4 code review artifacts
+- **3f6dc72** — Cargo fmt formatting
+
 ## v1.2.0 — Sandboxed Profiles & Auto-Suspend
 
 **Tuck · 19 commits · 147 files · +14,089 −1,894**

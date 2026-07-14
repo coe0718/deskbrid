@@ -7,7 +7,7 @@ use tokio::process::Command;
 const PORTAL_SCREENSHOT_SCRIPT: &str = include_str!("../scripts/screenshot_portal.py");
 
 pub async fn fallback_screenshot(_monitor: Option<u32>) -> Result<String> {
-    let path = crate::daemon::helpers::screenshot_temp_path();
+    let path = crate::daemon::helpers::screenshot_temp_path().await;
 
     // Try gnome-screenshot first
     let gnome = Command::new("gnome-screenshot")

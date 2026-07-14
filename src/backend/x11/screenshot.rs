@@ -8,7 +8,7 @@ pub(super) async fn screenshot(
     region: Option<Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let path = crate::daemon::helpers::screenshot_temp_path();
+    let path = crate::daemon::helpers::screenshot_temp_path().await;
     if let Some(r) = region {
         let geo = format!("{}x{}+{}+{}", r.width, r.height, r.x, r.y);
         backend

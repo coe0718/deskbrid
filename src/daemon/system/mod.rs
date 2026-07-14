@@ -142,10 +142,10 @@ pub async fn execute_system_control_action(
             end,
             profile,
         } => bt_set(start, end, profile).await,
-        Action::LocaleGet => Ok(tz::locale_get()),
-        Action::LocaleSet { ref vars } => Ok(tz::locale_set(vars)),
-        Action::TimezoneGet => Ok(tz::timezone_get()),
-        Action::TimezoneSet { ref timezone } => Ok(tz::timezone_set(timezone)),
+        Action::LocaleGet => Ok(tz::locale_get().await),
+        Action::LocaleSet { ref vars } => Ok(tz::locale_set(vars).await),
+        Action::TimezoneGet => Ok(tz::timezone_get().await),
+        Action::TimezoneSet { ref timezone } => Ok(tz::timezone_set(timezone).await),
         _ => anyhow::bail!(
             "internal dispatch error: non-system action passed to system control dispatcher"
         ),

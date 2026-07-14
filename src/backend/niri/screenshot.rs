@@ -7,7 +7,7 @@ pub(super) async fn screenshot(
     region: Option<protocol::Region>,
     _window_id: Option<String>,
 ) -> anyhow::Result<protocol::ScreenshotResult> {
-    let path = crate::daemon::helpers::screenshot_temp_path();
+    let path = crate::daemon::helpers::screenshot_temp_path().await;
 
     let mut grim_args: Vec<String> = vec!["-t".into(), "png".into()];
     if let Some(region) = region {

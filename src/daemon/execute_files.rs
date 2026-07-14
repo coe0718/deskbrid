@@ -21,14 +21,14 @@ pub(crate) async fn execute_files(
             recursive,
             ref patterns,
         } => {
-            let sandboxed = expand_path(path)?;
+            let sandboxed = expand_path(path).await?;
             backend
                 .files_watch(&sandboxed.to_string_lossy(), recursive, patterns.as_deref())
                 .await?;
             serde_json::json!({"watching": sandboxed.to_string_lossy(), "path": path})
         }
         FilesUnwatch { ref path } => {
-            let sandboxed = expand_path(path)?;
+            let sandboxed = expand_path(path).await?;
             backend.files_unwatch(&sandboxed.to_string_lossy()).await?;
             serde_json::json!({"unwatched": sandboxed.to_string_lossy(), "path": path})
         }
@@ -38,7 +38,7 @@ pub(crate) async fn execute_files(
             max_results,
         } => {
             let search_root = match root {
-                Some(r) => expand_path(r)?.to_string_lossy().to_string(),
+                Some(r) => expand_path(r).await?.to_string_lossy().to_string(),
                 None => home_dir().to_string_lossy().to_string(),
             };
             serde_json::json!({"matches": backend.files_search(pattern, Some(&search_root), max_results).await?})
@@ -50,7 +50,7 @@ pub(crate) async fn execute_files(
             limit,
         } => {
             use tokio::io::{AsyncReadExt, AsyncSeekExt};
-            let path = expand_path(path)?;
+            let path = expand_path(path).await?;
             let mut file = tokio::fs::File::open(&path)
                 .await
                 .with_context(|| format!("failed to open {}", path.display()))?;
@@ -90,7 +90,7 @@ pub(crate) async fn execute_files(
             ref content,
             append,
         } => {
-            let path = expand_path(path)?;
+            let path = expand_path(path).await?;
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
@@ -116,8 +116,8 @@ pub(crate) async fn execute_files(
             ref source,
             ref destination,
         } => {
-            let src = expand_path(source)?;
-            let dst = expand_path(destination)?;
+            let src = expand_path(source).await?;
+            let dst = expand_path(destination).await?;
             if src.is_dir() {
                 anyhow::bail!("directory copy not supported — use process.start with cp -r");
             }
@@ -133,8 +133,8 @@ pub(crate) async fn execute_files(
             ref source,
             ref destination,
         } => {
-            let src = expand_path(source)?;
-            let dst = expand_path(destination)?;
+            let src = expand_path(source).await?;
+            let dst = expand_path(destination).await?;
             if let Some(parent) = dst.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
@@ -147,7 +147,7 @@ pub(crate) async fn execute_files(
             ref path,
             recursive,
         } => {
-            let path = expand_path(path)?;
+            let path = expand_path(path).await?;
             if path.is_dir() {
                 if recursive {
                     tokio::fs::remove_dir_all(&path).await?;
@@ -160,7 +160,7 @@ pub(crate) async fn execute_files(
             serde_json::json!({"deleted": path.to_string_lossy()})
         }
         FilesMkdir { ref path, parents } => {
-            let path = expand_path(path)?;
+            let path = expand_path(path).await?;
             if parents {
                 tokio::fs::create_dir_all(&path).await?;
             } else {
@@ -169,7 +169,7 @@ pub(crate) async fn execute_files(
             serde_json::json!({"created": path.to_string_lossy()})
         }
         FilesList { ref path } => {
-            let path = expand_path(path)?;
+            let path = expand_path(path).await?;
             let mut entries = Vec::new();
             let mut dir = tokio::fs::read_dir(&path)
                 .await
