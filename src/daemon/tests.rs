@@ -1066,18 +1066,23 @@ deny = []
     .unwrap();
     // permissions::load() reads from $XDG_CONFIG_HOME/deskbrid/permissions.toml.
     let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
-    unsafe {
-        std::env::set_var("XDG_CONFIG_HOME", dir.path());
-    }
-    state.permissions = crate::permissions::Permissions::load();
-    // Restore env after load.
-    match prev_xdg {
-        Some(v) => unsafe {
-            std::env::set_var("XDG_CONFIG_HOME", v);
-        },
-        None => unsafe {
-            std::env::remove_var("XDG_CONFIG_HOME");
-        },
+    {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", dir.path());
+        }
+        state.permissions = crate::permissions::Permissions::load();
+        // Restore env after load.
+        match prev_xdg {
+            Some(v) => unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", v);
+            },
+            None => unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            },
+        }
     }
 
     let mut attrs = HashMap::new();

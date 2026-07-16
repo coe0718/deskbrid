@@ -199,11 +199,19 @@ pub fn spawn_screenshot_cleaner(state: std::sync::Arc<crate::DaemonState>) {
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock)] // Test-only process env lock must span async path expansion.
 mod tests {
     use super::*;
 
+    fn lock_test_env() -> std::sync::MutexGuard<'static, ()> {
+        crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
     #[tokio::test]
     async fn expand_path_allows_home_dir() {
+        let _guard = lock_test_env();
         let home = home_dir().to_string_lossy().to_string();
         let result = expand_path(&format!("{}/.bashrc", home)).await;
         assert!(
@@ -215,12 +223,14 @@ mod tests {
 
     #[tokio::test]
     async fn expand_path_allows_tmp() {
+        let _guard = lock_test_env();
         let result = expand_path("/tmp/test-file").await;
         assert!(result.is_ok(), "/tmp should be allowed: {:?}", result.err());
     }
 
     #[tokio::test]
     async fn expand_path_blocks_etc_passwd() {
+        let _guard = lock_test_env();
         let result = expand_path("/etc/passwd").await;
         assert!(result.is_err(), "/etc/passwd should be blocked");
         let msg = result.unwrap_err().to_string();
@@ -232,6 +242,7 @@ mod tests {
 
     #[tokio::test]
     async fn expand_path_blocks_traversal_into_etc() {
+        let _guard = lock_test_env();
         let traversal = "/tmp/../../../etc/passwd";
         let result = expand_path(traversal).await;
         assert!(
@@ -247,6 +258,7 @@ mod tests {
 
     #[tokio::test]
     async fn expand_path_blocks_traversal_into_root() {
+        let _guard = lock_test_env();
         let traversal = "/tmp/../../../etc/shadow";
         let result = expand_path(traversal).await;
         assert!(
@@ -257,6 +269,7 @@ mod tests {
 
     #[tokio::test]
     async fn expand_path_tilde_expands_to_home() {
+        let _guard = lock_test_env();
         let result = expand_path("~/.bashrc").await;
         assert!(
             result.is_ok(),
@@ -269,12 +282,14 @@ mod tests {
 
     #[tokio::test]
     async fn expand_path_tilde_traversal_blocked() {
+        let _guard = lock_test_env();
         let result = expand_path("~/../../../etc/passwd").await;
         assert!(result.is_err(), "~/../../../etc/passwd should be blocked");
     }
 
     #[tokio::test]
     async fn expand_path_allows_existing_files_in_home() {
+        let _guard = lock_test_env();
         let home = home_dir().to_string_lossy().to_string();
         // .bashrc typically exists
         let path = format!("{}/.bashrc", home);

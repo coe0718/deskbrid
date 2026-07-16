@@ -300,13 +300,6 @@ mod tests {
 
 // ===== Persistent env =====
 
-/// Lock used by the test suite to serialize HOME-mutating tests.
-/// Not held by production code (production is single-threaded for
-/// these handlers); tests hold it for the entire test body so
-/// parallel test threads don't interleave their HOME swaps.
-#[cfg(test)]
-static PERSIST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 /// Path to our user-scoped env config file.
 /// Uses systemd's standard `environment.d/` directory, which is honored
 /// by systemd user sessions and many login managers. The file lives in
@@ -570,10 +563,12 @@ mod persist_tests {
 
     /// Use a unique tmp dir per test so we don't collide with each other
     /// or with the real ~/.config/environment.d/deskbrid.conf. Holds
-    /// `PERSIST_LOCK` for the duration of the test body so the
+    /// the process-wide test env lock for the duration of the test body so the
     /// parallel test runner doesn't see interleaved HOME mutations.
     fn with_tmp_home<F: FnOnce()>(f: F) {
-        let _guard = PERSIST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let unique = format!(
             "/tmp/deskbrid-env-test-{}-{}",
             std::process::id(),

@@ -28,6 +28,10 @@ use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tracing::{info, warn};
 
+/// Serializes tests that read or mutate process-wide environment variables.
+#[cfg(test)]
+pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use crate::daemon::persistence::Database;
 use crate::daemon::rules::RuleEngine;
 

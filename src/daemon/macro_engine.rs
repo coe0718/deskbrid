@@ -440,9 +440,11 @@ mod tests {
     /// refuses to grow past the configured bound.
     #[test]
     fn macro_push_enforces_action_bound() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let prev = std::env::var("DESKBRID_MAX_MACRO_ACTIONS").ok();
-        // SAFETY: tests in this module mutate environment variables serially;
-        // --test-threads=1 in CI prevents races with other env-mutating tests.
+        // SAFETY: the process-wide test environment lock prevents concurrent reads/writes.
         unsafe {
             std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", "3");
         }
@@ -468,6 +470,9 @@ mod tests {
     /// W27: bounds functions return env-overridable default values.
     #[test]
     fn max_macro_bounds_default_values() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         unsafe {
             std::env::remove_var("DESKBRID_MAX_MACRO_ACTIONS");
             std::env::remove_var("DESKBRID_MAX_MACRO_DURATION_SECS");
@@ -479,6 +484,9 @@ mod tests {
     /// W27: zero/garbage env falls back to default.
     #[test]
     fn max_macro_bounds_handles_zero_or_garbage() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         unsafe {
             std::env::set_var("DESKBRID_MAX_MACRO_ACTIONS", "0");
         }
@@ -495,6 +503,9 @@ mod tests {
     /// W26 (CODE_REVIEW_VEX_V1.md): rule dispatch depth cap is configurable.
     #[test]
     fn max_rule_dispatch_depth_default_and_override() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         unsafe {
             std::env::remove_var("DESKBRID_MAX_RULE_DISPATCH_DEPTH");
         }
