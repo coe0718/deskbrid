@@ -1,7 +1,7 @@
 use super::rules_types::{EventTrigger, RuleCondition};
 use super::types::Region;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct VisionStateCheck {
     pub kind: String,
     pub expected: Option<serde_json::Value>,

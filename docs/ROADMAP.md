@@ -2532,11 +2532,13 @@ so agents always know the time without an extra round trip.
 
 ---
 
-## 41. Element Detection via Screenshot (CV) ✅ **DONE** (commit TBD)
+## 41. Element Detection via Screenshot (CV) ✅ **DONE**
 
-**Status:** ✅ Done. `vision.find_element`, `vision.find_by_text`, and `vision.detect_state` are implemented with protocol actions, parsing, serialization, and stub execution handlers. Template matching and ML detection are stubbed with `note: not yet implemented` responses — ready for implementation.
+**Status:** ✅ Done. `vision.find_element` performs normalized cross-correlation with overlap suppression; `vision.find_by_text` returns OCR word and phrase bounding boxes; and `vision.detect_state` evaluates color regions, text, and template presence. All three run through the socket protocol and MCP, validate malformed input, support file-backed headless execution, and capture the live screen only when no screenshot path is supplied.
 
-**What's Missing:** OCR extracts text (section 12), but agents can't find "the blue button" or "the search icon" visually. Template matching or ML-based detection finds UI elements by appearance.
+**Dependency:** Tesseract OCR plus English trained data. The installer provisions both on supported distributions, and CI exercises the real TSV command.
+
+**Original Gap:** OCR extracts text (section 12), but agents couldn't find "the blue button" or "the search icon" visually. Template matching or ML-based detection finds UI elements by appearance.
 
 **Implementation:** Two approaches:
 

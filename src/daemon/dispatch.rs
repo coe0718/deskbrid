@@ -548,6 +548,20 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
+    // File-backed vision actions don't need a live desktop backend.
+    if is_vision_action_backend_free(&action) {
+        let result = with_action_timeout(
+            &action,
+            action_timeout_ms,
+            super::execute_vision::execute_vision(action.clone(), None, state),
+        )
+        .await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+
     let backend_guard = state.backend.clone().read_owned().await;
     let backend = match backend_guard.as_ref() {
         Some(b) => b,
@@ -598,6 +612,23 @@ pub async fn dispatch_action_with_options(
         request_id, state, &action, peer_uid, seq, result, started, None,
     )
     .await
+}
+
+/// Check if a vision action was given a screenshot file and can run headless.
+fn is_vision_action_backend_free(action: &Action) -> bool {
+    matches!(
+        action,
+        Action::VisionFindElement {
+            screenshot: Some(_),
+            ..
+        } | Action::VisionFindByText {
+            screenshot: Some(_),
+            ..
+        } | Action::VisionDetectState {
+            screenshot: Some(_),
+            ..
+        }
+    )
 }
 
 /// Check if an action is a network action that doesn't require a desktop backend.

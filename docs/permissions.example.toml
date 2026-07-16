@@ -67,6 +67,9 @@
 #     "screenshot",
 #     "screenshot.ocr",
 #     "screenshot.diff",
+#     "vision.find_element",
+#     "vision.find_by_text",
+#     "vision.detect_state",
 #     "input.keyboard",
 #     "input.mouse",
 #     "input.mouse.drag",
@@ -140,6 +143,9 @@ allow = [
     "screenshot",            # ★
     "screenshot.ocr",        # ★
     "screenshot.diff",       # ★
+    "vision.find_element",   # ★
+    "vision.find_by_text",   # ★
+    "vision.detect_state",   # ★
     "screencast.start",
     "screencast.stop",
     "portal.screenshot",

@@ -168,7 +168,7 @@ pub async fn execute_action(
         }
 
         VisionFindElement { .. } | VisionFindByText { .. } | VisionDetectState { .. } => {
-            execute_vision::execute_vision(action, backend, state).await?
+            execute_vision::execute_vision(action, Some(backend), state).await?
         }
 
         RegionWatchCreate { .. }

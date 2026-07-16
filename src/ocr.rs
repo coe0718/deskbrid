@@ -3,17 +3,18 @@ use crate::daemon::expand_path;
 use crate::protocol::Region;
 use anyhow::Context;
 use serde_json::json;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
-#[derive(Debug)]
-struct OcrWord {
-    text: String,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-    confidence: f64,
+#[derive(Debug, Clone)]
+pub(crate) struct OcrWord {
+    pub(crate) text: String,
+    pub(crate) x: u32,
+    pub(crate) y: u32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) confidence: f64,
+    pub(crate) line_id: [u32; 4],
 }
 
 pub struct OcrRequest<'a> {
@@ -44,31 +45,8 @@ pub async fn screenshot_ocr(
     }
 
     let language = request.language.unwrap_or("eng");
-    validate_language(language)?;
     let psm = request.psm.unwrap_or(3);
-    if psm > 13 {
-        anyhow::bail!("psm must be between 0 and 13");
-    }
-
-    let output = Command::new("tesseract")
-        .arg(&source_path)
-        .arg("stdout")
-        .arg("-l")
-        .arg(language)
-        .arg("--psm")
-        .arg(psm.to_string())
-        .arg("tsv")
-        .output()
-        .await
-        .context("failed to run tesseract; install tesseract-ocr and language packs")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("tesseract failed: {}", stderr.trim());
-    }
-
-    let tsv = String::from_utf8_lossy(&output.stdout);
-    let words = parse_tsv(&tsv);
+    let words = ocr_words_from_path(&source_path, language, psm).await?;
     let text = words
         .iter()
         .map(|word| word.text.as_str())
@@ -103,6 +81,36 @@ pub async fn screenshot_ocr(
     }))
 }
 
+pub(crate) async fn ocr_words_from_path(
+    source_path: &Path,
+    language: &str,
+    psm: u32,
+) -> anyhow::Result<Vec<OcrWord>> {
+    validate_language(language)?;
+    if psm > 13 {
+        anyhow::bail!("psm must be between 0 and 13");
+    }
+
+    let output = Command::new("tesseract")
+        .arg(source_path)
+        .arg("stdout")
+        .arg("-l")
+        .arg(language)
+        .arg("--psm")
+        .arg(psm.to_string())
+        .arg("tsv")
+        .output()
+        .await
+        .context("failed to run tesseract; install tesseract-ocr and language packs")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("tesseract failed: {}", stderr.trim());
+    }
+
+    Ok(parse_tsv(&String::from_utf8_lossy(&output.stdout)))
+}
+
 fn parse_tsv(tsv: &str) -> Vec<OcrWord> {
     tsv.lines().skip(1).filter_map(parse_tsv_line).collect()
 }
@@ -127,6 +135,12 @@ fn parse_tsv_line(line: &str) -> Option<OcrWord> {
         width: parse_u32(columns.get(8)?)?,
         height: parse_u32(columns.get(9)?)?,
         confidence,
+        line_id: [
+            parse_u32(columns.get(1)?)?,
+            parse_u32(columns.get(2)?)?,
+            parse_u32(columns.get(3)?)?,
+            parse_u32(columns.get(4)?)?,
+        ],
     })
 }
 
@@ -173,5 +187,18 @@ mod tests {
         assert!(validate_language("eng").is_ok());
         assert!(validate_language("eng+spa").is_ok());
         assert!(validate_language("../eng").is_err());
+    }
+
+    #[tokio::test]
+    async fn tesseract_tsv_command_runs() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("blank.png");
+        image::ImageBuffer::from_pixel(200, 100, image::Luma([255_u8]))
+            .save(&path)
+            .unwrap();
+
+        let words = ocr_words_from_path(&path, "eng", 3).await.unwrap();
+
+        assert!(words.is_empty());
     }
 }

@@ -1,3 +1,13 @@
+## Unreleased
+
+### 👁️ Vision Element Detection (#41)
+- Completed `vision.find_element` with normalized cross-correlation, overlap suppression, coarse-to-fine matching for full-screen performance, and exact-coordinate refinement.
+- Completed `vision.find_by_text` with shared Tesseract TSV parsing and multi-word bounding boxes.
+- Completed `vision.detect_state` with color-region, text-presence, and template-presence checks.
+- Wired all three actions through protocol parsing, permissions, and MCP, including file-backed headless execution.
+- Installer and CI now provision Tesseract plus English trained data.
+- Added focused vision/OCR tests and split the implementation into bounded modules.
+
 ## v1.3.0 — REPL, Power Profiles & Environment Control
 
 **22 commits · 60 files · +6,680 −1,463 since v1.2.0**

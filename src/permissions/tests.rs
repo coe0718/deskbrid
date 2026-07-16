@@ -224,6 +224,35 @@ fn test_default_safe_allows_canonical_input_layout_actions() {
 }
 
 #[test]
+fn test_default_safe_allows_vision_actions_explicitly() {
+    let permissions = Permissions::default_safe();
+
+    assert!(permissions.check(
+        1000,
+        &Action::VisionFindElement {
+            template_path: "/tmp/template.png".into(),
+            screenshot: None,
+            min_confidence: None,
+            max_results: None,
+        }
+    ));
+    assert!(permissions.check(
+        1000,
+        &Action::VisionFindByText {
+            text: "Submit".into(),
+            screenshot: None,
+        }
+    ));
+    assert!(permissions.check(
+        1000,
+        &Action::VisionDetectState {
+            screenshot: None,
+            checks: vec![],
+        }
+    ));
+}
+
+#[test]
 fn test_high_risk_denied_by_wildcard() {
     // allow_all uses "*" — high-risk actions should still be denied
     let p = Permissions::allow_all();

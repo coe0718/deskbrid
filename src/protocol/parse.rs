@@ -103,8 +103,8 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         // Color picker
         s if s.starts_with("color.") => color_pick::parse_color_pick(&raw, &id, s)?,
 
-        // Screenshot
-        s if s == "screenshot" || s.starts_with("screenshot.") => {
+        // Screenshot and vision
+        s if s == "screenshot" || s.starts_with("screenshot.") || s.starts_with("vision.") => {
             screenshot::parse_screenshot(&raw, &id, s)?
         }
 

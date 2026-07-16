@@ -37,6 +37,36 @@ mod tests {
     }
 
     #[test]
+    fn parses_vision_find_element() {
+        let (_, action) = Action::from_json(
+            r#"{"type":"vision.find_element","id":"v","template_path":"/tmp/button.png","min_confidence":0.9,"max_results":3}"#,
+        )
+        .unwrap();
+
+        assert!(matches!(
+            action,
+            Action::VisionFindElement {
+                template_path,
+                min_confidence: Some(0.9),
+                max_results: Some(3),
+                ..
+            } if template_path == "/tmp/button.png"
+        ));
+    }
+
+    #[test]
+    fn rejects_malformed_vision_state_checks() {
+        let result = Action::from_json(
+            r##"{"type":"vision.detect_state","id":"v","checks":[{"kind":"color_check","expected":"#FF0000","region":{"x":"bad","y":0,"width":1,"height":1}}]}"##,
+        );
+
+        assert!(
+            result.is_err(),
+            "malformed checks must not be silently dropped"
+        );
+    }
+
+    #[test]
     fn public_actions_include_system_capabilities_and_health() {
         let actions = Action::public_action_types();
         assert!(actions.contains(&"system.capabilities"));

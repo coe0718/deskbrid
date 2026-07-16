@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 // ─── Common Types ───────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, schemars::JsonSchema)]
 pub struct Region {
     pub x: u32,
     pub y: u32,

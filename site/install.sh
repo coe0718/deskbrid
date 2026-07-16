@@ -64,7 +64,7 @@ case "$DISTRO_ID" in
     ;;
   fedora|nobara)
     PKG_INSTALL="sudo dnf install -y"
-    PKG_UPDATE="sudo dnf check-update -q || true"
+    PKG_UPDATE="sudo dnf makecache -q"
     ;;
   opensuse*)
     PKG_INSTALL="sudo zypper install -y"
@@ -80,6 +80,44 @@ case "$DISTRO_ID" in
     PKG_UPDATE="sudo apt update -qq"
     ;;
 esac
+
+# ── OCR dependency ──
+# Vision text detection uses the Tesseract CLI and English trained data.
+if ! command -v tesseract &>/dev/null \
+  || ! tesseract --list-langs 2>/dev/null | grep -qx 'eng'; then
+  case "$DISTRO_ID" in
+    ubuntu|debian|pop|linuxmint|elementary|zorin)
+      ocr_pkgs=(tesseract-ocr tesseract-ocr-eng)
+      ;;
+    arch|endeavouros|manjaro|arcolinux)
+      ocr_pkgs=(tesseract tesseract-data-eng)
+      ;;
+    fedora|nobara)
+      ocr_pkgs=(tesseract tesseract-langpack-eng)
+      ;;
+    opensuse*)
+      ocr_pkgs=(tesseract-ocr tesseract-ocr-traineddata)
+      ;;
+    alpine)
+      ocr_pkgs=(tesseract-ocr tesseract-ocr-data-eng)
+      ;;
+    *)
+      ocr_pkgs=(tesseract-ocr tesseract-ocr-eng)
+      ;;
+  esac
+
+  echo
+  info "Installing OCR support: ${CYN}${ocr_pkgs[*]}${RST}"
+  $PKG_UPDATE
+  $PKG_INSTALL "${ocr_pkgs[@]}"
+  command -v tesseract &>/dev/null \
+    || fail "Tesseract installation completed but the command is unavailable"
+  tesseract --list-langs 2>/dev/null | grep -qx 'eng' \
+    || fail "Tesseract English trained data is unavailable"
+  ok "OCR support installed!"
+else
+  ok "Tesseract OCR with English data is installed"
+fi
 
 # ── detect desktop environment ──
 detect_de() {

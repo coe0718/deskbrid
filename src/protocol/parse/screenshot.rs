@@ -1,6 +1,7 @@
 use super::helpers::*;
 use crate::protocol::Action;
 use crate::protocol::types::Region;
+use anyhow::Context;
 use serde_json::Value;
 
 pub(super) fn parse_screenshot(raw: &Value, _id: &str, type_str: &str) -> anyhow::Result<Action> {
@@ -68,9 +69,12 @@ pub(super) fn parse_screenshot(raw: &Value, _id: &str, type_str: &str) -> anyhow
                 .as_array()
                 .map(|arr| {
                     arr.iter()
-                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                        .collect()
+                        .cloned()
+                        .map(serde_json::from_value)
+                        .collect::<Result<Vec<_>, _>>()
                 })
+                .transpose()
+                .context("vision.detect_state contains an invalid check")?
                 .unwrap_or_default(),
         },
         _ => anyhow::bail!("unknown screenshot type: {type_str}"),

@@ -10,7 +10,7 @@ pub struct VisionFindElementArgs {
     pub screenshot: Option<String>,
     #[schemars(description = "Minimum confidence threshold 0–1 (default 0.8)")]
     pub min_confidence: Option<f64>,
-    #[schemars(description = "Maximum results to return (default 10)")]
+    #[schemars(description = "Maximum results to return (default 5)")]
     pub max_results: Option<u32>,
 }
 
@@ -23,29 +23,24 @@ pub struct VisionFindByTextArgs {
 }
 
 #[derive(Deserialize, Serialize, schemars::JsonSchema, Default)]
-pub struct VisionStateCheckArg {
-    #[schemars(description = "Check kind: color_check, text_check, or element_check")]
-    pub kind: String,
-    #[schemars(description = "Expected value (hex colour, text string)")]
-    pub expected: Option<serde_json::Value>,
-    #[schemars(description = "Region x coordinate for color_check")]
-    pub x: Option<i32>,
-    #[schemars(description = "Region y coordinate for color_check")]
-    pub y: Option<i32>,
-    #[schemars(description = "Region width for color_check")]
-    pub width: Option<i32>,
-    #[schemars(description = "Region height for color_check")]
-    pub height: Option<i32>,
-    #[schemars(description = "Template path for element_check")]
-    pub template_path: Option<String>,
-    #[schemars(description = "Minimum confidence for element_check (default 0.8)")]
-    pub min_confidence: Option<f64>,
-}
-
-#[derive(Deserialize, Serialize, schemars::JsonSchema, Default)]
 pub struct VisionDetectStateArgs {
     #[schemars(description = "Optional screenshot path — if omitted, captures live screen")]
     pub screenshot: Option<String>,
     #[schemars(description = "List of state checks to perform")]
-    pub checks: Vec<VisionStateCheckArg>,
+    pub checks: Vec<crate::protocol::VisionStateCheck>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_state_schema_uses_nested_region() {
+        let schema = schemars::schema_for!(VisionDetectStateArgs);
+        let value = serde_json::to_value(schema).unwrap();
+        let properties = &value["$defs"]["VisionStateCheck"]["properties"];
+
+        assert!(properties.get("region").is_some());
+        assert!(properties.get("x").is_none());
+    }
 }

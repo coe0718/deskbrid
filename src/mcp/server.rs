@@ -2463,7 +2463,7 @@ impl McpServer {
 
     #[tool(
         name = "vision_find_element",
-        description = "Find UI elements matching a template image on screen. Provide template_path (PNG file), optional min_confidence (0-1, default 0.8), and optional max_results (default 10). Returns positions and confidence scores for each match.",
+        description = "Find UI elements matching a template image on screen. Provide template_path (PNG file), optional min_confidence (0-1, default 0.8), and optional max_results (default 5). Returns positions and confidence scores for each match.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,

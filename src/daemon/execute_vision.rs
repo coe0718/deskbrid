@@ -5,7 +5,7 @@ use serde_json::Value;
 
 pub(crate) async fn execute_vision(
     action: Action,
-    backend: &dyn DesktopBackend,
+    backend: Option<&dyn DesktopBackend>,
     _state: &DaemonState,
 ) -> anyhow::Result<Value> {
     use Action::*;
