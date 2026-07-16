@@ -2458,6 +2458,59 @@ impl McpServer {
         )
         .await
     }
+
+    // ── Vision Tools ──────────────────────────────────────────
+
+    #[tool(
+        name = "vision_find_element",
+        description = "Find UI elements matching a template image on screen. Provide template_path (PNG file), optional min_confidence (0-1, default 0.8), and optional max_results (default 10). Returns positions and confidence scores for each match.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn vision_find_element(
+        &self,
+        Parameters(args): Parameters<VisionFindElementArgs>,
+    ) -> String {
+        self.exec("vision.find_element", json!(args)).await
+    }
+
+    #[tool(
+        name = "vision_find_by_text",
+        description = "Find UI elements containing specific text on screen. Uses OCR to recognize text and returns bounding boxes. Provide text query and optional screenshot path.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn vision_find_by_text(
+        &self,
+        Parameters(args): Parameters<VisionFindByTextArgs>,
+    ) -> String {
+        self.exec("vision.find_by_text", json!(args)).await
+    }
+
+    #[tool(
+        name = "vision_detect_state",
+        description = "Detect UI state via visual checks. Each check has kind (color_check, text_check, element_check), expected value, optional region, and optional template_path. Returns pass/fail per check.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn vision_detect_state(
+        &self,
+        Parameters(args): Parameters<VisionDetectStateArgs>,
+    ) -> String {
+        self.exec("vision.detect_state", json!(args)).await
+    }
 }
 
 /// Run the MCP server over stdio transport (for `deskbrid mcp`).

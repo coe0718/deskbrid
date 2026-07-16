@@ -81,6 +81,7 @@ dotenvy = "0.15"
 # instead of guessing from /etc/localtime symlink. Works inside containers
 # and on systems where /etc/timezone is missing or wrong.
 iana-time-zone = "0.1"
+imageproc = "0.27.0"
 
 [[bin]]
 name = "deskbrid"

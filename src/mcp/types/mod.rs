@@ -8,8 +8,11 @@ mod files;
 mod input;
 mod system;
 
+mod vision;
+
 pub use capture::*;
 pub use display::*;
 pub use files::*;
 pub use input::*;
 pub use system::*;
+pub use vision::*;

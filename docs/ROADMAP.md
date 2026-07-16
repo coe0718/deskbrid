@@ -136,7 +136,7 @@ roadmap sections above with expanded shipped scope.
 38. [✅ Canary Actions](#38-canary-actions--auto-suspend)
 39. [✅ User Presence](#39-user-presence-events)
 40. [✅ Time & Location](#40-time-of-day--location-awareness)
-41. [✅ CV Element Detection](#41-element-detection-via-screenshot-cv)
+41. [✅ Vision Element Detection & OCR](#41-element-detection-via-screenshot-cv)
 42. [✅ Region Watching](#42-screen-region-watching)
 43. [✅ Text Change Events](#43-text-change-events-watched-regions)
 44. [✅ Agent Messaging](#44-agent-to-agent-messaging)
