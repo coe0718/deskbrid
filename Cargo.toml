@@ -81,7 +81,9 @@ dotenvy = "0.15"
 # instead of guessing from /etc/localtime symlink. Works inside containers
 # and on systems where /etc/timezone is missing or wrong.
 iana-time-zone = "0.1"
-imageproc = "0.27.0"
+# Vision needs parallel template matching only. Keep imageproc's text, FFT,
+# and broad image-codec defaults disabled; Deskbrid's `image` dependency enables PNG.
+imageproc = { version = "0.27.0", default-features = false, features = ["rayon"] }
 
 [[bin]]
 name = "deskbrid"

@@ -2565,21 +2565,25 @@ VisionFindElement {
     min_confidence: Option<f64>,  // 0.0-1.0, default: 0.8
     max_results: Option<u32>,     // default: 5
 }
-// Returns: [{"x":100,"y":200,"width":50,"height":20,"confidence":0.95}, ...]
+// Returns: {"elements":[{"x":100,"y":200,"width":50,"height":20,"confidence":0.95}, ...],
+//           "count":N,"template_path":"...","screenshot":"...","min_confidence":0.8,"max_results":5}
 
 // Find element by text label (hybrid OCR + position)
 VisionFindByText {
     text: String,
     screenshot: Option<String>,
 }
-// Returns: {"x":100,"y":200,"width":50,"height":20,"text":"Save","confidence":0.92}
+// Returns: {"elements":[{"x":100,"y":200,"width":50,"height":20,"text":"Save","confidence":0.92}, ...],
+//           "count":N,"query":"Save","screenshot":"..."}
 
 // Detect UI state
 VisionDetectState {
     screenshot: Option<String>,
     checks: Vec<StateCheck>,   // list of conditions to verify
 }
-// Returns: {"button_save_enabled": true, "dialog_open": false, "loading_spinner": false}
+// Returns: {"passed":true,"screenshot":"...","results":[
+//   {"kind":"element_check","passed":true,"found":true,...}, ...
+// ]}
 ```
 
 **Effort:** Template matching: ~200 lines (`image` crate, cross-correlation).
