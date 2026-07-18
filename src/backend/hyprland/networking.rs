@@ -115,8 +115,9 @@ pub(super) async fn wifi_connect(
                 let _ = stdin.write_all(pw.as_bytes());
                 let _ = stdin.write_all(b"\n");
             }
-            let output = child
-                .wait_with_output()
+            let output = tokio::task::spawn_blocking(move || child.wait_with_output())
+                .await
+                .map_err(|e| anyhow::anyhow!("nmcli wait task failed: {e}"))?
                 .map_err(|e| anyhow::anyhow!("failed to read nmcli output: {e}"))?;
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
@@ -143,4 +144,81 @@ fn redact_wifi_error(s: &str) -> String {
         .filter(|line| !line.to_lowercase().contains("password"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+#[allow(clippy::await_holding_lock)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn wifi_connect_password_wait_does_not_block_async_runtime() {
+        let _env_guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let temp_dir = tempfile::tempdir().expect("create fake nmcli directory");
+        let nmcli = temp_dir.path().join("nmcli");
+        std::fs::write(&nmcli, "#!/bin/sh\nread -r password\nsleep 0.3\n")
+            .expect("write fake nmcli");
+
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&nmcli)
+            .expect("read fake nmcli metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&nmcli, permissions).expect("make fake nmcli executable");
+
+        let previous_path = std::env::var_os("PATH");
+        let mut paths = vec![temp_dir.path().to_path_buf()];
+        if let Some(path) = previous_path.as_ref() {
+            paths.extend(std::env::split_paths(path));
+        }
+        let test_path = std::env::join_paths(paths).expect("build test PATH");
+        // SAFETY: TEST_ENV_LOCK serializes all process environment mutations in tests.
+        unsafe {
+            std::env::set_var("PATH", test_path);
+        }
+
+        let (event_tx, _) = tokio::sync::broadcast::channel(1);
+        let backend = HyprBackend {
+            event_tx,
+            watchers: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            last_mouse: Mutex::new((0.0, 0.0)),
+            monitors: Mutex::new(Vec::new()),
+            instance_sig: None,
+            wl_socket: None,
+            xdg_runtime: "/tmp".to_string(),
+        };
+
+        let heartbeat_ran = Arc::new(AtomicBool::new(false));
+        let heartbeat_flag = Arc::clone(&heartbeat_ran);
+        let heartbeat = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            heartbeat_flag.store(true, Ordering::SeqCst);
+        });
+
+        let connect_result = wifi_connect(&backend, "Deskbrid Test", Some("secret")).await;
+        let runtime_stayed_responsive = heartbeat_ran.load(Ordering::SeqCst);
+        heartbeat.await.expect("heartbeat task completes");
+
+        match previous_path {
+            Some(path) => unsafe {
+                // SAFETY: TEST_ENV_LOCK is still held while restoring PATH.
+                std::env::set_var("PATH", path);
+            },
+            None => unsafe {
+                // SAFETY: TEST_ENV_LOCK is still held while restoring PATH.
+                std::env::remove_var("PATH");
+            },
+        }
+
+        connect_result.expect("fake nmcli succeeds");
+        assert!(
+            runtime_stayed_responsive,
+            "nmcli wait blocked the single-threaded Tokio runtime"
+        );
+    }
 }
