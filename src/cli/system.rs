@@ -39,6 +39,19 @@ pub enum SystemCmd {
     PrintJobResume { job_id: String },
     /// Read system pressure (PSI) — CPU, memory, IO
     Pressure,
+    /// Filesystem usage for one path or all mounts
+    StorageUsage {
+        /// Optional path; omit to list every real mount
+        path: Option<String>,
+    },
+    /// Largest files/directories under a path
+    StorageScan {
+        path: String,
+        #[arg(long)]
+        max_depth: Option<u32>,
+        #[arg(long)]
+        limit: Option<u32>,
+    },
     /// Read thermal zones from /sys/class/thermal
     Thermal,
     /// Read CPU frequency details

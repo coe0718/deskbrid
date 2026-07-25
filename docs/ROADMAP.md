@@ -73,6 +73,7 @@ it to the completed table below.
 | [96. System Pressure / PSI](#96-system-pressure--psi) | Read /proc/pressure/{cpu,memory,io} for PSI stats — agents can decide to proceed, back off, or retry | `src/daemon/execute_system.rs`, `src/mcp/tools_system.rs`, `src/cli/system.rs`, `clients/python/` |
 | [122. Mock Backend](#122-mock-backend-for-agent-testing) | Deterministic `--mock` desktop backend with scenario loading and mock dispatch coverage | `src/backend/mock.rs`, `src/daemon/mod.rs`, `src/daemon/tests.rs` |
 | [29. Keyring / Secrets](#29-secret--keyring-access) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
+| [95. Storage Monitoring](#95-storage-monitoring) | `storage.usage` / `storage.scan` via statvfs + /proc/mounts + directory walk; CLI, MCP, Python | `src/daemon/storage.rs`, `src/protocol/`, `src/cli/system.rs`, `src/mcp/server.rs`, `clients/python/` |
 
 ### Already Built Reference
 
@@ -188,7 +189,7 @@ roadmap sections above with expanded shipped scope.
 91. [Compositor Rules](#92-compositor--window-manager-rules)
 92. [Workspace Lifecycle](#93-workspace-lifecycle)
 93. [File Metadata](#94-advanced-file-metadata)
-94. [Storage Monitor](#95-storage-monitoring)
+94. [✅ Storage Monitor](#95-storage-monitoring)
 95. [✅ System Pressure](#96-system-pressure--psi)
 96. [Firewall](#97-network-firewall-management)
 97. [Proxy](#98-network-proxy-management)
@@ -5023,26 +5024,33 @@ Use Rust crates: `zip`, `tar`, `flate2`, `zstd`. No shelling out to `tar` or
 
 ## 95. Storage Monitoring
 
+**Status:** ✅ Done. `storage.usage` and `storage.scan` are exposed through
+protocol, CLI (`deskbrid system storage-usage` / `storage-scan`), MCP
+(`storage_usage`, `storage_scan`), and the Python client.
+
 ### storage.usage
 
-**What's Missing:** Agents have no way to check disk space, find the biggest
+**Original Gap:** Agents had no way to check disk space, find the biggest
 directories, or get low-space alerts.
 
 **Implementation:**
 
 ```rust
 StorageUsage { path: Option<String> },
-// Returns: { total, used, free, percent_used, mount_point, filesystem }
-StorageUsageScan { path: String, max_depth: Option<u32> },
-// Returns: sorted list of largest directories/files under path
+// path omitted → every real mount from /proc/mounts (virtual FS filtered)
+// path set     → single filesystem for that path
+// Returns mounts[] with total/used/free/available bytes, percent_used,
+// warning (>=90%) and critical (>=95%) flags. Sorted fullest-first.
 
-// Backend: nix crate + std::fs for filesystem info
-// Periodic events:
-storage.low_space → fires when any mount crosses a threshold
-storage.events.subscribe → "warning" at 90%, "critical" at 95%
+StorageScan { path: String, max_depth: Option<u32>, limit: Option<u32> },
+// Immediate children under path, sized recursively up to max_depth (default 1, max 8),
+// top `limit` entries (default 25, max 500). Visit cap 50k nodes.
 ```
 
-**Effort:** ~150 lines. Filesystem stats + tree walker.
+Backend: `libc::statvfs` + `/proc/mounts` + directory walk in
+`src/daemon/storage.rs` (spawn_blocking). No new crates.
+
+**Effort:** ~250 lines.
 
 ---
 

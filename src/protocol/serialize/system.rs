@@ -136,6 +136,27 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             json!({"type": "system.print_job_resume", "id": id, "job_id": job_id})
         }
         Action::SystemPressure => json!({"type": "system.pressure", "id": id}),
+        Action::StorageUsage { path } => {
+            let mut obj = json!({"type": "storage.usage", "id": id});
+            if let Some(path) = path {
+                obj["path"] = json!(path);
+            }
+            obj
+        }
+        Action::StorageScan {
+            path,
+            max_depth,
+            limit,
+        } => {
+            let mut obj = json!({"type": "storage.scan", "id": id, "path": path});
+            if let Some(max_depth) = max_depth {
+                obj["max_depth"] = json!(max_depth);
+            }
+            if let Some(limit) = limit {
+                obj["limit"] = json!(limit);
+            }
+            obj
+        }
         Action::SystemThermalGet => json!({"type": "system.thermal", "id": id}),
         Action::SystemCpuFrequency => json!({"type": "system.cpu.frequency", "id": id}),
         Action::SystemCpuGovernor => json!({"type": "system.cpu.governor", "id": id}),

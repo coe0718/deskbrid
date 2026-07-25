@@ -103,6 +103,8 @@ pub fn action_type(action: &Action) -> &'static str {
         Action::SystemPrintJobPause { .. } => "system.print_job_pause",
         Action::SystemPrintJobResume { .. } => "system.print_job_resume",
         Action::SystemPressure => "system.pressure",
+        Action::StorageUsage { .. } => "storage.usage",
+        Action::StorageScan { .. } => "storage.scan",
         Action::VisionFindElement { .. } => "vision.find_element",
         Action::VisionFindByText { .. } => "vision.find_by_text",
         Action::VisionDetectState { .. } => "vision.detect_state",

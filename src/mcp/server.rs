@@ -2112,6 +2112,55 @@ impl McpServer {
     }
 
     #[tool(
+        name = "storage_usage",
+        description = "Filesystem usage for one path or every real mount. Returns total/used/free/available bytes, percent_used, and warning/critical flags (90%/95%).",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn storage_usage(
+        &self,
+        Parameters(StorageUsageArgs { path }): Parameters<StorageUsageArgs>,
+    ) -> String {
+        let mut args = json!({});
+        if let Some(path) = path {
+            args["path"] = json!(path);
+        }
+        self.exec("storage.usage", args).await
+    }
+
+    #[tool(
+        name = "storage_scan",
+        description = "List the largest files and directories under a path. Use to find disk hogs before cleanup.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn storage_scan(
+        &self,
+        Parameters(StorageScanArgs {
+            path,
+            max_depth,
+            limit,
+        }): Parameters<StorageScanArgs>,
+    ) -> String {
+        let mut args = json!({"path": path});
+        if let Some(max_depth) = max_depth {
+            args["max_depth"] = json!(max_depth);
+        }
+        if let Some(limit) = limit {
+            args["limit"] = json!(limit);
+        }
+        self.exec("storage.scan", args).await
+    }
+
+    #[tool(
         name = "terminal_create",
         description = "Create a PTY terminal. Returns a terminal_id for subsequent operations.",
         annotations(

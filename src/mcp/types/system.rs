@@ -183,6 +183,24 @@ pub struct PrintFileArgs {
     pub path: String,
 }
 
+// ── Storage ────────────────────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct StorageUsageArgs {
+    #[schemars(description = "Optional path. Omit to list every real mount.")]
+    pub path: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct StorageScanArgs {
+    #[schemars(description = "Directory to scan for large files/directories")]
+    pub path: String,
+    #[schemars(description = "How deep to recurse when sizing directories (default 1, max 8)")]
+    pub max_depth: Option<u32>,
+    #[schemars(description = "Max entries to return (default 25, max 500)")]
+    pub limit: Option<u32>,
+}
+
 // ── Desktop Settings ───────────────────────────────────────
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]

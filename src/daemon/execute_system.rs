@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::{
     build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, expand_path,
-    normalize_coords, thermal_get,
+    normalize_coords, storage_scan, storage_usage, thermal_get,
 };
 
 pub(crate) async fn execute_system(
@@ -70,6 +70,12 @@ pub(crate) async fn execute_system(
             serde_json::json!({"resumed": job_id})
         }
         SystemPressure => system_pressure().await?,
+        StorageUsage { path } => storage_usage(path).await?,
+        StorageScan {
+            path,
+            max_depth,
+            limit,
+        } => storage_scan(path, max_depth, limit).await?,
         SystemThermalGet => thermal_get().await?,
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,

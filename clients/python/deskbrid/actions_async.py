@@ -403,6 +403,27 @@ class AsyncActionsMixin:
         """Read Linux Pressure Stall Information (PSI) — CPU, memory, IO pressure."""
         return await self._request("system.pressure")
 
+    async def storage_usage(self, path: str | None = None) -> dict[str, Any]:
+        """Filesystem usage for one path or every real mount."""
+        params: dict[str, Any] = {}
+        if path is not None:
+            params["path"] = path
+        return await self._request("storage.usage", params)
+
+    async def storage_scan(
+        self,
+        path: str,
+        max_depth: int | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Largest files/directories under a path."""
+        params: dict[str, Any] = {"path": path}
+        if max_depth is not None:
+            params["max_depth"] = max_depth
+        if limit is not None:
+            params["limit"] = limit
+        return await self._request("storage.scan", params)
+
     async def cpu_frequency(self) -> dict[str, Any]:
         return await self._request("system.cpu.frequency")
 

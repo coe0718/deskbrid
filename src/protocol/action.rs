@@ -412,6 +412,16 @@ pub enum Action {
         job_id: String,
     },
     SystemPressure,
+    /// Filesystem usage for one path or every real mount (roadmap #95).
+    StorageUsage {
+        path: Option<String>,
+    },
+    /// Largest files/directories under a path (roadmap #95).
+    StorageScan {
+        path: String,
+        max_depth: Option<u32>,
+        limit: Option<u32>,
+    },
     SystemThermalGet,
     SystemCpuFrequency,
     SystemCpuGovernor,

@@ -89,6 +89,8 @@ impl Action {
             "system.print_job_pause",
             "system.print_job_resume",
             "system.pressure",
+            "storage.usage",
+            "storage.scan",
             "vision.find_element",
             "vision.find_by_text",
             "vision.detect_state",

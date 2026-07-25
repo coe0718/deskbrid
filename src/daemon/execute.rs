@@ -222,11 +222,14 @@ pub async fn execute_action(
         | SystemBacklightSet { .. }
         | SystemPrintList
         | SystemPrintDefault { .. }
+        | SystemPrintFile { .. }
         | SystemPrintJobList
         | SystemPrintJobCancel { .. }
         | SystemPrintJobPause { .. }
         | SystemPrintJobResume { .. }
         | SystemPressure
+        | StorageUsage { .. }
+        | StorageScan { .. }
         | SystemThermalGet
         | SystemCpuFrequency
         | SystemCpuGovernor

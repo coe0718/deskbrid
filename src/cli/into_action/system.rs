@@ -46,6 +46,16 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             SystemCmd::PrintJobPause { job_id } => Action::SystemPrintJobPause { job_id },
             SystemCmd::PrintJobResume { job_id } => Action::SystemPrintJobResume { job_id },
             SystemCmd::Pressure => Action::SystemPressure,
+            SystemCmd::StorageUsage { path } => Action::StorageUsage { path },
+            SystemCmd::StorageScan {
+                path,
+                max_depth,
+                limit,
+            } => Action::StorageScan {
+                path,
+                max_depth,
+                limit,
+            },
             SystemCmd::Thermal => Action::SystemThermalGet,
             SystemCmd::CpuFrequency => Action::SystemCpuFrequency,
             SystemCmd::CpuGovernor => Action::SystemCpuGovernor,

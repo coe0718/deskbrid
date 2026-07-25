@@ -98,6 +98,14 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             job_id: required_non_empty_string(raw, "job_id")?,
         },
         "system.pressure" => Action::SystemPressure,
+        "storage.usage" => Action::StorageUsage {
+            path: optional_non_empty_string(raw, "path")?,
+        },
+        "storage.scan" => Action::StorageScan {
+            path: required_non_empty_string(raw, "path")?,
+            max_depth: optional_u32(raw, "max_depth")?,
+            limit: optional_u32(raw, "limit")?,
+        },
         "system.thermal" => Action::SystemThermalGet,
         "system.cpu.frequency" => Action::SystemCpuFrequency,
         "system.cpu.governor" => Action::SystemCpuGovernor,

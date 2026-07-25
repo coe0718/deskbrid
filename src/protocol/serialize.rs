@@ -158,6 +158,8 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemPrintJobPause { .. }
         | Action::SystemPrintJobResume { .. }
         | Action::SystemPressure
+        | Action::StorageUsage { .. }
+        | Action::StorageScan { .. }
         | Action::SystemThermalGet
         | Action::SystemCpuFrequency
         | Action::SystemCpuGovernor

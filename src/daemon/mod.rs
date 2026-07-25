@@ -66,6 +66,7 @@ pub(crate) mod region_watch;
 pub(crate) mod rules;
 pub(crate) mod schedule;
 pub mod search;
+mod storage;
 mod sysfs;
 mod system;
 pub(crate) mod tcp;
@@ -111,6 +112,7 @@ pub(crate) use rate_limit::{
     action_namespace, check_rate_limit, parse_limit_string, rate_limit_from_env,
     rate_limited_response,
 };
+pub(crate) use storage::{storage_scan, storage_usage};
 pub(crate) use sysfs::{cpu_frequency, cpu_governor, cpu_set_governor, thermal_get};
 pub use system::{execute_system_control_action, is_system_control_action};
 pub use terminal::{execute_terminal_action, is_terminal_action};

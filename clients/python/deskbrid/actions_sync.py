@@ -296,6 +296,21 @@ class SyncActionsMixin:
         """Read Linux Pressure Stall Information (PSI) — CPU, memory, IO pressure."""
         return self._loop.submit(self._client.pressure()).result()
 
+    def storage_usage(self, path: str | None = None) -> dict[str, Any]:
+        """Filesystem usage for one path or every real mount."""
+        return self._loop.submit(self._client.storage_usage(path=path)).result()
+
+    def storage_scan(
+        self,
+        path: str,
+        max_depth: int | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Largest files/directories under a path."""
+        return self._loop.submit(
+            self._client.storage_scan(path=path, max_depth=max_depth, limit=limit)
+        ).result()
+
     def cpu_frequency(self) -> dict[str, Any]:
         return self._loop.submit(self._client.cpu_frequency()).result()
 
