@@ -113,12 +113,12 @@ fn detect_buses() -> anyhow::Result<Vec<String>> {
             if trailing.is_empty() {
                 continue;
             }
-            if let Ok(num) = trailing.parse::<u8>() {
-                if num >= 1 && num <= 32 {
-                    let s = num.to_string();
-                    if !buses.contains(&s) {
-                        buses.push(s);
-                    }
+            if let Ok(num) = trailing.parse::<u8>()
+                && (1..=32).contains(&num)
+            {
+                let s = num.to_string();
+                if !buses.contains(&s) {
+                    buses.push(s);
                 }
             }
         }
