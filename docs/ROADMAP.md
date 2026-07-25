@@ -74,6 +74,7 @@ it to the completed table below.
 | [122. Mock Backend](#122-mock-backend-for-agent-testing) | Deterministic `--mock` desktop backend with scenario loading and mock dispatch coverage | `src/backend/mock.rs`, `src/daemon/mod.rs`, `src/daemon/tests.rs` |
 | [29. Keyring / Secrets](#29-secret--keyring-access) | Secret Service integration for secure credential storage and retrieval, confirmation-gated access, CLI, MCP tools, dashboard card | `src/daemon/execute_secrets.rs`, `src/protocol/`, `src/mcp/tools_secrets.rs`, `src/cli/secrets.rs` |
 | [95. Storage Monitoring](#95-storage-monitoring) | `storage.usage` / `storage.scan` via statvfs + /proc/mounts + directory walk; CLI, MCP, Python | `src/daemon/storage.rs`, `src/protocol/`, `src/cli/system.rs`, `src/mcp/server.rs`, `clients/python/` |
+| [60. Monitor DDC/CI](#60-monitor-ddcci) | `monitor.ddc_list/getvcp/setvcp/brightness/contrast/power/input` via ddcutil over I2C; CLI, MCP, Python; runs without a desktop backend | `src/daemon/ddc.rs`, `src/daemon/ddc_dispatch.rs`, `src/protocol/`, `src/cli/system.rs`, `src/mcp/server.rs`, `src/mcp/types/system.rs`, `clients/python/` |
 
 ### Already Built Reference
 
@@ -156,8 +157,8 @@ roadmap sections above with expanded shipped scope.
 57. [✅ Power Profiles](#57-power-profiles-daemon)
 58. [USB Device Control](#58-usb-device-power-control)
 59. [Input Device Config](#59-input-device-configuration)
-60. [Monitor DDC/CI](#60-monitor-ddcci)
-61. [✅ Notification History](#61-notification-history--action-buttons)
+59. [✅ Monitor DDC/CI](#60-monitor-ddcci)
+60. [✅ Notification History](#61-notification-history--action-buttons)
 62. [✅ NetworkManager D-Bus](#62-networkmanager-d-bus)
 63. [Tailscale / WireGuard](#63-tailscale--wireguard-status)
 64. [mDNS Discovery](#64-mdns-advertisement-deskbrid-instance-discovery)
@@ -3457,45 +3458,46 @@ InputKeyboardSetRepeat {
 
 ## 60. Monitor DDC/CI
 
-**What's Missing:** Monitor brightness/contrast currently requires DE support
-(xrandr, wlr-randr, Mutter). DDC/CI adjusts monitor settings directly over the
-display cable — works on any monitor, any OS.
+**Status:** ✅ Done. `monitor.ddc_list`, `monitor.ddc_getvcp`,
+`monitor.ddc_setvcp`, `monitor.ddc_brightness`, `monitor.ddc_contrast`,
+`monitor.ddc_power`, `monitor.ddc_input` are exposed through protocol,
+CLI (`deskbrid system ddc-list`, `ddc-get-vcp`, `ddc-set-vcp`,
+`ddc-brightness`, `ddc-contrast`, `ddc-power`, `ddc-input`), MCP
+(`monitor_ddc_list`, `monitor_ddc_getvcp`, `monitor_ddc_setvcp`,
+`monitor_ddc_brightness`, `monitor_ddc_contrast`, `monitor_ddc_power`,
+`monitor_ddc_input`), and the Python client.
 
-### Implementation
+**Original Gap:** Monitor brightness/contrast/input/power could only be
+tweaked through DE backends (xrandr, wlr-randr, Mutter, hyprctl).
+DDC/CI talks to the monitor's USB-I2C rail directly, working on any
+monitor regardless of compositor.
 
-```rust
-// ddccontrol (CLI):
-// ddccontrol -r 0x10 -w 50 dev:/dev/i2c-N  // brightness
-// ddccontrol -r 0x12 -w 50 dev:/dev/i2c-N  // contrast
+**Implementation:**
 
-// ddcutil (better maintained):
-// ddcutil detect                                  → list monitors
-// ddcutil getvcp 10                                → read brightness
-// ddcutil setvcp 10 80                             → set brightness
-// ddcutil capabilities dev:/dev/i2c-4              → VCP features
+```bash
+ddcutil detect --terse                                # discover bus numbers
+ddcutil --bus <N> getvcp 0x10  → current value, max value
+ddcutil --bus <N> setvcp 0x10 50
 ```
 
-**Key VCP features codes:**
-- `0x10`: Brightness
-- `0x12`: Contrast
-- `0x60`: Input source (HDMI1, DP, USB-C)
-- `0xDC`: Power mode (on/off/sleep)
-- `0x62`: Audio volume (for monitors with speakers)
+VCP codes used:
+- `0x10` (16) Brightness · `0x12` (18) Contrast · `0x14` (20) Color preset
+- `0x60` (96) Input source · `0x62` (98) Audio volume
+- `0xD6` (214) Power mode
 
-### Protocol Actions
+Backend: ddcutil ≥1.4. DDC dispatch runs **before** the desktop-backend
+gate in `dispatch.rs` — no DE required to talk to the monitor.
 
-```rust
-MonitorDDCList,
-// Returns: [{"i2c_bus": "/dev/i2c-4", "model": "DELL U2723QE", "edid": "..."}, ...]
+**Files:** `src/daemon/ddc.rs`, `src/daemon/ddc_dispatch.rs`,
+`src/daemon/dispatch.rs`, `src/protocol/action.rs`,
+`src/protocol/parse/monitor.rs`, `src/protocol/serialize/{system.rs,action_type.rs}`,
+`src/protocol/serialize.rs`, `src/protocol/action_impl.rs`,
+`src/cli/system.rs`, `src/cli/into_action/system.rs`,
+`src/daemon/execute_system.rs`, `src/mcp/server.rs`,
+`src/mcp/types/system.rs`, `clients/python/deskbrid/{actions_async.py,actions_sync.py}`,
+`docs/ROADMAP.md`.
 
-MonitorDDCGetVcp { bus: String, vcp_code: u16 },
-MonitorDDCSetVcp { bus: String, vcp_code: u16, value: u16 },
-
-MonitorDDCBrightness { bus: String, percent: f64 },
-MonitorDDCContrast { bus: String, percent: f64 },
-MonitorDDCInput { bus: String, input: String },  // "hdmi1", "dp", "usb-c"
-MonitorDDCPower { bus: String, state: String },   // "on", "off", "sleep"
-```
+**Effort:** ~250 lines.
 
 **Effort:** ~200 lines. `ddcutil` CLI wrapper.
 

@@ -57,6 +57,23 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
                 limit,
             },
             SystemCmd::Thermal => Action::SystemThermalGet,
+            SystemCmd::DdcList => Action::DdcList,
+            SystemCmd::DdcGetVcp { bus, vcp_code } => Action::DdcGetVcp { bus, vcp_code },
+            SystemCmd::DdcSetVcp {
+                bus,
+                vcp_code,
+                value,
+            } => Action::DdcSetVcp {
+                bus,
+                vcp_code,
+                value,
+            },
+            SystemCmd::DdcBrightness { bus, percent } => {
+                Action::MonitorDdcBrightness { bus, percent }
+            }
+            SystemCmd::DdcContrast { bus, percent } => Action::MonitorDdcContrast { bus, percent },
+            SystemCmd::DdcPower { bus, state } => Action::MonitorDdcPower { bus, state },
+            SystemCmd::DdcInput { bus, input } => Action::MonitorDdcInput { bus, input },
             SystemCmd::CpuFrequency => Action::SystemCpuFrequency,
             SystemCmd::CpuGovernor => Action::SystemCpuGovernor,
             SystemCmd::CpuSetGovernor { governor } => Action::SystemCpuSetGovernor { governor },

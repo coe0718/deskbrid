@@ -2161,6 +2161,144 @@ impl McpServer {
     }
 
     #[tool(
+        name = "monitor_ddc_list",
+        description = "List monitors reachable via DDC/CI. Returns i2c_bus, model, mfg_id, serial, vcp_version.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_list(&self) -> String {
+        self.exec("monitor.ddc_list", json!({})).await
+    }
+
+    #[tool(
+        name = "monitor_ddc_getvcp",
+        description = "Read a VCP feature code from a DDC/CI monitor. VCP codes 16 (brightness), 18 (contrast), 96 (input source), 214 (power), 98 (audio volume).",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_getvcp(
+        &self,
+        Parameters(DdcBusCode { bus, vcp_code }): Parameters<DdcBusCode>,
+    ) -> String {
+        self.exec(
+            "monitor.ddc_getvcp",
+            json!({"bus": bus, "vcp_code": vcp_code}),
+        )
+        .await
+    }
+
+    #[tool(
+        name = "monitor_ddc_setvcp",
+        description = "Set a raw VCP feature code value on a DDC/CI monitor.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_setvcp(
+        &self,
+        Parameters(DdcBusCodeValue {
+            bus,
+            vcp_code,
+            value,
+        }): Parameters<DdcBusCodeValue>,
+    ) -> String {
+        self.exec(
+            "monitor.ddc_setvcp",
+            json!({"bus": bus, "vcp_code": vcp_code, "value": value}),
+        )
+        .await
+    }
+
+    #[tool(
+        name = "monitor_ddc_brightness",
+        description = "Set DDC/CI monitor brightness (0.0..=100.0).",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_brightness(
+        &self,
+        Parameters(DdcBusPercent { bus, percent }): Parameters<DdcBusPercent>,
+    ) -> String {
+        self.exec(
+            "monitor.ddc_brightness",
+            json!({"bus": bus, "percent": percent}),
+        )
+        .await
+    }
+
+    #[tool(
+        name = "monitor_ddc_contrast",
+        description = "Set DDC/CI monitor contrast (0.0..=100.0).",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_contrast(
+        &self,
+        Parameters(DdcBusPercent { bus, percent }): Parameters<DdcBusPercent>,
+    ) -> String {
+        self.exec(
+            "monitor.ddc_contrast",
+            json!({"bus": bus, "percent": percent}),
+        )
+        .await
+    }
+
+    #[tool(
+        name = "monitor_ddc_power",
+        description = "Set monitor power state via DDC/CI: 'on' / 'off' / 'sleep'.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_power(
+        &self,
+        Parameters(DdcBusState { bus, state }): Parameters<DdcBusState>,
+    ) -> String {
+        self.exec("monitor.ddc_power", json!({"bus": bus, "state": state}))
+            .await
+    }
+
+    #[tool(
+        name = "monitor_ddc_input",
+        description = "Switch monitor input source: hdmi1 / hdmi2 / dp / dp2 / usb-c.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn monitor_ddc_input(
+        &self,
+        Parameters(DdcBusInput { bus, input }): Parameters<DdcBusInput>,
+    ) -> String {
+        self.exec("monitor.ddc_input", json!({"bus": bus, "input": input}))
+            .await
+    }
+
+    #[tool(
         name = "terminal_create",
         description = "Create a PTY terminal. Returns a terminal_id for subsequent operations.",
         annotations(

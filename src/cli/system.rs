@@ -54,6 +54,24 @@ pub enum SystemCmd {
     },
     /// Read thermal zones from /sys/class/thermal
     Thermal,
+    /// List DDC/CI monitors
+    DdcList,
+    /// Read a VCP feature code from a monitor
+    DdcGetVcp { bus: String, vcp_code: u16 },
+    /// Set a VCP feature code on a monitor
+    DdcSetVcp {
+        bus: String,
+        vcp_code: u16,
+        value: u16,
+    },
+    /// Set DDC/CI monitor brightness (0-100%)
+    DdcBrightness { bus: String, percent: f64 },
+    /// Set DDC/CI monitor contrast (0-100%)
+    DdcContrast { bus: String, percent: f64 },
+    /// Set monitor power state via DDC/CI
+    DdcPower { bus: String, state: String },
+    /// Set monitor input source via DDC/CI
+    DdcInput { bus: String, input: String },
     /// Read CPU frequency details
     CpuFrequency,
     /// Read CPU frequency governors

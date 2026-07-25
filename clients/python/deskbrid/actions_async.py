@@ -424,6 +424,46 @@ class AsyncActionsMixin:
             params["limit"] = limit
         return await self._request("storage.scan", params)
 
+    async def monitor_ddc_list(self) -> dict[str, Any]:
+        """List monitors reachable via DDC/CI."""
+        return await self._request("monitor.ddc_list")
+
+    async def monitor_ddc_getvcp(self, bus: str, vcp_code: int) -> dict[str, Any]:
+        """Read a VCP feature code from a DDC/CI monitor."""
+        return await self._request(
+            "monitor.ddc_getvcp", {"bus": bus, "vcp_code": vcp_code}
+        )
+
+    async def monitor_ddc_setvcp(self, bus: str, vcp_code: int, value: int) -> dict[str, Any]:
+        """Set a raw VCP feature code value on a DDC/CI monitor."""
+        return await self._request(
+            "monitor.ddc_setvcp", {"bus": bus, "vcp_code": vcp_code, "value": value}
+        )
+
+    async def monitor_ddc_brightness(self, bus: str, percent: float) -> dict[str, Any]:
+        """Set DDC/CI monitor brightness (0.0..=100.0)."""
+        return await self._request(
+            "monitor.ddc_brightness", {"bus": bus, "percent": percent}
+        )
+
+    async def monitor_ddc_contrast(self, bus: str, percent: float) -> dict[str, Any]:
+        """Set DDC/CI monitor contrast (0.0..=100.0)."""
+        return await self._request(
+            "monitor.ddc_contrast", {"bus": bus, "percent": percent}
+        )
+
+    async def monitor_ddc_power(self, bus: str, state: str) -> dict[str, Any]:
+        """Set monitor power state: 'on' / 'off' / 'sleep'."""
+        return await self._request(
+            "monitor.ddc_power", {"bus": bus, "state": state}
+        )
+
+    async def monitor_ddc_input(self, bus: str, input: str) -> dict[str, Any]:
+        """Switch monitor input: hdmi1 / hdmi2 / dp / dp2 / usb-c."""
+        return await self._request(
+            "monitor.ddc_input", {"bus": bus, "input": input}
+        )
+
     async def cpu_frequency(self) -> dict[str, Any]:
         return await self._request("system.cpu.frequency")
 

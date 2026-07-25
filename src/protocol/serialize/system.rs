@@ -157,6 +157,29 @@ pub(super) fn serialize_system(action: &Action, id: &str) -> serde_json::Value {
             }
             obj
         }
+        Action::DdcList => json!({"type": "monitor.ddc_list", "id": id}),
+        Action::DdcGetVcp { bus, vcp_code } => {
+            json!({"type": "monitor.ddc_getvcp", "id": id, "bus": bus, "vcp_code": vcp_code})
+        }
+        Action::DdcSetVcp {
+            bus,
+            vcp_code,
+            value,
+        } => {
+            json!({"type": "monitor.ddc_setvcp", "id": id, "bus": bus, "vcp_code": vcp_code, "value": value})
+        }
+        Action::MonitorDdcBrightness { bus, percent } => {
+            json!({"type": "monitor.ddc_brightness", "id": id, "bus": bus, "percent": percent})
+        }
+        Action::MonitorDdcContrast { bus, percent } => {
+            json!({"type": "monitor.ddc_contrast", "id": id, "bus": bus, "percent": percent})
+        }
+        Action::MonitorDdcPower { bus, state } => {
+            json!({"type": "monitor.ddc_power", "id": id, "bus": bus, "state": state})
+        }
+        Action::MonitorDdcInput { bus, input } => {
+            json!({"type": "monitor.ddc_input", "id": id, "bus": bus, "input": input})
+        }
         Action::SystemThermalGet => json!({"type": "system.thermal", "id": id}),
         Action::SystemCpuFrequency => json!({"type": "system.cpu.frequency", "id": id}),
         Action::SystemCpuGovernor => json!({"type": "system.cpu.governor", "id": id}),

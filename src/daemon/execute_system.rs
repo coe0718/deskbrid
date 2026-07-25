@@ -4,7 +4,8 @@ use crate::protocol::Action;
 use serde_json::Value;
 
 use super::{
-    build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, expand_path,
+    build_system_health, cpu_frequency, cpu_governor, cpu_set_governor, ddc_brightness,
+    ddc_contrast, ddc_getvcp, ddc_input, ddc_list, ddc_power, ddc_setvcp, expand_path,
     normalize_coords, storage_scan, storage_usage, thermal_get,
 };
 
@@ -77,6 +78,24 @@ pub(crate) async fn execute_system(
             limit,
         } => storage_scan(path, max_depth, limit).await?,
         SystemThermalGet => thermal_get().await?,
+        // DDC/CI — monitor control over I2C
+        DdcList => ddc_list().await?,
+        DdcGetVcp { ref bus, vcp_code } => ddc_getvcp(bus.clone(), vcp_code).await?,
+        DdcSetVcp {
+            ref bus,
+            vcp_code,
+            value,
+        } => ddc_setvcp(bus.clone(), vcp_code, value).await?,
+        MonitorDdcBrightness {
+            ref bus,
+            ref percent,
+        } => ddc_brightness(bus.clone(), *percent).await?,
+        MonitorDdcContrast {
+            ref bus,
+            ref percent,
+        } => ddc_contrast(bus.clone(), *percent).await?,
+        MonitorDdcPower { ref bus, ref state } => ddc_power(bus.clone(), state.clone()).await?,
+        MonitorDdcInput { ref bus, ref input } => ddc_input(bus.clone(), input.clone()).await?,
         SystemCpuFrequency => cpu_frequency().await?,
         SystemCpuGovernor => cpu_governor().await?,
         SystemCpuSetGovernor { ref governor } => cpu_set_governor(governor).await?,

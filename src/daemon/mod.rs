@@ -15,10 +15,12 @@ mod capabilities;
 mod client;
 pub(crate) mod clipboard;
 mod dashboard;
+mod ddc;
+mod ddc_dispatch;
 mod dispatch;
 mod dispatch_helpers;
 mod env;
-mod locale_monitor;
+pub mod locale_monitor;
 
 pub(crate) mod execute;
 mod execute_a11y;
@@ -94,6 +96,9 @@ pub use client::handle_client;
 pub(crate) use clipboard::{
     clipboard_history_capacity_from_env, execute_clipboard_history_action,
     is_clipboard_history_action, record_clipboard_text,
+};
+pub(crate) use ddc::{
+    ddc_brightness, ddc_contrast, ddc_getvcp, ddc_input, ddc_list, ddc_power, ddc_setvcp,
 };
 pub use dispatch::dispatch_action;
 pub(crate) use dispatch::dispatch_action_with_options;

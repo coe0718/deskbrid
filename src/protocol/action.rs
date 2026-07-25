@@ -465,6 +465,33 @@ pub enum Action {
         method: String,
         args: Option<serde_json::Value>,
     },
+    // DDC/CI — monitor control over I2C (roadmap #60)
+    DdcList,
+    DdcGetVcp {
+        bus: String,
+        vcp_code: u16,
+    },
+    DdcSetVcp {
+        bus: String,
+        vcp_code: u16,
+        value: u16,
+    },
+    MonitorDdcBrightness {
+        bus: String,
+        percent: f64,
+    },
+    MonitorDdcContrast {
+        bus: String,
+        percent: f64,
+    },
+    MonitorDdcPower {
+        bus: String,
+        state: String,
+    },
+    MonitorDdcInput {
+        bus: String,
+        input: String,
+    },
 
     // Schedule
     ScheduleList,

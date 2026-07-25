@@ -106,6 +106,33 @@ pub(super) fn parse_system(raw: &Value, _id: &str, type_str: &str) -> anyhow::Re
             max_depth: optional_u32(raw, "max_depth")?,
             limit: optional_u32(raw, "limit")?,
         },
+
+        "monitor.ddc_list" => Action::DdcList,
+        "monitor.ddc_getvcp" => Action::DdcGetVcp {
+            bus: required_non_empty_string(raw, "bus")?,
+            vcp_code: required_positive_u16(raw, "vcp_code")?,
+        },
+        "monitor.ddc_setvcp" => Action::DdcSetVcp {
+            bus: required_non_empty_string(raw, "bus")?,
+            vcp_code: required_positive_u16(raw, "vcp_code")?,
+            value: raw["value"].as_u64().unwrap_or(0) as u16,
+        },
+        "monitor.ddc_brightness" => Action::MonitorDdcBrightness {
+            bus: required_non_empty_string(raw, "bus")?,
+            percent: raw["percent"].as_f64().unwrap_or(50.0),
+        },
+        "monitor.ddc_contrast" => Action::MonitorDdcContrast {
+            bus: required_non_empty_string(raw, "bus")?,
+            percent: raw["percent"].as_f64().unwrap_or(50.0),
+        },
+        "monitor.ddc_power" => Action::MonitorDdcPower {
+            bus: required_non_empty_string(raw, "bus")?,
+            state: required_non_empty_string(raw, "state")?,
+        },
+        "monitor.ddc_input" => Action::MonitorDdcInput {
+            bus: required_non_empty_string(raw, "bus")?,
+            input: required_non_empty_string(raw, "input")?,
+        },
         "system.thermal" => Action::SystemThermalGet,
         "system.cpu.frequency" => Action::SystemCpuFrequency,
         "system.cpu.governor" => Action::SystemCpuGovernor,

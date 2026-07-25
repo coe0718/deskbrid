@@ -230,6 +230,13 @@ pub async fn execute_action(
         | SystemPressure
         | StorageUsage { .. }
         | StorageScan { .. }
+        | DdcList
+        | DdcGetVcp { .. }
+        | DdcSetVcp { .. }
+        | MonitorDdcBrightness { .. }
+        | MonitorDdcContrast { .. }
+        | MonitorDdcPower { .. }
+        | MonitorDdcInput { .. }
         | SystemThermalGet
         | SystemCpuFrequency
         | SystemCpuGovernor

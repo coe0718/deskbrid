@@ -562,6 +562,15 @@ pub async fn dispatch_action_with_options(
         .await;
     }
 
+    // DDC/CI actions (#60) — I2C hardware control; no desktop backend required.
+    if let Some(ddc_future) = super::ddc_dispatch::dispatch_ddc(action.clone()) {
+        let result = with_action_timeout(&action, action_timeout_ms, ddc_future).await;
+        return action_response(
+            request_id, state, &action, peer_uid, seq, result, started, None,
+        )
+        .await;
+    }
+
     let backend_guard = state.backend.clone().read_owned().await;
     let backend = match backend_guard.as_ref() {
         Some(b) => b,

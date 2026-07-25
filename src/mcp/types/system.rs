@@ -201,6 +201,48 @@ pub struct StorageScanArgs {
     pub limit: Option<u32>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DdcBusCode {
+    #[schemars(description = "I2C bus number (e.g. 7 → /dev/i2c-7)")]
+    pub bus: String,
+    #[schemars(description = "VCP feature code in decimal (e.g. 16 = 0x10 brightness)")]
+    pub vcp_code: u16,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DdcBusCodeValue {
+    #[schemars(description = "I2C bus number (e.g. 7)")]
+    pub bus: String,
+    #[schemars(description = "VCP feature code in decimal (e.g. 16 = 0x10 brightness)")]
+    pub vcp_code: u16,
+    #[schemars(description = "Raw value to set (0 to monitor's maximum)")]
+    pub value: u16,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DdcBusPercent {
+    #[schemars(description = "I2C bus number (e.g. 7)")]
+    pub bus: String,
+    #[schemars(description = "Percent value 0.0..=100.0")]
+    pub percent: f64,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DdcBusState {
+    #[schemars(description = "I2C bus number (e.g. 7)")]
+    pub bus: String,
+    #[schemars(description = "Power state: on / off / sleep")]
+    pub state: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct DdcBusInput {
+    #[schemars(description = "I2C bus number (e.g. 7)")]
+    pub bus: String,
+    #[schemars(description = "Input source: hdmi1 / hdmi2 / dp / dp2 / usb-c")]
+    pub input: String,
+}
+
 // ── Desktop Settings ───────────────────────────────────────
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]

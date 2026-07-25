@@ -160,6 +160,13 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::SystemPressure
         | Action::StorageUsage { .. }
         | Action::StorageScan { .. }
+        | Action::DdcList
+        | Action::DdcGetVcp { .. }
+        | Action::DdcSetVcp { .. }
+        | Action::MonitorDdcBrightness { .. }
+        | Action::MonitorDdcContrast { .. }
+        | Action::MonitorDdcPower { .. }
+        | Action::MonitorDdcInput { .. }
         | Action::SystemThermalGet
         | Action::SystemCpuFrequency
         | Action::SystemCpuGovernor
