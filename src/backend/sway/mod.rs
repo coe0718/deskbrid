@@ -83,6 +83,7 @@ impl SwayBackend {
 
     fn apply_env(&self, cmd: &mut Command) {
         cmd.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        cmd.env("LC_ALL", "C");
         if let Some(ref sock) = self.sway_socket {
             cmd.env("SWAYSOCK", sock);
         }

@@ -71,6 +71,7 @@ impl CosmicBackend {
             .stderr(Stdio::piped())
             .stdout(Stdio::piped())
             .env("XDG_RUNTIME_DIR", &self.xdg_runtime)
+            .env("LC_ALL", "C")
             .env(
                 "WAYLAND_DISPLAY",
                 self.wl_socket.as_deref().unwrap_or("wayland-0"),
@@ -99,6 +100,7 @@ impl CosmicBackend {
             .stderr(Stdio::piped())
             .stdout(Stdio::piped())
             .env("XDG_RUNTIME_DIR", &self.xdg_runtime)
+            .env("LC_ALL", "C")
             .env(
                 "WAYLAND_DISPLAY",
                 self.wl_socket.as_deref().unwrap_or("wayland-0"),
@@ -139,6 +141,7 @@ impl CosmicBackend {
             .stdin(Stdio::null())
             .stderr(Stdio::piped());
         command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        command.env("LC_ALL", "C");
         if let Some(sock) = &self.wl_socket {
             command.env("WAYLAND_DISPLAY", sock);
         }

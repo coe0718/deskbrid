@@ -104,6 +104,7 @@ impl HyprBackend {
             .stdin(Stdio::null())
             .stderr(Stdio::piped());
         command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        command.env("LC_ALL", "C");
         if let Some(sock) = &self.wl_socket {
             command.env("WAYLAND_DISPLAY", sock);
         }
@@ -129,6 +130,7 @@ impl HyprBackend {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         command.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        command.env("LC_ALL", "C");
         if let Some(sock) = &self.wl_socket {
             command.env("WAYLAND_DISPLAY", sock);
         }

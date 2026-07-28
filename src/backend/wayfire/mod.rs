@@ -57,6 +57,7 @@ impl WayfireBackend {
 
     fn apply_env(&self, cmd: &mut Command) {
         cmd.env("XDG_RUNTIME_DIR", &self.xdg_runtime);
+        cmd.env("LC_ALL", "C");
     }
 
     async fn ydotool(&self, args: &[&str]) -> anyhow::Result<()> {
