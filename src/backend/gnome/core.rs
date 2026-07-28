@@ -35,6 +35,7 @@ impl GnomeBackend {
     pub(super) async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
         let output = Command::new(cmd)
             .args(args)
+            .env("LC_ALL", "C")
             .stdin(Stdio::null())
             .stderr(Stdio::piped())
             .output()
@@ -49,6 +50,7 @@ impl GnomeBackend {
     pub(super) async fn sh_ok(&self, cmd: &str, args: &[&str]) -> bool {
         Command::new(cmd)
             .args(args)
+            .env("LC_ALL", "C")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

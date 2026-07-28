@@ -101,6 +101,7 @@ impl X11Backend {
     pub(super) async fn sh(&self, cmd: &str, args: &[&str]) -> anyhow::Result<String> {
         let out = Command::new(cmd)
             .args(args)
+            .env("LC_ALL", "C")
             .stdin(Stdio::null())
             .stderr(Stdio::piped())
             .output()
