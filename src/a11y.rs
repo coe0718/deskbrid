@@ -251,7 +251,9 @@ pub async fn list_apps(limit: Option<usize>) -> anyhow::Result<Vec<Value>> {
     let conn = connect_a11y().await?;
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
 
-    let child_count = get_i32(&conn, DEST, &root, "ChildCount").await.min(limit as i32);
+    let child_count = get_i32(&conn, DEST, &root, "ChildCount")
+        .await
+        .min(limit as i32);
     let mut apps = Vec::new();
 
     for i in 0..child_count {

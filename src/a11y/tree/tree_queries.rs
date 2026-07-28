@@ -5,7 +5,11 @@
 use super::{AccessibilityAction, AccessibilityText, AccessibilityValue, Bounds};
 use zbus::zvariant::ObjectPath;
 
-pub(crate) async fn get_bounds(conn: &zbus::Connection, dest: &str, path: &ObjectPath<'_>) -> Option<Bounds> {
+pub(crate) async fn get_bounds(
+    conn: &zbus::Connection,
+    dest: &str,
+    path: &ObjectPath<'_>,
+) -> Option<Bounds> {
     let reply = conn
         .call_method(
             Some(dest),
@@ -192,7 +196,11 @@ pub(crate) async fn get_text(
     })
 }
 
-pub(crate) async fn check_editable(conn: &zbus::Connection, dest: &str, path: &ObjectPath<'_>) -> bool {
+pub(crate) async fn check_editable(
+    conn: &zbus::Connection,
+    dest: &str,
+    path: &ObjectPath<'_>,
+) -> bool {
     conn.call_method(
         Some(dest),
         path,
