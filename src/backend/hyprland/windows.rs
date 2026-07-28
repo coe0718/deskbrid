@@ -8,10 +8,21 @@ pub(super) async fn windows_list(
     let arr = json
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("expected JSON array"))?;
-    Ok(arr
+    let mut windows: Vec<protocol::WindowInfo> = arr
         .iter()
         .map(HyprBackend::hyprctl_client_to_window)
-        .collect())
+        .collect();
+    // focusHistoryID==0 is unreliable for special-workspace/dropterm windows;
+    // hyprctl activewindow is the authoritative focus source.
+    let active_addr = backend
+        .hyprctl_json(&["activewindow"])
+        .await
+        .ok()
+        .and_then(|w| w.get("address").and_then(|v| v.as_str()).map(String::from));
+    for w in &mut windows {
+        w.is_focused = active_addr.as_deref() == Some(w.id.as_str());
+    }
+    Ok(windows)
 }
 
 pub(super) async fn window_focus(backend: &HyprBackend, id: &str) -> anyhow::Result<()> {
