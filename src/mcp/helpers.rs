@@ -74,7 +74,9 @@ pub(super) async fn do_focused_window(state: &DaemonState) -> anyhow::Result<Val
     if let Some(windows) = result.as_array() {
         for w in windows {
             // protocol::WindowInfo serializes as is_focused; accept legacy aliases too
-            if w.get("is_focused").and_then(|v| v.as_bool()).unwrap_or(false)
+            if w.get("is_focused")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
                 || w.get("focused").and_then(|v| v.as_bool()).unwrap_or(false)
                 || w.get("active").and_then(|v| v.as_bool()).unwrap_or(false)
             {

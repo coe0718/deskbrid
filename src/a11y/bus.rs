@@ -90,7 +90,9 @@ pub async fn get_i32(conn: &Connection, dest: &str, path: &ObjectPath<'_>, prop:
         if let Ok(v) = body.deserialize::<i32>() {
             return Some(v);
         }
-        body.deserialize::<u32>().ok().and_then(|v| i32::try_from(v).ok())
+        body.deserialize::<u32>()
+            .ok()
+            .and_then(|v| i32::try_from(v).ok())
     })
     .unwrap_or(0)
 }
