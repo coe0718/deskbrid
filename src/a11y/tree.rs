@@ -79,30 +79,23 @@ pub async fn snapshot_tree(
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
 
     let mut nodes: Vec<AccessibilityNode> = Vec::new();
-    let mut queue: VecDeque<(ObjectPath<'static>, usize, Option<u32>)> = VecDeque::new();
-    queue.push_back((root.into_owned(), 0, None));
+    let mut queue: VecDeque<(String, ObjectPath<'static>, usize, Option<u32>)> = VecDeque::new();
+    queue.push_back((bus::DEST.to_string(), root.into_owned(), 0, None));
 
-    while let Some((path, depth, parent_idx)) = queue.pop_front() {
+    while let Some((dest, path, depth, parent_idx)) = queue.pop_front() {
         if nodes.len() >= max_nodes || depth > max_depth {
             continue;
         }
 
-        let info = element_json(&conn, &path).await;
+        let info = element_json(&conn, &dest, &path).await;
         let role_str = info["role"].as_str().unwrap_or("unknown");
         let name_str = info["name"].as_str().map(|s| s.to_string());
 
-        if let Some(filter) = app_name
-            && let Some(ref node_name) = name_str
-            && !node_name.to_lowercase().contains(&filter.to_lowercase())
-        {
-            continue;
-        }
-
-        let bounds = get_bounds(&conn, &path).await;
-        let actions = get_actions(&conn, &path).await;
-        let value = get_value(&conn, &path).await;
-        let text = get_text(&conn, &path, 500).await;
-        let has_editable = check_editable(&conn, &path).await;
+        let bounds = get_bounds(&conn, &dest, &path).await;
+        let actions = get_actions(&conn, &dest, &path).await;
+        let value = get_value(&conn, &dest, &path).await;
+        let text = get_text(&conn, &dest, &path, 500).await;
+        let has_editable = check_editable(&conn, &dest, &path).await;
 
         let child_count = info["child_count"].as_i64().unwrap_or(0) as i32;
         let states = info["states"]
@@ -136,8 +129,19 @@ pub async fn snapshot_tree(
 
         let cc = child_count.min(50);
         for i in 0..cc {
-            if let Some(cp) = child_path(&conn, &path, i).await {
-                queue.push_back((cp, depth + 1, Some(node_index)));
+            if let Some((cd, cp)) = child_path(&conn, &dest, &path, i).await {
+                // app_name filters which application subtree to traverse:
+                // apply it when descending from the desktop root to app roots.
+                if depth == 0
+                    && let Some(filter) = app_name
+                {
+                    let child_info = element_json(&conn, &cd, &cp).await;
+                    let child_name = child_info["name"].as_str().unwrap_or("");
+                    if !child_name.to_lowercase().contains(&filter.to_lowercase()) {
+                        continue;
+                    }
+                }
+                queue.push_back((cd, cp, depth + 1, Some(node_index)));
             }
         }
     }

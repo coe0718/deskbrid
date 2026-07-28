@@ -93,7 +93,7 @@ pub async fn click_element(object_ref: &str) -> anyhow::Result<serde_json::Value
     // Fallback: coordinate click via bounds
     let conn = bus::connect_a11y().await?;
     let obj_path: ObjectPath = ObjectPath::try_from(object_ref)?;
-    let bounds = super::tree::get_bounds(&conn, &obj_path).await;
+    let bounds = super::tree::get_bounds(&conn, DEST, &obj_path).await;
 
     if let Some(b) = bounds {
         let x = b.x + b.width / 2;
