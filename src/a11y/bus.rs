@@ -40,9 +40,9 @@ pub async fn connect_a11y() -> anyhow::Result<Connection> {
     Ok(conn.clone())
 }
 
-async fn get_str(conn: &Connection, path: &ObjectPath<'_>, prop: &str) -> String {
+async fn get_str(conn: &Connection, dest: &str, path: &ObjectPath<'_>, prop: &str) -> String {
     conn.call_method(
-        Some(DEST),
+        Some(dest),
         path,
         Some("org.freedesktop.DBus.Properties"),
         "Get",
@@ -52,15 +52,20 @@ async fn get_str(conn: &Connection, path: &ObjectPath<'_>, prop: &str) -> String
     .ok()
     .and_then(|r| {
         let body = r.body();
-        let val: zbus::zvariant::Value = body.deserialize().ok()?;
-        val.try_into().ok()
+        // Compliant peers variant-wrap the value; some at-spi2-atk adaptors
+        // return the bare value. Try 'v' first, then the raw payload.
+        if let Ok(val) = body.deserialize::<zbus::zvariant::Value>() {
+            let s: String = (&val).try_into().ok()?;
+            return Some(s);
+        }
+        body.deserialize::<String>().ok()
     })
     .unwrap_or_default()
 }
 
-pub async fn get_i32(conn: &Connection, path: &ObjectPath<'_>, prop: &str) -> i32 {
+pub async fn get_i32(conn: &Connection, dest: &str, path: &ObjectPath<'_>, prop: &str) -> i32 {
     conn.call_method(
-        Some(DEST),
+        Some(dest),
         path,
         Some("org.freedesktop.DBus.Properties"),
         "Get",
@@ -70,15 +75,29 @@ pub async fn get_i32(conn: &Connection, path: &ObjectPath<'_>, prop: &str) -> i3
     .ok()
     .and_then(|r| {
         let body = r.body();
-        let val: zbus::zvariant::Value = body.deserialize().ok()?;
-        val.try_into().ok()
+        // AT-SPI exposes some int properties as 'u' (e.g. Role) and others as
+        // 'i' (e.g. ChildCount); zvariant's TryInto is strict per-type.
+        if let Ok(val) = body.deserialize::<zbus::zvariant::Value>() {
+            return match &val {
+                zbus::zvariant::Value::I32(v) => Some(*v),
+                zbus::zvariant::Value::U32(v) => i32::try_from(*v).ok(),
+                zbus::zvariant::Value::I64(v) => i32::try_from(*v).ok(),
+                zbus::zvariant::Value::U64(v) => i32::try_from(*v).ok(),
+                _ => None,
+            };
+        }
+        // Non-compliant peers: bare int payload instead of 'v'.
+        if let Ok(v) = body.deserialize::<i32>() {
+            return Some(v);
+        }
+        body.deserialize::<u32>().ok().and_then(|v| i32::try_from(v).ok())
     })
     .unwrap_or(0)
 }
 
-async fn get_states(conn: &Connection, path: &ObjectPath<'_>) -> Vec<String> {
+async fn get_states(conn: &Connection, dest: &str, path: &ObjectPath<'_>) -> Vec<String> {
     conn.call_method(
-        Some(DEST),
+        Some(dest),
         path,
         Some("org.freedesktop.DBus.Properties"),
         "Get",
@@ -88,19 +107,27 @@ async fn get_states(conn: &Connection, path: &ObjectPath<'_>) -> Vec<String> {
     .ok()
     .and_then(|r| {
         let body = r.body();
-        let val: zbus::zvariant::Value = body.deserialize().ok()?;
-        let bits: Vec<u32> = val.try_into().ok()?;
-        Some(parse_states(&bits))
+        if let Ok(val) = body.deserialize::<zbus::zvariant::Value>() {
+            let bits: Vec<u32> = val.try_into().ok()?;
+            return Some(parse_states(&bits));
+        }
+        body.deserialize::<Vec<u32>>()
+            .ok()
+            .map(|bits| parse_states(&bits))
     })
     .unwrap_or_default()
 }
 
-pub async fn element_json(conn: &Connection, path: &ObjectPath<'_>) -> serde_json::Value {
-    let name = get_str(conn, path, "Name").await;
-    let role_id = get_i32(conn, path, "Role").await as u32;
-    let description = get_str(conn, path, "Description").await;
-    let child_count = get_i32(conn, path, "ChildCount").await;
-    let states = get_states(conn, path).await;
+pub async fn element_json(
+    conn: &Connection,
+    dest: &str,
+    path: &ObjectPath<'_>,
+) -> serde_json::Value {
+    let name = get_str(conn, dest, path, "Name").await;
+    let role_id = get_i32(conn, dest, path, "Role").await as u32;
+    let description = get_str(conn, dest, path, "Description").await;
+    let child_count = get_i32(conn, dest, path, "ChildCount").await;
+    let states = get_states(conn, dest, path).await;
 
     serde_json::json!({
         "name": name,
@@ -113,14 +140,19 @@ pub async fn element_json(conn: &Connection, path: &ObjectPath<'_>) -> serde_jso
     })
 }
 
+/// Resolve a child reference. AT-SPI returns `(so)` — the bus name owning the
+/// object plus its path on that connection. Callers MUST use the returned bus
+/// name as the destination for all subsequent calls on the child: accessible
+/// objects live on each application's own connection, not on the registry.
 pub async fn child_path(
     conn: &Connection,
+    dest: &str,
     parent: &ObjectPath<'_>,
     index: i32,
-) -> Option<ObjectPath<'static>> {
+) -> Option<(String, ObjectPath<'static>)> {
     let reply = conn
         .call_method(
-            Some(DEST),
+            Some(dest),
             parent,
             Some("org.a11y.atspi.Accessible"),
             "GetChildAtIndex",
@@ -130,6 +162,6 @@ pub async fn child_path(
         .ok()?;
 
     let body = reply.body();
-    let (_, cp): (zbus::zvariant::OwnedValue, ObjectPath) = body.deserialize().ok()?;
-    Some(cp.into_owned())
+    let (bus_name, cp): (String, ObjectPath) = body.deserialize().ok()?;
+    Some((bus_name, cp.into_owned()))
 }

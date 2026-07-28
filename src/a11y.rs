@@ -23,25 +23,25 @@ pub async fn tree(depth: Option<u32>) -> anyhow::Result<Value> {
     let max_depth = depth.unwrap_or(5).min(10) as usize;
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
 
-    let mut elements = vec![element_json(&conn, &root).await];
-    let mut queue: VecDeque<(ObjectPath<'static>, usize)> = VecDeque::new();
-    queue.push_back((root.into_owned(), 0));
+    let mut elements = vec![element_json(&conn, DEST, &root).await];
+    let mut queue: VecDeque<(String, ObjectPath<'static>, usize)> = VecDeque::new();
+    queue.push_back((DEST.to_string(), root.into_owned(), 0));
     const MAX_NODES: usize = 10_000;
 
-    while let Some((path, d)) = queue.pop_front() {
+    while let Some((dest, path, d)) = queue.pop_front() {
         if elements.len() >= MAX_NODES {
             break;
         }
         if d >= max_depth {
             continue;
         }
-        let cc = get_i32(&conn, &path, "ChildCount").await.min(50);
+        let cc = get_i32(&conn, &dest, &path, "ChildCount").await.min(50);
         for i in 0..cc {
-            if let Some(cp) = child_path(&conn, &path, i).await {
-                let mut info = element_json(&conn, &cp).await;
+            if let Some((cd, cp)) = child_path(&conn, &dest, &path, i).await {
+                let mut info = element_json(&conn, &cd, &cp).await;
                 info["depth"] = serde_json::json!(d + 1);
                 elements.push(info);
-                queue.push_back((cp, d + 1));
+                queue.push_back((cd, cp, d + 1));
             }
         }
     }
@@ -56,14 +56,14 @@ async fn find_all(
     role_filter: Option<&str>,
     name_filter: Option<&str>,
     max_depth: usize,
-) -> anyhow::Result<Vec<(String, serde_json::Value)>> {
+) -> anyhow::Result<Vec<(String, String, serde_json::Value)>> {
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
     let mut results = Vec::new();
-    let mut queue: VecDeque<(ObjectPath<'static>, usize)> = VecDeque::new();
-    queue.push_back((root.into_owned(), 0));
+    let mut queue: VecDeque<(String, ObjectPath<'static>, usize)> = VecDeque::new();
+    queue.push_back((DEST.to_string(), root.into_owned(), 0));
 
-    while let Some((path, d)) = queue.pop_front() {
-        let info = element_json(conn, &path).await;
+    while let Some((dest, path, d)) = queue.pop_front() {
+        let info = element_json(conn, &dest, &path).await;
 
         let role_ok = role_filter.is_none_or(|r| {
             info["role"]
@@ -77,14 +77,14 @@ async fn find_all(
         });
 
         if role_ok && name_ok {
-            results.push((path.to_string(), info));
+            results.push((dest.clone(), path.to_string(), info));
         }
 
         if d < max_depth {
-            let cc = get_i32(conn, &path, "ChildCount").await.min(50);
+            let cc = get_i32(conn, &dest, &path, "ChildCount").await.min(50);
             for i in 0..cc {
-                if let Some(cp) = child_path(conn, &path, i).await {
-                    queue.push_back((cp, d + 1));
+                if let Some((cd, cp)) = child_path(conn, &dest, &path, i).await {
+                    queue.push_back((cd, cp, d + 1));
                 }
             }
         }
@@ -107,12 +107,13 @@ pub async fn get_element(
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
     }
 
-    let (path, info) = results
+    let (dest, path, info) = results
         .get(idx as usize)
         .ok_or_else(|| anyhow::anyhow!("index {idx} out of range ({} matches)", results.len()))?;
 
     let mut result = info.clone();
     result["path"] = serde_json::json!(path);
+    result["bus_name"] = serde_json::json!(dest);
     Ok(result)
 }
 
@@ -130,7 +131,7 @@ pub async fn click_element(
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
     }
 
-    let (path, info) = results
+    let (dest, path, info) = results
         .get(idx as usize)
         .ok_or_else(|| anyhow::anyhow!("index {idx} out of range ({} matches)", results.len()))?;
 
@@ -138,7 +139,7 @@ pub async fn click_element(
 
     let action_count: i32 = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Action"),
             "GetActionCount",
@@ -159,7 +160,7 @@ pub async fn click_element(
 
     let action_name: String = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Action"),
             "GetName",
@@ -172,7 +173,7 @@ pub async fn click_element(
 
     let clicked: bool = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Action"),
             "DoAction",
@@ -205,7 +206,7 @@ pub async fn get_text(
         anyhow::bail!("no element found matching role={role:?} name={name:?}");
     }
 
-    let (path, info) = results
+    let (dest, path, info) = results
         .get(idx as usize)
         .ok_or_else(|| anyhow::anyhow!("index {idx} out of range ({} matches)", results.len()))?;
 
@@ -213,7 +214,7 @@ pub async fn get_text(
 
     let char_count: i32 = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Text"),
             "GetCharacterCount",
@@ -226,7 +227,7 @@ pub async fn get_text(
 
     let text: String = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Text"),
             "GetText",
@@ -250,21 +251,22 @@ pub async fn list_apps(limit: Option<usize>) -> anyhow::Result<Vec<Value>> {
     let conn = connect_a11y().await?;
     let root: ObjectPath = ObjectPath::try_from(ROOT)?;
 
-    let child_count = get_i32(&conn, &root, "ChildCount").await.min(limit as i32);
+    let child_count = get_i32(&conn, DEST, &root, "ChildCount").await.min(limit as i32);
     let mut apps = Vec::new();
 
     for i in 0..child_count {
-        if let Some(cp) = child_path(&conn, &root, i).await {
-            let mut info = element_json(&conn, &cp).await;
+        if let Some((bus_name, cp)) = child_path(&conn, DEST, &root, i).await {
+            let mut info = element_json(&conn, &bus_name, &cp).await;
             info["path"] = serde_json::json!(cp.as_str());
-            // Try to resolve PID via D-Bus
+            info["bus_name"] = serde_json::json!(bus_name.clone());
+            // Try to resolve PID via D-Bus (the reference bus name IS the connection)
             let pid: Option<u32> = conn
                 .call_method(
                     Some("org.freedesktop.DBus"),
                     "/org/freedesktop/DBus",
                     Some("org.freedesktop.DBus"),
                     "GetConnectionUnixProcessID",
-                    &(cp.as_str(),),
+                    &(bus_name,),
                 )
                 .await
                 .ok()
