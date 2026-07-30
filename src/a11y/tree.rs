@@ -17,6 +17,7 @@ pub struct AccessibilityNode {
     pub index: u32,
     pub parent_index: Option<u32>,
     pub depth: u32,
+    pub bus_name: String,
     pub object_ref: String,
     pub role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -112,7 +113,8 @@ pub async fn snapshot_tree(
             index: node_index,
             parent_index: parent_idx,
             depth: depth as u32,
-            object_ref: path.to_string(),
+            bus_name: dest.clone(),
+            object_ref: bus::encode_object_ref(&dest, &path),
             role: role_str.to_string(),
             name: name_str,
             description: info["description"].as_str().map(|s| s.to_string()),

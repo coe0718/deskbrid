@@ -1,21 +1,18 @@
 //! AT-SPI2 Value + EditableText get/set.
 
-use anyhow::Context;
 use serde_json::json;
-use zbus::zvariant::ObjectPath;
 
-use super::bus::{self, DEST};
+use super::bus;
 
 pub async fn set_element_value(object_ref: &str, value: &str) -> anyhow::Result<serde_json::Value> {
     let conn = bus::connect_a11y().await?;
-    let obj_path: ObjectPath =
-        ObjectPath::try_from(object_ref).context("invalid AT-SPI object path")?;
+    let (dest, obj_path) = bus::decode_object_ref(object_ref)?;
 
     // Try numeric value first
     if let Ok(num) = value.parse::<f64>() {
         let ok: bool = conn
             .call_method(
-                Some(DEST),
+                Some(dest.as_str()),
                 &obj_path,
                 Some("org.a11y.atspi.Value"),
                 "SetCurrentValue",
@@ -33,7 +30,7 @@ pub async fn set_element_value(object_ref: &str, value: &str) -> anyhow::Result<
     // Fall back to EditableText
     let ok: bool = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.EditableText"),
             "SetTextContents",
@@ -59,11 +56,11 @@ pub async fn get_element_text(
 ) -> anyhow::Result<serde_json::Value> {
     let max_chars = max_chars.unwrap_or(5000);
     let conn = bus::connect_a11y().await?;
-    let obj_path: ObjectPath = ObjectPath::try_from(object_ref)?;
+    let (dest, obj_path) = bus::decode_object_ref(object_ref)?;
 
     let char_count: i32 = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Text"),
             "GetCharacterCount",
@@ -76,7 +73,7 @@ pub async fn get_element_text(
 
     let content: String = if char_count > 0 {
         conn.call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Text"),
             "GetText",
@@ -92,7 +89,7 @@ pub async fn get_element_text(
 
     let caret_offset: i32 = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Text"),
             "GetCaretOffset",

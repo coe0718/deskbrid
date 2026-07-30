@@ -60,14 +60,19 @@ where
 
     // Spawn event forwarder: reads from broadcast and pushes matching events to this client
     let mut event_rx = state.event_tx.subscribe();
-    let (event_tx, mut event_rx_forward) = tokio::sync::mpsc::unbounded_channel::<String>();
+    // Keep the per-client queue bounded. A subscribed client that stops
+    // reading its socket must not turn the daemon's bounded broadcast channel
+    // into unbounded process memory through this forwarding hop.
+    const EVENT_FORWARD_CAPACITY: usize = 256;
+    let (event_tx, mut event_rx_forward) =
+        tokio::sync::mpsc::channel::<String>(EVENT_FORWARD_CAPACITY);
 
     tokio::spawn(async move {
         loop {
             match event_rx.recv().await {
                 Ok(evt) => {
                     if let Ok(json) = serde_json::to_string(&evt)
-                        && event_tx.send(json).is_err()
+                        && event_tx.send(json).await.is_err()
                     {
                         break;
                     }

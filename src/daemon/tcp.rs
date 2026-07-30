@@ -12,6 +12,8 @@ pub const TCP_EFFECTIVE_UID: u32 = 0xFFFF_FFFE;
 
 /// Max size of an auth message line (4KB).
 const MAX_AUTH_LINE: u64 = 4096;
+/// Maximum time a network client may hold a connection before completing auth.
+const AUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Read one newline-terminated line without buffering bytes after the newline.
 /// This preserves pipelined messages sent immediately after the auth line.
@@ -38,6 +40,23 @@ pub(crate) async fn read_limited_line<R: AsyncRead + Unpin>(
         }
     }
     String::from_utf8(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+}
+
+/// Read a bounded line within one overall deadline. This prevents a slow client
+/// from occupying a task and file descriptor indefinitely before authentication.
+pub(crate) async fn read_limited_line_with_timeout<R: AsyncRead + Unpin>(
+    reader: &mut R,
+    max_bytes: usize,
+    timeout: std::time::Duration,
+) -> std::io::Result<String> {
+    tokio::time::timeout(timeout, read_limited_line(reader, max_bytes))
+        .await
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "authentication deadline exceeded",
+            )
+        })?
 }
 
 /// Start a TCP listener on the given bind address. Authenticates with bearer token
@@ -76,7 +95,13 @@ async fn handle_tcp_connection(
     state: &DaemonState,
 ) -> anyhow::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
-    let auth_line = match read_limited_line(&mut reader, MAX_AUTH_LINE as usize).await {
+    let auth_line = match read_limited_line_with_timeout(
+        &mut reader,
+        MAX_AUTH_LINE as usize,
+        AUTH_TIMEOUT,
+    )
+    .await
+    {
         Ok(line) => line,
         Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
             warn!("TCP auth message invalid or too large: {}", e);
@@ -231,5 +256,17 @@ mod tests {
         let err = read_limited_line(&mut server, 4).await.unwrap_err();
 
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test]
+    async fn read_limited_line_times_out_stalled_auth() {
+        let (_client, mut server) = tokio::io::duplex(64);
+
+        let err =
+            read_limited_line_with_timeout(&mut server, 16, std::time::Duration::from_millis(10))
+                .await
+                .unwrap_err();
+
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
     }
 }

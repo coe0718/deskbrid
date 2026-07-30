@@ -8,6 +8,27 @@ use super::util::{parse_states, role_name};
 pub(crate) const DEST: &str = "org.a11y.atspi.Registry";
 pub const ROOT: &str = "/org/a11y/atspi/accessible/root";
 
+/// Encode the destination and object path into the opaque reference returned to
+/// clients. `|` is not valid in either a D-Bus bus name or object path.
+pub fn encode_object_ref(dest: &str, path: &ObjectPath<'_>) -> String {
+    format!("{dest}|{path}")
+}
+
+/// Decode a reference produced by `encode_object_ref`. Bare object paths from
+/// older clients remain valid and target the AT-SPI registry destination.
+pub fn decode_object_ref(reference: &str) -> anyhow::Result<(String, ObjectPath<'static>)> {
+    let (dest, path) = reference.split_once('|').unwrap_or((DEST, reference));
+    if dest.is_empty() {
+        anyhow::bail!("AT-SPI object reference has an empty bus name");
+    }
+    zbus::names::BusName::try_from(dest)
+        .map_err(|error| anyhow::anyhow!("invalid AT-SPI bus name: {error}"))?;
+    let path = ObjectPath::try_from(path)
+        .map_err(|error| anyhow::anyhow!("invalid AT-SPI object path: {error}"))?
+        .into_owned();
+    Ok((dest.to_string(), path))
+}
+
 /// Cached AT-SPI2 connection — created once, cloned cheaply thereafter.
 static A11Y_CONN: OnceCell<Connection> = OnceCell::const_new();
 
@@ -166,4 +187,27 @@ pub async fn child_path(
     let body = reply.body();
     let (bus_name, cp): (String, ObjectPath) = body.deserialize().ok()?;
     Some((bus_name, cp.into_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn object_ref_round_trips_application_destination() {
+        let path = ObjectPath::try_from("/org/a11y/atspi/accessible/42").unwrap();
+        let encoded = encode_object_ref(":1.234", &path);
+        let (dest, decoded) = decode_object_ref(&encoded).unwrap();
+
+        assert_eq!(dest, ":1.234");
+        assert_eq!(decoded.as_str(), path.as_str());
+    }
+
+    #[test]
+    fn legacy_bare_object_ref_targets_registry() {
+        let (dest, path) = decode_object_ref(ROOT).unwrap();
+
+        assert_eq!(dest, DEST);
+        assert_eq!(path.as_str(), ROOT);
+    }
 }

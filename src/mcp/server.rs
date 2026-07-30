@@ -2712,10 +2712,11 @@ pub async fn run_mcp(state: Arc<DaemonState>) -> anyhow::Result<()> {
 
 /// Run the MCP server over TCP transport.
 pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> anyhow::Result<()> {
-    use crate::daemon::tcp::{constant_time_eq, read_limited_line};
+    use crate::daemon::tcp::{constant_time_eq, read_limited_line_with_timeout};
     use rmcp::service::serve_server;
     use tokio::net::TcpListener;
     const MAX_AUTH_LINE: u64 = 4096;
+    const AUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
     let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&addr).await?;
     tracing::info!("Deskbrid MCP (rmcp) TCP server listening on {addr} (token auth)");
@@ -2725,7 +2726,13 @@ pub async fn run_mcp_tcp(state: Arc<DaemonState>, port: u16, token: String) -> a
         let token = token.clone();
         tokio::spawn(async move {
             let (mut reader, writer) = tokio::io::split(stream);
-            let auth_line = match read_limited_line(&mut reader, MAX_AUTH_LINE as usize).await {
+            let auth_line = match read_limited_line_with_timeout(
+                &mut reader,
+                MAX_AUTH_LINE as usize,
+                AUTH_TIMEOUT,
+            )
+            .await
+            {
                 Ok(line) => line,
                 Err(e) => {
                     tracing::error!("MCP auth read error from {peer}: {e}");

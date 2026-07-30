@@ -60,6 +60,43 @@ pub async fn dispatch_action_with_options(
     options: RequestOptions,
     session_id: &str,
 ) -> serde_json::Value {
+    dispatch_action_with_context(
+        request_id, action, state, peer_uid, seq, options, session_id, false,
+    )
+    .await
+}
+
+/// Resume an action that has already passed the explicit confirmation gate.
+///
+/// The action still traverses permissions, profiles, rate limits, auto-suspend,
+/// timeout, specialized routing, and audit handling. Only creation of a second
+/// confirmation request is skipped.
+pub(crate) async fn dispatch_confirmed_action(
+    request_id: &str,
+    action: Action,
+    state: &DaemonState,
+    peer_uid: u32,
+    seq: u64,
+    options: RequestOptions,
+    session_id: &str,
+) -> serde_json::Value {
+    dispatch_action_with_context(
+        request_id, action, state, peer_uid, seq, options, session_id, true,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn dispatch_action_with_context(
+    request_id: &str,
+    action: Action,
+    state: &DaemonState,
+    peer_uid: u32,
+    seq: u64,
+    options: RequestOptions,
+    session_id: &str,
+    confirmation_approved: bool,
+) -> serde_json::Value {
     let started = std::time::Instant::now();
     let action_timeout_ms = effective_timeout_ms(&action, state, &options);
     let session_profile = state
@@ -196,6 +233,30 @@ pub async fn dispatch_action_with_options(
         }
     }
 
+    // A dry run validates the complete authorization path but must not mutate
+    // execution state (auto-suspend windows, macro recordings, or registry
+    // activity). Audit/rate-limit accounting intentionally still applies.
+    if options.dry_run {
+        let data = serde_json::json!({
+            "dry_run": true,
+            "would_execute": true,
+            "action_type": action.action_type(),
+            "timeout_ms": action_timeout_ms,
+            "permissions": {"allowed": true}
+        });
+        return action_response(
+            request_id,
+            state,
+            &action,
+            peer_uid,
+            seq,
+            Ok(data),
+            started,
+            Some(true),
+        )
+        .await;
+    }
+
     if let Some(event) = state.auto_suspend.record_action(session_id, &action).await {
         let reason = match &event {
             crate::protocol::DeskbridEvent::AgentSuspended { reason, .. } => reason.clone(),
@@ -234,32 +295,13 @@ pub async fn dispatch_action_with_options(
         }
     }
 
-    if options.dry_run {
-        let data = serde_json::json!({
-            "dry_run": true,
-            "would_execute": true,
-            "action_type": action.action_type(),
-            "timeout_ms": action_timeout_ms,
-            "permissions": {"allowed": true}
-        });
-        return action_response(
-            request_id,
-            state,
-            &action,
-            peer_uid,
-            seq,
-            Ok(data),
-            started,
-            Some(true),
-        )
-        .await;
-    }
-
     // Handle confirmation gate (#37)
     let profile_requires_confirmation = state
         .permissions
         .profile_requires_confirmation(session_profile.as_deref(), &action);
-    if options.require_confirmation == Some(true) || profile_requires_confirmation {
+    if !confirmation_approved
+        && (options.require_confirmation == Some(true) || profile_requires_confirmation)
+    {
         let confirm_id = state.next_confirmation_id();
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

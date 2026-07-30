@@ -2,7 +2,7 @@ use crate::DaemonState;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
 use super::{
@@ -41,6 +41,8 @@ const MAX_REQUEST_LINE: u64 = 65536;
 const MAX_HEADER_LINE: u64 = 8192;
 /// Max number of HTTP headers.
 const MAX_HEADERS: usize = 100;
+/// One overall deadline for receiving the request line and all headers.
+const REQUEST_HEADER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 pub(crate) async fn build_page(state: &DaemonState, show_screenshot: bool) -> String {
     let mut page = HTML_PAGE
@@ -135,6 +137,39 @@ fn parse_request_line(line: &str) -> Option<(&str, &str)> {
     Some((method, path))
 }
 
+fn authorization_header_value(line: &str) -> Option<&str> {
+    let (name, value) = line.split_once(':')?;
+    name.trim()
+        .eq_ignore_ascii_case("authorization")
+        .then(|| value.trim())
+}
+
+fn bearer_token_matches(header: Option<&str>, expected: &str) -> bool {
+    let Some(header) = header else { return false };
+    let mut parts = header.split_whitespace();
+    let (Some(scheme), Some(presented), None) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    scheme.eq_ignore_ascii_case("bearer")
+        && !presented.is_empty()
+        && crate::daemon::tcp::constant_time_eq(presented, expected)
+}
+
+async fn read_http_line_before<R: AsyncBufRead + Unpin>(
+    reader: &mut R,
+    line: &mut String,
+    deadline: tokio::time::Instant,
+) -> std::io::Result<usize> {
+    tokio::time::timeout_at(deadline, reader.read_line(line))
+        .await
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "request header deadline exceeded",
+            )
+        })?
+}
+
 // S3 (Vex review): emit a strict Content-Security-Policy on every
 // response so a compromised template can't exfiltrate data to
 // arbitrary origins. `default-src 'self'` covers img/style/script;
@@ -146,7 +181,15 @@ const CSP_HEADER: &str = "Content-Security-Policy: default-src 'self'; script-sr
 fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
     let status_text = match status {
         200 => "OK",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        408 => "Request Timeout",
         404 => "Not Found",
+        414 => "URI Too Long",
+        429 => "Too Many Requests",
+        431 => "Request Header Fields Too Large",
+        500 => "Internal Server Error",
+        503 => "Service Unavailable",
         _ => "Internal Server Error",
     };
     let header = format!(
@@ -249,10 +292,17 @@ pub(crate) async fn handle_request(
     // Cap the total request body at 64KB — prevents memory exhaustion.
     let mut limited = read_half.take(MAX_REQUEST_LINE + MAX_HEADERS as u64 * MAX_HEADER_LINE);
     let mut reader = BufReader::new(&mut limited);
+    let header_deadline = tokio::time::Instant::now() + REQUEST_HEADER_TIMEOUT;
 
     let mut request_line = String::new();
-    if reader.read_line(&mut request_line).await.is_err() {
-        send_error(&mut write_half, 400, "Bad Request").await;
+    if let Err(error) = read_http_line_before(&mut reader, &mut request_line, header_deadline).await
+    {
+        let (status, message) = if error.kind() == std::io::ErrorKind::TimedOut {
+            (408, "Request Timeout")
+        } else {
+            (400, "Bad Request")
+        };
+        send_error(&mut write_half, status, message).await;
         return Ok(());
     }
     if request_line.len() > MAX_REQUEST_LINE as usize {
@@ -267,11 +317,16 @@ pub(crate) async fn handle_request(
     let mut header_count = 0;
     loop {
         let mut line = String::new();
-        match reader.read_line(&mut line).await {
+        match read_http_line_before(&mut reader, &mut line, header_deadline).await {
             Ok(0) => break,
             Ok(_) => {}
-            Err(_) => {
-                send_error(&mut write_half, 400, "Bad Request").await;
+            Err(error) => {
+                let (status, message) = if error.kind() == std::io::ErrorKind::TimedOut {
+                    (408, "Request Timeout")
+                } else {
+                    (400, "Bad Request")
+                };
+                send_error(&mut write_half, status, message).await;
                 return Ok(());
             }
         }
@@ -282,8 +337,8 @@ pub(crate) async fn handle_request(
             let _ = send_error(&mut write_half, 431, "Request Header Fields Too Large").await;
             return Ok(());
         }
-        if let Some(rest) = line.to_ascii_lowercase().strip_prefix("authorization:") {
-            auth_header = Some(rest.trim().to_string());
+        if let Some(value) = authorization_header_value(&line) {
+            auth_header = Some(value.to_string());
         }
         header_count += 1;
         if header_count > MAX_HEADERS {
@@ -295,28 +350,11 @@ pub(crate) async fn handle_request(
     // Auth gate: if a token is configured, the request MUST carry
     // `Authorization: Bearer <token>`. This is what W2 was missing —
     // the dashboard was reachable to anyone on the network.
-    if let Some(expected) = token.as_deref() {
-        let presented = auth_header
-            .as_deref()
-            .and_then(|h| {
-                h.strip_prefix("Bearer ")
-                    .or_else(|| h.strip_prefix("bearer "))
-            })
-            .unwrap_or("");
-        // Constant-time-ish compare (good enough; not for crypto secrets).
-        let presented_bytes = presented.as_bytes();
-        let expected_bytes = expected.as_bytes();
-        let ok = presented_bytes.len() == expected_bytes.len()
-            && presented_bytes
-                .iter()
-                .zip(expected_bytes.iter())
-                .fold(0u8, |acc, (a, b)| acc | (a ^ b))
-                == 0
-            && !presented.is_empty();
-        if !ok {
-            let _ = send_error(&mut write_half, 401, "Unauthorized").await;
-            return Ok(());
-        }
+    if let Some(expected) = token.as_deref()
+        && !bearer_token_matches(auth_header.as_deref(), expected)
+    {
+        let _ = send_error(&mut write_half, 401, "Unauthorized").await;
+        return Ok(());
     }
 
     // SSE event stream — polls cards every 3 seconds
@@ -458,4 +496,40 @@ pub(crate) async fn handle_request(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn authorization_parser_preserves_case_sensitive_token() {
+        let header = authorization_header_value("AuThOrIzAtIoN: bEaReR MixedCase123\r\n");
+        assert_eq!(header, Some("bEaReR MixedCase123"));
+        assert!(bearer_token_matches(header, "MixedCase123"));
+        assert!(!bearer_token_matches(header, "mixedcase123"));
+    }
+
+    #[test]
+    fn http_response_uses_matching_reason_phrase() {
+        let response = String::from_utf8(http_response(401, "text/plain", b"no")).unwrap();
+        assert!(response.starts_with("HTTP/1.1 401 Unauthorized\r\n"));
+
+        let response = String::from_utf8(http_response(503, "text/plain", b"no")).unwrap();
+        assert!(response.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
+    }
+
+    #[tokio::test]
+    async fn request_header_read_times_out() {
+        let (_writer, reader) = tokio::io::duplex(64);
+        let mut reader = BufReader::new(reader);
+        let mut line = String::new();
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(10);
+
+        let error = read_http_line_before(&mut reader, &mut line, deadline)
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+    }
 }

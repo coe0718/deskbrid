@@ -58,7 +58,7 @@ pub struct A11yTree {
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]
 pub struct A11yAction {
-    #[schemars(description = "AT-SPI object reference path")]
+    #[schemars(description = "Opaque AT-SPI object_ref returned by get_accessibility_tree")]
     pub object_ref: String,
     #[schemars(description = "Action name (e.g. 'click', 'activate')")]
     pub action_name: Option<String>,
@@ -66,7 +66,7 @@ pub struct A11yAction {
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]
 pub struct SetValue {
-    #[schemars(description = "AT-SPI object reference path")]
+    #[schemars(description = "Opaque AT-SPI object_ref returned by get_accessibility_tree")]
     pub object_ref: String,
     #[schemars(description = "Value to set")]
     pub value: String,
@@ -74,7 +74,7 @@ pub struct SetValue {
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]
 pub struct GetText {
-    #[schemars(description = "AT-SPI object reference path")]
+    #[schemars(description = "Opaque AT-SPI object_ref returned by get_accessibility_tree")]
     pub object_ref: String,
     #[schemars(description = "Maximum characters to return")]
     pub max_chars: Option<i32>,
@@ -82,7 +82,7 @@ pub struct GetText {
 
 #[derive(Deserialize, schemars::JsonSchema, Default)]
 pub struct ClickElement {
-    #[schemars(description = "AT-SPI object reference path")]
+    #[schemars(description = "Opaque AT-SPI object_ref returned by get_accessibility_tree")]
     pub object_ref: String,
 }
 

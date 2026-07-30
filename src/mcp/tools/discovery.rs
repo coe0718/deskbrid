@@ -95,22 +95,22 @@ pub fn tools() -> Vec<Value> {
         t(
             "perform_action",
             "Perform an AT-SPI action on an accessibility element.",
-            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"AT-SPI object reference path"},"action_name":{"type":"string","description":"Action name (click, activate, toggle)"}},"required":["object_ref"]}),
+            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"Opaque AT-SPI object_ref returned by get_accessibility_tree"},"action_name":{"type":"string","description":"Action name (click, activate, toggle)"}},"required":["object_ref"]}),
         ),
         t(
             "set_element_value",
             "Set the text value of an AT-SPI editable element.",
-            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"AT-SPI object reference path"},"value":{"type":"string","description":"Value to set"}},"required":["object_ref","value"]}),
+            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"Opaque AT-SPI object_ref returned by get_accessibility_tree"},"value":{"type":"string","description":"Value to set"}},"required":["object_ref","value"]}),
         ),
         t(
             "get_element_text",
             "Get the text content from an AT-SPI element.",
-            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"AT-SPI object reference path"},"max_chars":{"type":"integer","description":"Maximum characters"}},"required":["object_ref"]}),
+            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"Opaque AT-SPI object_ref returned by get_accessibility_tree"},"max_chars":{"type":"integer","description":"Maximum characters"}},"required":["object_ref"]}),
         ),
         t(
             "click_element",
             "Click an AT-SPI element using its bounds.",
-            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"AT-SPI object reference path"}},"required":["object_ref"]}),
+            json!({"type":"object","properties":{"object_ref":{"type":"string","description":"Opaque AT-SPI object_ref returned by get_accessibility_tree"}},"required":["object_ref"]}),
         ),
     ]
 }

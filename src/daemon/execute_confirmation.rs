@@ -57,18 +57,45 @@ pub async fn execute_confirmation(
                     "reason": suspension.reason,
                 }));
             }
-            let backend = state.backend.read().await;
-            let backend_ref = backend.as_ref().map(|b| b.as_ref());
-            let result = match backend_ref {
-                Some(b) => crate::daemon::execute::execute_action(entry.action, b, state).await,
-                None => Ok(serde_json::json!({
-                    "error": "no desktop backend available",
-                    "headless": true,
-                })),
-            };
-            match result {
-                Ok(value) => Ok(json!({"status": "confirmed", "id": id, "result": value})),
-                Err(e) => Ok(json!({"status": "confirmed", "id": id, "error": e.to_string()})),
+            // Re-enter the normal dispatcher so specialized/backend-free
+            // actions, current permissions, rate limits, timeouts, safety
+            // automation, and auditing all remain in force. The internal
+            // confirmed path skips only creation of another confirmation.
+            // Box the recursive dispatcher hop: the dispatcher also routes
+            // confirmation-management actions back into this module.
+            let response = Box::pin(crate::daemon::dispatch::dispatch_confirmed_action(
+                &entry.request_id,
+                entry.action,
+                state,
+                entry.peer_uid,
+                entry.seq,
+                entry.options,
+                &entry.session_id,
+            ))
+            .await;
+            if response.get("status").and_then(Value::as_str) == Some("ok") {
+                Ok(json!({
+                    "status": "confirmed",
+                    "id": id,
+                    "result": response.get("data").cloned().unwrap_or(Value::Null),
+                }))
+            } else {
+                let error = response
+                    .get("error")
+                    .and_then(|value| value.get("message"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        response
+                            .get("error")
+                            .map(Value::to_string)
+                            .unwrap_or_else(|| response.to_string())
+                    });
+                Ok(json!({
+                    "status": "confirmed",
+                    "id": id,
+                    "error": error,
+                }))
             }
         }
         Action::DenyAction { id } => {

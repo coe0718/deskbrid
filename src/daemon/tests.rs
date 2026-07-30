@@ -203,6 +203,50 @@ async fn dry_run_validates_permissions_without_backend() {
 }
 
 #[tokio::test]
+async fn dry_run_does_not_mutate_auto_suspend_state() {
+    let state = isolated_state();
+
+    let focus = Action::WindowsFocus("0x1".to_string());
+    let response = dispatch::dispatch_action_with_options(
+        "dry-run-focus",
+        focus.clone(),
+        &state,
+        1000,
+        1,
+        crate::protocol::RequestOptions {
+            dry_run: true,
+            timeout_ms: None,
+            require_confirmation: None,
+        },
+        "dry-run-session",
+    )
+    .await;
+    assert_eq!(response["status"], "ok");
+
+    // Ten real observations are still within the auto-suspend burst limit.
+    // Before the fix, the dry run consumed an eleventh slot and suspended on
+    // the final call below.
+    for _ in 0..10 {
+        assert!(
+            state
+                .auto_suspend
+                .record_action("dry-run-session", &focus)
+                .await
+                .is_none()
+        );
+    }
+
+    assert!(
+        state
+            .auto_suspend
+            .is_suspended("dry-run-session")
+            .await
+            .is_none(),
+        "simulated actions must not suspend a session"
+    );
+}
+
+#[tokio::test]
 async fn agent_registry_actions_work_without_desktop_backend() {
     let mut state = isolated_state();
     state.permissions = crate::permissions::Permissions::default_safe();
@@ -665,6 +709,39 @@ async fn confirmation_deny_removes_from_queue() {
         !state.pending_confirmations.contains_key(&confirm_id),
         "denied confirmation should be removed"
     );
+}
+
+#[tokio::test]
+async fn confirmation_resumes_through_specialized_dispatch() {
+    let state = isolated_state();
+
+    let pending = dispatch::dispatch_action_with_options(
+        "confirm-agent-list",
+        Action::AgentList,
+        &state,
+        1000,
+        1,
+        crate::protocol::RequestOptions {
+            dry_run: false,
+            timeout_ms: Some(250),
+            require_confirmation: Some(true),
+        },
+        "confirmation-session",
+    )
+    .await;
+    let confirm_id = pending["confirmation_id"].as_str().unwrap().to_string();
+
+    let confirmed = crate::daemon::execute_confirmation::execute_confirmation(
+        Action::ConfirmAction { id: confirm_id },
+        &state,
+        1000,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(confirmed["status"], "confirmed");
+    assert!(confirmed["result"]["agents"].is_array());
+    assert!(state.pending_confirmations.is_empty());
 }
 
 #[tokio::test]

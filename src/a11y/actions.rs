@@ -1,22 +1,19 @@
 //! AT-SPI2 action invocation: click, activate, focus.
 
-use anyhow::Context;
 use serde_json::json;
-use zbus::zvariant::ObjectPath;
 
-use super::bus::{self, DEST};
+use super::bus;
 
 pub async fn perform_action(
     object_ref: &str,
     action_name: Option<&str>,
 ) -> anyhow::Result<serde_json::Value> {
     let conn = bus::connect_a11y().await?;
-    let obj_path: ObjectPath =
-        ObjectPath::try_from(object_ref).context("invalid AT-SPI object path")?;
+    let (dest, obj_path) = bus::decode_object_ref(object_ref)?;
 
     let action_count: i32 = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Action"),
             "GetActionCount",
@@ -36,7 +33,7 @@ pub async fn perform_action(
         for i in 0..action_count {
             let an: String = conn
                 .call_method(
-                    Some(DEST),
+                    Some(dest.as_str()),
                     &obj_path,
                     Some("org.a11y.atspi.Action"),
                     "GetName",
@@ -58,7 +55,7 @@ pub async fn perform_action(
 
     let success: bool = conn
         .call_method(
-            Some(DEST),
+            Some(dest.as_str()),
             &obj_path,
             Some("org.a11y.atspi.Action"),
             "DoAction",
@@ -92,8 +89,8 @@ pub async fn click_element(object_ref: &str) -> anyhow::Result<serde_json::Value
 
     // Fallback: coordinate click via bounds
     let conn = bus::connect_a11y().await?;
-    let obj_path: ObjectPath = ObjectPath::try_from(object_ref)?;
-    let bounds = super::tree::get_bounds(&conn, DEST, &obj_path).await;
+    let (dest, obj_path) = bus::decode_object_ref(object_ref)?;
+    let bounds = super::tree::get_bounds(&conn, &dest, &obj_path).await;
 
     if let Some(b) = bounds {
         let x = b.x + b.width / 2;
