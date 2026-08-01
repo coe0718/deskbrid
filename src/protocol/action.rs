@@ -285,6 +285,17 @@ pub enum Action {
     NotificationClearHistory,
     NotificationWatch,
 
+    // Speech / Text-to-Speech
+    SpeechSpeak {
+        text: String,
+        voice: Option<String>,
+        rate: Option<i32>,
+        pitch: Option<i32>,
+        engine: Option<String>,
+        wait: bool,
+    },
+    SpeechStop,
+    SpeechListVoices,
     // System
     SystemInfo,
     SystemCapabilities,

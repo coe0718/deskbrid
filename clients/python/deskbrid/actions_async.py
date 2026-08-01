@@ -182,6 +182,28 @@ class AsyncActionsMixin:
             "notification.send",
             {"app_name": "deskbrid", "title": title, "body": body, "urgency": urgency},
         )
+
+    async def speak(
+        self,
+        text: str,
+        *,
+        voice: str | None = None,
+        rate: int | None = None,
+        pitch: int | None = None,
+        engine: str | None = None,
+        wait: bool = False,
+    ) -> dict:
+        params: dict[str, object] = {"text": text, "wait": wait}
+        for key, value in (("voice", voice), ("rate", rate), ("pitch", pitch), ("engine", engine)):
+            if value is not None:
+                params[key] = value
+        return await self._request("speech.speak", params)
+
+    async def stop_speech(self) -> dict:
+        return await self._request("speech.stop")
+
+    async def list_speech_voices(self) -> dict:
+        return await self._request("speech.voices")
         return int(response.get("notification_id", 0))
 
     async def list_windows(self) -> list[WindowInfo]:

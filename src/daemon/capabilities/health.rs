@@ -179,5 +179,7 @@ async fn insert_linux_domain_deps(deps: &mut serde_json::Map<String, serde_json:
         check_in_path("bluetoothctl").await,
     );
     deps.insert("pactl".to_string(), check_in_path("pactl").await);
+    deps.insert("spd-say".to_string(), check_in_path("spd-say").await);
+    deps.insert("espeak-ng".to_string(), check_in_path("espeak-ng").await);
     deps.insert("find".to_string(), check_in_path("find").await);
 }

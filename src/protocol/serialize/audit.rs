@@ -59,6 +59,31 @@ pub(super) fn serialize_audit(action: &Action, id: &str) -> serde_json::Value {
             json!({"type": "notification.action", "id": id, "notification_id": notification_id, "action_key": action_key})
         }
         Action::NotificationClearHistory => json!({"type": "notification.clear_history", "id": id}),
+        Action::SpeechSpeak {
+            text,
+            voice,
+            rate,
+            pitch,
+            engine,
+            ..
+        } => {
+            let mut obj = json!({"type": "speech.speak", "id": id, "text": text});
+            if let Some(voice) = voice {
+                obj["voice"] = json!(voice);
+            }
+            if let Some(rate) = rate {
+                obj["rate"] = json!(rate);
+            }
+            if let Some(pitch) = pitch {
+                obj["pitch"] = json!(pitch);
+            }
+            if let Some(engine) = engine {
+                obj["engine"] = json!(engine);
+            }
+            obj
+        }
+        Action::SpeechStop => json!({"type": "speech.stop", "id": id}),
+        Action::SpeechListVoices => json!({"type": "speech.voices", "id": id}),
         Action::NotificationWatch => json!({"type": "notification.watch", "id": id}),
         _ => serde_json::json!({"error": "not a audit action"}),
     }

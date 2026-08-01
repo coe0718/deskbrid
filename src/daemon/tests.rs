@@ -1260,3 +1260,110 @@ async fn client_cannot_bypass_confirmation_for_high_risk_actions() {
         "expected confirmation-required or error, got status={status}, response={response}"
     );
 }
+
+#[test]
+fn speech_actions_parse_and_serialize_round_trip() {
+    // speech.speak with all params
+    let (id, action) = Action::from_json(
+        r#"{"type":"speech.speak","id":"s1","text":"hello world","voice":"female1","rate":170,"pitch":60,"engine":"espeak-ng","wait":true}"#,
+    )
+    .unwrap();
+    assert_eq!(id, "s1");
+    match action {
+        Action::SpeechSpeak {
+            text,
+            voice,
+            rate,
+            pitch,
+            engine,
+            wait,
+        } => {
+            assert_eq!(text, "hello world");
+            assert_eq!(voice.as_deref(), Some("female1"));
+            assert_eq!(rate, Some(170));
+            assert_eq!(pitch, Some(60));
+            assert_eq!(engine.as_deref(), Some("espeak-ng"));
+            assert!(wait);
+        }
+        other => panic!("expected SpeechSpeak, got {other:?}"),
+    }
+
+    // serialized envelope round-trips the type + params
+    let (_, action) =
+        Action::from_json(r#"{"type":"speech.speak","id":"s2","text":"hi","wait":false}"#).unwrap();
+    let json = Action::to_json(&action).unwrap();
+    assert!(json.contains("\"type\":\"speech.speak\""), "{json}");
+    assert!(json.contains("\"text\":\"hi\""), "{json}");
+
+    // stop + voices
+    let (_, action) = Action::from_json(r#"{"type":"speech.stop","id":"s3"}"#).unwrap();
+    assert!(matches!(action, Action::SpeechStop));
+    let (_, action) = Action::from_json(r#"{"type":"speech.voices","id":"s4"}"#).unwrap();
+    assert!(matches!(action, Action::SpeechListVoices));
+
+    // action_type strings
+    assert_eq!(Action::SpeechStop.action_type(), "speech.stop");
+    assert_eq!(Action::SpeechListVoices.action_type(), "speech.voices");
+}
+
+#[tokio::test]
+async fn speech_speak_spawns_stub_tts_and_stop_cancels() {
+    // Create a stub `spd-say` that logs its args instead of talking.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let bin = dir.path().join("spd-say");
+    let log = dir.path().join("spd.log");
+    std::fs::write(
+        &bin,
+        format!("#!/bin/sh\necho \"$@\" >> \"{}\"\n", log.display()),
+    )
+    .expect("write stub");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod stub");
+    }
+
+    // PATH is process-global; serialize against other tests that spawn
+    // subprocesses by briefly shadowing it (stub only adds spd-say).
+    static PATH_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = PATH_LOCK.lock().unwrap();
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    // SAFETY: test-only global env mutation, serialized via PATH_LOCK.
+    unsafe { std::env::set_var("PATH", format!("{}:{}", dir.path().display(), old_path)) };
+
+    let state = mock_protocol_state().await;
+
+    let speak = dispatch_json_to_mock(
+        &state,
+        1,
+        r#"{"type":"speech.speak","id":"speak","text":"hello agent","rate":150}"#,
+    )
+    .await;
+    // SAFETY: test-only global env mutation, serialized via PATH_LOCK.
+    unsafe { std::env::set_var("PATH", &old_path) };
+
+    assert_eq!(speak["status"], "ok", "{speak}");
+    assert_eq!(speak["data"]["engine"], "spd-say");
+    assert_eq!(speak["data"]["spoken"], false);
+    let speech_id = speak["data"]["speech_id"].as_str().unwrap();
+    assert!(!speech_id.is_empty());
+
+    // Stub should have been invoked with the text and rate flag. The child
+    // runs async to us, so poll briefly for the log to appear.
+    let mut logged = String::new();
+    for _ in 0..50 {
+        if let Ok(contents) = std::fs::read_to_string(&log) {
+            logged = contents;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(!logged.is_empty(), "stub spd-say never wrote its log");
+    assert!(logged.contains("hello agent"), "{logged}");
+    assert!(logged.contains("-r"), "{logged}");
+    assert!(logged.contains("150"), "{logged}");
+    // speech.stop should report it cancelled the tracked child.
+    let stop = dispatch_json_to_mock(&state, 2, r#"{"type":"speech.stop","id":"stop"}"#).await;
+    assert_eq!(stop["status"], "ok", "{stop}");
+    assert!(stop["data"]["stopped"].as_u64().unwrap_or(0) >= 1, "{stop}");
+}

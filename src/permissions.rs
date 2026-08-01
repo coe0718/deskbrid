@@ -254,6 +254,7 @@ impl Permissions {
                         "input.layouts.*".to_string(),
                         "input.layout.*".to_string(),
                         "notification.*".to_string(),
+                        "speech.*".to_string(),
                         "monitor.*".to_string(),
                         "search.*".to_string(),
                         "agent.*".to_string(),

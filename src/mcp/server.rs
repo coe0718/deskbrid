@@ -1328,6 +1328,71 @@ impl McpServer {
     }
 
     #[tool(
+        name = "speak",
+        description = "Speak text aloud via text-to-speech (spd-say/espeak-ng).",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn speak(
+        &self,
+        Parameters(SpeechSpeak {
+            text,
+            voice,
+            rate,
+            pitch,
+            engine,
+            wait,
+        }): Parameters<SpeechSpeak>,
+    ) -> String {
+        let mut args = json!({"text": text, "wait": wait});
+        if let Some(v) = voice {
+            args["voice"] = json!(v);
+        }
+        if let Some(r) = rate {
+            args["rate"] = json!(r);
+        }
+        if let Some(p) = pitch {
+            args["pitch"] = json!(p);
+        }
+        if let Some(e) = engine {
+            args["engine"] = json!(e);
+        }
+        self.exec("speech.speak", args).await
+    }
+
+    #[tool(
+        name = "stop_speech",
+        description = "Cancel all text-to-speech utterances started by deskbrid.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn stop_speech(&self) -> String {
+        self.exec("speech.stop", json!({})).await
+    }
+
+    #[tool(
+        name = "list_speech_voices",
+        description = "List available text-to-speech voices.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn list_speech_voices(&self) -> String {
+        self.exec("speech.voices", json!({})).await
+    }
+
+    #[tool(
         name = "portal_screenshot",
         description = "Take a screenshot via the XDG Desktop Portal (cross-Wayland compatible).",
         annotations(

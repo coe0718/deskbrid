@@ -287,3 +287,22 @@ pub struct NotificationClose {
 fn default_urgency() -> String {
     "normal".into()
 }
+
+// ── Speech / Text-to-Speech ────────────────────────────────
+
+#[derive(Deserialize, schemars::JsonSchema, Default)]
+pub struct SpeechSpeak {
+    #[schemars(description = "Text to speak aloud")]
+    pub text: String,
+    #[schemars(description = "Voice: espeak-ng voice name or spd-say voice type (e.g. female1)")]
+    pub voice: Option<String>,
+    #[schemars(description = "Speech rate in words per minute")]
+    pub rate: Option<i32>,
+    #[schemars(description = "Voice pitch")]
+    pub pitch: Option<i32>,
+    #[schemars(description = "TTS engine: 'auto' (default), 'spd-say', or 'espeak-ng'")]
+    pub engine: Option<String>,
+    #[schemars(description = "Block until the utterance finishes (default: false)")]
+    #[serde(default)]
+    pub wait: bool,
+}

@@ -73,6 +73,9 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
         | Command::Portal { .. } => screenshot::into_screenshot_action(cmd),
 
         Command::Notify { .. }
+        | Command::Speak { .. }
+        | Command::SpeakStop
+        | Command::SpeakVoices
         | Command::System { .. }
         | Command::Service { .. }
         | Command::Journal { .. }
@@ -91,7 +94,6 @@ pub fn into_action(cmd: Command) -> anyhow::Result<protocol::Action> {
 
         Command::Terminal { .. } | Command::Wait { .. } => terminal::into_terminal_action(cmd),
 
-        // Sessions
         Command::Session { cmd } => Ok(match cmd {
             SessionCmd::Create {
                 name,

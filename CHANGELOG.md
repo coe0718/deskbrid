@@ -1,5 +1,9 @@
 ## Unreleased
 
+### 🔊 Speech / Text-to-Speech
+- `speech.speak` / `speech.stop` / `speech.voices` — audible output channel via `spd-say` (speech-dispatcher) with `espeak-ng` fallback; `engine`, `voice`, `rate`, `pitch`, `wait` params; tracked children cancelled by `speech.stop`.
+- Wired through protocol parse/serialize, daemon dispatch, `system.health` dependency checks, CLI (`deskbrid speak` / `speak-stop` / `speak-voices`), MCP (`speak`, `stop_speech`, `list_speech_voices`), Python client, permissions allow-list, and docs.
+
 ### 👁️ Vision Element Detection (#41)
 - Completed `vision.find_element` with normalized cross-correlation, overlap suppression, coarse-to-fine matching for full-screen performance, and exact-coordinate refinement.
 - Completed `vision.find_by_text` with shared Tesseract TSV parsing and multi-word bounding boxes.

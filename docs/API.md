@@ -758,6 +758,53 @@ Close a notification by ID.
 
 ---
 
+
+---
+
+## Speech (Text-to-Speech)
+
+### `speech.speak`
+
+Speak text aloud through the desktop's speech engine (`spd-say`/`espeak-ng`).
+
+**Request:**
+```json
+{"type": "speech.speak", "id": "req-20",
+ "text": "Build finished, all tests passed.", "rate": 160, "wait": false}
+```
+
+`engine` is `"auto"` (default), `"spd-say"`, or `"espeak-ng"`. `voice` is an
+espeak-ng voice name or a spd-say voice type (`male1`…`male3`, `female1`…`female3`,
+`child_male`, `child_female`). With `wait: true` the response includes
+`duration_ms` and the call blocks until the utterance finishes.
+
+**Response (fire-and-forget):**
+```json
+{
+  "type": "response", "id": "req-20", "seq": 20, "status": "ok",
+  "data": { "speech_id": "7be9cd19-…", "engine": "spd-say", "pid": 4711, "spoken": false }
+}
+```
+
+### `speech.stop`
+
+Cancel all utterances started by deskbrid.
+
+**Request:** `{"type": "speech.stop", "id": "req-21"}`
+
+**Response:** `{ "type": "response", "status": "ok", "data": { "stopped": 2 } }`
+
+### `speech.voices`
+
+List available voices.
+
+**Request:** `{"type": "speech.voices", "id": "req-22"}`
+
+**Response:** `{ "type": "response", "status": "ok", "data": { "engine": "espeak-ng", "voices": [ … ], "count": 100 } }`
+
+---
+
+## System
 ## System
 
 ### `system.info`

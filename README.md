@@ -209,6 +209,14 @@ deskbrid input keyboard type "Hello!"  # Type text
 | `network.*` | WiFi status/connect |
 | `bluetooth.*` | Device pairing/control |
 
+### Speech & Audio Output
+
+| Action | Description |
+|--------|-------------|
+| `speech.speak` | Speak text aloud (spd-say / espeak-ng) |
+| `speech.stop` | Cancel in-flight utterances |
+| `speech.voices` | List available voices |
+
 ## Protocol
 
 Deskbrid uses JSON-over-Unix-socket. See [PROTOCOL.md](docs/PROTOCOL.md) for the complete specification.
@@ -294,7 +302,7 @@ After a session restart (`/reset`), the agent gains 100+ Linux desktop control t
 
 Configure the MCP server with command `deskbrid mcp` — the protocol is standard JSON-RPC over stdio.
 
-**Available MCP tools (100+ across 20 categories):** windows, input, clipboard, screenshots, system, AT-SPI accessibility, terminal PTY, files, audio, network, MPRIS, print, notifications, keyring, rules, confirmation, agent messaging, search, macros, capabilities.
+**Available MCP tools (100+ across 20 categories):** windows, input, clipboard, screenshots, system, AT-SPI accessibility, terminal PTY, files, audio, network, MPRIS, print, notifications, keyring, rules, confirmation, agent messaging, search, macros, capabilities, speech.
 
 ## Compared to Alternatives
 

@@ -301,7 +301,33 @@ pub enum Command {
         cmd: NotifyCmd,
     },
 
-    // ─── System ─────────────────────────────────────────
+    // ─── Speech / Text-to-Speech ───────────────────────
+    #[command(name = "speak")]
+    Speak {
+        /// Text to speak aloud
+        text: String,
+        /// Voice: espeak-ng voice name or spd-say voice type (e.g. female1)
+        #[arg(long)]
+        voice: Option<String>,
+        /// Speech rate in words per minute
+        #[arg(long)]
+        rate: Option<i32>,
+        /// Voice pitch
+        #[arg(long)]
+        pitch: Option<i32>,
+        /// TTS engine: "auto" (default), "spd-say", or "espeak-ng"
+        #[arg(long)]
+        engine: Option<String>,
+        /// Block until the utterance finishes
+        #[arg(long)]
+        wait: bool,
+    },
+    /// Cancel all speech started by deskbrid
+    #[command(name = "speak-stop")]
+    SpeakStop,
+    /// List available text-to-speech voices
+    #[command(name = "speak-voices")]
+    SpeakVoices,
     #[command(name = "system")]
     System {
         #[command(subcommand)]

@@ -142,6 +142,26 @@ class SyncActionsMixin:
     def notify(self, title: str, body: str = "", urgency: str = "normal") -> int:
         return self._loop.submit(self._client.notify(title, body, urgency)).result()
 
+    def speak(
+        self,
+        text: str,
+        *,
+        voice: str | None = None,
+        rate: int | None = None,
+        pitch: int | None = None,
+        engine: str | None = None,
+        wait: bool = False,
+    ) -> dict:
+        return self._loop.submit(
+            self._client.speak(text, voice=voice, rate=rate, pitch=pitch, engine=engine, wait=wait)
+        ).result()
+
+    def stop_speech(self) -> dict:
+        return self._loop.submit(self._client.stop_speech()).result()
+
+    def list_speech_voices(self) -> dict:
+        return self._loop.submit(self._client.list_speech_voices()).result()
+
     def list_windows(self) -> list[WindowInfo]:
         return self._loop.submit(self._client.list_windows()).result()
 

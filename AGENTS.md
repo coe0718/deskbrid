@@ -38,6 +38,7 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **Terminal** — PTY sessions
 - **Files** — search, read, write, watch
 - **Notifications** — send, dismiss, history
+- **Speech** — text-to-speech via spd-say/espeak-ng (`speech.speak`, `speech.stop`, `speech.voices`)
 - **Keyboard Layouts** — list, switch, add, remove
 - **Desktop Settings** — gsettings read/write, schema discovery (GNOME, KDE, X11, Hyprland, Sway, COSMIC, Labwc, Niri, Wayfire)
 - **Backlight** — list, get, set brightness via sysfs (all backends)

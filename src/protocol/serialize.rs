@@ -21,6 +21,7 @@ mod process;
 mod rules;
 mod screenshot;
 mod sessions;
+mod speech;
 mod system;
 mod vision;
 mod watch;
@@ -117,6 +118,11 @@ pub fn to_json(action: &Action) -> anyhow::Result<String> {
         | Action::NotificationAction { .. }
         | Action::NotificationClearHistory
         | Action::NotificationWatch => audit::serialize_audit(action, &id),
+
+        // Speech / Text-to-Speech
+        Action::SpeechSpeak { .. } | Action::SpeechStop | Action::SpeechListVoices => {
+            speech::serialize_speech(action, &id)
+        }
 
         // System / Network
         Action::SystemInfo

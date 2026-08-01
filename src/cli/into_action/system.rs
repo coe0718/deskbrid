@@ -28,6 +28,23 @@ pub fn into_system_action(cmd: Command) -> anyhow::Result<Action> {
             NotifyCmd::Watch => Action::NotificationWatch,
         },
 
+        Command::Speak {
+            text,
+            voice,
+            rate,
+            pitch,
+            engine,
+            wait,
+        } => Action::SpeechSpeak {
+            text,
+            voice,
+            rate,
+            pitch,
+            engine,
+            wait,
+        },
+        Command::SpeakStop => Action::SpeechStop,
+        Command::SpeakVoices => Action::SpeechListVoices,
         Command::System { cmd } => match cmd {
             SystemCmd::Info => Action::SystemInfo,
             SystemCmd::Idle => Action::SystemIdle,

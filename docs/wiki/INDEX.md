@@ -57,6 +57,7 @@ Full feature documentation by domain — every action, parameter, and example:
 | Services | `service.list`, `service.start`, `service.stop`, `service.status` | [Services](features/systemd_units_journal_and_timers.md) |
 | Sessions | `session.list`, `session.switch`, `session.lock`, `session.logout` | [Sessions](features/sessions.md) |
 | System | `system.info`, `system.health`, `system.power`, `system.pressure`, `system.idle`, `system.confinement`, `system.sessions`, `system.lock_session`, `system.switch_user`, `system.inhibit`, `system.release_inhibit`, `system.thermal`, `system.cpu_frequency`, `system.cpu_governor`, `system.set_cpu_governor`, `system.elevate`, `system.check_auth`, `system.capabilities` | [System](features/system.md) |
+| Speech | `speech.speak`, `speech.stop`, `speech.voices` | [Speech](features/speech.md) |
 | System Tray | `tray.menu`, `tray.action` | [System Tray](features/system-tray.md) |
 | Terminal PTY | `terminal.create`, `terminal.write`, `terminal.read`, `terminal.kill` | [Terminal](features/terminal_pty.md) |
 | Unified Search | `search.query` | [Unified Search](features/search.md) |

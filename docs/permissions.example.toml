@@ -164,6 +164,11 @@ allow = [
     "notification.clear_history",
     "notification.watch",
 
+
+    # --- Speech (text-to-speech) ---
+    "speech.speak",
+    "speech.stop",
+    "speech.voices",
     # --- System ---
     "system.info",
     "system.capabilities",

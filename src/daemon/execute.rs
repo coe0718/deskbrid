@@ -28,6 +28,7 @@ use super::execute_notification;
 use super::execute_process;
 use super::execute_screenshot;
 use super::execute_search;
+use super::execute_speech;
 use super::execute_stubs;
 use super::execute_system;
 use super::execute_system::execute_dbus_call;
@@ -154,6 +155,10 @@ pub async fn execute_action(
         | NotificationClearHistory
         | NotificationWatch => {
             execute_notification::execute_notification(action, backend, state).await?
+        }
+
+        SpeechSpeak { .. } | SpeechStop | SpeechListVoices => {
+            execute_speech::execute_speech(action, backend, state).await?
         }
 
         ProcessList

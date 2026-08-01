@@ -31,6 +31,7 @@ mod screenshot;
 mod search;
 mod secrets;
 mod sessions;
+mod speech;
 mod system;
 mod watch;
 mod windows;
@@ -146,6 +147,9 @@ pub fn from_json_with_options(line: &str) -> anyhow::Result<(String, Action, Req
         s if s.starts_with("audit.") => audit::parse_audit(&raw, &id, s)?,
 
         // Notifications
+
+        // Speech / Text-to-Speech
+        s if s.starts_with("speech.") => speech::parse_speech(&raw, &id, s)?,
         s if s.starts_with("notification.") => notifications::parse_notifications(&raw, &id, s)?,
 
         // System

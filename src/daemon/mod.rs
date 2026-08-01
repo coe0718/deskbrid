@@ -49,6 +49,7 @@ mod execute_screenshot;
 mod execute_search;
 pub(crate) mod execute_secrets;
 mod execute_sessions;
+mod execute_speech;
 mod execute_stubs;
 mod execute_system;
 mod execute_vision;
