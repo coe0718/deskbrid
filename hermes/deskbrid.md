@@ -3,11 +3,11 @@ name: deskbrid
 description: Linux desktop HAL for AI agents — keyboard, mouse, clipboard, screenshots, windows, 9 backends (GNOME, KDE, Hyprland, COSMIC, Sway, Niri, Wayfire, Labwc, X11), MCP server, AT-SPI2 a11y, browser CDP, file ops, MPRIS, systemd, terminal.
 ---
 
-# Deskbrid Desktop Control (v1.3.0)
+# Deskbrid Desktop Control (v1.4.0)
 
 Deskbrid is a Unix socket daemon + MCP server that wraps GNOME Shell, KDE, Hyprland, COSMIC, DBus, NetworkManager, BlueZ, PipeWire, and Wayland utilities into a JSON protocol. Any agent or script can control the full desktop.
 
-**v1.3.0 highlights:** Interactive REPL mode (#48) with tab completion over 250+ action types. Power profile management (#57) via D-Bus (Performance/Balanced/Power-saver). Battery charge threshold control (#56) via sysfs (daily/travel/full profiles). Locale/timezone get/set (#127) — reads resolve from process env + system files, writes to /etc/locale.conf + /etc/localtime symlink, with DBus change-event monitoring. Environment variable get/set/persist (#116) — read process env, set for spawned children, persist to ~/.config/environment.d/ deskbrid.conf. Full presence system (#39/#138) — idle detection, locked state, presence.returned/presence.locked/presence.unlocked push events. System time_of_day (#40). Vision action stubs (#41). 22 commits · 60 files · +6,680 −1,463 since v1.2.0.
+**v1.4.0 highlights:** Vision subsystem complete (#41) — `vision.find_element`, `vision.find_by_text`, `vision.detect_state` for pixel-level desktop awareness. Text-to-speech output channel (`speech.speak`, `speech.stop`, `speech.voices`) via spd-say/espeak-ng. Storage monitoring (#95) — disk usage and filesystem scan. DDC/CI monitor control (#60) — brightness, contrast, input source, and power state over I2C without compositor dependency. AT-SPI accessibility fixes — repaired child resolution and property parsing (@lz37, #26). Audio parsing hardened with C locale. Daemon-wide hardening from repo audit. 14 commits · 87 files · +5,158 −1,043 since v1.3.0.
 
 **v0.12.1 highlights:** Async safety release — all blocking `std::fs` and `std::process::Command` calls in async execution paths converted to `tokio::fs`/`tokio::process::Command`. Path sandbox (`expand_path`) applied to `print-file` (prevents agent path traversal). 30+ blocking calls eliminated across 14 files. Claude code review catch.
 

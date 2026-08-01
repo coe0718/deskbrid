@@ -1,16 +1,39 @@
-## Unreleased
+## v1.4.0 — Vision, Storage & DDC/CI
 
-### 🔊 Speech / Text-to-Speech
-- `speech.speak` / `speech.stop` / `speech.voices` — audible output channel via `spd-say` (speech-dispatcher) with `espeak-ng` fallback; `engine`, `voice`, `rate`, `pitch`, `wait` params; tracked children cancelled by `speech.stop`.
-- Wired through protocol parse/serialize, daemon dispatch, `system.health` dependency checks, CLI (`deskbrid speak` / `speak-stop` / `speak-voices`), MCP (`speak`, `stop_speech`, `list_speech_voices`), Python client, permissions allow-list, and docs.
+**14 commits · 87 files · +5,158 −1,043 since v1.3.0**
+
+Feature release: vision subsystem complete, text-to-speech output, storage monitoring, DDC/CI monitor control, and community AT-SPI/audio fixes from @lz37 (#26).
 
 ### 👁️ Vision Element Detection (#41)
-- Completed `vision.find_element` with normalized cross-correlation, overlap suppression, coarse-to-fine matching for full-screen performance, and exact-coordinate refinement.
-- Completed `vision.find_by_text` with shared Tesseract TSV parsing and multi-word bounding boxes.
-- Completed `vision.detect_state` with color-region, text-presence, and template-presence checks.
+- **4960d0d** — Completed `vision.find_element` with normalized cross-correlation, overlap suppression, coarse-to-fine matching for full-screen performance, and exact-coordinate refinement.
+- **4960d0d** — Completed `vision.find_by_text` with shared Tesseract TSV parsing and multi-word bounding boxes.
+- **4960d0d** — Completed `vision.detect_state` with color-region, text-presence, and template-presence checks.
+- **17e42fa** — Audited and hardened vision implementation.
+- **e99d7a2** — Trimmed vision dependency features.
+- **c82dc3d** — Serialized environment-mutating tests for vision.
 - Wired all three actions through protocol parsing, permissions, and MCP, including file-backed headless execution.
 - Installer and CI now provision Tesseract plus English trained data.
-- Added focused vision/OCR tests and split the implementation into bounded modules.
+
+### 🔊 Speech / Text-to-Speech
+- **0c0ab15** — `speech.speak` / `speech.stop` / `speech.voices` — audible output channel via `spd-say` (speech-dispatcher) with `espeak-ng` fallback; `engine`, `voice`, `rate`, `pitch`, `wait` params; tracked children cancelled by `speech.stop`.
+- Wired through protocol parse/serialize, daemon dispatch, `system.health` dependency checks, CLI, MCP, Python client, permissions, and docs.
+
+### 💾 Storage Monitoring (#95)
+- **dd699ae** — `storage.usage` / `storage.scan` — filesystem usage stats and directory scanning over Unix socket.
+
+### 🖥️ DDC/CI Monitor Control (#60)
+- **3daba41** — `monitor.ddc_list`, `monitor.ddc_getvcp`, `monitor.ddc_setvcp`, `monitor.ddc_brightness`, `monitor.ddc_contrast`, `monitor.ddc_power`, `monitor.ddc_input` — brightness, contrast, input source, and power state over I2C without compositor dependency. Backend-free dispatch pattern.
+
+### 🛡️ Daemon Hardening
+- **1be21ed** — Whole-repository hardening audit.
+
+### 🔧 Fixes
+- **e78ee9f** — Corrected focused window detection (@lz37, #26).
+- **c09f438** — Repaired AT-SPI child resolution and property parsing (@lz37, #26).
+- **b8f4152** — Forced C locale for pactl; fixed volume parsing and default resolution (@lz37, #26).
+- **0d78ade** — Kept WiFi connect wait off async runtime.
+- **e386b40** — Fixed CI clippy: collapsible_if + range_contains.
+- **6f68f47** — Cargo fmt.
 
 ## v1.3.0 — REPL, Power Profiles & Environment Control
 
