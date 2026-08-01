@@ -34,6 +34,9 @@ echo '{"type":"windows.list","id":"2"}' | nc -U $XDG_RUNTIME_DIR/deskbrid.sock -
 - **System** — info, battery, idle, power management, pressure (PSI)
 - **Audio** — volume, mute, sink management
 - **Network & Bluetooth** — WiFi, device pairing
+- **Vision** — element detection, text recognition, state detection via Tesseract OCR (`vision.find_element`, `vision.find_by_text`, `vision.detect_state`)
+- **Storage** — disk usage stats and filesystem scanning (`storage.usage`, `storage.scan`)
+- **Monitor DDC/CI** — brightness, contrast, input source, power over I2C without compositor
 - **MPRIS** — media player control
 - **Terminal** — PTY sessions
 - **Files** — search, read, write, watch
