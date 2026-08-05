@@ -131,7 +131,9 @@ detect_de() {
     echo "kde"
   elif [[ "$session" == *"gnome"* || "$session" == *"budgie"* ]]; then
     echo "gnome"
-  elif [[ "$session" == *"xfce"* || "$session" == *"cinnamon"* || "$session" == *"mate"* || "$session" == *"i3"* || "$session" == *"sway"* || "$session" == *"openbox"* ]]; then
+  elif [[ "$session" == *"sway"* ]]; then
+    echo "wayland-generic"
+  elif [[ "$session" == *"xfce"* || "$session" == *"cinnamon"* || "$session" == *"mate"* || "$session" == *"i3"* || "$session" == *"openbox"* ]]; then
     echo "x11"
   elif [[ -n "$WAYLAND_DISPLAY" ]]; then
     echo "wayland-generic"
