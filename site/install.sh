@@ -132,7 +132,7 @@ detect_de() {
   elif [[ "$session" == *"gnome"* || "$session" == *"budgie"* ]]; then
     echo "gnome"
   elif [[ "$session" == *"sway"* ]]; then
-    echo "wayland-generic"
+    echo "sway"
   elif [[ "$session" == *"xfce"* || "$session" == *"cinnamon"* || "$session" == *"mate"* || "$session" == *"i3"* || "$session" == *"openbox"* ]]; then
     echo "x11"
   elif [[ -n "$WAYLAND_DISPLAY" ]]; then
@@ -156,6 +156,7 @@ declare -A apt_map=(
   ["gnome"]="grim wl-clipboard python3-gi gstreamer1.0-tools gstreamer1.0-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
+  ["sway"]="grim wl-clipboard ydotool"
   ["x11"]="xdotool wmctrl xclip imagemagick xprintidle"
   ["wayland-generic"]="grim wl-clipboard"
 )
@@ -164,6 +165,7 @@ declare -A pacman_map=(
   ["gnome"]="grim wl-clipboard python-gobject gstreamer gst-plugin-pipewire xdg-desktop-portal xdg-desktop-portal-gnome"
   ["hyprland"]="grim wl-clipboard ydotool hyprland"
   ["kde"]="spectacle imagemagick ydotool qt6-tools"
+  ["sway"]="grim wl-clipboard ydotool"
   ["x11"]="xdotool wmctrl xclip imagemagick xprintidle"
   ["wayland-generic"]="grim wl-clipboard"
 )
