@@ -50,7 +50,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 notify = { version = "7", features = ["macos_kqueue"] }
 
 # MCP server (Model Context Protocol)
-rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "2", features = ["server", "transport-io", "macros"] }
 schemars = "1"
 
 # COSMIC desktop environment (Wayland protocol client)
